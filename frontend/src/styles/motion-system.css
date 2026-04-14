@@ -1,0 +1,86 @@
+.motion-page,
+.motion-section,
+.motion-list-item,
+.motion-panel,
+.motion-card,
+.motion-stat,
+.motion-timeline-item {
+  will-change: transform, opacity, filter;
+}
+
+.motion-page {
+  position: relative;
+  isolation: isolate;
+}
+
+.motion-card,
+.motion-panel,
+.motion-stat,
+.motion-timeline-item {
+  position: relative;
+}
+
+.motion-card::before,
+.motion-panel::before,
+.motion-stat::before,
+.motion-timeline-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.motion-card:hover::before,
+.motion-panel:hover::before,
+.motion-stat:hover::before,
+.motion-timeline-item:hover::before {
+  opacity: 1;
+}
+
+.motion-card::before,
+.motion-panel::before {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--motion-card-accent, var(--motion-panel-accent, var(--accent))) 12%, transparent), transparent 42%);
+}
+
+.motion-stat::before,
+.motion-timeline-item::before {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--motion-stat-accent, var(--motion-timeline-accent, var(--accent))) 10%, transparent), transparent 38%);
+}
+
+.motion-drawer-shell,
+.motion-modal-shell {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.motion-drawer,
+.motion-modal {
+  pointer-events: auto;
+}
+
+.motion-tooltip {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .motion-page,
+  .motion-section,
+  .motion-list-item,
+  .motion-panel,
+  .motion-card,
+  .motion-stat,
+  .motion-timeline-item {
+    will-change: auto;
+  }
+}

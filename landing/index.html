@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Prymal - Your AI-Powered Team</title>
+  <meta name="description" content="Prymal is an instinct-led AI operations team for agencies, owner-led businesses, and service companies." />
+  <meta name="description" content="13 specialised AI agents. Shared memory. Automated workflows. The operating system for your business." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #07090F;
+      --surface:   #0C0F1A;
+      --surface-2: #111520;
+      --border:    #161B2E;
+      --border-2:  #1E2438;
+      --text:      #E8E8E0;
+      --muted:     #6B7280;
+      --accent:    #00FFD1;
+      --accent-dim:#00FFD130;
+      --ff-display:'Syne', sans-serif;
+      --ff-mono:   'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--ff-mono);
+      font-size: 14px;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── UTILITIES ───────────────────────────────── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    .tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: var(--ff-mono); font-size: 10px; letter-spacing: 2.5px;
+      color: var(--accent); border: 1px solid var(--accent-dim);
+      padding: 4px 10px; border-radius: 2px; text-transform: uppercase;
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent); color: #07090F;
+      font-family: var(--ff-mono); font-size: 12px; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase;
+      padding: 14px 28px; border: none; border-radius: 3px;
+      cursor: pointer; text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .btn-primary:hover { background: #00e8bc; transform: translateY(-1px); }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: var(--text);
+      font-family: var(--ff-mono); font-size: 12px;
+      letter-spacing: 2px; text-transform: uppercase;
+      padding: 13px 24px; border: 1px solid var(--border-2);
+      border-radius: 3px; cursor: pointer; text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    .btn-ghost:hover { border-color: var(--text); }
+    .waitlist-panel {
+      border: 1px solid var(--border-2);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border-radius: 20px;
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .waitlist-form {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .waitlist-form input {
+      flex: 1 1 260px;
+      min-height: 48px;
+      padding: 0 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border-2);
+      background: var(--surface);
+      color: var(--text);
+      font-family: var(--ff-mono);
+    }
+    .waitlist-status {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ── GRID BG ─────────────────────────────────── */
+    .grid-bg {
+      position: absolute; inset: 0; pointer-events: none;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 30%, transparent 100%);
+      opacity: 0.4;
+    }
+
+    /* ── NAV ─────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      border-bottom: 1px solid var(--border);
+      background: rgba(7,9,15,0.85);
+      backdrop-filter: blur(16px);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 24px; max-width: 1200px; margin: 0 auto;
+    }
+    .logo {
+      font-family: var(--ff-display); font-weight: 800; font-size: 22px;
+      letter-spacing: 6px; color: var(--text); text-decoration: none;
+    }
+    .logo span { color: var(--accent); }
+    .nav-links {
+      display: flex; align-items: center; gap: 32px;
+      list-style: none;
+    }
+    .nav-links a {
+      font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--muted); text-decoration: none;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .nav-login {
+      font-size: 11px; letter-spacing: 1.5px; color: var(--muted);
+      text-decoration: none; transition: color 0.15s;
+    }
+    .nav-login:hover { color: var(--text); }
+
+    /* ── HERO ────────────────────────────────────── */
+    #hero {
+      position: relative; min-height: 100vh;
+      display: flex; align-items: center;
+      padding-top: 80px; overflow: hidden;
+    }
+    .hero-glow {
+      position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 600px;
+      background: radial-gradient(ellipse, #00FFD108 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-inner {
+      position: relative; z-index: 2;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 60px; align-items: center;
+      padding: 80px 0;
+    }
+    .hero-label {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 24px;
+    }
+    .hero-label::before {
+      content: ''; display: block;
+      width: 24px; height: 1px; background: var(--accent);
+    }
+    .hero-label span {
+      font-size: 10px; letter-spacing: 3px; color: var(--accent); text-transform: uppercase;
+    }
+    h1 {
+      font-family: var(--ff-display); font-weight: 800;
+      font-size: clamp(36px, 4.5vw, 64px); line-height: 1.05;
+      letter-spacing: -1px; margin-bottom: 24px;
+    }
+    h1 em { font-style: normal; color: var(--accent); }
+    .hero-sub {
+      font-size: 15px; line-height: 1.8; color: var(--muted);
+      max-width: 480px; margin-bottom: 36px;
+    }
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .hero-stats {
+      display: flex; gap: 32px; margin-top: 48px;
+      padding-top: 32px; border-top: 1px solid var(--border);
+    }
+    .stat-item {}
+    .stat-num {
+      font-family: var(--ff-display); font-size: 28px; font-weight: 800;
+      color: var(--text);
+    }
+    .stat-label { font-size: 10px; letter-spacing: 2px; color: var(--muted); margin-top: 2px; }
+
+    /* ── HERO AGENTS PREVIEW ─────────────────────── */
+    .hero-preview {
+      position: relative;
+    }
+    .preview-frame {
+      background: var(--surface);
+      border: 1px solid var(--border-2);
+      border-radius: 8px; overflow: hidden;
+      box-shadow: 0 40px 120px rgba(0,0,0,0.6);
+    }
+    .preview-bar {
+      background: var(--surface-2);
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .preview-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .preview-title {
+      font-size: 10px; letter-spacing: 2px; color: var(--muted);
+      margin-left: 8px;
+    }
+    .agents-grid-preview {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 1px; background: var(--border);
+    }
+    .agent-prev {
+      background: var(--surface); padding: 16px;
+      display: flex; flex-direction: column; gap: 8px;
+      transition: background 0.2s;
+      cursor: default;
+    }
+    .agent-prev:hover { background: var(--surface-2); }
+    .agent-prev-glyph {
+      font-size: 20px; line-height: 1;
+    }
+    .agent-prev-name {
+      font-family: var(--ff-display); font-size: 13px; font-weight: 700;
+      letter-spacing: 2px;
+    }
+    .agent-prev-role {
+      font-size: 9px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase;
+    }
+    .agent-prev-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      margin-top: auto; align-self: flex-end;
+    }
+
+    /* ── SECTION GENERIC ─────────────────────────── */
+    section { padding: 100px 0; }
+    .section-label {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 10px; letter-spacing: 3px; color: var(--accent);
+      text-transform: uppercase; margin-bottom: 16px;
+    }
+    .section-label::before {
+      content: ''; width: 20px; height: 1px; background: var(--accent);
+    }
+    h2 {
+      font-family: var(--ff-display); font-weight: 800;
+      font-size: clamp(28px, 3vw, 44px); letter-spacing: -0.5px;
+      line-height: 1.1; margin-bottom: 16px;
+    }
+    h2 em { font-style: normal; color: var(--accent); }
+    .section-sub {
+      font-size: 14px; color: var(--muted); line-height: 1.8;
+      max-width: 540px; margin-bottom: 56px;
+    }
+
+    /* ── AGENTS SECTION ──────────────────────────── */
+    #agents { background: transparent; }
+    .agents-header {
+      text-align: center; margin-bottom: 56px;
+    }
+    .agents-header .section-label { justify-content: center; }
+    .agents-header .section-label::before { display: none; }
+    .agents-header .section-sub { margin: 0 auto; text-align: center; }
+    .agents-roster {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .agent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px; padding: 24px;
+      position: relative; overflow: hidden;
+      transition: all 0.25s ease; cursor: default;
+    }
+    .agent-card::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; width: 3px; height: 100%;
+      background: var(--agent-color); opacity: 0.8;
+    }
+    .agent-card::after {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at top left, var(--agent-color-dim), transparent 60%);
+      opacity: 0; transition: opacity 0.25s;
+    }
+    .agent-card:hover { border-color: var(--agent-color); transform: translateY(-3px); }
+    .agent-card:hover::after { opacity: 1; }
+    .card-glyph {
+      font-size: 28px; margin-bottom: 12px;
+      color: var(--agent-color); position: relative; z-index: 1;
+    }
+    .card-id {
+      position: absolute; top: 16px; right: 16px;
+      font-size: 9px; color: var(--muted); letter-spacing: 1px;
+    }
+    .card-name {
+      font-family: var(--ff-display); font-weight: 800;
+      font-size: 17px; letter-spacing: 3px;
+      color: var(--agent-color);
+      position: relative; z-index: 1; margin-bottom: 4px;
+    }
+    .card-title {
+      font-size: 10px; letter-spacing: 1.5px; color: var(--muted);
+      text-transform: uppercase; position: relative; z-index: 1;
+      margin-bottom: 14px;
+    }
+    .card-desc {
+      font-size: 12px; line-height: 1.7; color: #9CA3AF;
+      position: relative; z-index: 1;
+    }
+    .card-sintra {
+      position: relative; z-index: 1;
+      margin-top: 14px; padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 9px; letter-spacing: 1px; color: var(--muted);
+    }
+    .card-sintra strong { color: var(--accent); }
+
+    /* ── DIFFERENTIATORS ─────────────────────────── */
+    #why {
+      background: linear-gradient(180deg, var(--bg) 0%, var(--surface) 50%, var(--bg) 100%);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .why-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 48px; align-items: center;
+    }
+    .diff-list { display: flex; flex-direction: column; gap: 20px; }
+    .diff-item {
+      display: flex; gap: 16px; padding: 20px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 4px; transition: border-color 0.2s;
+    }
+    .diff-item:hover { border-color: var(--border-2); }
+    .diff-icon {
+      font-size: 20px; flex-shrink: 0; margin-top: 2px;
+    }
+    .diff-content {}
+    .diff-title {
+      font-family: var(--ff-display); font-size: 15px; font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .diff-text { font-size: 12px; color: var(--muted); line-height: 1.7; }
+    .comparison-table {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; overflow: hidden;
+    }
+    .cmp-header {
+      display: grid; grid-template-columns: 1fr 100px 100px;
+      padding: 14px 20px; background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      font-size: 10px; letter-spacing: 2px; color: var(--muted);
+      text-transform: uppercase;
+    }
+    .cmp-row {
+      display: grid; grid-template-columns: 1fr 100px 100px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px; align-items: center;
+    }
+    .cmp-row:last-child { border-bottom: none; }
+    .cmp-row:hover { background: var(--surface); }
+    .cmp-yes { color: var(--accent); text-align: center; }
+    .cmp-no { color: #EF4444; text-align: center; opacity: 0.7; }
+    .cmp-partial { color: #F59E0B; text-align: center; opacity: 0.8; }
+    .cmp-feature { color: var(--text); }
+
+    /* ── NEXUS SECTION ───────────────────────────── */
+    #nexus {
+      position: relative; overflow: hidden;
+    }
+    .nexus-bg {
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse 60% 50% at 80% 50%, #F7258508, transparent 70%);
+    }
+    .nexus-inner {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 60px; align-items: center;
+    }
+    .nexus-flow {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 28px;
+    }
+    .flow-title {
+      font-size: 9px; letter-spacing: 3px; color: var(--muted);
+      text-transform: uppercase; margin-bottom: 20px;
+    }
+    .flow-node {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 4px; margin-bottom: 4px;
+    }
+    .flow-node-icon { font-size: 14px; }
+    .flow-node-name {
+      font-family: var(--ff-display); font-weight: 700;
+      font-size: 12px; letter-spacing: 2px;
+    }
+    .flow-node-action { font-size: 10px; color: var(--muted); margin-left: auto; }
+    .flow-connector {
+      display: flex; align-items: center; padding: 0 14px; margin: 0;
+    }
+    .flow-line {
+      width: 1px; height: 24px; background: var(--border-2);
+      margin-left: 26px; margin-bottom: 4px;
+    }
+    .flow-arrow { color: var(--accent); font-size: 10px; margin-left: 21px; }
+
+    /* ── HOW IT WORKS ────────────────────────────── */
+    #how {
+      border-top: 1px solid var(--border);
+    }
+    .how-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+      background: var(--border); border-radius: 6px; overflow: hidden;
+    }
+    .how-step {
+      background: var(--surface); padding: 36px 28px;
+      position: relative;
+    }
+    .step-num {
+      font-family: var(--ff-display); font-size: 56px; font-weight: 800;
+      color: var(--border-2); line-height: 1; margin-bottom: 20px;
+      position: absolute; top: 24px; right: 24px;
+    }
+    .step-icon { font-size: 28px; margin-bottom: 16px; }
+    .step-title {
+      font-family: var(--ff-display); font-size: 18px; font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .step-text { font-size: 12px; color: var(--muted); line-height: 1.8; }
+    .step-code {
+      margin-top: 16px; padding: 12px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 3px; font-size: 11px; color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+
+    /* ── INTEGRATIONS ────────────────────────────── */
+    #integrations { border-top: 1px solid var(--border); }
+    .int-header { text-align: center; margin-bottom: 40px; }
+    .int-header .section-label { justify-content: center; }
+    .int-header .section-label::before { display: none; }
+    .int-grid {
+      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    }
+    .int-chip {
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 8px 16px; border-radius: 3px;
+      font-size: 11px; letter-spacing: 1px; color: var(--muted);
+      transition: all 0.15s;
+    }
+    .int-chip:hover { border-color: var(--accent); color: var(--text); }
+
+    /* ── PRICING ─────────────────────────────────── */
+    #pricing { border-top: 1px solid var(--border); }
+    .pricing-header { text-align: center; margin-bottom: 48px; }
+    .pricing-header .section-label { justify-content: center; }
+    .pricing-header .section-label::before { display: none; }
+    .pricing-header .section-sub { margin: 0 auto; text-align: center; }
+    .pricing-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    }
+    .price-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; padding: 32px; position: relative;
+      transition: border-color 0.2s;
+    }
+    .price-card.featured {
+      border-color: var(--accent); background: #00FFD108;
+    }
+    .price-card.featured::before {
+      content: 'MOST POPULAR';
+      position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+      background: var(--accent); color: #07090F;
+      font-size: 8px; font-weight: 700; letter-spacing: 2px;
+      padding: 3px 10px; border-radius: 2px;
+    }
+    .price-tier {
+      font-size: 10px; letter-spacing: 3px; color: var(--muted);
+      text-transform: uppercase; margin-bottom: 10px;
+    }
+    .price-amount {
+      font-family: var(--ff-display); font-size: 44px; font-weight: 800;
+      line-height: 1; margin-bottom: 4px;
+    }
+    .price-amount sup { font-size: 20px; vertical-align: super; }
+    .price-cycle { font-size: 11px; color: var(--muted); margin-bottom: 24px; }
+    .price-divider {
+      height: 1px; background: var(--border); margin: 24px 0;
+    }
+    .price-features { display: flex; flex-direction: column; gap: 10px; }
+    .pf {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 12px; color: var(--muted);
+    }
+    .pf-check { color: var(--accent); font-size: 12px; flex-shrink: 0; }
+    .pf-x { color: #4B5563; font-size: 12px; flex-shrink: 0; }
+    .price-cta { margin-top: 28px; width: 100%; justify-content: center; }
+    .price-note {
+      font-size: 10px; color: var(--muted); text-align: center;
+      margin-top: 8px; letter-spacing: 1px;
+    }
+
+    /* ── TESTIMONIALS ────────────────────────────── */
+    #social-proof { border-top: 1px solid var(--border); }
+    .proof-header { text-align: center; margin-bottom: 40px; }
+    .proof-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .proof-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 4px; padding: 24px;
+    }
+    .proof-stars { color: var(--accent); font-size: 12px; margin-bottom: 12px; }
+    .proof-text { font-size: 12px; line-height: 1.8; color: var(--muted); margin-bottom: 16px; }
+    .proof-author { display: flex; align-items: center; gap: 10px; }
+    .proof-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--border-2); display: flex; align-items: center;
+      justify-content: center; font-size: 13px;
+    }
+    .proof-name { font-size: 12px; font-weight: 500; }
+    .proof-role { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+
+    /* ── CTA BAND ─────────────────────────────────── */
+    #cta-band {
+      padding: 80px 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      text-align: center; position: relative; overflow: hidden;
+    }
+    .cta-glow {
+      position: absolute; top: -100px; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 400px;
+      background: radial-gradient(ellipse, #00FFD110 0%, transparent 70%);
+      pointer-events: none;
+    }
+    #cta-band h2 { margin-bottom: 14px; }
+    #cta-band p { color: var(--muted); margin-bottom: 36px; font-size: 14px; }
+    .cta-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+    /* ── FOOTER ──────────────────────────────────── */
+    footer {
+      padding: 48px 0 32px;
+      border-top: 1px solid var(--border);
+    }
+    .footer-inner {
+      display: grid; grid-template-columns: 280px repeat(4, 1fr);
+      gap: 40px; margin-bottom: 40px;
+    }
+    .footer-brand .logo { display: block; margin-bottom: 12px; }
+    .footer-brand p { font-size: 12px; color: var(--muted); line-height: 1.7; max-width: 220px; }
+    .footer-col h4 {
+      font-size: 10px; letter-spacing: 2.5px; color: var(--muted);
+      text-transform: uppercase; margin-bottom: 16px;
+    }
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-col a {
+      font-size: 12px; color: var(--muted); text-decoration: none;
+      transition: color 0.15s;
+    }
+    .footer-col a:hover { color: var(--text); }
+    .footer-bottom {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-top: 28px; border-top: 1px solid var(--border);
+      font-size: 11px; color: var(--muted);
+    }
+
+    /* ── ANIMATIONS ──────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up {
+      animation: fadeUp 0.7s ease forwards;
+      opacity: 0;
+    }
+    .fade-up:nth-child(1) { animation-delay: 0.1s; }
+    .fade-up:nth-child(2) { animation-delay: 0.2s; }
+    .fade-up:nth-child(3) { animation-delay: 0.3s; }
+    .fade-up:nth-child(4) { animation-delay: 0.4s; }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .live-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent); display: inline-block;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    /* ── RESPONSIVE ──────────────────────────────── */
+    @media (max-width: 900px) {
+      .hero-inner { grid-template-columns: 1fr; }
+      .hero-preview { display: none; }
+      .why-grid { grid-template-columns: 1fr; }
+      .nexus-inner { grid-template-columns: 1fr; }
+      .how-grid { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .proof-grid { grid-template-columns: 1fr; }
+      .footer-inner { grid-template-columns: 1fr 1fr; }
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ───────────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">PRYM<span>A</span>L</a>
+    <ul class="nav-links">
+      <li><a href="#agents">Agents</a></li>
+      <li><a href="#nexus">Workflows</a></li>
+      <li><a href="#why">Why Prymal</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+    </ul>
+    <div class="nav-cta">
+      <a href="/login" class="nav-login">Sign in</a>
+      <a href="/signup" class="btn-primary" style="padding:10px 20px;font-size:11px;">Start free</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── HERO ──────────────────────────────────────── -->
+<section id="hero">
+  <div class="grid-bg"></div>
+  <div class="hero-glow"></div>
+  <div class="container">
+    <div class="hero-inner">
+      <div>
+        <div class="hero-label fade-up">
+          <span><span class="live-dot"></span> &nbsp;13 agents. Live now.</span>
+        </div>
+        <h1 class="fade-up">Useful business work,<br />done in <em>under 5 minutes.</em></h1>
+        <p class="hero-sub fade-up">
+          Prymal helps SMB owners and agency operators turn repetitive work into measurable progress fast:
+          outreach drafted, reports assembled, support handled, and operational tasks moved forward in one session.
+        </p>
+        <div class="hero-actions fade-up">
+          <a href="/signup" class="btn-primary">Start for free &nbsp;→</a>
+          <a href="#agents" class="btn-ghost">Meet the team</a>
+        </div>
+        <div class="hero-stats fade-up">
+          <div class="stat-item">
+            <div class="stat-num">13</div>
+            <div class="stat-label">AI Agents</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num">40+</div>
+            <div class="stat-label">Integrations</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-num">∞</div>
+            <div class="stat-label">Workflows</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-preview">
+        <div class="preview-frame">
+          <div class="preview-bar">
+            <div class="preview-dot" style="background:#EF4444"></div>
+            <div class="preview-dot" style="background:#F59E0B"></div>
+            <div class="preview-dot" style="background:#10B981"></div>
+            <span class="preview-title">PRYMAL — AGENT DASHBOARD</span>
+          </div>
+          <div class="agents-grid-preview">
+            <div class="agent-prev" style="--c:#00FFD1">
+              <div class="agent-prev-glyph" style="color:var(--c)">∑</div>
+              <div class="agent-prev-name" style="color:var(--c)">CIPHER</div>
+              <div class="agent-prev-role">Data Intelligence</div>
+              <div class="agent-prev-dot" style="background:var(--c)"></div>
+            </div>
+            <div class="agent-prev">
+              <div class="agent-prev-glyph" style="color:#FF6B35">✉</div>
+              <div class="agent-prev-name" style="color:#FF6B35">HERALD</div>
+              <div class="agent-prev-role">Email & Outreach</div>
+              <div class="agent-prev-dot" style="background:#FF6B35"></div>
+            </div>
+            <div class="agent-prev">
+              <div class="agent-prev-glyph" style="color:#C77DFF">◉</div>
+              <div class="agent-prev-name" style="color:#C77DFF">LORE</div>
+              <div class="agent-prev-role">Knowledge Base</div>
+              <div class="agent-prev-dot" style="background:#C77DFF"></div>
+            </div>
+            <div class="agent-prev">
+              <div class="agent-prev-glyph" style="color:#FFD60A">⚒</div>
+              <div class="agent-prev-name" style="color:#FFD60A">FORGE</div>
+              <div class="agent-prev-role">Content & Copy</div>
+              <div class="agent-prev-dot" style="background:#FFD60A"></div>
+            </div>
+            <div class="agent-prev">
+              <div class="agent-prev-glyph" style="color:#4CC9F0">⊕</div>
+              <div class="agent-prev-name" style="color:#4CC9F0">ATLAS</div>
+              <div class="agent-prev-role">Project Manager</div>
+              <div class="agent-prev-dot" style="background:#4CC9F0"></div>
+            </div>
+            <div class="agent-prev">
+              <div class="agent-prev-glyph" style="color:#F72585">◎</div>
+              <div class="agent-prev-name" style="color:#F72585">ECHO</div>
+              <div class="agent-prev-role">Social Media</div>
+              <div class="agent-prev-dot" style="background:#F72585"></div>
+            </div>
+            <div class="agent-prev">
+              <div class="agent-prev-glyph" style="color:#80FFDB">⌖</div>
+              <div class="agent-prev-name" style="color:#80FFDB">ORACLE</div>
+              <div class="agent-prev-role">SEO & Search</div>
+              <div class="agent-prev-dot" style="background:#80FFDB"></div>
+            </div>
+            <div class="agent-prev">
+              <div class="agent-prev-glyph" style="color:#FB5607">↗</div>
+              <div class="agent-prev-name" style="color:#FB5607">VANCE</div>
+              <div class="agent-prev-role">Sales & Leads</div>
+              <div class="agent-prev-dot" style="background:#FB5607"></div>
+            </div>
+            <div class="agent-prev">
+              <div class="agent-prev-glyph" style="color:#CAFFBF">❋</div>
+              <div class="agent-prev-name" style="color:#CAFFBF">WREN</div>
+              <div class="agent-prev-role">Support</div>
+              <div class="agent-prev-dot" style="background:#CAFFBF"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── AGENTS ─────────────────────────────────────── -->
+<section id="agents">
+  <div class="container">
+    <div class="agents-header">
+      <div class="section-label">The Team</div>
+      <h2>13 agents. Every role <em>covered.</em></h2>
+      <p class="section-sub">Each agent is a specialist. They share memory, hand off work, and chain together — something no other platform can do.</p>
+    </div>
+    <div class="agents-roster">
+
+      <div class="agent-card" style="--agent-color:#00FFD1;--agent-color-dim:#00FFD108">
+        <span class="card-id">01</span>
+        <div class="card-glyph">∑</div>
+        <div class="card-name">CIPHER</div>
+        <div class="card-title">Data Intelligence Analyst</div>
+        <div class="card-desc">Transforms raw data into structured insight. CSVs, exports, multi-sheet Excel. Identifies trends, anomalies, and forecasts.</div>
+        <div class="card-sintra">Replaces: <strong>Dexter (Sintra)</strong></div>
+      </div>
+
+      <div class="agent-card" style="--agent-color:#FF6B35;--agent-color-dim:#FF6B3508">
+        <span class="card-id">02</span>
+        <div class="card-glyph">✉</div>
+        <div class="card-name">HERALD</div>
+        <div class="card-title">Email & Outreach Strategist</div>
+        <div class="card-desc">Writes, sequences, and sends emails. Full drip campaigns, tone matching, A/B subject lines, warm lead handoffs to VANCE.</div>
+        <div class="card-sintra">Replaces: <strong>Emmie (Sintra)</strong></div>
+      </div>
+
+      <div class="agent-card" style="--agent-color:#C77DFF;--agent-color-dim:#C77DFF08">
+        <span class="card-id">03</span>
+        <div class="card-glyph">◉</div>
+        <div class="card-name">LORE</div>
+        <div class="card-title">Knowledge Base Engine</div>
+        <div class="card-desc">Your platform's persistent memory. Ingests docs, URLs, brand guides. All agents pull from LORE — no re-uploading, ever.</div>
+        <div class="card-sintra">Replaces: <strong>Brain AI (Sintra)</strong></div>
+      </div>
+
+      <div class="agent-card" style="--agent-color:#FFD60A;--agent-color-dim:#FFD60A08">
+        <span class="card-id">04</span>
+        <div class="card-glyph">⚒</div>
+        <div class="card-name">FORGE</div>
+        <div class="card-title">Content & Copy Craftsman</div>
+        <div class="card-desc">Long-form content, ad copy, landing pages, product descriptions, email campaigns. Brand-voice aware. Tracks what's been covered.</div>
+        <div class="card-sintra">Replaces: <strong>Penn (Sintra)</strong></div>
+      </div>
+
+      <div class="agent-card" style="--agent-color:#4CC9F0;--agent-color-dim:#4CC9F008">
+        <span class="card-id">05</span>
+        <div class="card-glyph">⊕</div>
+        <div class="card-name">ATLAS</div>
+        <div class="card-title">Project & Operations Manager</div>
+        <div class="card-desc">Turns briefs into phased delivery plans. Assigns agent tasks automatically. Exports to Notion, Trello, Linear.</div>
+        <div class="card-sintra">No Sintra equivalent — <strong>gap filled</strong></div>
+      </div>
+
+      <div class="agent-card" style="--agent-color:#F72585;--agent-color-dim:#F7258508">
+        <span class="card-id">06</span>
+        <div class="card-glyph">◎</div>
+        <div class="card-name">ECHO</div>
+        <div class="card-title">Social Media & Brand Voice</div>
+        <div class="card-desc">Platform-native formatting across LinkedIn, Twitter/X, Instagram. Repurposes FORGE content. Engagement analysis built in.</div>
+        <div class="card-sintra">Replaces: <strong>Soshie (Sintra)</strong></div>
+      </div>
+
+      <div class="agent-card" style="--agent-color:#80FFDB;--agent-color-dim:#80FFDB08">
+        <span class="card-id">07</span>
+        <div class="card-glyph">⌖</div>
+        <div class="card-name">ORACLE</div>
+        <div class="card-title">SEO & Search Intelligence</div>
+        <div class="card-desc">Full technical SEO audits on live URLs. Keyword strategy fed to FORGE. Competitor gap analysis via SCOUT data.</div>
+        <div class="card-sintra">Replaces: <strong>SEO Power-Up (Sintra)</strong></div>
+      </div>
+
+      <div class="agent-card" style="--agent-color:#FB5607;--agent-color-dim:#FB560708">
+        <span class="card-id">08</span>
+        <div class="card-glyph">↗</div>
+        <div class="card-name">VANCE</div>
+        <div class="card-title">Sales & Lead Generation</div>
+        <div class="card-desc">Pipeline prospecting, lead scoring, proposal drafting. Receives warm handoffs from HERALD. Drafts proposals from LORE data.</div>
+        <div class="card-sintra">Replaces: <strong>Buddy (Sintra)</strong></div>
+      </div>
+
+      <div class="agent-card" style="--agent-color:#CAFFBF;--agent-color-dim:#CAFFBF08">
+        <span class="card-id">09</span>
+        <div class="card-glyph">❋</div>
+        <div class="card-name">WREN</div>
+        <div class="card-title">Customer Support & Comms</div>
+        <div class="card-desc">Support responses, complaint resolution, FAQ generation. Pulls from LORE for always-accurate answers. Sentiment detection built in.</div>
+        <div class="card-sintra">Replaces: <strong>Cassie (Sintra)</strong></div>
+      </div>
+
+      <div class="agent-card" style="--agent-color:#A8DADC;--agent-color-dim:#A8DADC08">
+        <span class="card-id">10</span>
+        <div class="card-glyph">⊞</div>
+        <div class="card-name">LEDGER</div>
+        <div class="card-title">Finance & Business Reporting</div>
+        <div class="card-desc">P&L narrative, cash flow summaries, investor updates from your financial exports. Plain English from raw spreadsheets.</div>
+        <div class="card-sintra">No Sintra equivalent — <strong>gap filled</strong></div>
+      </div>
+
+      <div class="agent-card" style="--agent-color:#F72585;--agent-color-dim:#F7258508">
+        <span class="card-id">11</span>
+        <div class="card-glyph">⬡</div>
+        <div class="card-name">NEXUS</div>
+        <div class="card-title">Workflow Automation Engine</div>
+        <div class="card-desc">Chains all agents into automated multi-step workflows. IF/THEN logic. Scheduled triggers. The thing that turns chatbots into an OS.</div>
+        <div class="card-sintra">No Sintra equivalent — <strong>critical gap filled</strong></div>
+      </div>
+
+      <div class="agent-card" style="--agent-color:#FFADAD;--agent-color-dim:#FFADAD08">
+        <span class="card-id">12</span>
+        <div class="card-glyph">⊿</div>
+        <div class="card-name">SCOUT</div>
+        <div class="card-title">Market Research & Intel</div>
+        <div class="card-desc">Live web research, competitor snapshots, pricing intelligence, industry digest. Feeds FORGE, ORACLE, and VANCE with real data.</div>
+        <div class="card-sintra">No Sintra equivalent — <strong>gap filled</strong></div>
+      </div>
+
+      <div class="agent-card" style="--agent-color:#D4A373;--agent-color-dim:#D4A37308">
+        <span class="card-id">13</span>
+        <div class="card-glyph">✦</div>
+        <div class="card-name">SAGE</div>
+        <div class="card-title">Business Strategy Advisor</div>
+        <div class="card-desc">Synthesises output from all agents. SWOT analysis, OKRs, quarterly planning, scenario modelling. The CEO advisor layer.</div>
+        <div class="card-sintra">No Sintra equivalent — <strong>gap filled</strong></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── WHY PRYMAL ──────────────────────────────────── -->
+<section id="why">
+  <div class="container">
+    <div class="why-grid">
+      <div>
+        <div class="section-label">Why Switch</div>
+        <h2>What Sintra <em>can't do.</em><br />What we built instead.</h2>
+        <p class="section-sub">Sintra is a collection of isolated chatbots. Prymal is a connected system. The difference is everything.</p>
+        <div class="diff-list">
+          <div class="diff-item">
+            <div class="diff-icon">🔗</div>
+            <div class="diff-content">
+              <div class="diff-title">Agents that talk to each other</div>
+              <div class="diff-text">HERALD passes warm leads to VANCE. CIPHER feeds data to LEDGER. FORGE pulls context from LORE. No other platform does this.</div>
+            </div>
+          </div>
+          <div class="diff-item">
+            <div class="diff-icon">🧠</div>
+            <div class="diff-content">
+              <div class="diff-title">Shared persistent memory</div>
+              <div class="diff-text">Upload your brand guide once. Every agent uses it forever. Sintra's Brain AI resets. LORE never forgets.</div>
+            </div>
+          </div>
+          <div class="diff-item">
+            <div class="diff-icon">⚙️</div>
+            <div class="diff-content">
+              <div class="diff-title">Real automation, not just chat</div>
+              <div class="diff-text">NEXUS runs multi-step workflows autonomously. Schedule, trigger, chain. Your agents work while you sleep.</div>
+            </div>
+          </div>
+          <div class="diff-item">
+            <div class="diff-icon">📊</div>
+            <div class="diff-content">
+              <div class="diff-title">6 roles Sintra doesn't have</div>
+              <div class="diff-text">ATLAS (PM), LEDGER (Finance), SCOUT (Research), NEXUS (Automation), and more. Roles they missed entirely.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="comparison-table">
+          <div class="cmp-header">
+            <div>Feature</div>
+            <div style="text-align:center">PRYMAL</div>
+            <div style="text-align:center">Sintra</div>
+          </div>
+          <div class="cmp-row"><div class="cmp-feature">Agent cross-communication</div><div class="cmp-yes">✓</div><div class="cmp-no">✗</div></div>
+          <div class="cmp-row"><div class="cmp-feature">Persistent shared memory</div><div class="cmp-yes">✓</div><div class="cmp-no">✗</div></div>
+          <div class="cmp-row"><div class="cmp-feature">Visual workflow builder</div><div class="cmp-yes">✓</div><div class="cmp-no">✗</div></div>
+          <div class="cmp-row"><div class="cmp-feature">Conditional IF/THEN logic</div><div class="cmp-yes">✓</div><div class="cmp-no">✗</div></div>
+          <div class="cmp-row"><div class="cmp-feature">Finance / reporting agent</div><div class="cmp-yes">✓</div><div class="cmp-no">✗</div></div>
+          <div class="cmp-row"><div class="cmp-feature">Project management agent</div><div class="cmp-yes">✓</div><div class="cmp-no">✗</div></div>
+          <div class="cmp-row"><div class="cmp-feature">Market research agent</div><div class="cmp-yes">✓</div><div class="cmp-no">✗</div></div>
+          <div class="cmp-row"><div class="cmp-feature">Strategy synthesis agent</div><div class="cmp-yes">✓</div><div class="cmp-no">✗</div></div>
+          <div class="cmp-row"><div class="cmp-feature">Email drip sequences</div><div class="cmp-yes">✓</div><div class="cmp-partial">partial</div></div>
+          <div class="cmp-row"><div class="cmp-feature">Full SEO audit agent</div><div class="cmp-yes">✓</div><div class="cmp-partial">add-on only</div></div>
+          <div class="cmp-row"><div class="cmp-feature">Agency multi-tenant</div><div class="cmp-yes">✓</div><div class="cmp-partial">basic</div></div>
+          <div class="cmp-row"><div class="cmp-feature">API access</div><div class="cmp-yes">✓</div><div class="cmp-no">✗</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── NEXUS ──────────────────────────────────────── -->
+<section id="nexus">
+  <div class="nexus-bg"></div>
+  <div class="container">
+    <div class="nexus-inner">
+      <div>
+        <div class="section-label" style="--accent:#F72585;color:#F72585;border-color:#F7258520">NEXUS — Workflow Engine</div>
+        <h2>Chain agents.<br /><em style="color:#F72585">Automate everything.</em></h2>
+        <p class="section-sub">NEXUS is the operating layer. Build workflows that connect agents, trigger on events, run on schedule, and branch on outcomes. Sintra can't do any of this.</p>
+        <ul style="display:flex;flex-direction:column;gap:10px;list-style:none">
+          <li style="display:flex;gap:10px;font-size:12px;color:#9CA3AF"><span style="color:#F72585">→</span> Visual drag-and-drop workflow builder</li>
+          <li style="display:flex;gap:10px;font-size:12px;color:#9CA3AF"><span style="color:#F72585">→</span> Triggers: manual, schedule, webhook, event</li>
+          <li style="display:flex;gap:10px;font-size:12px;color:#9CA3AF"><span style="color:#F72585">→</span> IF/THEN conditional branching between agents</li>
+          <li style="display:flex;gap:10px;font-size:12px;color:#9CA3AF"><span style="color:#F72585">→</span> Full run history with per-node logs</li>
+          <li style="display:flex;gap:10px;font-size:12px;color:#9CA3AF"><span style="color:#F72585">→</span> 10 pre-built workflow templates</li>
+          <li style="display:flex;gap:10px;font-size:12px;color:#9CA3AF"><span style="color:#F72585">→</span> Connects to Zapier, Make, and any webhook</li>
+        </ul>
+      </div>
+      <div class="nexus-flow">
+        <div class="flow-title">EXAMPLE WORKFLOW // WEEKLY CLIENT REPORT</div>
+        <div class="flow-node">
+          <div class="flow-node-icon">⏱</div>
+          <div>
+            <div class="flow-node-name" style="color:#F72585;font-family:var(--ff-display)">TRIGGER</div>
+            <div style="font-size:10px;color:#6B7280">Every Monday, 08:00</div>
+          </div>
+        </div>
+        <div class="flow-line"></div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-node">
+          <div class="flow-node-icon" style="color:#00FFD1">∑</div>
+          <div>
+            <div class="flow-node-name" style="color:#00FFD1;font-family:var(--ff-display)">CIPHER</div>
+            <div style="font-size:10px;color:#6B7280">Pull & analyse GA4 + Stripe data</div>
+          </div>
+          <div class="flow-node-action">→ passes data</div>
+        </div>
+        <div class="flow-line"></div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-node">
+          <div class="flow-node-icon" style="color:#A8DADC">⊞</div>
+          <div>
+            <div class="flow-node-name" style="color:#A8DADC;font-family:var(--ff-display)">LEDGER</div>
+            <div style="font-size:10px;color:#6B7280">Write P&L narrative summary</div>
+          </div>
+          <div class="flow-node-action">→ passes report</div>
+        </div>
+        <div class="flow-line"></div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-node">
+          <div class="flow-node-icon" style="color:#FF6B35">✉</div>
+          <div>
+            <div class="flow-node-name" style="color:#FF6B35;font-family:var(--ff-display)">HERALD</div>
+            <div style="font-size:10px;color:#6B7280">Format & send to client via Gmail</div>
+          </div>
+          <div class="flow-node-action">✓ done</div>
+        </div>
+        <div style="margin-top:16px;padding:12px;background:#0C0F1A;border:1px solid #161B2E;border-radius:3px;font-size:10px;color:#6B7280">
+          This workflow runs automatically every week with zero input from you.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── HOW IT WORKS ───────────────────────────────── -->
+<section id="how">
+  <div class="container">
+    <div class="section-label">Setup</div>
+    <h2>Up and running in <em>minutes.</em></h2>
+    <p class="section-sub" style="margin-bottom:48px">No onboarding call. No 6-week implementation. Three steps.</p>
+    <div class="how-grid">
+      <div class="how-step">
+        <div class="step-num">01</div>
+        <div class="step-icon">📚</div>
+        <div class="step-title">Feed LORE</div>
+        <div class="step-text">Upload your brand guide, product docs, pricing sheets, and website URL. LORE indexes everything and shares it with all 13 agents automatically.</div>
+        <div class="step-code">→ All agents now know your business</div>
+      </div>
+      <div class="how-step">
+        <div class="step-num">02</div>
+        <div class="step-icon">🤝</div>
+        <div class="step-title">Connect your tools</div>
+        <div class="step-text">One-click OAuth for Gmail, Google Drive, Notion, Slack, and 40+ other integrations. Your agents can read, write, and act inside your existing tools.</div>
+        <div class="step-code">→ Agents live inside your workflow</div>
+      </div>
+      <div class="how-step">
+        <div class="step-num">03</div>
+        <div class="step-icon">⚡</div>
+        <div class="step-title">Talk or automate</div>
+        <div class="step-text">Chat with any agent directly, or build a NEXUS workflow that chains agents together and runs on autopilot. Your choice, every time.</div>
+        <div class="step-code">→ Work less. Ship more.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── INTEGRATIONS ───────────────────────────────── -->
+<section id="integrations">
+  <div class="container">
+    <div class="int-header">
+      <div class="section-label">Integrations</div>
+      <h2>Works with your <em>entire stack.</em></h2>
+      <p class="section-sub" style="margin:0 auto;text-align:center">40+ integrations. One-click OAuth. No middleware needed.</p>
+    </div>
+    <div class="int-grid">
+      <div class="int-chip">Gmail</div><div class="int-chip">Google Drive</div>
+      <div class="int-chip">Google Calendar</div><div class="int-chip">Notion</div>
+      <div class="int-chip">Slack</div><div class="int-chip">Shopify</div>
+      <div class="int-chip">WordPress</div><div class="int-chip">Webflow</div>
+      <div class="int-chip">HubSpot</div><div class="int-chip">Pipedrive</div>
+      <div class="int-chip">Stripe</div><div class="int-chip">Xero</div>
+      <div class="int-chip">QuickBooks</div><div class="int-chip">Airtable</div>
+      <div class="int-chip">Trello</div><div class="int-chip">Linear</div>
+      <div class="int-chip">Asana</div><div class="int-chip">Instagram</div>
+      <div class="int-chip">LinkedIn</div><div class="int-chip">Twitter / X</div>
+      <div class="int-chip">Facebook</div><div class="int-chip">Buffer</div>
+      <div class="int-chip">Mailchimp</div><div class="int-chip">Klaviyo</div>
+      <div class="int-chip">Intercom</div><div class="int-chip">Zendesk</div>
+      <div class="int-chip">Freshdesk</div><div class="int-chip">Zapier</div>
+      <div class="int-chip">Make.com</div><div class="int-chip">Webhooks</div>
+      <div class="int-chip">REST API</div><div class="int-chip">+ more</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PRICING ────────────────────────────────────── -->
+<section id="pricing">
+  <div class="container">
+    <div class="pricing-header">
+      <div class="section-label">Pricing</div>
+      <h2>Plans that get you from signup to output fast.</h2>
+      <p class="section-sub">Start free first. Upgrade when you need more credits, more seats, and more operational capacity.</p>
+    </div>
+    <div class="waitlist-panel">
+      <div>
+        <div class="section-label" style="margin-bottom:12px">Early access</div>
+        <p class="section-sub" style="margin:0;text-align:left;max-width:none">
+          Not ready to create a workspace yet? Join the waitlist for launch updates and early access news.
+        </p>
+      </div>
+      <form class="waitlist-form" id="waitlist-form">
+        <input id="waitlist-email" type="email" placeholder="name@company.com" autocomplete="email" required />
+        <button type="submit" class="btn-primary">Get early access</button>
+      </form>
+      <div class="waitlist-status" id="waitlist-status">Start free when you're ready. No card required.</div>
+    </div>
+    <div class="pricing-grid">
+      <!-- SOLO -->
+      <div class="price-card">
+        <div class="price-tier">Solo</div>
+        <div class="price-amount"><sup>£</sup>39</div>
+        <div class="price-cycle">per month · billed monthly</div>
+        <div class="price-divider"></div>
+        <div class="price-features">
+          <div class="pf"><span class="pf-check">✓</span> 5 agents of your choice</div>
+          <div class="pf"><span class="pf-check">✓</span> 1 workspace</div>
+          <div class="pf"><span class="pf-check">✓</span> LORE knowledge base</div>
+          <div class="pf"><span class="pf-check">✓</span> 10 integrations</div>
+          <div class="pf"><span class="pf-check">✓</span> 3 NEXUS workflows</div>
+          <div class="pf"><span class="pf-x">✗</span> Agency features</div>
+          <div class="pf"><span class="pf-x">✗</span> API access</div>
+        </div>
+        <a href="/signup?plan=solo" class="btn-ghost price-cta">Get started</a>
+        <div class="price-note">14-day free trial included</div>
+      </div>
+      <!-- PRO -->
+      <div class="price-card featured">
+        <div class="price-tier">Pro</div>
+        <div class="price-amount"><sup>£</sup>79</div>
+        <div class="price-cycle">per month · billed monthly</div>
+        <div class="price-divider"></div>
+        <div class="price-features">
+          <div class="pf"><span class="pf-check">✓</span> All 13 agents</div>
+          <div class="pf"><span class="pf-check">✓</span> 3 workspaces</div>
+          <div class="pf"><span class="pf-check">✓</span> LORE + persistent memory</div>
+          <div class="pf"><span class="pf-check">✓</span> Unlimited integrations</div>
+          <div class="pf"><span class="pf-check">✓</span> Unlimited NEXUS workflows</div>
+          <div class="pf"><span class="pf-check">✓</span> Power-Ups library</div>
+          <div class="pf"><span class="pf-x">✗</span> API access</div>
+        </div>
+        <a href="/signup?plan=pro" class="btn-primary price-cta">Get started</a>
+        <div class="price-note">14-day free trial included</div>
+      </div>
+      <!-- AGENCY -->
+      <div class="price-card">
+        <div class="price-tier">Agency</div>
+        <div class="price-amount"><sup>£</sup>149</div>
+        <div class="price-cycle">per month · billed monthly</div>
+        <div class="price-divider"></div>
+        <div class="price-features">
+          <div class="pf"><span class="pf-check">✓</span> All 13 agents</div>
+          <div class="pf"><span class="pf-check">✓</span> Unlimited workspaces</div>
+          <div class="pf"><span class="pf-check">✓</span> Client sub-accounts</div>
+          <div class="pf"><span class="pf-check">✓</span> API access + API keys</div>
+          <div class="pf"><span class="pf-check">✓</span> White-label option</div>
+          <div class="pf"><span class="pf-check">✓</span> Priority support</div>
+          <div class="pf"><span class="pf-check">✓</span> Custom agent builder</div>
+        </div>
+        <a href="/signup?plan=agency" class="btn-ghost price-cta">Get started</a>
+        <div class="price-note">14-day free trial included</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── SOCIAL PROOF ───────────────────────────────── -->
+<section id="social-proof">
+  <div class="container">
+    <div class="proof-header">
+      <div class="section-label" style="justify-content:center;margin-bottom:12px">
+        <span style="font-size:10px;letter-spacing:3px;color:var(--accent)">What users say</span>
+      </div>
+      <h2 style="text-align:center">Real businesses. <em>Real results.</em></h2>
+    </div>
+    <div class="proof-grid">
+      <div class="proof-card">
+        <div class="proof-stars">★★★★★</div>
+        <div class="proof-text">"NEXUS is the game changer. I built a workflow that pulls my weekly analytics, writes a client report, and emails it — all without me touching it. That alone paid for the subscription ten times over."</div>
+        <div class="proof-author">
+          <div class="proof-avatar">JM</div>
+          <div>
+            <div class="proof-name">Jamie M.</div>
+            <div class="proof-role">Founder, Digital Agency</div>
+          </div>
+        </div>
+      </div>
+      <div class="proof-card">
+        <div class="proof-stars">★★★★★</div>
+        <div class="proof-text">"I switched from Sintra after two weeks. The shared memory alone is worth it — I uploaded my brand guide once and FORGE, ECHO, and HERALD all just know it. Sintra made me repeat myself every session."</div>
+        <div class="proof-author">
+          <div class="proof-avatar">SK</div>
+          <div>
+            <div class="proof-name">Sarah K.</div>
+            <div class="proof-role">E-commerce Brand Owner</div>
+          </div>
+        </div>
+      </div>
+      <div class="proof-card">
+        <div class="proof-stars">★★★★★</div>
+        <div class="proof-text">"SCOUT + ORACLE together is insane. I tell Scout to analyse my top 5 competitors and Oracle builds me a keyword strategy from that. No other platform connects research and SEO like this."</div>
+        <div class="proof-author">
+          <div class="proof-avatar">RT</div>
+          <div>
+            <div class="proof-name">Ryan T.</div>
+            <div class="proof-role">SEO Consultant</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA BAND ───────────────────────────────────── -->
+<section id="cta-band">
+  <div class="cta-glow"></div>
+  <div class="container" style="position:relative;z-index:2">
+    <h2>Your AI team is waiting.</h2>
+    <p>13 agents. Shared memory. Real automation.<br />Start your 14-day free trial — no card required.</p>
+    <div class="cta-actions">
+      <a href="/signup" class="btn-primary">Start free</a>
+      <a href="#pricing" class="btn-ghost">See plans</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ─────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <a href="/" class="logo">PRYM<span>A</span>L</a>
+        <p>Your AI operations team for agencies, owner-led businesses, and service teams that need useful work done fast.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Agents</h4>
+        <ul>
+          <li><a href="#">CIPHER</a></li>
+          <li><a href="#">HERALD</a></li>
+          <li><a href="#">LORE</a></li>
+          <li><a href="#">FORGE</a></li>
+          <li><a href="#">ATLAS</a></li>
+          <li><a href="#">ECHO</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>More Agents</h4>
+        <ul>
+          <li><a href="#">ORACLE</a></li>
+          <li><a href="#">VANCE</a></li>
+          <li><a href="#">WREN</a></li>
+          <li><a href="#">LEDGER</a></li>
+          <li><a href="#">NEXUS</a></li>
+          <li><a href="#">SCOUT</a></li>
+          <li><a href="#">SAGE</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <ul>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#agents">Agents</a></li>
+          <li><a href="#nexus">NEXUS Workflows</a></li>
+          <li><a href="/for-agencies">For agencies</a></li>
+          <li><a href="/for-small-business">For small business</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="/privacy">Privacy Policy</a></li>
+          <li><a href="/terms">Terms of Service</a></li>
+          <li><a href="/cookies">Cookie Policy</a></li>
+          <li><a href="/signup">Start free</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>© 2026 Prymal. All rights reserved.</div>
+      <div style="display:flex;gap:20px">
+        <a href="#" style="color:#6B7280;text-decoration:none;font-size:11px">Twitter</a>
+        <a href="#" style="color:#6B7280;text-decoration:none;font-size:11px">LinkedIn</a>
+        <a href="#" style="color:#6B7280;text-decoration:none;font-size:11px">GitHub</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Scroll-triggered fade-in for sections
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+        entry.target.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.agent-card, .diff-item, .how-step, .price-card, .proof-card').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(16px)';
+    observer.observe(el);
+  });
+
+  const waitlistForm = document.getElementById('waitlist-form');
+  const waitlistEmail = document.getElementById('waitlist-email');
+  const waitlistStatus = document.getElementById('waitlist-status');
+
+  if (waitlistForm && waitlistEmail && waitlistStatus) {
+    waitlistForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const email = waitlistEmail.value.trim();
+
+      if (!email) {
+        waitlistStatus.textContent = 'Enter your email to join the early access list.';
+        return;
+      }
+
+      waitlistStatus.textContent = 'Saving your request...';
+
+      try {
+        const response = await fetch('/api/waitlist', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email,
+            source: 'landing-static',
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+
+        if (response.status === 409) {
+          waitlistStatus.textContent = payload.error || 'That email is already on the waitlist.';
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(payload.error || 'Could not save your request right now.');
+        }
+
+        waitlistStatus.textContent = `Thanks. ${payload.waitlist?.email || email} is on the Prymal early access list.`;
+        waitlistEmail.value = '';
+      } catch (error) {
+        waitlistStatus.textContent = error.message || 'Could not save your request right now.';
+      }
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0f;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#12121a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4ECDC4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8B79FF;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)" />
+
+  <!-- Subtle grid lines -->
+  <g opacity="0.04" stroke="#ffffff" stroke-width="1">
+    <line x1="0" y1="105" x2="1200" y2="105" />
+    <line x1="0" y1="210" x2="1200" y2="210" />
+    <line x1="0" y1="315" x2="1200" y2="315" />
+    <line x1="0" y1="420" x2="1200" y2="420" />
+    <line x1="0" y1="525" x2="1200" y2="525" />
+    <line x1="150" y1="0" x2="150" y2="630" />
+    <line x1="300" y1="0" x2="300" y2="630" />
+    <line x1="450" y1="0" x2="450" y2="630" />
+    <line x1="600" y1="0" x2="600" y2="630" />
+    <line x1="750" y1="0" x2="750" y2="630" />
+    <line x1="900" y1="0" x2="900" y2="630" />
+    <line x1="1050" y1="0" x2="1050" y2="630" />
+  </g>
+
+  <!-- Accent bar -->
+  <rect x="80" y="80" width="160" height="4" rx="2" fill="url(#accent)" />
+
+  <!-- Brand name -->
+  <text x="80" y="280" font-family="'Space Grotesk', system-ui, sans-serif" font-size="96" font-weight="700" fill="#ffffff" letter-spacing="-2">Prymal</text>
+
+  <!-- Tagline -->
+  <text x="80" y="350" font-family="'Space Grotesk', system-ui, sans-serif" font-size="32" font-weight="400" fill="#8a8a9a">13 specialist AI agents. Shared memory. Automated workflows.</text>
+
+  <!-- Agent dots row -->
+  <g transform="translate(80, 430)">
+    <circle cx="0"   cy="0" r="8" fill="#00FFD1" opacity="0.9" />
+    <circle cx="32"  cy="0" r="8" fill="#FF6B35" opacity="0.9" />
+    <circle cx="64"  cy="0" r="8" fill="#A855F7" opacity="0.9" />
+    <circle cx="96"  cy="0" r="8" fill="#3B82F6" opacity="0.9" />
+    <circle cx="128" cy="0" r="8" fill="#10B981" opacity="0.9" />
+    <circle cx="160" cy="0" r="8" fill="#F59E0B" opacity="0.9" />
+    <circle cx="192" cy="0" r="8" fill="#EF4444" opacity="0.9" />
+    <circle cx="224" cy="0" r="8" fill="#EC4899" opacity="0.9" />
+    <circle cx="256" cy="0" r="8" fill="#14B8A6" opacity="0.9" />
+    <circle cx="288" cy="0" r="8" fill="#8B5CF6" opacity="0.9" />
+    <circle cx="320" cy="0" r="8" fill="#F97316" opacity="0.9" />
+    <circle cx="352" cy="0" r="8" fill="#06B6D4" opacity="0.9" />
+    <circle cx="384" cy="0" r="8" fill="#84CC16" opacity="0.9" />
+  </g>
+
+  <!-- Domain -->
+  <text x="80" y="555" font-family="'Space Grotesk', system-ui, sans-serif" font-size="22" font-weight="400" fill="#4a4a5a">prymal.io</text>
+</svg>

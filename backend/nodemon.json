@@ -1,0 +1,7 @@
+{
+  "watch": ["src", ".env"],
+  "ext": "js,json,env",
+  "ignore": ["runtime/*", "src/**/*.test.js"],
+  "exec": "node src/index.js",
+  "signal": "SIGTERM"
+}

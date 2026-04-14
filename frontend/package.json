@@ -1,0 +1,47 @@
+{
+  "name": "axiom-frontend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "verify-build": "node scripts/verify-build.mjs",
+    "avatar:prepare": "node scripts/convert-agent-avatar.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "perf:budget": "node scripts/check-bundles.mjs"
+  },
+  "dependencies": {
+    "@clerk/clerk-react": "^5.8.0",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.17.10",
+    "@sentry/react": "^10.47.0",
+    "@tanstack/react-query": "^5.56.0",
+    "@tanstack/react-virtual": "^3.11.0",
+    "framer-motion": "^12.10.5",
+    "gsap": "^3.14.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "react-router-dom": "^6.26.2",
+    "reactflow": "^11.11.4",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "jsdom": "^25.0.1",
+    "sharp": "^0.34.5",
+    "vite": "^5.4.6",
+    "vitest": "^2.1.4"
+  }
+}
