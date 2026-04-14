@@ -46,8 +46,10 @@ The authenticated Playwright job is safe to run without secrets because the test
 
 - `PLAYWRIGHT_TEST_USER_EMAIL`
 - `PLAYWRIGHT_TEST_USER_PASSWORD`
+- `PLAYWRIGHT_TEST_STAFF_EMAIL`
+- `PLAYWRIGHT_TEST_STAFF_PASSWORD`
 
-Until those secrets are configured, `E2E authenticated smoke` will stay green but only prove that the authenticated suite bootstraps and skips correctly.
+Until those secrets are configured, `E2E authenticated smoke` will stay green but only prove that the authenticated suites bootstrap and skip correctly. Staff-only admin/operator flows skip independently when staff credentials are not present.
 
 ## Recommended merge flow
 

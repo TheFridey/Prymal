@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, InlineNotice, SectionLabel, StatusPill, SurfaceCard, TextInput } from '../../components/ui';
 import { AGENT_LIBRARY, BILLING_INTERVALS, PLAN_LIBRARY, getPlanPrice } from '../../lib/constants';
 import { formatDate, formatDateTime, getErrorMessage } from '../../lib/utils';
+import {
+  createGlassPanelStyle,
+  createLabeledRowStyle,
+  FORM_LABEL_STYLE,
+  MUTED_COPY_STYLE,
+} from '../../design-system/surfaces';
 import { SeatMetric } from './referrals/ReferralsTab';
 
 const chipStyle = {
@@ -25,7 +31,7 @@ export const selectStyle = {
   padding: '14px 16px',
   borderRadius: '18px',
   border: '1px solid var(--line)',
-  background: 'rgba(255,255,255,0.72)',
+  background: 'var(--panel)',
   color: 'var(--text-strong)',
   outline: 'none',
 };
@@ -54,6 +60,30 @@ const rowStyle = {
   flexWrap: 'wrap',
   alignItems: 'center',
 };
+
+const providerGuidance = [
+  {
+    key: 'anthropic',
+    title: 'Anthropic',
+    accent: '#7DD3FC',
+    role: 'Deep reasoning and contract-heavy specialist work.',
+    helper: 'Best when you want deliberate analysis, stronger instruction-following, and premium long-form synthesis.',
+  },
+  {
+    key: 'openai',
+    title: 'OpenAI',
+    accent: '#7CFFCB',
+    role: 'Premium structured, multimodal, realtime, and operator-facing execution.',
+    helper: 'Best for polished customer-facing output, voice, images, and strong structured-response lanes.',
+  },
+  {
+    key: 'google',
+    title: 'Gemini',
+    accent: '#BDB4FE',
+    role: 'Fast, lower-cost throughput and experimentation lane.',
+    helper: 'Best for budget-sensitive routing, high-volume fast paths, and controlled experimentation.',
+  },
+];
 
 export function AccountSettingsTab({ user, viewer, signOut }) {
   return (
@@ -645,6 +675,55 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
     });
   }
 
+  const effectiveSummary = useMemo(() => {
+    const selectedProvider = formState.providerPreference === 'auto'
+      ? 'Auto-select the best provider per policy lane'
+      : formState.providerPreference === 'anthropic'
+        ? 'Prefer Anthropic for deliberate reasoning-heavy work'
+        : formState.providerPreference === 'openai'
+          ? 'Prefer OpenAI for premium multimodal and structured lanes'
+          : 'Prefer Gemini for fast or budget-sensitive execution';
+    const reasoningSummary = formState.reasoningTier === 'auto'
+      ? 'Let policy routing choose the right reasoning depth'
+      : formState.reasoningTier === 'high'
+        ? 'Bias toward deeper reasoning and higher quality passes'
+        : formState.reasoningTier === 'cost_saver'
+          ? 'Bias toward lower-cost execution where possible'
+          : 'Keep a balanced quality and latency posture';
+    const fastLaneSummary = formState.fastLane === 'auto'
+      ? 'No explicit fast-lane pinning'
+      : formState.fastLane === 'anthropic_fast'
+        ? 'Route fast chat toward Anthropic fast models'
+        : formState.fastLane === 'openai_router'
+          ? 'Route fast chat toward the OpenAI router lane'
+          : 'Route fast chat toward Gemini Flash';
+    const budgetSummary = formState.budgetCap.maxCostUsdPerRun || formState.budgetCap.maxOutputTokensPerRun
+      ? `Cap runs at ${formState.budgetCap.maxCostUsdPerRun || 'no $ cap'} USD and ${formState.budgetCap.maxOutputTokensPerRun || 'no token cap'} tokens.`
+      : formState.spendThresholds.warnUsdMonthly || formState.spendThresholds.hardCapUsdMonthly
+        ? `Track monthly warning at ${formState.spendThresholds.warnUsdMonthly || 'n/a'} USD and hard cap at ${formState.spendThresholds.hardCapUsdMonthly || 'n/a'} USD.`
+        : 'No budget caps or spend thresholds configured.';
+
+    return [
+      { label: 'Provider strategy', value: selectedProvider, accent: '#7CFFCB' },
+      { label: 'Reasoning posture', value: reasoningSummary, accent: '#BDB4FE' },
+      { label: 'Fast lane', value: fastLaneSummary, accent: '#7DD3FC' },
+      { label: 'Budget guardrails', value: budgetSummary, accent: '#F9A8D4' },
+    ];
+  }, [formState]);
+
+  const hasDraftOverrides = useMemo(
+    () => formState.providerPreference !== 'auto'
+      || formState.reasoningTier !== 'auto'
+      || formState.fastLane !== 'auto'
+      || formState.experimentationEnabled
+      || formState.failoverOrder.some(Boolean)
+      || formState.budgetCap.maxCostUsdPerRun !== ''
+      || formState.budgetCap.maxOutputTokensPerRun !== ''
+      || formState.spendThresholds.warnUsdMonthly !== ''
+      || formState.spendThresholds.hardCapUsdMonthly !== '',
+    [formState],
+  );
+
   return (
     <div style={{ display: 'grid', gap: '14px' }}>
       <SurfaceCard title="Organisation detail" accent="#00FFD1">
@@ -652,16 +731,9 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
           {orgRows.map(([label, value]) => (
             <div
               key={label}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: '12px',
-                flexWrap: 'wrap',
-                paddingBottom: '12px',
-                borderBottom: '1px solid var(--line)',
-              }}
+              style={createLabeledRowStyle()}
             >
-              <div style={{ color: 'var(--muted-2)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.16em' }}>
+              <div style={FORM_LABEL_STYLE}>
                 {label}
               </div>
               <div>{value}</div>
@@ -683,8 +755,49 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
 
         <div style={{ display: 'grid', gap: '14px', marginTop: '14px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+            {effectiveSummary.map((item) => (
+              <div
+                key={item.label}
+                style={createGlassPanelStyle({
+                  accent: item.accent,
+                  gap: '8px',
+                  minHeight: '132px',
+                })}
+              >
+                <div style={FORM_LABEL_STYLE}>{item.label}</div>
+                <div style={{ color: 'var(--text-strong)', fontWeight: 600, lineHeight: 1.5 }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: 'grid', gap: '10px' }}>
+            <SectionLabel>Provider roles</SectionLabel>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              {providerGuidance.map((provider) => (
+                <div
+                  key={provider.key}
+                  style={createGlassPanelStyle({
+                    accent: provider.accent,
+                    gap: '8px',
+                    minHeight: '164px',
+                  })}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                    <div style={{ color: 'var(--text-strong)', fontWeight: 700 }}>{provider.title}</div>
+                    <StatusPill color={provider.accent}>
+                      {formState.providerPreference === provider.key ? 'Preferred' : 'Available'}
+                    </StatusPill>
+                  </div>
+                  <div style={{ color: 'var(--text-strong)', lineHeight: 1.55 }}>{provider.role}</div>
+                  <div style={MUTED_COPY_STYLE}>{provider.helper}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
             <label style={{ display: 'grid', gap: '6px' }}>
-              <span style={{ color: 'var(--muted-2)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Provider preference</span>
+              <span style={FORM_LABEL_STYLE}>Provider preference</span>
               <select
                 value={formState.providerPreference}
                 onChange={(event) => setFormState((current) => ({ ...current, providerPreference: event.target.value }))}
@@ -699,7 +812,7 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
             </label>
 
             <label style={{ display: 'grid', gap: '6px' }}>
-              <span style={{ color: 'var(--muted-2)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Reasoning tier</span>
+              <span style={FORM_LABEL_STYLE}>Reasoning tier</span>
               <select
                 value={formState.reasoningTier}
                 onChange={(event) => setFormState((current) => ({ ...current, reasoningTier: event.target.value }))}
@@ -714,7 +827,7 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
             </label>
 
             <label style={{ display: 'grid', gap: '6px' }}>
-              <span style={{ color: 'var(--muted-2)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Fast lane</span>
+              <span style={FORM_LABEL_STYLE}>Fast lane</span>
               <select
                 value={formState.fastLane}
                 onChange={(event) => setFormState((current) => ({ ...current, fastLane: event.target.value }))}
@@ -773,7 +886,7 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
               {[0, 1, 2].map((index) => (
                 <label key={index} style={{ display: 'grid', gap: '6px' }}>
-                  <span style={{ color: 'var(--muted)', fontSize: '12px' }}>Fallback {index + 1}</span>
+                  <span style={MUTED_COPY_STYLE}>Fallback {index + 1}</span>
                   <select
                     value={formState.failoverOrder[index]}
                     onChange={(event) => updateFailover(index, event.target.value)}
@@ -790,7 +903,7 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
             </div>
           </div>
 
-          <label style={{ display: 'flex', gap: '10px', alignItems: 'center', color: 'var(--muted)' }}>
+          <label style={{ display: 'flex', gap: '10px', alignItems: 'center', color: 'var(--muted)', lineHeight: 1.5 }}>
             <input
               type="checkbox"
               checked={formState.experimentationEnabled}
@@ -799,6 +912,12 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
             />
             Enable experimentation tracking for routing comparisons
           </label>
+
+          <InlineNotice tone={hasDraftOverrides ? 'success' : 'default'}>
+            {hasDraftOverrides
+              ? 'This draft will change default routing posture for the whole organisation. Policy abstractions still stay in control, but the preferred provider, fast lane, failover order, and budget guardrails will bias execution.'
+              : 'No explicit routing overrides are active in the current draft. Prymal will continue selecting providers automatically from policy and runtime context.'}
+          </InlineNotice>
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <Button

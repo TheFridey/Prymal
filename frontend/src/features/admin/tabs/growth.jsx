@@ -1,7 +1,3 @@
-// features/admin/tabs/growth.jsx
-// Growth + commercial analytics surface for operator and investor readiness.
-// Receives the TanStack Query object from Admin.jsx via props.
-
 import { formatNumber } from '../../../lib/utils';
 import {
   MotionList,
@@ -11,11 +7,9 @@ import {
   SkeletonSurface,
 } from '../../../components/motion';
 
-// ---------------------------------------------------------------------------
-// Funnel step bar
-// ---------------------------------------------------------------------------
 function FunnelBar({ label, value, total, color = 'var(--accent)' }) {
   const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+
   return (
     <div className="growth-funnel__step">
       <div className="growth-funnel__step-head">
@@ -35,9 +29,6 @@ function FunnelBar({ label, value, total, color = 'var(--accent)' }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Agent usage row
-// ---------------------------------------------------------------------------
 function AgentUsageRow({ agentId, displayName, runs, successRate, avgLatencyMs, color }) {
   return (
     <div className="growth-agent-row">
@@ -54,7 +45,7 @@ function AgentUsageRow({ agentId, displayName, runs, successRate, avgLatencyMs, 
         <span className={successRate >= 0.9 ? 'growth-stat--success' : successRate >= 0.7 ? 'growth-stat--warning' : 'growth-stat--danger'}>
           {Math.round(successRate * 100)}% success
         </span>
-        <span className="growth-agent-row__latency">{avgLatencyMs ? `${formatNumber(avgLatencyMs)}ms` : '—'}</span>
+        <span className="growth-agent-row__latency">{avgLatencyMs ? `${formatNumber(avgLatencyMs)}ms` : '-'}</span>
       </div>
       <div className="growth-agent-row__meter-track">
         <div
@@ -66,12 +57,10 @@ function AgentUsageRow({ agentId, displayName, runs, successRate, avgLatencyMs, 
   );
 }
 
-// ---------------------------------------------------------------------------
-// Churn risk signal card
-// ---------------------------------------------------------------------------
 function ChurnSignalCard({ orgName, plan, riskLevel, signals }) {
   const toneMap = { high: 'rose', medium: 'amber', low: 'mint' };
   const tone = toneMap[riskLevel] ?? 'slate';
+
   return (
     <div className={`growth-churn-card growth-churn-card--${tone}`}>
       <div className="growth-churn-card__head">
@@ -79,24 +68,20 @@ function ChurnSignalCard({ orgName, plan, riskLevel, signals }) {
         <span className={`staff-admin__badge staff-admin__badge--${tone}`}>{riskLevel} risk</span>
       </div>
       <span className="growth-churn-card__plan">{plan}</span>
-      {signals?.length > 0 && (
+      {signals?.length > 0 ? (
         <ul className="growth-churn-card__signals">
           {signals.slice(0, 3).map((signal) => (
             <li key={signal}>{signal}</li>
           ))}
         </ul>
-      )}
+      ) : null}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
 export function GrowthTab({ query }) {
   const data = query?.data ?? {};
 
-  // Show skeleton while the first fetch is in flight
   if (query?.isLoading && !data?.growth) {
     return (
       <>
@@ -115,7 +100,6 @@ export function GrowthTab({ query }) {
     );
   }
 
-  // Safely destructure with defaults so the tab renders in zero-data states
   const {
     activationFunnel = {},
     agentUsage = [],
@@ -127,6 +111,7 @@ export function GrowthTab({ query }) {
     powerUserOrgs = [],
     inactivityAlerts = [],
     cohortRetention = [],
+    featureAdoptionByPlan = [],
   } = data?.growth ?? {};
 
   const {
@@ -150,6 +135,7 @@ export function GrowthTab({ query }) {
     workflowRunsLast30d = 0,
     avgSuccessRate = 0,
   } = workflowConversion;
+
   const {
     documentsUploaded30d = 0,
     indexedDocuments30d = 0,
@@ -158,18 +144,15 @@ export function GrowthTab({ query }) {
     topSourceTypes = [],
   } = loreUsage;
 
-  const totalAgentRuns = agentUsage.reduce((sum, a) => sum + (a.runs ?? 0), 0);
+  const totalAgentRuns = agentUsage.reduce((sum, entry) => sum + (entry.runs ?? 0), 0);
 
   return (
     <>
-      {/* ── KPI strip ─────────────────────────────────────────────────── */}
       <MotionList className="staff-admin__metric-grid" staggerChildren={0.04}>
         <MotionListItem className="staff-admin__metric staff-admin__metric--mint" reveal={{ y: 14, blur: 4 }}>
           <span className="staff-admin__metric-label">Paid conversions (30d)</span>
           <strong>{formatNumber(paidConversion)}</strong>
-          <small>
-            {signups > 0 ? `${Math.round((paidConversion / signups) * 100)}% of signups` : '—'}
-          </small>
+          <small>{signups > 0 ? `${Math.round((paidConversion / signups) * 100)}% of signups` : '-'}</small>
         </MotionListItem>
         <MotionListItem className="staff-admin__metric staff-admin__metric--blue" reveal={{ y: 14, blur: 4 }}>
           <span className="staff-admin__metric-label">Onboarding completion</span>
@@ -183,17 +166,12 @@ export function GrowthTab({ query }) {
         </MotionListItem>
         <MotionListItem className="staff-admin__metric staff-admin__metric--amber" reveal={{ y: 14, blur: 4 }}>
           <span className="staff-admin__metric-label">Workflow activation</span>
-          <strong>
-            {workflowsCreated > 0
-              ? `${Math.round((workflowsActivated / workflowsCreated) * 100)}%`
-              : '—'}
-          </strong>
+          <strong>{workflowsCreated > 0 ? `${Math.round((workflowsActivated / workflowsCreated) * 100)}%` : '-'}</strong>
           <small>{formatNumber(workflowsActivated)} of {formatNumber(workflowsCreated)} workflows live</small>
         </MotionListItem>
       </MotionList>
 
       <div className="staff-admin__overview-grid">
-        {/* ── Activation funnel ───────────────────────────────────────── */}
         <MotionSection className="staff-admin__surface" reveal={{ y: 18 }}>
           <div className="staff-admin__surface-head">
             <div>
@@ -212,17 +190,15 @@ export function GrowthTab({ query }) {
             <FunnelBar label="Paid conversion" value={paidConversion} total={signups} color="#ff8cab" />
           </div>
 
-          {medianTimeToFirstRunMs != null && (
+          {medianTimeToFirstRunMs != null ? (
             <div className="growth-funnel__footer">
               <span className="staff-admin__surface-meta">
-                Median time to first run:{' '}
-                <strong>{Math.round(medianTimeToFirstRunMs / 60_000)} min</strong>
+                Median time to first run: <strong>{Math.round(medianTimeToFirstRunMs / 60_000)} min</strong>
               </span>
             </div>
-          )}
+          ) : null}
         </MotionSection>
 
-        {/* ── Cohort retention ────────────────────────────────────────── */}
         <MotionSection className="staff-admin__surface" reveal={{ y: 18 }}>
           <div className="staff-admin__surface-head">
             <div>
@@ -326,7 +302,7 @@ export function GrowthTab({ query }) {
                       <span className="staff-admin__surface-meta">{org.plan}</span>
                     </div>
                     <p className="staff-admin__feed-summary">
-                      Score {formatNumber(org.score)} · {formatNumber(org.traceCount)} traces · {formatNumber(org.workflowCount)} workflow runs · {formatNumber(org.docCount)} docs · {formatNumber(org.activeSeats)} seats
+                      Score {formatNumber(org.score)} | {formatNumber(org.traceCount)} traces | {formatNumber(org.workflowCount)} workflow runs | {formatNumber(org.docCount)} docs | {formatNumber(org.activeSeats)} seats
                     </p>
                   </div>
                 </div>
@@ -336,13 +312,12 @@ export function GrowthTab({ query }) {
         </MotionSection>
       </div>
 
-      {/* ── Agent usage analytics ───────────────────────────────────────── */}
       <MotionSection className="staff-admin__surface" reveal={{ y: 18 }}>
         <div className="staff-admin__surface-head">
           <div>
             <div className="staff-admin__surface-label">Agent analytics</div>
             <h2>Usage and success rates</h2>
-            <p className="staff-admin__surface-meta">Last 30 days · {formatNumber(totalAgentRuns)} total runs</p>
+            <p className="staff-admin__surface-meta">Last 30 days | {formatNumber(totalAgentRuns)} total runs</p>
           </div>
         </div>
 
@@ -352,7 +327,7 @@ export function GrowthTab({ query }) {
           <div className="growth-agent-list">
             {agentUsage
               .slice()
-              .sort((a, b) => (b.runs ?? 0) - (a.runs ?? 0))
+              .sort((left, right) => (right.runs ?? 0) - (left.runs ?? 0))
               .map((agent) => (
                 <AgentUsageRow key={agent.agentId} {...agent} />
               ))}
@@ -361,12 +336,11 @@ export function GrowthTab({ query }) {
       </MotionSection>
 
       <div className="staff-admin__overview-grid">
-        {/* ── Workflow conversion ─────────────────────────────────────── */}
         <MotionSection className="staff-admin__surface" reveal={{ y: 18 }}>
           <div className="staff-admin__surface-head">
             <div>
               <div className="staff-admin__surface-label">Workflow conversion</div>
-              <h2>Builder → live</h2>
+              <h2>Builder to live</h2>
             </div>
           </div>
 
@@ -392,7 +366,6 @@ export function GrowthTab({ query }) {
           </div>
         </MotionSection>
 
-        {/* ── Seat expansion ──────────────────────────────────────────── */}
         <MotionSection className="staff-admin__surface" reveal={{ y: 18 }}>
           <div className="staff-admin__surface-head">
             <div>
@@ -414,9 +387,7 @@ export function GrowthTab({ query }) {
                       <span className="staff-admin__surface-meta">{org.currentPlan}</span>
                     </div>
                     <p className="staff-admin__feed-summary">
-                      {org.usedSeats}/{org.totalSeats} seats used ·{' '}
-                      {org.runRate30d} runs/30d ·{' '}
-                      {org.expansionSignal}
+                      {org.usedSeats}/{org.totalSeats} seats used | {org.runRate30d} runs/30d | {org.expansionSignal}
                     </p>
                   </div>
                 </div>
@@ -426,18 +397,62 @@ export function GrowthTab({ query }) {
         </MotionSection>
       </div>
 
-      {/* ── Churn risk signals ──────────────────────────────────────────── */}
+      <MotionSection className="staff-admin__surface" reveal={{ y: 18 }}>
+        <div className="staff-admin__surface-head">
+          <div>
+            <div className="staff-admin__surface-label">Plan adoption</div>
+            <h2>Feature adoption by plan tier</h2>
+            <p className="staff-admin__surface-meta">Commercial readiness, collaboration depth, and operator-control uptake by plan.</p>
+          </div>
+        </div>
+
+        {featureAdoptionByPlan.length === 0 ? (
+          <div className="staff-admin__empty">No plan-tier adoption signals captured yet.</div>
+        ) : (
+          <table className="staff-admin__table">
+            <thead>
+              <tr>
+                <th>Plan</th>
+                <th>Orgs</th>
+                <th>Active 30d</th>
+                <th>Onboarded</th>
+                <th>Workflow</th>
+                <th>LORE</th>
+                <th>Teams</th>
+                <th>API keys</th>
+                <th>AI overrides</th>
+              </tr>
+            </thead>
+            <tbody>
+              {featureAdoptionByPlan.map((entry) => (
+                <tr key={entry.plan}>
+                  <td style={{ textTransform: 'capitalize' }}>{entry.plan}</td>
+                  <td>{formatNumber(entry.counts.totalOrgs)}</td>
+                  <td>{Math.round((entry.rates.activeOrgs30d ?? 0) * 100)}%</td>
+                  <td>{Math.round((entry.rates.onboardingCompletedOrgs ?? 0) * 100)}%</td>
+                  <td>{Math.round((entry.rates.workflowOrgs ?? 0) * 100)}%</td>
+                  <td>{Math.round((entry.rates.loreOrgs ?? 0) * 100)}%</td>
+                  <td>{Math.round((entry.rates.teamOrgs ?? 0) * 100)}%</td>
+                  <td>{Math.round((entry.rates.apiKeyOrgs ?? 0) * 100)}%</td>
+                  <td>{Math.round((entry.rates.overrideOrgs ?? 0) * 100)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </MotionSection>
+
       <MotionSection className="staff-admin__surface" reveal={{ y: 18 }}>
         <div className="staff-admin__surface-head">
           <div>
             <div className="staff-admin__surface-label">Retention watchlist</div>
             <h2>Churn risk signals</h2>
-            <p className="staff-admin__surface-meta">Organisations with reduced engagement or cancellation indicators</p>
+            <p className="staff-admin__surface-meta">Organisations with reduced engagement or cancellation indicators.</p>
           </div>
         </div>
 
         {churnSignals.length === 0 ? (
-          <div className="staff-admin__empty">No churn risk signals detected. 🎉</div>
+          <div className="staff-admin__empty">No churn risk signals detected.</div>
         ) : (
           <MotionList className="growth-churn-grid" staggerChildren={0.05}>
             {churnSignals.slice(0, 9).map((org) => (
@@ -454,7 +469,7 @@ export function GrowthTab({ query }) {
           <div>
             <div className="staff-admin__surface-label">Inactivity alerts</div>
             <h2>Reactivation candidates</h2>
-            <p className="staff-admin__surface-meta">Paid workspaces that have gone quiet recently</p>
+            <p className="staff-admin__surface-meta">Paid workspaces that have gone quiet recently.</p>
           </div>
         </div>
 
@@ -471,7 +486,7 @@ export function GrowthTab({ query }) {
                     <span className="staff-admin__surface-meta">{org.plan}</span>
                   </div>
                   <p className="staff-admin__feed-summary">
-                    {org.daysInactive} days inactive · last activity {org.lastActiveAt ? new Date(org.lastActiveAt).toLocaleDateString() : 'unknown'}
+                    {org.daysInactive} days inactive | last activity {org.lastActiveAt ? new Date(org.lastActiveAt).toLocaleDateString() : 'unknown'}
                   </p>
                 </div>
               </div>

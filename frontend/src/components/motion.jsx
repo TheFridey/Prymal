@@ -17,7 +17,7 @@ import {
   createPageVariants,
   createRevealVariants,
   createTapPress,
-} from '../lib/motion';
+} from '../design-system/motion';
 
 export function MotionProvider({ children }) {
   return (

@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MotionList, MotionListItem } from './motion';
+import {
+  createCommandPaletteActionStyle,
+  createCommandPaletteBackdropStyle,
+  createCommandPaletteDialogStyle,
+  createCommandPaletteKindStyle,
+} from '../design-system/surfaces';
 
 function paletteKey(item) {
   return `${item.kind ?? 'item'}:${item.id ?? item.title}`;
@@ -70,17 +76,7 @@ export function CommandPaletteDialog({
         exit={{ opacity: 0 }}
         transition={{ duration: 0.18, ease: 'easeOut' }}
         onClick={onClose}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 9999,
-          background: 'rgba(10, 15, 31, 0.58)',
-          backdropFilter: 'blur(18px)',
-          padding: '8vh 16px 24px',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-start',
-        }}
+        style={createCommandPaletteBackdropStyle()}
       >
         <motion.div
           role="dialog"
@@ -91,15 +87,7 @@ export function CommandPaletteDialog({
           exit={{ opacity: 0, y: 12, scale: 0.98 }}
           transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           onClick={(event) => event.stopPropagation()}
-          style={{
-            width: 'min(720px, 100%)',
-            borderRadius: '28px',
-            border: '1px solid color-mix(in srgb, var(--line) 82%, white 8%)',
-            background:
-              'linear-gradient(180deg, color-mix(in srgb, var(--panel) 96%, white 4%), color-mix(in srgb, var(--surface) 92%, transparent 8%))',
-            boxShadow: '0 36px 120px rgba(6, 10, 24, 0.36)',
-            overflow: 'hidden',
-          }}
+          style={createCommandPaletteDialogStyle()}
         >
           <div
             style={{
@@ -184,37 +172,9 @@ export function CommandPaletteDialog({
                     type="button"
                     onClick={() => onSelect(result)}
                     onMouseEnter={() => setActiveIndex(index)}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'auto 1fr auto',
-                      alignItems: 'center',
-                      gap: '12px',
-                      width: '100%',
-                      padding: '12px 14px',
-                      borderRadius: '18px',
-                      border: active ? '1px solid color-mix(in srgb, var(--accent) 36%, var(--line))' : '1px solid transparent',
-                      background: active ? 'color-mix(in srgb, var(--panel-soft) 84%, var(--accent) 6%)' : 'transparent',
-                      color: 'var(--text-strong)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                    }}
+                    style={createCommandPaletteActionStyle(active)}
                   >
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minWidth: '52px',
-                        padding: '5px 10px',
-                        borderRadius: '999px',
-                        background: result.accent ? `${result.accent}18` : 'rgba(255,255,255,0.06)',
-                        color: result.accent ?? 'var(--muted)',
-                        fontSize: '0.68rem',
-                        letterSpacing: '0.14em',
-                        textTransform: 'uppercase',
-                        fontWeight: 700,
-                      }}
-                    >
+                    <span style={createCommandPaletteKindStyle(result.accent)}>
                       {result.kindLabel ?? result.kind ?? 'Item'}
                     </span>
                     <span style={{ minWidth: 0 }}>

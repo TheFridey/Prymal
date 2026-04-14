@@ -349,7 +349,10 @@ export async function* streamAgentResponse({
         loreDocumentIds: systemPrompt.loreDocumentIds,
         memoryReadIds: systemPrompt.memoryReadIds,
         fallbackUsed,
-        selectionDetails: plan.selectionDetails ?? {},
+        selectionDetails: {
+          ...(plan.selectionDetails ?? {}),
+          ...(error.toolValidation ? { toolValidation: error.toolValidation } : {}),
+        },
       };
       throw normalizedError;
     }
@@ -493,7 +496,10 @@ export async function runAgentNode({ agentId, orgId, orgPlan = 'free', prompt, c
         loreDocumentIds: systemPrompt.loreDocumentIds,
         memoryReadIds: systemPrompt.memoryReadIds,
         fallbackUsed,
-        selectionDetails: plan.selectionDetails ?? {},
+        selectionDetails: {
+          ...(plan.selectionDetails ?? {}),
+          ...(error.toolValidation ? { toolValidation: error.toolValidation } : {}),
+        },
       };
       throw normalizedError;
     }

@@ -2,6 +2,7 @@ import { desc } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { db } from '../../db/index.js';
 import {
+  apiKeys,
   llmExecutionTraces,
   loreDocuments,
   organisations,
@@ -11,6 +12,7 @@ import {
   workflows,
 } from '../../db/schema.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
+import { normalizeOrgAiControls } from '../../services/model-policy.js';
 
 const router = new Hono();
 
@@ -23,6 +25,7 @@ router.get('/growth', requireStaff, requireStaffPermission('admin.activity.read'
     workflowRows,
     workflowRunRows,
     documentRows,
+    apiKeyRows,
   ] = await Promise.all([
     db.query.organisations.findMany({ orderBy: [desc(organisations.createdAt)] }),
     db.query.users.findMany({ orderBy: [desc(users.createdAt)] }),
@@ -31,6 +34,7 @@ router.get('/growth', requireStaff, requireStaffPermission('admin.activity.read'
     db.query.workflows.findMany({ orderBy: [desc(workflows.createdAt)] }),
     db.query.workflowRuns.findMany({ orderBy: [desc(workflowRuns.createdAt)] }),
     db.query.loreDocuments.findMany({ orderBy: [desc(loreDocuments.createdAt)] }),
+    db.query.apiKeys.findMany({ orderBy: [desc(apiKeys.createdAt)] }),
   ]);
 
   return context.json({
@@ -42,6 +46,7 @@ router.get('/growth', requireStaff, requireStaffPermission('admin.activity.read'
       workflows: workflowRows,
       workflowRuns: workflowRunRows,
       documents: documentRows,
+      apiKeys: apiKeyRows,
     }),
   });
 });
@@ -54,6 +59,7 @@ export function buildGrowthSnapshot({
   workflows = [],
   workflowRuns = [],
   documents = [],
+  apiKeys = [],
   now = new Date(),
 }) {
   const since7 = daysAgo(now, 7);
@@ -182,6 +188,15 @@ export function buildGrowthSnapshot({
     workflowRuns,
     now,
   });
+  const featureAdoptionByPlan = buildFeatureAdoptionByPlan({
+    organisations,
+    usersByOrg,
+    events30,
+    tracesByOrg30,
+    workflowRunsByOrg30,
+    docsByOrg30,
+    apiKeys,
+  });
 
   return {
     activationFunnel,
@@ -194,6 +209,7 @@ export function buildGrowthSnapshot({
     powerUserOrgs,
     inactivityAlerts,
     cohortRetention,
+    featureAdoptionByPlan,
   };
 }
 
@@ -394,6 +410,85 @@ function buildCohortRetention({ organisations, events, traces, workflowRuns, now
     .slice(-8);
 }
 
+function buildFeatureAdoptionByPlan({
+  organisations,
+  usersByOrg,
+  events30,
+  tracesByOrg30,
+  workflowRunsByOrg30,
+  docsByOrg30,
+  apiKeys,
+}) {
+  const apiKeysByOrg = countBy(apiKeys.filter((entry) => entry.isActive !== false), (entry) => entry.orgId);
+  const onboardingCompletedOrgIds = new Set(
+    events30
+      .filter((row) => row.eventName === 'onboarding.completed' && row.orgId)
+      .map((row) => row.orgId),
+  );
+  const planOrder = ['free', 'solo', 'pro', 'teams', 'agency'];
+
+  return planOrder
+    .map((plan) => {
+      const planOrgs = organisations.filter((org) => (org.plan ?? 'free') === plan);
+      const totalOrgs = planOrgs.length;
+
+      if (!totalOrgs) {
+        return null;
+      }
+
+      const counts = {
+        totalOrgs,
+        activeOrgs30d: 0,
+        onboardingCompletedOrgs: 0,
+        workflowOrgs: 0,
+        loreOrgs: 0,
+        teamOrgs: 0,
+        apiKeyOrgs: 0,
+        overrideOrgs: 0,
+      };
+
+      for (const org of planOrgs) {
+        const traceCount = tracesByOrg30.get(org.id)?.length ?? 0;
+        const workflowCount = workflowRunsByOrg30.get(org.id)?.length ?? 0;
+        const loreCount = docsByOrg30.get(org.id)?.length ?? 0;
+        const activeSeats = usersByOrg.get(org.id) ?? 0;
+        const controls = normalizeOrgAiControls(org.metadata ?? org.orgMetadata ?? {});
+        const hasOverrides = controls.providerPreference !== 'auto'
+          || controls.reasoningTier !== 'auto'
+          || controls.fastLane !== 'auto'
+          || controls.experimentationEnabled
+          || controls.failoverOrder.length > 0
+          || controls.budgetCap.maxCostUsdPerRun != null
+          || controls.budgetCap.maxOutputTokensPerRun != null
+          || controls.spendThresholds.warnUsdMonthly != null
+          || controls.spendThresholds.hardCapUsdMonthly != null;
+
+        if (traceCount + workflowCount + loreCount > 0) counts.activeOrgs30d += 1;
+        if (onboardingCompletedOrgIds.has(org.id)) counts.onboardingCompletedOrgs += 1;
+        if (workflowCount > 0) counts.workflowOrgs += 1;
+        if (loreCount > 0) counts.loreOrgs += 1;
+        if (activeSeats > 1) counts.teamOrgs += 1;
+        if ((apiKeysByOrg.get(org.id) ?? 0) > 0) counts.apiKeyOrgs += 1;
+        if (hasOverrides) counts.overrideOrgs += 1;
+      }
+
+      return {
+        plan,
+        counts,
+        rates: {
+          activeOrgs30d: safeShare(counts.activeOrgs30d, totalOrgs),
+          onboardingCompletedOrgs: safeShare(counts.onboardingCompletedOrgs, totalOrgs),
+          workflowOrgs: safeShare(counts.workflowOrgs, totalOrgs),
+          loreOrgs: safeShare(counts.loreOrgs, totalOrgs),
+          teamOrgs: safeShare(counts.teamOrgs, totalOrgs),
+          apiKeyOrgs: safeShare(counts.apiKeyOrgs, totalOrgs),
+          overrideOrgs: safeShare(counts.overrideOrgs, totalOrgs),
+        },
+      };
+    })
+    .filter(Boolean);
+}
+
 function hasActivityInWeek(orgId, createdAt, weekOffset, { events, traces, workflowRuns }) {
   const created = new Date(createdAt);
   const start = new Date(created.getTime() + (weekOffset - 1) * 7 * 24 * 60 * 60 * 1000);
@@ -475,6 +570,14 @@ function median(values) {
   }
 
   return Math.round(ordered[mid]);
+}
+
+function safeShare(numerator, denominator) {
+  if (!denominator) {
+    return 0;
+  }
+
+  return Number((numerator / denominator).toFixed(4));
 }
 
 function toWeekKey(value) {

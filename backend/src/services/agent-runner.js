@@ -182,6 +182,7 @@ export async function* runAgentChat({
         contract: buildRuntimeContractSummary(agentId),
         policyClass: lastDoneEvent?.selectionDetails?.policyClass ?? lastDoneEvent?.policyKey ?? null,
         fallbackModel: lastDoneEvent?.selectionDetails?.fallbackModelUsed ?? null,
+        schemaValidation: lastDoneEvent?.schemaValidation ?? null,
         routing: lastDoneEvent?.selectionDetails ?? {},
         requestId,
       },

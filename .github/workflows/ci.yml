@@ -112,10 +112,20 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npx playwright install chromium --with-deps
-      - run: npm run test:e2e -- --project=chromium tests/workspace-smoke.spec.js tests/settings-smoke.spec.js
+      - run: npm run test:e2e -- --project=chromium tests/workspace-smoke.spec.js tests/settings-smoke.spec.js tests/app-core.spec.js tests/admin-operator.spec.js
         env:
           CI: true
           VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_API_URL: ${{ env.VITE_API_URL }}
           PLAYWRIGHT_TEST_USER_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_USER_EMAIL || '' }}
           PLAYWRIGHT_TEST_USER_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_USER_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_STAFF_EMAIL || '' }}
+          PLAYWRIGHT_TEST_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_STAFF_PASSWORD || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-authenticated-artifacts
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore

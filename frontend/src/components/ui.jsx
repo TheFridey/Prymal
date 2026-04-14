@@ -1,17 +1,11 @@
 import { motion, MotionButton, MotionPanel, MotionSection } from './motion';
 import { useTheme } from './theme';
-
-function blend(color, alphaHex = '20') {
-  if (!color || !color.startsWith('#')) {
-    return color;
-  }
-
-  const normalized = color.length === 4
-    ? `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`
-    : color;
-
-  return `${normalized}${alphaHex}`;
-}
+import {
+  createInlineNoticePalette,
+  createStatusPillVars,
+  createSurfaceAccentVars,
+} from '../design-system/surfaces';
+import { withAlpha } from '../design-system/tokens';
 
 export function BrandMark({ compact = false }) {
   return (
@@ -354,7 +348,7 @@ export function SurfaceCard({ children, title, subtitle, accent, style, classNam
       className={`surface-card${className ? ` ${className}` : ''}`}
       accent={accent}
       style={{
-        '--card-accent': accent || 'var(--line-soft)',
+        ...createSurfaceAccentVars(accent),
         ...style,
       }}
     >
@@ -391,9 +385,7 @@ export function StatusPill({ children, color = 'var(--accent)' }) {
   return (
     <motion.span
       className="status-pill"
-      style={{
-        '--status-pill-color': color,
-      }}
+      style={createStatusPillVars(color)}
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
@@ -418,8 +410,8 @@ export function EmptyState({ title, description, action, accent = 'var(--accent)
       <div
         className="empty-state__glyph"
         style={{
-          borderColor: blend(accent, '30'),
-          background: `linear-gradient(135deg, ${blend(accent, '26')}, transparent)`,
+          borderColor: withAlpha(accent, '30'),
+          background: `linear-gradient(135deg, ${withAlpha(accent, '26')}, transparent)`,
         }}
       />
       <h3 className="empty-state__title" style={{ color: accent }}>
@@ -431,40 +423,48 @@ export function EmptyState({ title, description, action, accent = 'var(--accent)
   );
 }
 
-export function InlineNotice({ children, tone = 'default' }) {
-  const toneMap = {
-    default: {
-      borderColor: 'var(--line)',
-      color: 'var(--muted)',
-      background: 'var(--panel-soft)',
-    },
-    success: {
-      borderColor: 'rgba(34, 197, 94, 0.24)',
-      color: 'var(--success-ink)',
-      background: 'var(--success-surface)',
-    },
-    warning: {
-      borderColor: 'rgba(245, 158, 11, 0.24)',
-      color: 'var(--warning-ink)',
-      background: 'var(--warning-surface)',
-    },
-    danger: {
-      borderColor: 'rgba(239, 68, 68, 0.24)',
-      color: 'var(--danger-ink)',
-      background: 'var(--danger-surface)',
-    },
-  };
-  const palette = toneMap[tone] ?? toneMap.default;
+export function InlineNotice({
+  children,
+  tone = 'default',
+  variant,
+  title,
+  message,
+  className = '',
+  style,
+}) {
+  const resolvedTone = variant === 'error'
+    ? 'danger'
+    : variant === 'info'
+      ? 'default'
+      : variant ?? tone;
+  const palette = createInlineNoticePalette(resolvedTone);
+  const hasStructuredCopy = Boolean(title || message);
 
   return (
     <motion.div
-      className="inline-notice"
-      style={palette}
+      className={`inline-notice${className ? ` ${className}` : ''}`}
+      style={{ ...palette, ...style }}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24 }}
     >
-      {children}
+      {hasStructuredCopy ? (
+        <div style={{ display: 'grid', gap: '4px' }}>
+          {title ? (
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-strong)' }}>
+              {title}
+            </div>
+          ) : null}
+          {message ? (
+            <div style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
+              {message}
+            </div>
+          ) : null}
+          {children ? (
+            <div style={{ marginTop: '2px' }}>{children}</div>
+          ) : null}
+        </div>
+      ) : children}
     </motion.div>
   );
 }
