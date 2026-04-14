@@ -43,6 +43,7 @@ import { OverviewTab, OrganisationInspector, UserInspector } from '../features/a
 import { BillingTab, RevenueTab, ReferralsTab } from '../features/admin/tabs/billing';
 import { ActivityTab, AuditLogsTab, CreditUsageTab, ProductEventsTab } from '../features/admin/tabs/activity';
 import { EmailQueueTab, WaitlistTab, PowerUpsTab } from '../features/admin/tabs/support';
+import { GrowthTab } from '../features/admin/tabs/growth';
 import { AdminCommandPalette } from '../features/admin/AdminCommandPalette';
 
 export default function Admin() {
@@ -116,6 +117,13 @@ export default function Admin() {
     queryKey: ['staff-admin-powerups'],
     queryFn: () => api.get('/admin/powerups'),
     enabled: isStaff && activeTab === 'powerups',
+  });
+
+  const growthQuery = useQuery({
+    queryKey: ['staff-admin-growth'],
+    queryFn: () => api.get('/admin/growth'),
+    enabled: isStaff && activeTab === 'growth',
+    refetchInterval: activeTab === 'growth' ? 60_000 : false,
   });
 
   const auditLogsQuery = useQuery({
@@ -910,6 +918,9 @@ export default function Admin() {
         ) : null}
         {activeTab === 'product-events' ? (
           <ProductEventsTab query={productEventsQuery} />
+        ) : null}
+        {activeTab === 'growth' ? (
+          <GrowthTab query={growthQuery} />
         ) : null}
         </motion.div>
         </MotionPresence>

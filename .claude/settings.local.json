@@ -4,7 +4,8 @@
       "Bash(node --check src/routes/auth.js src/routes/agents.js src/routes/admin.js src/services/llm.js)",
       "Bash(node --check src/pages/Settings.jsx src/pages/Onboarding.jsx src/pages/Admin.jsx src/components/WorkspaceStudio.jsx)",
       "Bash(npx vite:*)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(find /c/Users/rhysl/OneDrive/Documents/axiom/axiom/frontend/src -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.js\" \\\\\\) -exec wc -l {} +)"
     ]
   }
 }

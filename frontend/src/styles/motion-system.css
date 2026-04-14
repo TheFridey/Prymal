@@ -84,3 +84,129 @@
     will-change: auto;
   }
 }
+
+/* ── Skeleton loading primitives ────────────────────────────────────────── */
+
+@keyframes skeletonShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+/* Base shimmer shared by all skeleton variants */
+.skeleton,
+.skeleton-block,
+.skeleton-text,
+.skeleton-heading,
+.skeleton-avatar,
+.skeleton-card,
+.skeleton-metric,
+.skeleton-surface {
+  --skeleton-base: color-mix(in srgb, var(--surface-2, #1a1f2e) 100%, transparent);
+  --skeleton-shine: color-mix(in srgb, var(--surface-3, #252c3f) 100%, transparent);
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 0%,
+    var(--skeleton-shine) 40%,
+    var(--skeleton-base) 80%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .skeleton-block,
+  .skeleton-text,
+  .skeleton-heading,
+  .skeleton-avatar,
+  .skeleton-card,
+  .skeleton-metric,
+  .skeleton-surface {
+    animation: none;
+    background: var(--skeleton-base);
+  }
+}
+
+/* Block — rectangular placeholder */
+.skeleton-block {
+  display: block;
+  width: var(--skeleton-w, 100%);
+  height: var(--skeleton-h, 1rem);
+  border-radius: var(--radius-sm, 6px);
+}
+
+/* Text — inline line placeholders; stack multiples for paragraph feel */
+.skeleton-text {
+  display: block;
+  height: 0.875em;
+  border-radius: 4px;
+  width: var(--skeleton-w, 100%);
+}
+
+.skeleton-text + .skeleton-text {
+  margin-top: 0.5em;
+}
+
+.skeleton-text:last-child {
+  width: 62%;
+}
+
+/* Heading — taller single line */
+.skeleton-heading {
+  display: block;
+  height: 1.25em;
+  border-radius: 5px;
+  width: var(--skeleton-w, 70%);
+  margin-bottom: 0.75em;
+}
+
+/* Avatar circle */
+.skeleton-avatar {
+  flex-shrink: 0;
+  border-radius: 50%;
+  width: var(--skeleton-size, 2.5rem);
+  height: var(--skeleton-size, 2.5rem);
+}
+
+/* Card — surface-shaped placeholder for loading panels */
+.skeleton-card {
+  border-radius: var(--radius-md, 10px);
+  width: 100%;
+  height: var(--skeleton-h, 120px);
+  animation-delay: var(--skeleton-delay, 0ms);
+}
+
+/* Metric tile — KPI strip placeholder (matches staff-admin__metric height) */
+.skeleton-metric {
+  border-radius: var(--radius-md, 10px);
+  height: 88px;
+  animation-delay: var(--skeleton-delay, 0ms);
+}
+
+/* Row — single-line feed row placeholder */
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.skeleton-row + .skeleton-row {
+  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.06));
+}
+
+/* Metric grid — matches staff-admin__metric-grid layout */
+.skeleton-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* Surface — matches staff-admin__surface / motion-panel dimensions */
+.skeleton-surface {
+  border-radius: var(--radius-lg, 16px);
+  width: 100%;
+  height: var(--skeleton-h, 220px);
+  animation-delay: var(--skeleton-delay, 0ms);
+}

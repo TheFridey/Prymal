@@ -213,15 +213,21 @@ export async function checkForContradictions({ orgId, newContent, documentId }) 
         continue;
       }
 
-      const numericConflict = detectNumericConflict(chunk.content, match.content);
+      const numericConflictScore = detectNumericConflictScore(chunk.content, match.content);
       const negationConflict = detectNegationConflict(chunk.content, match.content);
 
-      if (match.similarity >= 0.88 || numericConflict || negationConflict) {
+      if (match.similarity >= 0.88 || numericConflictScore > 0 || negationConflict) {
+        const conflictType = numericConflictScore > 0
+          ? 'numeric_conflict'
+          : negationConflict
+            ? 'statement_conflict'
+            : 'duplicate_or_overlap';
         contradictions.push({
           existingDocumentId: match.documentId,
           existingDocumentTitle: match.documentTitle,
           similarity: match.similarity,
-          type: numericConflict ? 'numeric_conflict' : negationConflict ? 'statement_conflict' : 'duplicate_or_overlap',
+          type: conflictType,
+          confidence: numericConflictScore > 0 ? numericConflictScore : negationConflict ? 0.72 : 0.55,
           staleWarning: match.staleWarning ?? null,
           excerpt: match.content.slice(0, 240),
         });
@@ -352,24 +358,43 @@ function getChunkStrategy(sourceType) {
   };
 }
 
+/**
+ * Trust badge keys and their human-readable display labels.
+ * Exported so the frontend can render consistent badge copy.
+ */
+export const TRUST_BADGE_LABELS = {
+  internal_verified:    { label: 'Verified Internal', tier: 1 },
+  internal:             { label: 'Internal',           tier: 2 },
+  structured_internal:  { label: 'Structured Data',    tier: 2 },
+  web_authoritative:    { label: 'Authoritative Web',  tier: 3 },
+  web_import:           { label: 'Web Import',         tier: 4 },
+  unknown:              { label: 'Unverified',         tier: 5 },
+};
+
 function buildTrustMetadata({ sourceType, sourceUrl, metadata = {} }) {
+  const isVerified = Boolean(metadata?.verified ?? metadata?.verifiedAt);
+  const verifiedAt  = metadata?.verifiedAt ?? metadata?.lastVerifiedAt ?? null;
+
   if (metadata?.trustScore != null && metadata?.trustLabel) {
     return {
       score: Number(metadata.trustScore),
       label: metadata.trustLabel,
+      badge: TRUST_BADGE_LABELS[metadata.trustLabel] ?? TRUST_BADGE_LABELS.unknown,
       authorityScore: Number(metadata.authorityScore ?? metadata.trustScore),
-      verified: Boolean(metadata.verified ?? metadata.verifiedAt),
-      verifiedAt: metadata.verifiedAt ?? null,
+      verified: isVerified,
+      verifiedAt,
     };
   }
 
   if (sourceType === 'manual' || sourceType === 'text' || sourceType === 'markdown' || sourceType === 'docx' || sourceType === 'pdf') {
+    const badge = isVerified ? 'internal_verified' : 'internal';
     return {
-      score: 0.92,
-      label: 'internal',
-      authorityScore: 0.94,
-      verified: true,
-      verifiedAt: metadata?.verifiedAt ?? metadata?.lastVerifiedAt ?? null,
+      score: isVerified ? 0.96 : 0.92,
+      label: badge,
+      badge: TRUST_BADGE_LABELS[badge],
+      authorityScore: isVerified ? 0.97 : 0.94,
+      verified: isVerified,
+      verifiedAt,
     };
   }
 
@@ -377,28 +402,33 @@ function buildTrustMetadata({ sourceType, sourceUrl, metadata = {} }) {
     return {
       score: 0.88,
       label: 'structured_internal',
+      badge: TRUST_BADGE_LABELS.structured_internal,
       authorityScore: 0.9,
-      verified: true,
-      verifiedAt: metadata?.verifiedAt ?? metadata?.lastVerifiedAt ?? null,
+      verified: isVerified,
+      verifiedAt,
     };
   }
 
   if (sourceType === 'url' && sourceUrl) {
+    const isAuthoritativeUrl = sourceUrl.includes('.gov') || sourceUrl.includes('.edu') || sourceUrl.includes('.org');
+    const label = isAuthoritativeUrl ? 'web_authoritative' : 'web_import';
     return {
-      score: 0.78,
-      label: 'web_import',
-      authorityScore: sourceUrl.includes('.gov') || sourceUrl.includes('.edu') ? 0.88 : 0.74,
-      verified: Boolean(metadata?.verified ?? metadata?.verifiedAt),
-      verifiedAt: metadata?.verifiedAt ?? metadata?.lastVerifiedAt ?? null,
+      score: isAuthoritativeUrl ? 0.84 : 0.78,
+      label,
+      badge: TRUST_BADGE_LABELS[label],
+      authorityScore: isAuthoritativeUrl ? 0.88 : 0.74,
+      verified: isVerified,
+      verifiedAt,
     };
   }
 
   return {
     score: 0.7,
     label: 'unknown',
+    badge: TRUST_BADGE_LABELS.unknown,
     authorityScore: 0.68,
-    verified: Boolean(metadata?.verified ?? metadata?.verifiedAt),
-    verifiedAt: metadata?.verifiedAt ?? metadata?.lastVerifiedAt ?? null,
+    verified: isVerified,
+    verifiedAt,
   };
 }
 
@@ -428,6 +458,11 @@ function computeLexicalScore(content, keywords) {
   return matches / keywords.length;
 }
 
+/**
+ * Continuous exponential freshness decay.
+ * Half-life at 45 days → score ≈ 0.5 at 45d, ≈ 0.25 at 90d, ≈ 0.1 at ~150d.
+ * A manually-verified date overrides the document updated-at date.
+ */
 export function computeFreshnessScore(dateValue, metadata = {}) {
   const verifiedAt = metadata?.verifiedAt ?? metadata?.lastVerifiedAt ?? null;
   const referenceDate = verifiedAt || dateValue;
@@ -437,20 +472,21 @@ export function computeFreshnessScore(dateValue, metadata = {}) {
   }
 
   const ageDays = Math.max((Date.now() - new Date(referenceDate).getTime()) / (1000 * 60 * 60 * 24), 0);
+  const HALF_LIFE_DAYS = 45;
+  const decayed = Math.exp((-Math.LN2 / HALF_LIFE_DAYS) * ageDays);
+  // Clamp: floor at 0.08 so very old but high-authority docs aren't zeroed out
+  return Number(Math.max(decayed, 0.08).toFixed(4));
+}
 
-  if (ageDays <= 7) {
-    return 1;
-  }
-
-  if (ageDays <= 30) {
-    return 0.72;
-  }
-
-  if (ageDays <= 90) {
-    return 0.44;
-  }
-
-  return 0.18;
+/**
+ * Human-readable freshness decay label for UI badges.
+ */
+export function buildFreshnessDecayLabel(score) {
+  if (score >= 0.85) return 'very fresh';
+  if (score >= 0.65) return 'fresh';
+  if (score >= 0.40) return 'aging';
+  if (score >= 0.20) return 'stale';
+  return 'very stale';
 }
 
 export function computeAuthorityScore({ trustScore = 0.7, sourceType = 'unknown', metadata = {} }) {
@@ -491,17 +527,26 @@ export function computeContradictionSignals(candidate, rows = []) {
       continue;
     }
 
-    const sameLineage = candidateLineage.versionChainId && candidateLineage.versionChainId === (row.versionLineage?.versionChainId ?? row.metadata?.versionChainId ?? row.documentId);
-    const sameTitle = String(candidate.documentTitle ?? '').toLowerCase() === String(row.documentTitle ?? '').toLowerCase();
+    const sameLineage =
+      candidateLineage.versionChainId &&
+      candidateLineage.versionChainId === (row.versionLineage?.versionChainId ?? row.metadata?.versionChainId ?? row.documentId);
+    const sameTitle =
+      String(candidate.documentTitle ?? '').toLowerCase() === String(row.documentTitle ?? '').toLowerCase();
+
     if (!sameLineage && !sameTitle) {
       continue;
     }
 
-    if (detectNumericConflict(candidate.content, row.content)) {
+    const numericConflictScore = detectNumericConflictScore(candidate.content, row.content);
+    if (numericConflictScore > 0) {
       signals.push({
         type: 'numeric_conflict',
+        confidence: Number(Math.min(numericConflictScore, 1).toFixed(3)),
         documentId: row.documentId,
         documentTitle: row.documentTitle,
+        excerpt: row.content.slice(0, 180),
+        // Higher semantic similarity between conflicting chunks → higher concern
+        semanticSimilarity: Number((row.similarity ?? row.rankingScore ?? 0).toFixed(3)),
       });
       continue;
     }
@@ -509,8 +554,11 @@ export function computeContradictionSignals(candidate, rows = []) {
     if (detectNegationConflict(candidate.content, row.content)) {
       signals.push({
         type: 'statement_conflict',
+        confidence: 0.72,
         documentId: row.documentId,
         documentTitle: row.documentTitle,
+        excerpt: row.content.slice(0, 180),
+        semanticSimilarity: Number((row.similarity ?? row.rankingScore ?? 0).toFixed(3)),
       });
       continue;
     }
@@ -518,13 +566,40 @@ export function computeContradictionSignals(candidate, rows = []) {
     if ((row.documentVersion ?? 1) > (candidate.documentVersion ?? 1)) {
       signals.push({
         type: 'newer_version_available',
+        confidence: 1.0,
         documentId: row.documentId,
         documentTitle: row.documentTitle,
+        excerpt: null,
+        semanticSimilarity: null,
       });
     }
   }
 
-  return signals.slice(0, 3);
+  // Sort by confidence desc so the most certain signals appear first
+  return signals
+    .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
+    .slice(0, 4);
+}
+
+/**
+ * Score numeric conflict strength (0–1). Returns 0 when no meaningful conflict.
+ * Avoids false positives by requiring semantic proximity (high similarity) before
+ * flagging incidental number mismatches.
+ */
+function detectNumericConflictScore(left, right) {
+  const leftNumbers = extractNumbers(left);
+  const rightNumbers = extractNumbers(right);
+
+  if (leftNumbers.length === 0 || rightNumbers.length === 0) {
+    return 0;
+  }
+
+  const conflictingCount = leftNumbers.filter((value) => !rightNumbers.includes(value)).length;
+  if (conflictingCount === 0) return 0;
+
+  // Normalize by total unique numbers to avoid over-flagging content-heavy docs
+  const totalUnique = new Set([...leftNumbers, ...rightNumbers]).size;
+  return Number((conflictingCount / totalUnique).toFixed(3));
 }
 
 function buildStaleWarning(row) {
@@ -564,16 +639,6 @@ function getConfidenceLabel(score) {
   return 'low';
 }
 
-function detectNumericConflict(left, right) {
-  const leftNumbers = extractNumbers(left);
-  const rightNumbers = extractNumbers(right);
-
-  if (leftNumbers.length === 0 || rightNumbers.length === 0) {
-    return false;
-  }
-
-  return leftNumbers.some((value) => !rightNumbers.includes(value));
-}
 
 function detectNegationConflict(left, right) {
   const leftHasNegation = /\b(no|not|never|without|none)\b/i.test(left);

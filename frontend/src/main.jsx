@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import * as Sentry from '@sentry/react';
 import App from './App.jsx';
 import { MotionProvider } from './components/motion.jsx';
+import './styles/tokens.css';
+import './styles/agents.css';
 import './index.css';
 import './styles/motion-system.css';
 import './styles/premium-overrides.css';

@@ -15,18 +15,58 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    // CSS code splitting — each async chunk gets its own CSS file,
+    // so admin/workflow surfaces only load their styles on demand.
+    cssCodeSplit: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          clerk: ['@clerk/clerk-react'],
-          query: ['@tanstack/react-query'],
-          markdown: ['react-markdown'],
-          motion: ['framer-motion'],
-          gsap: ['gsap', 'gsap/ScrollTrigger'],
-          three: ['three'],
-          r3f: ['@react-three/fiber', '@react-three/drei'],
+        manualChunks(id) {
+          // ── Vendor: stable libraries with long cache TTL ────────────────
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/react-router-dom') || id.includes('node_modules/@remix-run')) {
+            return 'vendor-router';
+          }
+          if (id.includes('node_modules/@clerk/')) {
+            return 'vendor-clerk';
+          }
+          if (id.includes('node_modules/@tanstack/react-query')) {
+            return 'vendor-query';
+          }
+          if (id.includes('node_modules/framer-motion')) {
+            return 'vendor-motion';
+          }
+          if (id.includes('node_modules/gsap')) {
+            return 'vendor-gsap';
+          }
+          if (id.includes('node_modules/three') || id.includes('node_modules/@react-three/')) {
+            return 'vendor-three';
+          }
+          if (id.includes('node_modules/react-markdown') || id.includes('node_modules/remark') || id.includes('node_modules/rehype')) {
+            return 'vendor-markdown';
+          }
+          if (id.includes('node_modules/@sentry/')) {
+            return 'vendor-sentry';
+          }
+
+          // ── App: route-level lazy chunks ────────────────────────────────
+          // Heavy admin surfaces — loaded only when operator navigates to /admin
+          if (id.includes('/features/admin/') || id.includes('/pages/Admin')) {
+            return 'app-admin';
+          }
+          // Workflow builder — heavy canvas surface, lazy loaded
+          if (id.includes('WorkflowBuilder') || id.includes('/features/workspace/workflows/')) {
+            return 'app-workflow-builder';
+          }
+          // Lore / knowledge surfaces
+          if (id.includes('/features/workspace/lore/') || id.includes('/pages/Lore')) {
+            return 'app-lore';
+          }
+          // Marketing / landing pages — separate from app shell
+          if (id.includes('/features/marketing/') || id.includes('/pages/Landing') || id.includes('/pages/Pricing')) {
+            return 'app-marketing';
+          }
         },
       },
     },

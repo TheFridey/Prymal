@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import {
   ClerkProvider,
@@ -14,7 +14,7 @@ import {
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import AppLayout from './components/AppLayout';
 import { BrandMark, Button, InlineNotice, LoadingPanel, ThemeToggle } from './components/ui';
-import { MotionPage } from './components/motion';
+import { MotionPage, MotionPresence } from './components/motion';
 import { ThemeProvider, getClerkAppearance, useTheme } from './components/theme';
 import { api, configureApi } from './lib/api';
 import { useAppStore } from './stores/useAppStore';
@@ -100,8 +100,26 @@ function ThemedApp() {
 function AppRouter() {
   return (
     <BrowserRouter>
-      <ErrorBoundary label="Application">
-        <Routes>
+      <AppRoutes />
+    </BrowserRouter>
+  );
+}
+
+// Inner component so useLocation has access to BrowserRouter context.
+// AnimatePresence wraps Routes keyed to the top-level path segment so that
+// navigating between /app/dashboard → /app/lore → /admin etc. produces a
+// coordinated exit + enter transition rather than an instant swap.
+function AppRoutes() {
+  const location = useLocation();
+  // Key only on the first two path segments so nested workspace tab changes
+  // (e.g. /app/agents/cipher → /app/agents/herald) don't re-trigger full-page
+  // transitions — only genuine top-level route changes do.
+  const routeKey = location.pathname.split('/').slice(0, 3).join('/') || '/';
+
+  return (
+    <ErrorBoundary label="Application">
+      <MotionPresence mode="wait" initial={false}>
+        <Routes location={location} key={routeKey}>
           <Route path="/" element={<LazyPage label="Loading Prymal..."><Landing /></LazyPage>} />
           <Route path="/for-agencies" element={<LazyPage label="Loading agency story..."><ForAgencies /></LazyPage>} />
           <Route path="/for-small-business" element={<LazyPage label="Loading small-business story..."><ForSmallBusiness /></LazyPage>} />
@@ -139,8 +157,8 @@ function AppRouter() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </ErrorBoundary>
-    </BrowserRouter>
+      </MotionPresence>
+    </ErrorBoundary>
   );
 }
 

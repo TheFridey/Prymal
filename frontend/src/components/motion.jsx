@@ -333,3 +333,107 @@ export function MotionButton({ children, className = '', accent, style, ...props
 }
 
 export { m as motion };
+
+// ---------------------------------------------------------------------------
+// Skeleton loading primitives
+// ---------------------------------------------------------------------------
+
+// Single shimmer block — width/height controlled by CSS vars or inline style.
+export function SkeletonBlock({ className = '', style, w, h }) {
+  return (
+    <span
+      className={`skeleton-block${className ? ` ${className}` : ''}`}
+      style={{ '--skeleton-w': w, '--skeleton-h': h, ...style }}
+      aria-hidden="true"
+    />
+  );
+}
+
+// Stack of text-line skeletons — count controls how many lines render.
+export function SkeletonText({ lines = 3, className = '' }) {
+  return (
+    <span className={className} aria-hidden="true">
+      {Array.from({ length: lines }, (_, i) => (
+        <span key={i} className="skeleton-text" />
+      ))}
+    </span>
+  );
+}
+
+// Heading skeleton — single wider bar.
+export function SkeletonHeading({ className = '', w }) {
+  return (
+    <span
+      className={`skeleton-heading${className ? ` ${className}` : ''}`}
+      style={w ? { '--skeleton-w': w } : undefined}
+      aria-hidden="true"
+    />
+  );
+}
+
+// Circular avatar placeholder.
+export function SkeletonAvatar({ size, className = '' }) {
+  return (
+    <span
+      className={`skeleton-avatar${className ? ` ${className}` : ''}`}
+      style={size ? { '--skeleton-size': size } : undefined}
+      aria-hidden="true"
+    />
+  );
+}
+
+// Rectangular card-shaped placeholder with configurable height.
+export function SkeletonCard({ h, delay, className = '' }) {
+  return (
+    <span
+      className={`skeleton-card${className ? ` ${className}` : ''}`}
+      style={{ '--skeleton-h': h, '--skeleton-delay': delay }}
+      aria-hidden="true"
+    />
+  );
+}
+
+// KPI metric tile placeholder — used while admin/dashboard queries load.
+export function SkeletonMetric({ delay, className = '' }) {
+  return (
+    <span
+      className={`skeleton-metric${className ? ` ${className}` : ''}`}
+      style={delay ? { '--skeleton-delay': delay } : undefined}
+      aria-hidden="true"
+    />
+  );
+}
+
+// Full surface placeholder — used for admin panel sections.
+export function SkeletonSurface({ h, delay, className = '' }) {
+  return (
+    <span
+      className={`skeleton-surface${className ? ` ${className}` : ''}`}
+      style={{ '--skeleton-h': h, '--skeleton-delay': delay }}
+      aria-hidden="true"
+    />
+  );
+}
+
+// Compound: metric grid of N tiles — drop-in loading state for KPI strips.
+export function SkeletonMetricGrid({ count = 4, className = '' }) {
+  return (
+    <div className={`skeleton-metric-grid${className ? ` ${className}` : ''}`} aria-hidden="true">
+      {Array.from({ length: count }, (_, i) => (
+        <SkeletonMetric key={i} delay={`${i * 80}ms`} />
+      ))}
+    </div>
+  );
+}
+
+// Compound: N stacked surface placeholders — use while tab data loads.
+export function SkeletonPageShell({ surfaces = 2, className = '' }) {
+  return (
+    <div className={className} aria-hidden="true" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <SkeletonMetricGrid />
+      {Array.from({ length: surfaces }, (_, i) => (
+        <SkeletonSurface key={i} delay={`${(i + 4) * 80}ms`} />
+      ))}
+    </div>
+  );
+}

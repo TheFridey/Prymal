@@ -1,38 +1,4 @@
-:root {
-  --accent-3: #ff8e6a;
-  --accent-4: #b8d7ff;
-  --surface-1: color-mix(in srgb, var(--panel) 94%, rgba(255, 255, 255, 0.02));
-  --surface-2: color-mix(in srgb, var(--panel-strong) 92%, rgba(255, 255, 255, 0.03));
-  --surface-3: color-mix(in srgb, var(--panel-soft) 96%, rgba(255, 255, 255, 0.04));
-  --surface-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.15), transparent 42%), var(--surface-1);
-  --ring-subtle: color-mix(in srgb, var(--line-soft) 72%, transparent);
-  --glow-cyan: rgba(104, 245, 208, 0.18);
-  --glow-blue: rgba(118, 140, 255, 0.18);
-  --glow-ember: rgba(255, 142, 106, 0.16);
-  --shadow-premium: 0 30px 80px rgba(2, 6, 18, 0.24);
-  --shadow-float: 0 18px 40px rgba(2, 6, 18, 0.18);
-  --noise-opacity: 0.04;
-}
-
-[data-theme='dark'] body {
-  background:
-    radial-gradient(circle at 14% 18%, rgba(79, 124, 255, 0.2), transparent 25%),
-    radial-gradient(circle at 86% 12%, rgba(104, 245, 208, 0.14), transparent 18%),
-    radial-gradient(circle at 50% 120%, rgba(255, 142, 106, 0.12), transparent 34%),
-    linear-gradient(180deg, #060910 0%, #070c14 28%, #060911 62%, #09111e 100%);
-}
-
-[data-theme='dark'] body::before {
-  opacity: 0.78;
-  background-size: 52px 52px;
-}
-
-[data-theme='dark'] body::after {
-  background:
-    radial-gradient(circle at 50% 0%, rgba(136, 164, 255, 0.16), transparent 28%),
-    radial-gradient(circle at 0% 100%, rgba(104, 245, 208, 0.11), transparent 24%),
-    radial-gradient(circle at 100% 100%, rgba(255, 142, 106, 0.12), transparent 22%);
-}
+/* Extended tokens and dark-mode body overrides consolidated into styles/tokens.css */
 
 .button {
   position: relative;

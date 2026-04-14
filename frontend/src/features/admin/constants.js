@@ -18,6 +18,7 @@ export const TABS = [
   { id: 'waitlist', label: 'Waitlist' },
   { id: 'email-queue', label: 'Email Queue' },
   { id: 'powerups', label: 'Power-Ups' },
+  { id: 'growth', label: 'Growth' },
 ];
 
 export const PLAN_OPTIONS = ['all', 'free', 'solo', 'pro', 'teams', 'agency'];

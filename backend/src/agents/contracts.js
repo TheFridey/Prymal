@@ -1,3 +1,21 @@
+// ---------------------------------------------------------------------------
+// Contract enforcement constants
+// ---------------------------------------------------------------------------
+export const TOOL_VIOLATION_ACTIONS = {
+  WARN: 'warn',         // Log warning, allow execution to continue
+  BLOCK: 'block',       // Block the tool call, return error to agent
+  HOLD: 'hold',         // Pause run, surface to operator review queue
+};
+
+export const MEMORY_ENFORCEMENT_LEVELS = {
+  STRICT: 'strict',     // Reject any write to a scope not in writeScopes
+  AUDIT: 'audit',       // Allow write but emit audit event
+  PERMISSIVE: 'permissive', // No enforcement (dev/test only)
+};
+
+// ---------------------------------------------------------------------------
+// Agent contracts
+// ---------------------------------------------------------------------------
 export const AGENT_CONTRACTS = {
   cipher: {
     purpose: 'Turn business data into structured insight and decision-ready analysis.',
@@ -16,6 +34,7 @@ export const AGENT_CONTRACTS = {
       readScopes: ['org', 'user', 'agent_private', 'temporary_session'],
       writeScopes: ['org', 'user', 'agent_private', 'temporary_session'],
       sensitiveWrites: false,
+      enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
     modelPolicy: {
       defaultPolicy: 'premium_reasoning',
@@ -23,6 +42,18 @@ export const AGENT_CONTRACTS = {
       preferredLane: 'openai_premium',
     },
     evalCriteria: ['accuracy', 'groundedness', 'structured_output'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'The output did not match the cipher.scorecard schema. Reformat as valid JSON with executiveSummary, findings[], and recommendedActions[] fields.',
+      hallucinationRiskThreshold: 0.6,
+    },
+    traceMetadata: {
+      schemaViolationField: 'cipher_schema_failures',
+      toolPolicyViolationField: 'cipher_tool_violations',
+      repairLoopCountField: 'cipher_repair_loops',
+      hallucinationRiskField: 'cipher_hallucination_risk',
+    },
   },
   herald: {
     purpose: 'Draft outreach and lifecycle email that gets acted on.',
@@ -41,6 +72,7 @@ export const AGENT_CONTRACTS = {
       readScopes: ['org', 'user', 'restricted', 'temporary_session'],
       writeScopes: ['user', 'agent_private', 'temporary_session'],
       sensitiveWrites: false,
+      enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
     modelPolicy: {
       defaultPolicy: 'fast_chat',
@@ -48,6 +80,18 @@ export const AGENT_CONTRACTS = {
       preferredLane: 'anthropic_balanced',
     },
     evalCriteria: ['instruction_following', 'tone_match', 'cta_clarity'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
+      schemaRepairAttempts: 1,
+      schemaRepairPrompt: 'The output did not match herald.sequence schema. Reformat with subject, body, and ctaText fields.',
+      hallucinationRiskThreshold: 0.7,
+    },
+    traceMetadata: {
+      schemaViolationField: 'herald_schema_failures',
+      toolPolicyViolationField: 'herald_tool_violations',
+      repairLoopCountField: 'herald_repair_loops',
+      hallucinationRiskField: 'herald_hallucination_risk',
+    },
   },
   lore: {
     purpose: 'Ground the workspace in verified organisational knowledge and provenance.',
@@ -66,12 +110,28 @@ export const AGENT_CONTRACTS = {
       readScopes: ['org', 'user', 'restricted'],
       writeScopes: ['org', 'restricted'],
       sensitiveWrites: true,
+      enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
     modelPolicy: {
       defaultPolicy: 'grounded_research',
       preferredLane: 'anthropic_balanced',
     },
     evalCriteria: ['groundedness', 'citation_rate', 'hallucination_risk'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'The output must include explicit source citations. Reformat as lore.sourceDigest with answer, sources[], contradictions[], and knowledgeGaps[] fields.',
+      hallucinationRiskThreshold: 0.4,
+      citationRequiredOnEveryFactualClaim: true,
+    },
+    traceMetadata: {
+      schemaViolationField: 'lore_schema_failures',
+      toolPolicyViolationField: 'lore_tool_violations',
+      repairLoopCountField: 'lore_repair_loops',
+      hallucinationRiskField: 'lore_hallucination_risk',
+      citationRateField: 'lore_citation_rate',
+      contradictionCountField: 'lore_contradiction_count',
+    },
   },
   forge: {
     purpose: 'Produce conversion-aware content and copy in the required format.',
@@ -187,12 +247,25 @@ export const AGENT_CONTRACTS = {
       readScopes: ['org', 'user', 'restricted'],
       writeScopes: ['org', 'agent_private'],
       sensitiveWrites: false,
+      enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
     modelPolicy: {
       defaultPolicy: 'grounded_research',
       preferredLane: 'openai_premium',
     },
     evalCriteria: ['groundedness', 'actionability', 'citation_rate'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'Reformat as oracle.seoAudit with issues[], opportunities[], and priorityScore fields.',
+      hallucinationRiskThreshold: 0.5,
+    },
+    traceMetadata: {
+      schemaViolationField: 'oracle_schema_failures',
+      toolPolicyViolationField: 'oracle_tool_violations',
+      repairLoopCountField: 'oracle_repair_loops',
+      hallucinationRiskField: 'oracle_hallucination_risk',
+    },
   },
   vance: {
     purpose: 'Support pipeline movement, qualification, and proposal structure.',
@@ -286,12 +359,27 @@ export const AGENT_CONTRACTS = {
       readScopes: ['org', 'user', 'agent_private', 'restricted', 'workflow_run', 'temporary_session'],
       writeScopes: ['org', 'agent_private', 'workflow_run', 'temporary_session'],
       sensitiveWrites: true,
+      enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
     modelPolicy: {
       defaultPolicy: 'workflow_automation',
       preferredLane: 'openai_router',
     },
     evalCriteria: ['tool_correctness', 'workflow_reliability', 'instruction_following'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.HOLD,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'Reformat as nexus.workflowState with currentStep, completedSteps[], pendingSteps[], blockers[], and nextAction fields.',
+      hallucinationRiskThreshold: 0.5,
+      requiresExplicitStepConfirmation: true,
+    },
+    traceMetadata: {
+      schemaViolationField: 'nexus_schema_failures',
+      toolPolicyViolationField: 'nexus_tool_violations',
+      repairLoopCountField: 'nexus_repair_loops',
+      hallucinationRiskField: 'nexus_hallucination_risk',
+      stepConfirmationField: 'nexus_step_confirmations',
+    },
   },
   scout: {
     purpose: 'Synthesize competitor, market, and positioning intelligence.',
@@ -310,12 +398,25 @@ export const AGENT_CONTRACTS = {
       readScopes: ['org', 'user', 'restricted'],
       writeScopes: ['org', 'agent_private'],
       sensitiveWrites: false,
+      enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
     modelPolicy: {
       defaultPolicy: 'grounded_research',
       preferredLane: 'openai_premium',
     },
     evalCriteria: ['groundedness', 'synthesis_quality', 'citation_rate'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'Reformat as scout.marketScan with summary, competitors[], opportunities[], threats[], and confidenceLevel fields.',
+      hallucinationRiskThreshold: 0.5,
+    },
+    traceMetadata: {
+      schemaViolationField: 'scout_schema_failures',
+      toolPolicyViolationField: 'scout_tool_violations',
+      repairLoopCountField: 'scout_repair_loops',
+      hallucinationRiskField: 'scout_hallucination_risk',
+    },
   },
   sage: {
     purpose: 'Act as a strategic synthesis layer for higher-level decision support.',
@@ -334,12 +435,25 @@ export const AGENT_CONTRACTS = {
       readScopes: ['org', 'user', 'restricted', 'agent_private'],
       writeScopes: ['org', 'restricted'],
       sensitiveWrites: true,
+      enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
     modelPolicy: {
       defaultPolicy: 'premium_reasoning',
       preferredLane: 'anthropic_premium',
     },
     evalCriteria: ['reasoning_quality', 'groundedness', 'instruction_following'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.WARN,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'Reformat as sage.decisionMemo with situation, tradeoffs[], recommendation, confidenceLevel, and evidenceSources[] fields.',
+      hallucinationRiskThreshold: 0.55,
+    },
+    traceMetadata: {
+      schemaViolationField: 'sage_schema_failures',
+      toolPolicyViolationField: 'sage_tool_violations',
+      repairLoopCountField: 'sage_repair_loops',
+      hallucinationRiskField: 'sage_hallucination_risk',
+    },
   },
 
   sentinel: {
@@ -370,6 +484,7 @@ export const AGENT_CONTRACTS = {
       readScopes: ['org', 'user', 'restricted', 'agent_private', 'workflow_run'],
       writeScopes: ['org', 'agent_private', 'workflow_run'],
       sensitiveWrites: false,
+      enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
     modelPolicy: {
       defaultPolicy: 'premium_reasoning',
@@ -377,21 +492,90 @@ export const AGENT_CONTRACTS = {
       preferredLane: 'anthropic_premium',
     },
     evalCriteria: ['accuracy', 'hallucination_risk', 'compliance_adherence', 'structured_output'],
-    // Sentinel-specific config
+    enforcement: {
+      // SENTINEL always blocks on tool violations — it must not be circumvented
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.HOLD,
+      schemaRepairAttempts: 3,
+      schemaRepairPrompt: 'Reformat as sentinel.reviewVerdict with verdict (pass|repair|hold|fail), riskScore (0-1), issues[], repairedOutput (if verdict=repair), and rationale fields.',
+      hallucinationRiskThreshold: 0.3,
+      // Sentinel must emit structured verdicts — no free-form fallback
+      requiresStructuredOutput: true,
+    },
+    traceMetadata: {
+      schemaViolationField: 'sentinel_schema_failures',
+      toolPolicyViolationField: 'sentinel_tool_violations',
+      repairLoopCountField: 'sentinel_repair_loops',
+      hallucinationRiskField: 'sentinel_hallucination_risk',
+      verdictField: 'sentinel_verdict',
+      riskScoreField: 'sentinel_risk_score',
+    },
+    // Sentinel-specific runtime config
     sentinelConfig: {
       enabled: true,
-      // Plans that activate Sentinel as final review layer
       eligiblePlans: ['pro', 'teams', 'agency'],
-      // Agent IDs whose outputs Sentinel can review
       reviewableAgents: ['cipher', 'ledger', 'nexus', 'vance', 'herald', 'forge', 'sage'],
-      // Risk score threshold above which output is held for human review
       humanReviewThreshold: 0.8,
-      // Whether Sentinel repairs schema failures or just flags them
       repairOnSchemaFailure: true,
+      // Auto-fail these agents' outputs at this risk threshold (no repair attempt)
+      autoFailThreshold: 0.95,
+      // Minimum required fields in every verdict
+      verdictRequiredFields: ['verdict', 'riskScore', 'rationale'],
     },
   },
 };
 
 export function getAgentContract(agentId) {
   return AGENT_CONTRACTS[agentId] ?? null;
+}
+
+/**
+ * Return the enforcement config for an agent, with safe defaults for agents
+ * that don't yet have explicit enforcement blocks (e.g. forge, atlas, echo).
+ */
+export function getAgentEnforcement(agentId) {
+  const contract = AGENT_CONTRACTS[agentId];
+  if (!contract) return null;
+  return contract.enforcement ?? {
+    toolViolationAction: TOOL_VIOLATION_ACTIONS.WARN,
+    schemaRepairAttempts: 1,
+    schemaRepairPrompt: null,
+    hallucinationRiskThreshold: 0.7,
+  };
+}
+
+/**
+ * Return the trace metadata field names for a given agent.
+ * Used by the LLM runner to write structured trace events.
+ */
+export function getAgentTraceFields(agentId) {
+  return AGENT_CONTRACTS[agentId]?.traceMetadata ?? null;
+}
+
+/**
+ * Return whether a tool is explicitly disallowed for an agent.
+ */
+export function isToolDisallowed(agentId, toolName) {
+  const contract = AGENT_CONTRACTS[agentId];
+  if (!contract) return false;
+  return contract.disallowedTools?.includes(toolName) ?? false;
+}
+
+/**
+ * Return whether a tool is in the agent's allowed list.
+ * Returns true for agents with no allowedTools restriction (open list).
+ */
+export function isToolAllowed(agentId, toolName) {
+  const contract = AGENT_CONTRACTS[agentId];
+  if (!contract) return true;
+  if (!contract.allowedTools || contract.allowedTools.length === 0) return true;
+  return contract.allowedTools.includes(toolName);
+}
+
+/**
+ * Return whether a memory scope write is permitted for an agent.
+ */
+export function isMemoryWriteAllowed(agentId, scope) {
+  const contract = AGENT_CONTRACTS[agentId];
+  if (!contract) return true;
+  return contract.memoryPolicy?.writeScopes?.includes(scope) ?? false;
 }

@@ -1,4 +1,5 @@
 const LEGACY_MODEL_REPLACEMENTS = {
+  // Anthropic — map all pre-4.x Claude identifiers to current live models
   'claude-3-5-sonnet-latest': 'claude-sonnet-4-6',
   'claude-3-5-sonnet-20240620': 'claude-sonnet-4-6',
   'claude-3-5-sonnet-20241022': 'claude-sonnet-4-6',
@@ -6,6 +7,15 @@ const LEGACY_MODEL_REPLACEMENTS = {
   'claude-3-7-sonnet-20250219': 'claude-sonnet-4-6',
   'claude-3-5-haiku-latest': 'claude-haiku-4-5',
   'claude-3-5-haiku-20241022': 'claude-haiku-4-5',
+  // OpenAI — keep legacy gpt-4o references routing to current models
+  'gpt-4o': 'gpt-5.4',
+  'gpt-4o-mini': 'gpt-5.4-mini',
+  'gpt-4-turbo': 'gpt-5.4',
+  // Gemini — point old flash/pro identifiers to current versions
+  'gemini-1.5-flash': 'gemini-2.5-flash',
+  'gemini-1.5-pro': 'gemini-2.5-pro',
+  'gemini-2.0-flash': 'gemini-2.5-flash',
+  'gemini-2.0-pro': 'gemini-2.5-pro',
 };
 
 export const EXTENDED_THINKING_PLANS = new Set(['pro', 'teams', 'agency']);
@@ -138,7 +148,7 @@ export function hasUsableGeminiKey() {
 
 export function getGeminiModels() {
   return {
-    flash: process.env.GEMINI_MODEL_FLASH ?? 'gemini-2.0-flash',
+    flash: process.env.GEMINI_MODEL_FLASH ?? 'gemini-2.5-flash',
     pro: process.env.GEMINI_MODEL_PRO ?? 'gemini-2.5-pro',
   };
 }
@@ -623,6 +633,105 @@ export function getFallbackPlan(currentPlan) {
       fallbackModelUsed: nextFallback.model,
       fallbackProviderUsed: nextFallback.provider,
     },
+  };
+}
+
+/**
+ * Rough cost-per-1k-token reference table (USD).
+ * These are approximate and should be updated as provider pricing changes.
+ * Used for budget cap enforcement and spend analytics — not billing.
+ */
+export const APPROX_COST_PER_1K_TOKENS = {
+  'claude-opus-4-6':    { input: 0.015,  output: 0.075  },
+  'claude-sonnet-4-6':  { input: 0.003,  output: 0.015  },
+  'claude-haiku-4-5':   { input: 0.0008, output: 0.004  },
+  'gpt-5.4':            { input: 0.01,   output: 0.03   },
+  'gpt-5.4-mini':       { input: 0.0015, output: 0.006  },
+  'gpt-5.4-nano':       { input: 0.0004, output: 0.0016 },
+  'gemini-2.5-pro':     { input: 0.00125,output: 0.005  },
+  'gemini-2.5-flash':   { input: 0.00015,output: 0.0006 },
+};
+
+/**
+ * Estimate cost for a given run given input/output token counts.
+ * Returns null when the model is unknown.
+ *
+ * @param {string} model
+ * @param {number} inputTokens
+ * @param {number} outputTokens
+ * @returns {number|null}  Estimated cost in USD
+ */
+export function estimateRunCostUsd(model, inputTokens, outputTokens) {
+  const pricing = APPROX_COST_PER_1K_TOKENS[model];
+  if (!pricing) return null;
+  return (
+    (inputTokens / 1000) * pricing.input +
+    (outputTokens / 1000) * pricing.output
+  );
+}
+
+/**
+ * Build a provider-level routing summary from a set of run rows.
+ * Groups by provider + model, surfaces fallback rates and average cost.
+ *
+ * @param {Array<{provider: string, model: string, outcomeStatus: string, fallbackUsed: boolean, latencyMs: number, estimatedCostUsd: number}>} rows
+ */
+export function buildProviderRoutingSummary(rows = []) {
+  const aggregate = new Map();
+
+  for (const row of rows) {
+    const key = `${row.provider}::${row.model}`;
+    const current = aggregate.get(key) ?? {
+      provider: row.provider,
+      model: row.model,
+      runs: 0,
+      successCount: 0,
+      fallbackCount: 0,
+      totalLatencyMs: 0,
+      totalCostUsd: 0,
+    };
+
+    current.runs += 1;
+    current.successCount += row.outcomeStatus === 'succeeded' ? 1 : 0;
+    current.fallbackCount += row.fallbackUsed ? 1 : 0;
+    current.totalLatencyMs += row.latencyMs ?? 0;
+    current.totalCostUsd += row.estimatedCostUsd ?? 0;
+    aggregate.set(key, current);
+  }
+
+  return [...aggregate.values()]
+    .map((entry) => ({
+      provider: entry.provider,
+      model: entry.model,
+      runs: entry.runs,
+      successRate: safeRate(entry.successCount, entry.runs),
+      fallbackRate: safeRate(entry.fallbackCount, entry.runs),
+      averageLatencyMs: Math.round(entry.totalLatencyMs / Math.max(entry.runs, 1)),
+      totalCostUsd: Number(entry.totalCostUsd.toFixed(6)),
+      averageCostUsd: Number((entry.totalCostUsd / Math.max(entry.runs, 1)).toFixed(6)),
+    }))
+    .sort((a, b) => b.runs - a.runs);
+}
+
+/**
+ * Detect whether spending for a given org is anomalous relative to
+ * historical daily average. Returns null when insufficient data.
+ *
+ * @param {number} todayCostUsd
+ * @param {number[]} recentDailyCostsUsd  Last N days (excluding today)
+ * @param {number} [thresholdMultiplier=2.5]
+ * @returns {{ isAnomaly: boolean, todayCostUsd: number, averageDailyCostUsd: number, ratio: number }|null}
+ */
+export function detectSpendAnomaly(todayCostUsd, recentDailyCostsUsd, thresholdMultiplier = 2.5) {
+  if (!recentDailyCostsUsd || recentDailyCostsUsd.length < 3) return null;
+  const avg = recentDailyCostsUsd.reduce((sum, v) => sum + v, 0) / recentDailyCostsUsd.length;
+  if (avg === 0) return null;
+  const ratio = todayCostUsd / avg;
+  return {
+    isAnomaly: ratio >= thresholdMultiplier,
+    todayCostUsd,
+    averageDailyCostUsd: Number(avg.toFixed(6)),
+    ratio: Number(ratio.toFixed(3)),
   };
 }
 
