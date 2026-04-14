@@ -174,6 +174,7 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
             ...upstreamContext,
             __workflowRunId: runId,
             __workflowNodeCount: sortedNodes.length,
+            __orgMetadata: orgContext.orgMetadata ?? {},
           },
         }),
         WORKFLOW_NODE_TIMEOUT_MS,

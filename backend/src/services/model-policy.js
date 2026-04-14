@@ -30,6 +30,10 @@ const EXPLICIT_POLICY_KEYS = new Set([
   'explicit_model',
 ]);
 
+const PROVIDER_PREFERENCES = new Set(['openai', 'anthropic', 'google']);
+const REASONING_TIERS = new Set(['auto', 'balanced', 'high', 'cost_saver']);
+const FAST_LANE_OPTIONS = new Set(['auto', 'anthropic_fast', 'openai_router', 'gemini_flash']);
+
 export const MODEL_POLICIES = {
   fast_chat: {
     key: 'fast_chat',
@@ -150,6 +154,118 @@ export function getGeminiModels() {
   return {
     flash: process.env.GEMINI_MODEL_FLASH ?? 'gemini-2.5-flash',
     pro: process.env.GEMINI_MODEL_PRO ?? 'gemini-2.5-pro',
+  };
+}
+
+export function normalizeOrgAiControls(orgMetadata = {}) {
+  const raw = orgMetadata?.aiControls ?? {};
+  const providerPreference = PROVIDER_PREFERENCES.has(raw.providerPreference)
+    ? raw.providerPreference
+    : 'auto';
+  const reasoningTier = REASONING_TIERS.has(raw.reasoningTier)
+    ? raw.reasoningTier
+    : 'auto';
+  const fastLane = FAST_LANE_OPTIONS.has(raw.fastLane)
+    ? raw.fastLane
+    : 'auto';
+  const failoverOrder = Array.isArray(raw.failoverOrder)
+    ? [...new Set(raw.failoverOrder.filter((provider) => PROVIDER_PREFERENCES.has(provider)))]
+    : [];
+
+  return {
+    providerPreference,
+    reasoningTier,
+    fastLane,
+    budgetCap: {
+      maxCostUsdPerRun: normalizeNullablePositiveNumber(raw.budgetCap?.maxCostUsdPerRun),
+      maxOutputTokensPerRun: normalizeNullablePositiveInteger(raw.budgetCap?.maxOutputTokensPerRun),
+    },
+    spendThresholds: {
+      warnUsdMonthly: normalizeNullablePositiveNumber(raw.spendThresholds?.warnUsdMonthly),
+      hardCapUsdMonthly: normalizeNullablePositiveNumber(raw.spendThresholds?.hardCapUsdMonthly),
+    },
+    failoverOrder,
+    experimentationEnabled: Boolean(raw.experimentationEnabled),
+  };
+}
+
+export function buildModelOverridesFromAiControls(aiControls = null) {
+  if (!aiControls) {
+    return null;
+  }
+
+  const normalized = normalizeOrgAiControls({ aiControls });
+  const overrides = {};
+  const policies = {};
+
+  if (normalized.providerPreference !== 'auto') {
+    overrides.default = { provider: normalized.providerPreference };
+  }
+
+  if (normalized.fastLane !== 'auto') {
+    const anthropicModels = getAnthropicModels();
+    const openAIModels = getOpenAIModels();
+    const geminiModels = getGeminiModels();
+
+    if (normalized.fastLane === 'anthropic_fast') {
+      policies.fast_chat = { provider: 'anthropic', model: anthropicModels.fast };
+    }
+
+    if (normalized.fastLane === 'openai_router') {
+      policies.fast_chat = { provider: 'openai', model: openAIModels.router };
+    }
+
+    if (normalized.fastLane === 'gemini_flash') {
+      policies.fast_chat = { provider: 'google', model: geminiModels.flash };
+    }
+  }
+
+  if (Object.keys(policies).length > 0) {
+    overrides.policies = policies;
+  }
+
+  if (
+    normalized.budgetCap.maxCostUsdPerRun != null
+    || normalized.budgetCap.maxOutputTokensPerRun != null
+  ) {
+    overrides.budgetCap = {
+      maxCostUsdPerRun: normalized.budgetCap.maxCostUsdPerRun,
+      maxOutputTokensPerRun: normalized.budgetCap.maxOutputTokensPerRun,
+      allowedPolicies: null,
+    };
+  }
+
+  return Object.keys(overrides).length > 0 ? overrides : null;
+}
+
+export function mergeOrgModelOverrides(base = null, extra = null) {
+  if (!base && !extra) {
+    return null;
+  }
+
+  if (!base) {
+    return extra;
+  }
+
+  if (!extra) {
+    return base;
+  }
+
+  return {
+    ...base,
+    ...extra,
+    default: {
+      ...(base.default ?? {}),
+      ...(extra.default ?? {}),
+    },
+    policies: {
+      ...(base.policies ?? {}),
+      ...(extra.policies ?? {}),
+    },
+    budgetCap: {
+      ...(base.budgetCap ?? {}),
+      ...(extra.budgetCap ?? {}),
+    },
   };
 }
 
@@ -331,12 +447,38 @@ export function selectExecutionPlan({
     });
   }
 
+  if (orgPolicyOverride?.provider) {
+    return buildExecutionPlan({
+      policyKey,
+      provider: orgPolicyOverride.provider,
+      model: resolveDefaultProviderModel({
+        provider: orgPolicyOverride.provider,
+        policyKey,
+        anthropicModels,
+        openAIModels,
+        geminiModels,
+      }),
+      route: 'org-policy-override',
+      reason: `Using org policy provider preference ${orgPolicyOverride.provider} for ${policyKey}.`,
+      fallbackChain: buildOverrideFallbackChain({
+        policyKey,
+        preferredLane,
+        anthropicModels,
+        openAIModels,
+      }),
+      selectionDetails,
+    });
+  }
+
   if (providerOverride?.trim()) {
     const provider = providerOverride.trim();
-    const model =
-      provider === 'openai'
-        ? openAIModels.router
-        : anthropicModels.default;
+    const model = resolveDefaultProviderModel({
+      provider,
+      policyKey,
+      anthropicModels,
+      openAIModels,
+      geminiModels,
+    });
 
     return buildExecutionPlan({
       policyKey,
@@ -894,6 +1036,62 @@ function buildSelectionDetails({
     routingHints: normalizeRoutingHints(routingHints),
     orgOverrideApplied,
   };
+}
+
+function resolveDefaultProviderModel({
+  provider,
+  policyKey,
+  anthropicModels,
+  openAIModels,
+  geminiModels,
+}) {
+  if (provider === 'openai') {
+    if (policyKey === MODEL_POLICIES.premium_reasoning.key || policyKey === MODEL_POLICIES.grounded_research.key || policyKey === MODEL_POLICIES.vision_file.key) {
+      return openAIModels.premium;
+    }
+
+    if (policyKey === MODEL_POLICIES.low_cost_bulk.key) {
+      return openAIModels.lightweight;
+    }
+
+    return openAIModels.router;
+  }
+
+  if (provider === 'google') {
+    if (policyKey === MODEL_POLICIES.premium_reasoning.key || policyKey === MODEL_POLICIES.grounded_research.key) {
+      return geminiModels.pro;
+    }
+
+    return geminiModels.flash;
+  }
+
+  if (policyKey === MODEL_POLICIES.premium_reasoning.key) {
+    return anthropicModels.premium;
+  }
+
+  if (policyKey === MODEL_POLICIES.low_cost_bulk.key) {
+    return anthropicModels.fast;
+  }
+
+  return anthropicModels.default;
+}
+
+function normalizeNullablePositiveNumber(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function normalizeNullablePositiveInteger(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : null;
 }
 
 function buildExecutionPlan({

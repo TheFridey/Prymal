@@ -261,7 +261,7 @@ test('getGeminiModels returns default model names when env vars are absent', () 
   delete process.env.GEMINI_MODEL_FLASH;
   delete process.env.GEMINI_MODEL_PRO;
   const models = getGeminiModels();
-  assert.equal(models.flash, 'gemini-2.0-flash');
+  assert.equal(models.flash, 'gemini-2.5-flash');
   assert.equal(models.pro, 'gemini-2.5-pro');
 });
 

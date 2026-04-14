@@ -129,6 +129,32 @@ export function LoreSearchPanel({
                       <TrustBar score={trustScore} />
                     </div>
                   ) : null}
+
+                  <details style={{ marginTop: '10px' }}>
+                    <summary style={{ cursor: 'pointer', color: 'var(--text-strong)', fontSize: '12px', fontWeight: 600 }}>
+                      Why this ranked
+                    </summary>
+                    <div style={{ display: 'grid', gap: '6px', marginTop: '8px', fontSize: '12px', color: 'var(--muted)' }}>
+                      <div>Semantic match: {formatPercent(result.similarity)} of the final rank signal.</div>
+                      <div>Lexical lift: {formatPercent(result.lexicalScore ?? 0)} from direct keyword overlap.</div>
+                      <div>Freshness lift: {formatPercent(result.freshnessScore)} based on update and verification recency.</div>
+                      <div>Authority lift: {formatPercent(result.authorityScore)} from source trust and verification.</div>
+                      <div>
+                        Penalties:
+                        {' '}
+                        {(result.contradictionSignals ?? []).length > 0
+                          ? `${result.contradictionSignals.length} contradiction signal${result.contradictionSignals.length === 1 ? '' : 's'}`
+                          : 'no contradiction penalty'}
+                        {result.versionLineage?.isSuperseded ? ' and superseded-version down-rank applied.' : '.'}
+                      </div>
+                      {result.versionLineage?.versionChainId ? (
+                        <div>
+                          Lineage: chain {String(result.versionLineage.versionChainId).slice(0, 12)}
+                          {result.versionLineage?.latestVersion ? `, latest version ${result.versionLineage.latestVersion}.` : '.'}
+                        </div>
+                      ) : null}
+                    </div>
+                  </details>
                 </MotionListItem>
               );
             })}

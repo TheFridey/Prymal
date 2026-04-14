@@ -2,9 +2,22 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, develop]
   pull_request:
-    branches: [main]
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '20'
+  VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY_TEST || 'pk_test_placeholder' }}
+  VITE_API_URL: http://localhost:3001/api
 
 jobs:
   backend-test:
@@ -17,16 +30,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm test
         env:
           NODE_ENV: test
 
-  frontend-build:
-    name: Frontend build and unit tests
+  frontend-verify-build:
+    name: Frontend verify-build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -35,15 +48,33 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm run verify-build
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_API_URL: ${{ env.VITE_API_URL }}
+
+  frontend-performance:
+    name: Frontend performance budget
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run build
         env:
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY_TEST || 'pk_test_placeholder' }}
-          VITE_API_URL: http://localhost:3001/api
-      - run: npm test
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_API_URL: ${{ env.VITE_API_URL }}
+      - run: npm run perf:budget
 
   e2e-marketing:
     name: E2E marketing smoke
@@ -55,13 +86,36 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npx playwright install chromium --with-deps
-      - run: npm run build
-        env:
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY_TEST || 'pk_test_placeholder' }}
-          VITE_API_URL: http://localhost:3001/api
       - run: npm run test:e2e -- --project=chromium tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
+        env:
+          CI: true
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_API_URL: ${{ env.VITE_API_URL }}
+
+  e2e-authenticated:
+    name: E2E authenticated smoke
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npm run test:e2e -- --project=chromium tests/workspace-smoke.spec.js tests/settings-smoke.spec.js
+        env:
+          CI: true
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_API_URL: ${{ env.VITE_API_URL }}
+          PLAYWRIGHT_TEST_USER_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_USER_EMAIL || '' }}
+          PLAYWRIGHT_TEST_USER_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_USER_PASSWORD || '' }}

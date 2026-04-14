@@ -17,7 +17,12 @@ export function renderWithProviders(ui, { route = '/' } = {}) {
     ...render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+          <MemoryRouter
+            initialEntries={[route]}
+            future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+          >
+            {ui}
+          </MemoryRouter>
         </ThemeProvider>
       </QueryClientProvider>,
     ),

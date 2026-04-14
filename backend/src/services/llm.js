@@ -17,15 +17,18 @@ import {
 import { getAgentMemory } from './memory.js';
 import {
   applyOrgBudgetCap,
+  buildModelOverridesFromAiControls,
   getFallbackPlan as getPolicyFallbackPlan,
   getAnthropicModels,
   getGeminiModels,
   getOpenAIModels,
   getOrgBudgetCap,
+  mergeOrgModelOverrides,
   getOrgModelPolicyOverrides,
   hasUsableAnthropicKey,
   hasUsableGeminiKey,
   hasUsableOpenAIKey,
+  normalizeOrgAiControls,
   selectExecutionPlan as selectExecutionPlanWithPolicy,
 } from './model-policy.js';
 import { ragSearch } from './rag.js';
@@ -49,10 +52,69 @@ const MAX_CONTEXT_TOKENS = 160_000;
 const MAX_RESPONSE_TOKENS = 8192;
 const MAX_LORE_CHUNKS = 4;
 
+function resolvePolicyOverrideFromAiControls({ policyOverride, taskType, mode, aiControls }) {
+  if (policyOverride || taskType || mode !== 'chat') {
+    return policyOverride;
+  }
+
+  if (aiControls.reasoningTier === 'high') {
+    return 'premium_reasoning';
+  }
+
+  if (aiControls.reasoningTier === 'cost_saver') {
+    return 'low_cost_bulk';
+  }
+
+  return policyOverride;
+}
+
+function applyPlanExperiencePreferences(plan, aiControls) {
+  if (!plan) {
+    return plan;
+  }
+
+  const fallbackChain = reorderFallbackChain(plan.fallbackChain ?? [], aiControls.failoverOrder ?? []);
+
+  return {
+    ...plan,
+    fallbackChain,
+    selectionDetails: {
+      ...(plan.selectionDetails ?? {}),
+      customerControls: {
+        providerPreference: aiControls.providerPreference,
+        reasoningTier: aiControls.reasoningTier,
+        fastLane: aiControls.fastLane,
+        failoverOrder: aiControls.failoverOrder,
+        experimentationEnabled: aiControls.experimentationEnabled,
+      },
+    },
+  };
+}
+
+function reorderFallbackChain(fallbackChain, failoverOrder) {
+  if (!Array.isArray(fallbackChain) || fallbackChain.length <= 1 || !Array.isArray(failoverOrder) || failoverOrder.length === 0) {
+    return fallbackChain;
+  }
+
+  const providerPriority = new Map(failoverOrder.map((provider, index) => [provider, index]));
+
+  return [...fallbackChain].sort((left, right) => {
+    const leftRank = providerPriority.has(left.provider) ? providerPriority.get(left.provider) : Number.MAX_SAFE_INTEGER;
+    const rightRank = providerPriority.has(right.provider) ? providerPriority.get(right.provider) : Number.MAX_SAFE_INTEGER;
+
+    if (leftRank !== rightRank) {
+      return leftRank - rightRank;
+    }
+
+    return 0;
+  });
+}
+
 export async function* streamAgentResponse({
   agentId,
   orgId,
   orgPlan = 'free',
+  orgMetadata = {},
   userId = null,
   conversationId = null,
   taskType = null,
@@ -86,6 +148,17 @@ export async function* streamAgentResponse({
   });
   const trimmedMessages = trimHistory(messages);
   const maxTokens = getResponseTokenLimit(preferences.responseLength, agent);
+  const aiControls = normalizeOrgAiControls(orgMetadata);
+  const effectivePolicyOverride = resolvePolicyOverrideFromAiControls({
+    policyOverride,
+    taskType,
+    mode,
+    aiControls,
+  });
+  const orgModelOverrides = mergeOrgModelOverrides(
+    getOrgModelPolicyOverrides(orgId),
+    buildModelOverridesFromAiControls(aiControls),
+  );
   let plan = selectExecutionPlanWithPolicy({
     agent,
     agentContract: contract,
@@ -96,18 +169,21 @@ export async function* streamAgentResponse({
     orgPlan,
     attachments,
     taskType,
-    policyOverride,
+    policyOverride: effectivePolicyOverride,
     providerOverride,
+    orgModelOverrides,
     routingHints: {
       responseLength: preferences.responseLength ?? null,
       toolHeavy: useLore || useMemory,
       customInstructions: Boolean(preferences.customInstructions?.trim()),
       multimodal: attachments.length > 0,
+      preferredProvider: aiControls.providerPreference,
+      reasoningTier: aiControls.reasoningTier,
+      experimentationEnabled: aiControls.experimentationEnabled,
     },
   });
 
   // Apply per-org budget cap (policy allowlist + token cap)
-  const orgModelOverrides = getOrgModelPolicyOverrides(orgId);
   const budgetCap = getOrgBudgetCap(orgId, orgModelOverrides);
   const { plan: cappedPlan, maxTokensCap } = applyOrgBudgetCap(
     plan,
@@ -115,7 +191,7 @@ export async function* streamAgentResponse({
     ANTHROPIC_MODELS,
     OPENAI_MODELS,
   );
-  plan = cappedPlan;
+  plan = applyPlanExperiencePreferences(cappedPlan, aiControls);
   const effectiveMaxTokens = maxTokensCap ? Math.min(maxTokens, maxTokensCap) : maxTokens;
 
   let fallbackUsed = false;
@@ -299,6 +375,17 @@ export async function runAgentNode({ agentId, orgId, orgPlan = 'free', prompt, c
     useLore: true,
     useMemory: false,
   });
+  const aiControls = normalizeOrgAiControls(context.__orgMetadata ?? {});
+  const effectivePolicyOverride = resolvePolicyOverrideFromAiControls({
+    policyOverride: null,
+    taskType: contract?.modelPolicy?.defaultPolicy ?? 'workflow_automation',
+    mode: 'workflow',
+    aiControls,
+  });
+  const orgModelOverrides = mergeOrgModelOverrides(
+    getOrgModelPolicyOverrides(orgId),
+    buildModelOverridesFromAiControls(aiControls),
+  );
   let plan = selectExecutionPlanWithPolicy({
     agent,
     agentContract: contract,
@@ -309,12 +396,20 @@ export async function runAgentNode({ agentId, orgId, orgPlan = 'free', prompt, c
     orgPlan,
     attachments: [],
     taskType: contract?.modelPolicy?.defaultPolicy ?? 'workflow_automation',
+    policyOverride: effectivePolicyOverride,
+    orgModelOverrides,
     routingHints: {
       workflowNodeCount: Number(context.__workflowNodeCount ?? 0) || null,
       contextKeys: Object.keys(context ?? {}).length,
       toolHeavy: true,
+      preferredProvider: aiControls.providerPreference,
+      reasoningTier: aiControls.reasoningTier,
+      experimentationEnabled: aiControls.experimentationEnabled,
     },
   });
+  const budgetCap = getOrgBudgetCap(orgId, orgModelOverrides);
+  const capped = applyOrgBudgetCap(plan, budgetCap, ANTHROPIC_MODELS, OPENAI_MODELS);
+  plan = applyPlanExperiencePreferences(capped.plan, aiControls);
   let fallbackUsed = false;
 
   while (plan) {

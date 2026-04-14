@@ -72,6 +72,12 @@ export default function Settings() {
     enabled: activeTab === 'Referrals',
   });
 
+  const orgModelControlsQuery = useQuery({
+    queryKey: ['org-model-controls'],
+    queryFn: () => api.get('/auth/organisation/model-controls'),
+    enabled: activeTab === 'Organisation',
+  });
+
   const deleteMemoryMutation = useMutation({
     mutationFn: (memoryId) => api.delete(`/agents/memory/${memoryId}`),
     onSuccess: async () => {
@@ -195,6 +201,24 @@ export default function Settings() {
     },
     onError: (error) => {
       notify({ type: 'error', title: 'Removal failed', message: getErrorMessage(error) });
+    },
+  });
+
+  const updateOrgModelControlsMutation = useMutation({
+    mutationFn: (payload) => api.patch('/auth/organisation/model-controls', payload),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['org-model-controls'] }),
+        queryClient.invalidateQueries({ queryKey: ['viewer'] }),
+      ]);
+      notify({
+        type: 'success',
+        title: 'AI controls updated',
+        message: 'Organisation routing preferences and budget caps were saved.',
+      });
+    },
+    onError: (error) => {
+      notify({ type: 'error', title: 'Update failed', message: getErrorMessage(error) });
     },
   });
 
@@ -328,7 +352,14 @@ export default function Settings() {
           freshToken={freshToken}
         />
       ) : null}
-      {activeTab === 'Organisation' ? <OrganisationSettingsTab orgRows={orgRows} /> : null}
+      {activeTab === 'Organisation' ? (
+        <OrganisationSettingsTab
+          orgRows={orgRows}
+          viewer={viewer}
+          controlsQuery={orgModelControlsQuery}
+          updateMutation={updateOrgModelControlsMutation}
+        />
+      ) : null}
       {activeTab === 'Referrals' ? <ReferralsTab query={referralQuery} /> : null}
       {activeTab === 'Memory' ? (
         <MemorySettingsTab

@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Button, InlineNotice, SectionLabel, StatusPill, SurfaceCard, TextInput } from '../../components/ui';
 import { AGENT_LIBRARY, BILLING_INTERVALS, PLAN_LIBRARY, getPlanPrice } from '../../lib/constants';
 import { formatDate, formatDateTime, getErrorMessage } from '../../lib/utils';
@@ -572,31 +573,271 @@ export function ApiKeysSettingsTab({
   );
 }
 
-export function OrganisationSettingsTab({ orgRows }) {
+export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, updateMutation }) {
+  const canManageControls = controlsQuery.data?.canManage ?? ['owner', 'admin'].includes(viewer?.user?.role);
+  const defaultControls = useMemo(() => ({
+    providerPreference: 'auto',
+    reasoningTier: 'auto',
+    fastLane: 'auto',
+    budgetCap: {
+      maxCostUsdPerRun: '',
+      maxOutputTokensPerRun: '',
+    },
+    spendThresholds: {
+      warnUsdMonthly: '',
+      hardCapUsdMonthly: '',
+    },
+    failoverOrder: ['', '', ''],
+    experimentationEnabled: false,
+  }), []);
+  const [formState, setFormState] = useState(defaultControls);
+
+  useEffect(() => {
+    const controls = controlsQuery.data?.controls;
+    if (!controls) {
+      return;
+    }
+
+    setFormState({
+      providerPreference: controls.providerPreference ?? 'auto',
+      reasoningTier: controls.reasoningTier ?? 'auto',
+      fastLane: controls.fastLane ?? 'auto',
+      budgetCap: {
+        maxCostUsdPerRun: controls.budgetCap?.maxCostUsdPerRun ?? '',
+        maxOutputTokensPerRun: controls.budgetCap?.maxOutputTokensPerRun ?? '',
+      },
+      spendThresholds: {
+        warnUsdMonthly: controls.spendThresholds?.warnUsdMonthly ?? '',
+        hardCapUsdMonthly: controls.spendThresholds?.hardCapUsdMonthly ?? '',
+      },
+      failoverOrder: [
+        controls.failoverOrder?.[0] ?? '',
+        controls.failoverOrder?.[1] ?? '',
+        controls.failoverOrder?.[2] ?? '',
+      ],
+      experimentationEnabled: Boolean(controls.experimentationEnabled),
+    });
+  }, [controlsQuery.data?.controls, defaultControls]);
+
+  function updateFailover(index, value) {
+    setFormState((current) => {
+      const next = [...current.failoverOrder];
+      next[index] = value;
+      return { ...current, failoverOrder: next };
+    });
+  }
+
+  function saveControls() {
+    updateMutation.mutate({
+      providerPreference: formState.providerPreference,
+      reasoningTier: formState.reasoningTier,
+      fastLane: formState.fastLane,
+      budgetCap: {
+        maxCostUsdPerRun: parseNullableNumber(formState.budgetCap.maxCostUsdPerRun),
+        maxOutputTokensPerRun: parseNullableInteger(formState.budgetCap.maxOutputTokensPerRun),
+      },
+      spendThresholds: {
+        warnUsdMonthly: parseNullableNumber(formState.spendThresholds.warnUsdMonthly),
+        hardCapUsdMonthly: parseNullableNumber(formState.spendThresholds.hardCapUsdMonthly),
+      },
+      failoverOrder: formState.failoverOrder.filter(Boolean),
+      experimentationEnabled: formState.experimentationEnabled,
+    });
+  }
+
   return (
-    <SurfaceCard title="Organisation detail" accent="#00FFD1">
-      <div style={{ display: 'grid', gap: '12px' }}>
-        {orgRows.map(([label, value]) => (
-          <div
-            key={label}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: '12px',
-              flexWrap: 'wrap',
-              paddingBottom: '12px',
-              borderBottom: '1px solid var(--line)',
-            }}
-          >
-            <div style={{ color: 'var(--muted-2)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.16em' }}>
-              {label}
+    <div style={{ display: 'grid', gap: '14px' }}>
+      <SurfaceCard title="Organisation detail" accent="#00FFD1">
+        <div style={{ display: 'grid', gap: '12px' }}>
+          {orgRows.map(([label, value]) => (
+            <div
+              key={label}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: '12px',
+                flexWrap: 'wrap',
+                paddingBottom: '12px',
+                borderBottom: '1px solid var(--line)',
+              }}
+            >
+              <div style={{ color: 'var(--muted-2)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.16em' }}>
+                {label}
+              </div>
+              <div>{value}</div>
             </div>
-            <div>{value}</div>
+          ))}
+        </div>
+      </SurfaceCard>
+
+      <SurfaceCard title="AI routing controls" accent="#BDB4FE">
+        <InlineNotice tone={canManageControls ? 'default' : 'warning'}>
+          {canManageControls
+            ? 'These controls tune how Prymal prefers providers, fast lanes, budgets, and failover order for this workspace.'
+            : 'Only owners and admins can change organisation-level AI routing controls.'}
+        </InlineNotice>
+
+        {controlsQuery.error ? (
+          <InlineNotice tone="danger">{getErrorMessage(controlsQuery.error)}</InlineNotice>
+        ) : null}
+
+        <div style={{ display: 'grid', gap: '14px', marginTop: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+            <label style={{ display: 'grid', gap: '6px' }}>
+              <span style={{ color: 'var(--muted-2)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Provider preference</span>
+              <select
+                value={formState.providerPreference}
+                onChange={(event) => setFormState((current) => ({ ...current, providerPreference: event.target.value }))}
+                style={selectStyle}
+                disabled={!canManageControls || controlsQuery.isLoading}
+              >
+                <option value="auto">Auto</option>
+                <option value="anthropic">Anthropic first</option>
+                <option value="openai">OpenAI first</option>
+                <option value="google">Gemini first</option>
+              </select>
+            </label>
+
+            <label style={{ display: 'grid', gap: '6px' }}>
+              <span style={{ color: 'var(--muted-2)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Reasoning tier</span>
+              <select
+                value={formState.reasoningTier}
+                onChange={(event) => setFormState((current) => ({ ...current, reasoningTier: event.target.value }))}
+                style={selectStyle}
+                disabled={!canManageControls || controlsQuery.isLoading}
+              >
+                <option value="auto">Auto</option>
+                <option value="balanced">Balanced</option>
+                <option value="high">High reasoning</option>
+                <option value="cost_saver">Cost saver</option>
+              </select>
+            </label>
+
+            <label style={{ display: 'grid', gap: '6px' }}>
+              <span style={{ color: 'var(--muted-2)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Fast lane</span>
+              <select
+                value={formState.fastLane}
+                onChange={(event) => setFormState((current) => ({ ...current, fastLane: event.target.value }))}
+                style={selectStyle}
+                disabled={!canManageControls || controlsQuery.isLoading}
+              >
+                <option value="auto">Auto</option>
+                <option value="anthropic_fast">Anthropic fast</option>
+                <option value="openai_router">OpenAI router</option>
+                <option value="gemini_flash">Gemini flash</option>
+              </select>
+            </label>
           </div>
-        ))}
-      </div>
-    </SurfaceCard>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+            <TextInput
+              value={String(formState.budgetCap.maxCostUsdPerRun)}
+              onChange={(event) => setFormState((current) => ({
+                ...current,
+                budgetCap: { ...current.budgetCap, maxCostUsdPerRun: event.target.value },
+              }))}
+              placeholder="Max cost per run (USD)"
+              disabled={!canManageControls || controlsQuery.isLoading}
+            />
+            <TextInput
+              value={String(formState.budgetCap.maxOutputTokensPerRun)}
+              onChange={(event) => setFormState((current) => ({
+                ...current,
+                budgetCap: { ...current.budgetCap, maxOutputTokensPerRun: event.target.value },
+              }))}
+              placeholder="Max output tokens per run"
+              disabled={!canManageControls || controlsQuery.isLoading}
+            />
+            <TextInput
+              value={String(formState.spendThresholds.warnUsdMonthly)}
+              onChange={(event) => setFormState((current) => ({
+                ...current,
+                spendThresholds: { ...current.spendThresholds, warnUsdMonthly: event.target.value },
+              }))}
+              placeholder="Monthly warning threshold (USD)"
+              disabled={!canManageControls || controlsQuery.isLoading}
+            />
+            <TextInput
+              value={String(formState.spendThresholds.hardCapUsdMonthly)}
+              onChange={(event) => setFormState((current) => ({
+                ...current,
+                spendThresholds: { ...current.spendThresholds, hardCapUsdMonthly: event.target.value },
+              }))}
+              placeholder="Monthly hard cap (USD)"
+              disabled={!canManageControls || controlsQuery.isLoading}
+            />
+          </div>
+
+          <div style={{ display: 'grid', gap: '10px' }}>
+            <SectionLabel>Failover order</SectionLabel>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+              {[0, 1, 2].map((index) => (
+                <label key={index} style={{ display: 'grid', gap: '6px' }}>
+                  <span style={{ color: 'var(--muted)', fontSize: '12px' }}>Fallback {index + 1}</span>
+                  <select
+                    value={formState.failoverOrder[index]}
+                    onChange={(event) => updateFailover(index, event.target.value)}
+                    style={selectStyle}
+                    disabled={!canManageControls || controlsQuery.isLoading}
+                  >
+                    <option value="">None</option>
+                    <option value="anthropic">Anthropic</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="google">Gemini</option>
+                  </select>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <label style={{ display: 'flex', gap: '10px', alignItems: 'center', color: 'var(--muted)' }}>
+            <input
+              type="checkbox"
+              checked={formState.experimentationEnabled}
+              onChange={(event) => setFormState((current) => ({ ...current, experimentationEnabled: event.target.checked }))}
+              disabled={!canManageControls || controlsQuery.isLoading}
+            />
+            Enable experimentation tracking for routing comparisons
+          </label>
+
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <Button
+              tone="accent"
+              onClick={saveControls}
+              disabled={!canManageControls || controlsQuery.isLoading || updateMutation.isPending}
+            >
+              {updateMutation.isPending ? 'Saving...' : 'Save AI controls'}
+            </Button>
+            <Button
+              tone="ghost"
+              onClick={() => setFormState(defaultControls)}
+              disabled={!canManageControls || controlsQuery.isLoading || updateMutation.isPending}
+            >
+              Reset draft
+            </Button>
+          </div>
+        </div>
+      </SurfaceCard>
+    </div>
   );
+}
+
+function parseNullableNumber(value) {
+  if (value === '' || value == null) {
+    return null;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function parseNullableInteger(value) {
+  if (value === '' || value == null) {
+    return null;
+  }
+
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : null;
 }
 
 export function MemorySettingsTab({

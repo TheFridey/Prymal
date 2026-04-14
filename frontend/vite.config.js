@@ -14,14 +14,19 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    manifest: true,
+    modulePreload: {
+      resolveDependencies(_, dependencies) {
+        return dependencies.filter(
+          (dependency) => !/vendor-three|vendor-workflow|app-workflow-builder/i.test(dependency),
+        );
+      },
+    },
     sourcemap: false,
-    // CSS code splitting — each async chunk gets its own CSS file,
-    // so admin/workflow surfaces only load their styles on demand.
     cssCodeSplit: true,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // ── Vendor: stable libraries with long cache TTL ────────────────
           if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
             return 'vendor-react';
           }
@@ -34,6 +39,9 @@ export default defineConfig({
           if (id.includes('node_modules/@tanstack/react-query')) {
             return 'vendor-query';
           }
+          if (id.includes('node_modules/reactflow')) {
+            return 'vendor-workflow';
+          }
           if (id.includes('node_modules/framer-motion')) {
             return 'vendor-motion';
           }
@@ -43,29 +51,22 @@ export default defineConfig({
           if (id.includes('node_modules/three') || id.includes('node_modules/@react-three/')) {
             return 'vendor-three';
           }
-          if (id.includes('node_modules/react-markdown') || id.includes('node_modules/remark') || id.includes('node_modules/rehype')) {
+          if (
+            id.includes('node_modules/react-markdown')
+            || id.includes('node_modules/remark')
+            || id.includes('node_modules/rehype')
+          ) {
             return 'vendor-markdown';
           }
           if (id.includes('node_modules/@sentry/')) {
             return 'vendor-sentry';
           }
 
-          // ── App: route-level lazy chunks ────────────────────────────────
-          // Heavy admin surfaces — loaded only when operator navigates to /admin
-          if (id.includes('/features/admin/') || id.includes('/pages/Admin')) {
-            return 'app-admin';
-          }
-          // Workflow builder — heavy canvas surface, lazy loaded
-          if (id.includes('WorkflowBuilder') || id.includes('/features/workspace/workflows/')) {
+          if (id.includes('WorkflowBuilder')) {
             return 'app-workflow-builder';
           }
-          // Lore / knowledge surfaces
-          if (id.includes('/features/workspace/lore/') || id.includes('/pages/Lore')) {
-            return 'app-lore';
-          }
-          // Marketing / landing pages — separate from app shell
-          if (id.includes('/features/marketing/') || id.includes('/pages/Landing') || id.includes('/pages/Pricing')) {
-            return 'app-marketing';
+          if (id.includes('/features/workspace/workflows/WebhookSubscriptionsPanel')) {
+            return 'app-workflow-webhooks';
           }
         },
       },

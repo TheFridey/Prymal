@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import {
   AnimatePresence,
   LazyMotion,
@@ -81,18 +82,22 @@ export function MotionSection({
   );
 }
 
-export function MotionList({
-  children,
-  className = '',
-  style,
-  staggerChildren,
-  delayChildren,
-  ...props
-}) {
+export const MotionList = forwardRef(function MotionList(
+  {
+    children,
+    className = '',
+    style,
+    staggerChildren,
+    delayChildren,
+    ...props
+  },
+  ref,
+) {
   const reducedMotion = usePrymalReducedMotion();
 
   return (
     <m.div
+      ref={ref}
       className={`motion-list${className ? ` ${className}` : ''}`}
       style={style}
       initial="hidden"
@@ -104,7 +109,7 @@ export function MotionList({
       {children}
     </m.div>
   );
-}
+});
 
 export function MotionListItem({ children, className = '', reveal = {}, ...props }) {
   const reducedMotion = usePrymalReducedMotion();

@@ -85,6 +85,7 @@ router.post('/run', requireOrg, zValidator('json', runSchema), async (context) =
         agentId,
         orgId: org.orgId,
         orgPlan: org.orgPlan,
+        orgMetadata: org.orgMetadata ?? {},
         messages: [],
         userMessage: prompt,
         useLore: true,

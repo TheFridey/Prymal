@@ -9,6 +9,7 @@ import { apiKeys, conversations, emailQueue, organisationInvitations, organisati
 import { requireOrg, requireRole } from '../middleware/auth.js';
 import { sendInvitationEmail, sendWelcomeEmail } from '../services/email.js';
 import { getPlanConfig } from '../services/entitlements.js';
+import { normalizeOrgAiControls } from '../services/model-policy.js';
 import { getStaffRole, isStaffUser, listStaffPermissions } from '../services/staff.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
 import { assertSeatCapacity, getSeatSnapshot, isInvitationExpired, normalizeEmail } from '../services/team.js';
@@ -43,6 +44,40 @@ const apiKeyCreateSchema = z.object({
   name: z.string().trim().min(2).max(80),
   expiresInDays: z.number().int().min(1).max(3650).optional(),
   scopes: z.array(z.enum(['read', 'write'])).min(1).max(2).default(['read', 'write']),
+});
+
+const modelControlsSchema = z.object({
+  providerPreference: z.enum(['auto', 'anthropic', 'openai', 'google']).default('auto'),
+  reasoningTier: z.enum(['auto', 'balanced', 'high', 'cost_saver']).default('auto'),
+  fastLane: z.enum(['auto', 'anthropic_fast', 'openai_router', 'gemini_flash']).default('auto'),
+  budgetCap: z.object({
+    maxCostUsdPerRun: z.number().positive().max(100).nullable().optional(),
+    maxOutputTokensPerRun: z.number().int().positive().max(500_000).nullable().optional(),
+  }).default({}),
+  spendThresholds: z.object({
+    warnUsdMonthly: z.number().positive().max(100_000).nullable().optional(),
+    hardCapUsdMonthly: z.number().positive().max(100_000).nullable().optional(),
+  }).default({}),
+  failoverOrder: z.array(z.enum(['anthropic', 'openai', 'google'])).max(3).default([]),
+  experimentationEnabled: z.boolean().default(false),
+}).superRefine((value, context) => {
+  if (new Set(value.failoverOrder).size !== value.failoverOrder.length) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['failoverOrder'],
+      message: 'Failover order cannot contain duplicate providers.',
+    });
+  }
+
+  const warn = value.spendThresholds.warnUsdMonthly ?? null;
+  const hardCap = value.spendThresholds.hardCapUsdMonthly ?? null;
+  if (warn != null && hardCap != null && warn > hardCap) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['spendThresholds', 'warnUsdMonthly'],
+      message: 'Warning threshold cannot exceed the hard monthly cap.',
+    });
+  }
 });
 
 router.post('/webhook/clerk', async (context) => {
@@ -322,6 +357,77 @@ router.get('/me', requireOrg, async (context) => {
     credits: org.credits,
   });
 });
+
+router.get('/organisation/model-controls', requireOrg, async (context) => {
+  const org = context.get('org');
+
+  return context.json({
+    controls: normalizeOrgAiControls(org.orgMetadata ?? {}),
+    role: org.userRole,
+    canManage: ['owner', 'admin'].includes(org.userRole),
+  });
+});
+
+router.patch(
+  '/organisation/model-controls',
+  requireOrg,
+  requireRole('owner', 'admin'),
+  zValidator('json', modelControlsSchema),
+  async (context) => {
+    const org = context.get('org');
+    const payload = context.req.valid('json');
+    const organisation = await db.query.organisations.findFirst({
+      where: eq(organisations.id, org.orgId),
+    });
+
+    if (!organisation) {
+      return context.json({ error: 'Organisation not found.' }, 404);
+    }
+
+    const nextControls = normalizeOrgAiControls({ aiControls: payload });
+    const nextMetadata = {
+      ...(organisation.metadata ?? {}),
+      aiControls: nextControls,
+    };
+
+    await db
+      .update(organisations)
+      .set({
+        metadata: nextMetadata,
+        updatedAt: new Date(),
+      })
+      .where(eq(organisations.id, org.orgId));
+
+    await Promise.all([
+      recordAuditLog({
+        orgId: org.orgId,
+        actorUserId: org.userId,
+        action: 'organisation.model_controls.updated',
+        targetType: 'organisation',
+        targetId: org.orgId,
+        metadata: {
+          before: normalizeOrgAiControls(organisation.metadata ?? {}),
+          after: nextControls,
+        },
+      }),
+      recordProductEvent({
+        orgId: org.orgId,
+        userId: org.userId,
+        eventName: 'organisation.model_controls.updated',
+        metadata: {
+          providerPreference: nextControls.providerPreference,
+          reasoningTier: nextControls.reasoningTier,
+          experimentationEnabled: nextControls.experimentationEnabled,
+        },
+      }),
+    ]);
+
+    return context.json({
+      controls: nextControls,
+      updatedAt: new Date().toISOString(),
+    });
+  },
+);
 
 router.get('/team', requireOrg, async (context) => {
   const org = context.get('org');

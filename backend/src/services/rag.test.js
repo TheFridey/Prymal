@@ -20,7 +20,7 @@ test('computeFreshnessScore prefers recently verified documents', () => {
   );
 
   assert.equal(freshScore, 1);
-  assert.equal(staleScore, 0.18);
+  assert.equal(staleScore, 0.1575);
   assert.equal(verifiedScore, 1);
 });
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { WORKFLOW_TEMPLATES, getAgentMeta } from '../lib/constants';
@@ -7,6 +7,7 @@ import {
   Button,
   EmptyState,
   InlineNotice,
+  LoadingPanel,
   PageHeader,
   PageShell,
   SectionLabel,
@@ -15,7 +16,8 @@ import {
   SurfaceCard,
 } from '../components/ui';
 import { useAppStore } from '../stores/useAppStore';
-import WorkflowBuilder from './WorkflowBuilder';
+
+const WorkflowBuilder = lazy(() => import('./WorkflowBuilder'));
 
 const RUN_STATUS_COLORS = {
   queued: '#F59E0B',
@@ -160,7 +162,9 @@ export default function Workflows() {
 
       {view === 'builder' ? (
         <SurfaceCard title="Visual workflow builder" subtitle="Drag agents, connect steps, save" accent="#F72585">
-          <WorkflowBuilder onClose={() => setView('monitor')} />
+          <Suspense fallback={<LoadingPanel label="Loading workflow builder..." />}>
+            <WorkflowBuilder onClose={() => setView('monitor')} />
+          </Suspense>
         </SurfaceCard>
       ) : null}
 

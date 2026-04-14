@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
 import { formatDateTime, formatNumber, getErrorMessage, truncate } from '../../../lib/utils';
@@ -6,13 +6,15 @@ import {
   Button,
   EmptyState,
   InlineNotice,
+  LoadingPanel,
   SectionLabel,
   StatusPill,
   SurfaceCard,
 } from '../../../components/ui';
 import { MotionList, MotionListItem, MotionModal, MotionPresence, MotionSection } from '../../../components/motion';
-import WorkflowBuilder from '../../../pages/WorkflowBuilder';
-import WebhookSubscriptionsPanel from './WebhookSubscriptionsPanel';
+
+const WorkflowBuilder = lazy(() => import('../../../pages/WorkflowBuilder'));
+const WebhookSubscriptionsPanel = lazy(() => import('./WebhookSubscriptionsPanel'));
 
 const TRIGGER_META = {
   manual: { label: 'manual', color: '#4CC9F0' },
@@ -388,10 +390,12 @@ export default function WorkflowPanel() {
                           <MotionPresence initial={false}>
                             {webhooksOpen ? (
                               <MotionSection key="webhook-subscriptions" reveal={{ y: 12, blur: 6 }}>
-                                <WebhookSubscriptionsPanel
-                                  workflowId={workflow.id}
-                                  initialWebhooks={webhooksQuery.data?.webhooks ?? null}
-                                />
+                                <Suspense fallback={<LoadingPanel label="Loading webhook subscriptions..." />}>
+                                  <WebhookSubscriptionsPanel
+                                    workflowId={workflow.id}
+                                    initialWebhooks={webhooksQuery.data?.webhooks ?? null}
+                                  />
+                                </Suspense>
                               </MotionSection>
                             ) : null}
                           </MotionPresence>
@@ -436,7 +440,9 @@ export default function WorkflowPanel() {
               </div>
               <Button tone="ghost" onClick={() => setBuilderOpen(false)}>Close</Button>
             </div>
-            <WorkflowBuilder onClose={() => setBuilderOpen(false)} />
+            <Suspense fallback={<LoadingPanel label="Loading workflow builder..." />}>
+              <WorkflowBuilder onClose={() => setBuilderOpen(false)} />
+            </Suspense>
         </MotionModal>
       ) : null}
 

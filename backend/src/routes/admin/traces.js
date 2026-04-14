@@ -16,8 +16,13 @@ import { compareModelRuns } from '../../services/evals.js';
 import {
   buildPolicyOutcomeSummary,
   getAnthropicModels,
+  getGeminiModels,
   getOpenAIModels,
+  buildModelOverridesFromAiControls,
+  mergeOrgModelOverrides,
+  normalizeOrgAiControls,
   hasUsableAnthropicKey,
+  hasUsableGeminiKey,
   hasUsableOpenAIKey,
   MODEL_POLICIES,
 } from '../../services/model-policy.js';
@@ -57,11 +62,13 @@ router.get('/model-usage', requireStaff, requireStaffPermission('admin.activity.
   const filteredRows = filterTraceRows(rows, traceQuery);
 
   const byModel = new Map();
+  const byProvider = new Map();
   const byAgent = new Map();
   const byOrg = new Map();
   for (const row of filteredRows) {
     const modelKey = `${row.provider}:${row.model}`;
     byModel.set(modelKey, aggregateTraceRow(byModel.get(modelKey), row));
+    byProvider.set(row.provider, aggregateTraceRow(byProvider.get(row.provider), row));
     byAgent.set(row.agentId, aggregateTraceRow(byAgent.get(row.agentId), row));
     if (row.orgId) byOrg.set(row.orgId, aggregateTraceRow(byOrg.get(row.orgId), row));
   }
@@ -70,6 +77,7 @@ router.get('/model-usage', requireStaff, requireStaffPermission('admin.activity.
     count: filteredRows.length, limit, offset,
     days: Math.min(Math.max(Number(traceQuery.days ?? 30), 1), 365),
     modelUsage: mapAggregate(byModel, 'model'),
+    providerUsage: mapAggregate(byProvider, 'provider'),
     agentUsage: mapAggregate(byAgent, 'agentId'),
     orgUsage: mapAggregate(byOrg, 'orgId'),
     modelComparisons: compareModelRuns(filteredRows),
@@ -206,8 +214,10 @@ router.get('/scheduler-status', requireStaff, requireStaffPermission('admin.acti
 router.get('/model-policy', requireStaff, requireStaffPermission('admin.activity.read'), (context) => {
   const anthropicModels = getAnthropicModels();
   const openAIModels = getOpenAIModels();
+  const geminiModels = getGeminiModels();
   const anthropicConfigured = hasUsableAnthropicKey();
   const openAIConfigured = hasUsableOpenAIKey();
+  const geminiConfigured = hasUsableGeminiKey();
 
   // Parse org-level overrides (no orgId = returns raw map or null)
   let orgOverrides = {};
@@ -233,13 +243,49 @@ router.get('/model-policy', requireStaff, requireStaffPermission('admin.activity
     maxOutputTokensPerRun: overrides?.budgetCap?.maxOutputTokensPerRun ?? null,
   }));
 
+  const organisationRows = await db.query.organisations.findMany({
+    orderBy: [desc(organisations.updatedAt)],
+    limit: 120,
+  });
+
+  const orgControlOverrides = organisationRows
+    .map((org) => {
+      const controls = normalizeOrgAiControls(org.metadata ?? {});
+      const merged = mergeOrgModelOverrides(
+        orgOverrides[org.id] ?? null,
+        buildModelOverridesFromAiControls(controls),
+      );
+      const hasControls = controls.providerPreference !== 'auto'
+        || controls.reasoningTier !== 'auto'
+        || controls.fastLane !== 'auto'
+        || controls.experimentationEnabled
+        || controls.failoverOrder.length > 0
+        || controls.budgetCap.maxCostUsdPerRun != null
+        || controls.budgetCap.maxOutputTokensPerRun != null;
+
+      if (!hasControls && !merged?.budgetCap) {
+        return null;
+      }
+
+      return {
+        orgId: org.id,
+        orgName: org.name,
+        plan: org.plan,
+        controls,
+        effectiveBudgetCap: merged?.budgetCap ?? null,
+      };
+    })
+    .filter(Boolean);
+
   return context.json({
     providers: {
       anthropic: { configured: anthropicConfigured, models: anthropicModels },
       openai: { configured: openAIConfigured, models: openAIModels },
+      google: { configured: geminiConfigured, models: geminiModels },
     },
     policyLanes,
     orgBudgetCaps,
+    orgControlOverrides,
   });
 });
 

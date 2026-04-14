@@ -63,6 +63,7 @@ export function ModelUsageTab({ query, days = '30', policyKey = 'all', onDaysCha
 
   const data = query.data ?? {};
   const modelUsage = data.modelUsage ?? [];
+  const providerUsage = data.providerUsage ?? [];
   const orgUsage = data.orgUsage ?? [];
   const policySummary = data.policySummary ?? [];
   const maxRuns = Math.max(...(data.modelComparisons ?? []).map((r) => r.runs ?? 0), 1);
@@ -144,6 +145,36 @@ export function ModelUsageTab({ query, days = '30', policyKey = 'all', onDaysCha
             ) : null}
           </>
         )}
+      </section>
+
+      <section className="staff-admin__panel">
+        <div className="staff-admin__panel-header">Provider analytics</div>
+        <table className="staff-admin__table">
+          <thead>
+            <tr>
+              <th>Provider</th>
+              <th>Runs</th>
+              <th>Failures</th>
+              <th>Fallbacks</th>
+              <th>Failure rate</th>
+              <th>Avg latency</th>
+              <th>Total cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            {providerUsage.map((row) => (
+              <tr key={row.provider}>
+                <td>{row.provider}</td>
+                <td>{formatNumber(row.runs)}</td>
+                <td>{formatNumber(row.failureCount)}</td>
+                <td>{formatNumber(row.fallbackCount)}</td>
+                <td>{row.runs > 0 ? `${Math.round((row.failureCount / row.runs) * 100)}%` : '0%'}</td>
+                <td>{formatNumber(row.averageLatencyMs)} ms</td>
+                <td>${Number(row.totalCostUsd ?? 0).toFixed(4)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </section>
 
       <section className="staff-admin__panel">
@@ -296,6 +327,8 @@ export function ModelPolicyTab({ query }) {
 
   const anthropic = providers.anthropic ?? {};
   const openai = providers.openai ?? {};
+  const google = providers.google ?? {};
+  const orgControlOverrides = query.data?.orgControlOverrides ?? [];
 
   return (
     <div style={{ display: 'grid', gap: '20px' }}>
@@ -308,10 +341,11 @@ export function ModelPolicyTab({ query }) {
             <h2>Active provider lanes</h2>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
           {[
             { label: 'Anthropic', configured: anthropic.configured, models: anthropic.models ?? {} },
             { label: 'OpenAI', configured: openai.configured, models: openai.models ?? {} },
+            { label: 'Google Gemini', configured: google.configured, models: google.models ?? {} },
           ].map((provider) => (
             <div key={provider.label} style={{ padding: '16px', borderRadius: '12px', background: 'var(--panel-soft)', border: '1px solid var(--line)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
@@ -409,6 +443,57 @@ export function ModelPolicyTab({ query }) {
                   </td>
                   <td>{cap.maxCostUsdPerRun != null ? `$${cap.maxCostUsdPerRun.toFixed(4)}` : '—'}</td>
                   <td>{cap.maxOutputTokensPerRun != null ? formatNumber(cap.maxOutputTokensPerRun) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section className="staff-admin__surface">
+        <div className="staff-admin__surface-head">
+          <div>
+            <div className="staff-admin__surface-label">Customer overrides</div>
+            <h2>Org AI controls ({orgControlOverrides.length})</h2>
+          </div>
+          <div className="staff-admin__surface-meta">
+            Persisted in organisation metadata and merged with env-level overrides.
+          </div>
+        </div>
+        {orgControlOverrides.length === 0 ? (
+          <div className="staff-admin__empty">No organisation-level AI controls are configured yet.</div>
+        ) : (
+          <table className="staff-admin__table">
+            <thead>
+              <tr>
+                <th>Organisation</th>
+                <th>Plan</th>
+                <th>Provider</th>
+                <th>Reasoning</th>
+                <th>Fast lane</th>
+                <th>Budget cap</th>
+                <th>Failover</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orgControlOverrides.map((entry) => (
+                <tr key={entry.orgId}>
+                  <td>
+                    <div style={{ display: 'grid', gap: '2px' }}>
+                      <strong>{entry.orgName}</strong>
+                      <span style={{ color: 'var(--muted)', fontSize: '11px' }}>{entry.orgId}</span>
+                    </div>
+                  </td>
+                  <td>{entry.plan}</td>
+                  <td>{entry.controls.providerPreference}</td>
+                  <td>{entry.controls.reasoningTier}</td>
+                  <td>{entry.controls.fastLane}</td>
+                  <td>
+                    {entry.effectiveBudgetCap?.maxCostUsdPerRun != null || entry.effectiveBudgetCap?.maxOutputTokensPerRun != null
+                      ? `${entry.effectiveBudgetCap.maxCostUsdPerRun != null ? `$${entry.effectiveBudgetCap.maxCostUsdPerRun}` : 'no $ cap'} / ${entry.effectiveBudgetCap.maxOutputTokensPerRun != null ? `${formatNumber(entry.effectiveBudgetCap.maxOutputTokensPerRun)} tokens` : 'no token cap'}`
+                      : 'No cap'}
+                  </td>
+                  <td>{entry.controls.failoverOrder?.length > 0 ? entry.controls.failoverOrder.join(' > ') : 'Default'}</td>
                 </tr>
               ))}
             </tbody>

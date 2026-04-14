@@ -214,6 +214,7 @@ export function GeneratedImageCard({ image }) {
 }
 
 export function SourceCard({ source }) {
+  const [expanded, setExpanded] = useState(false);
   const title = source.documentTitle ?? source.title ?? source.documentId ?? 'Source';
   const origin = API_BASE_URL.replace(/\/api$/, '');
   const screenshotUrl = source.screenshotUrl ? new URL(source.screenshotUrl, origin).toString() : null;
@@ -224,6 +225,18 @@ export function SourceCard({ source }) {
   const rankScore = formatScore(source.finalScore ?? source.rankingScore);
   const contradictionSignals = Array.isArray(source.contradictionSignals) ? source.contradictionSignals : [];
   const versionLineage = source.versionLineage ?? null;
+  const lexical = formatScore(source.lexicalScore);
+  const canExpand = Boolean(
+    lexical
+    || freshness
+    || authority
+    || rankScore
+    || contradictionSignals.length > 0
+    || versionLineage
+    || source.staleWarning
+    || source.summary
+    || source.snippet,
+  );
 
   return (
     <div className="workspace-studio__source-card">
@@ -247,7 +260,7 @@ export function SourceCard({ source }) {
           </a>
         ) : null}
       </div>
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+      <div className="workspace-studio__source-badges">
         {confidence ? <ArtifactChip label={`Confidence ${confidence}`} tone={confidence.toLowerCase() === 'high' ? 'success' : 'default'} /> : null}
         {freshness ? <ArtifactChip label={`Freshness ${freshness}`} /> : null}
         {authority ? <ArtifactChip label={`Authority ${authority}`} /> : null}
@@ -263,6 +276,105 @@ export function SourceCard({ source }) {
       ) : null}
       {source.snippet ? <div className="workspace-studio__source-snippet">{source.snippet}</div> : null}
       {source.summary ? <div className="workspace-studio__source-summary">{source.summary.slice(0, 260)}</div> : null}
+      {canExpand ? (
+        <button
+          type="button"
+          className="workspace-studio__source-toggle"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? 'Hide ranking details' : 'Why this source won'}
+        </button>
+      ) : null}
+      {expanded ? (
+        <div className="workspace-studio__source-detail-grid">
+          <div className="workspace-studio__source-detail-card">
+            <div className="workspace-studio__source-detail-title">Ranking signal mix</div>
+            <div className="workspace-studio__source-list">
+              <div className="workspace-studio__source-detail-row">
+                <span>Semantic match</span>
+                <strong>{formatScore(source.similarity) ?? 'n/a'}</strong>
+              </div>
+              <div className="workspace-studio__source-detail-row">
+                <span>Lexical lift</span>
+                <strong>{lexical ?? 'n/a'}</strong>
+              </div>
+              <div className="workspace-studio__source-detail-row">
+                <span>Freshness lift</span>
+                <strong>{freshness ?? 'n/a'}</strong>
+              </div>
+              <div className="workspace-studio__source-detail-row">
+                <span>Authority lift</span>
+                <strong>{authority ?? 'n/a'}</strong>
+              </div>
+              <div className="workspace-studio__source-detail-row">
+                <span>Final rank</span>
+                <strong>{rankScore ?? 'n/a'}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="workspace-studio__source-detail-card">
+            <div className="workspace-studio__source-detail-title">Trust interpretation</div>
+            <div className="workspace-studio__source-list">
+              <div className="workspace-studio__source-detail-row">
+                <span>Confidence</span>
+                <strong>{describeConfidence(confidence)}</strong>
+              </div>
+              <div className="workspace-studio__source-detail-row">
+                <span>Freshness posture</span>
+                <strong>{source.staleWarning ? 'Stale warning attached' : 'No stale warning'}</strong>
+              </div>
+              <div className="workspace-studio__source-detail-row">
+                <span>Retrieval mode</span>
+                <strong>{humanizeSignal(source.retrievalMode ?? source.mode ?? 'semantic')}</strong>
+              </div>
+              <div className="workspace-studio__source-detail-row">
+                <span>Source type</span>
+                <strong>{humanizeSignal(source.sourceType ?? citation.sourceType ?? 'source')}</strong>
+              </div>
+            </div>
+          </div>
+
+          {versionLineage ? (
+            <div className="workspace-studio__source-detail-card">
+              <div className="workspace-studio__source-detail-title">Version lineage</div>
+              <div className="workspace-studio__source-list">
+                <div className="workspace-studio__source-detail-row">
+                  <span>Status</span>
+                  <strong>{versionLineage.isSuperseded ? 'Superseded' : 'Current or latest known'}</strong>
+                </div>
+                {versionLineage.latestVersion ? (
+                  <div className="workspace-studio__source-detail-row">
+                    <span>Latest version</span>
+                    <strong>v{versionLineage.latestVersion}</strong>
+                  </div>
+                ) : null}
+                {versionLineage.versionChainId ? (
+                  <div className="workspace-studio__source-detail-row">
+                    <span>Version chain</span>
+                    <strong>{String(versionLineage.versionChainId).slice(0, 14)}</strong>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {contradictionSignals.length > 0 ? (
+            <div className="workspace-studio__source-detail-card">
+              <div className="workspace-studio__source-detail-title">Contradiction signals</div>
+              <div className="workspace-studio__source-list">
+                {contradictionSignals.slice(0, 3).map((signal, index) => (
+                  <div key={`${signal.type ?? 'signal'}-${index}`} className="workspace-studio__source-contradiction">
+                    <strong>{humanizeSignal(signal.type ?? 'conflict')}</strong>
+                    {signal.excerpt ? <span>{truncateText(signal.excerpt, 120)}</span> : null}
+                    {signal.existingDocumentTitle ? <small>{signal.existingDocumentTitle}</small> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {Array.isArray(source.followedLinks) && source.followedLinks.length > 0 ? (
         <div className="workspace-studio__source-followed">
           {source.followedLinks.slice(0, 3).map((link) => (
@@ -275,4 +387,34 @@ export function SourceCard({ source }) {
       {source.error ? <div className="workspace-studio__source-error">{source.error}</div> : null}
     </div>
   );
+}
+
+function describeConfidence(confidence) {
+  if (!confidence) {
+    return 'No confidence label';
+  }
+
+  if (/high/i.test(confidence)) {
+    return 'High confidence';
+  }
+
+  if (/low|ungrounded/i.test(confidence)) {
+    return 'Needs review';
+  }
+
+  return humanizeSignal(confidence);
+}
+
+function humanizeSignal(value) {
+  return String(value ?? '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function truncateText(value, limit = 120) {
+  if (!value) {
+    return '';
+  }
+
+  return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
 }

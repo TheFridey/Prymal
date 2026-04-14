@@ -121,8 +121,11 @@ export function GrowthTab({ query }) {
     agentUsage = [],
     onboardingMetrics = {},
     workflowConversion = {},
+    loreUsage = {},
     seatExpansion = [],
     churnSignals = [],
+    powerUserOrgs = [],
+    inactivityAlerts = [],
     cohortRetention = [],
   } = data?.growth ?? {};
 
@@ -147,6 +150,13 @@ export function GrowthTab({ query }) {
     workflowRunsLast30d = 0,
     avgSuccessRate = 0,
   } = workflowConversion;
+  const {
+    documentsUploaded30d = 0,
+    indexedDocuments30d = 0,
+    conflictedDocuments = 0,
+    staleDocuments = 0,
+    topSourceTypes = [],
+  } = loreUsage;
 
   const totalAgentRuns = agentUsage.reduce((sum, a) => sum + (a.runs ?? 0), 0);
 
@@ -241,6 +251,84 @@ export function GrowthTab({ query }) {
                       {Math.round(rate * 100)}%
                     </div>
                   ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </MotionSection>
+      </div>
+
+      <div className="staff-admin__overview-grid">
+        <MotionSection className="staff-admin__surface" reveal={{ y: 18 }}>
+          <div className="staff-admin__surface-head">
+            <div>
+              <div className="staff-admin__surface-label">LORE analytics</div>
+              <h2>Knowledge-base adoption</h2>
+            </div>
+          </div>
+
+          <div className="staff-admin__runtime-summary-grid">
+            <div className="staff-admin__runtime-summary-card">
+              <div className="staff-admin__surface-label">Uploaded (30d)</div>
+              <strong>{formatNumber(documentsUploaded30d)}</strong>
+            </div>
+            <div className="staff-admin__runtime-summary-card">
+              <div className="staff-admin__surface-label">Indexed (30d)</div>
+              <strong>{formatNumber(indexedDocuments30d)}</strong>
+            </div>
+            <div className="staff-admin__runtime-summary-card">
+              <div className="staff-admin__surface-label">Conflicted docs</div>
+              <strong>{formatNumber(conflictedDocuments)}</strong>
+            </div>
+            <div className="staff-admin__runtime-summary-card">
+              <div className="staff-admin__surface-label">Stale docs</div>
+              <strong>{formatNumber(staleDocuments)}</strong>
+            </div>
+          </div>
+
+          {topSourceTypes.length > 0 ? (
+            <div className="staff-admin__feed" style={{ marginTop: '14px' }}>
+              {topSourceTypes.map((source) => (
+                <div key={source.sourceType} className="staff-admin__feed-item">
+                  <div className="staff-admin__feed-dot staff-admin__feed-dot--event" />
+                  <div className="staff-admin__feed-body">
+                    <div className="staff-admin__feed-title-group">
+                      <strong>{source.sourceType}</strong>
+                      <span className="staff-admin__surface-meta">{formatNumber(source.count)} docs</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="staff-admin__empty">No document ingestion patterns captured yet.</div>
+          )}
+        </MotionSection>
+
+        <MotionSection className="staff-admin__surface" reveal={{ y: 18 }}>
+          <div className="staff-admin__surface-head">
+            <div>
+              <div className="staff-admin__surface-label">Power users</div>
+              <h2>High-leverage workspaces</h2>
+            </div>
+          </div>
+
+          {powerUserOrgs.length === 0 ? (
+            <div className="staff-admin__empty">No power-user orgs detected yet.</div>
+          ) : (
+            <div className="staff-admin__feed">
+              {powerUserOrgs.map((org) => (
+                <div key={org.orgId} className="staff-admin__feed-item">
+                  <div className="staff-admin__feed-dot staff-admin__feed-dot--event" />
+                  <div className="staff-admin__feed-body">
+                    <div className="staff-admin__feed-title-group">
+                      <strong>{org.orgName}</strong>
+                      <span className="staff-admin__surface-meta">{org.plan}</span>
+                    </div>
+                    <p className="staff-admin__feed-summary">
+                      Score {formatNumber(org.score)} · {formatNumber(org.traceCount)} traces · {formatNumber(org.workflowCount)} workflow runs · {formatNumber(org.docCount)} docs · {formatNumber(org.activeSeats)} seats
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -358,6 +446,37 @@ export function GrowthTab({ query }) {
               </MotionListItem>
             ))}
           </MotionList>
+        )}
+      </MotionSection>
+
+      <MotionSection className="staff-admin__surface" reveal={{ y: 18 }}>
+        <div className="staff-admin__surface-head">
+          <div>
+            <div className="staff-admin__surface-label">Inactivity alerts</div>
+            <h2>Reactivation candidates</h2>
+            <p className="staff-admin__surface-meta">Paid workspaces that have gone quiet recently</p>
+          </div>
+        </div>
+
+        {inactivityAlerts.length === 0 ? (
+          <div className="staff-admin__empty">No inactivity alerts right now.</div>
+        ) : (
+          <div className="staff-admin__feed">
+            {inactivityAlerts.map((org) => (
+              <div key={org.orgId} className="staff-admin__feed-item">
+                <div className="staff-admin__feed-dot staff-admin__feed-dot--audit" />
+                <div className="staff-admin__feed-body">
+                  <div className="staff-admin__feed-title-group">
+                    <strong>{org.orgName}</strong>
+                    <span className="staff-admin__surface-meta">{org.plan}</span>
+                  </div>
+                  <p className="staff-admin__feed-summary">
+                    {org.daysInactive} days inactive · last activity {org.lastActiveAt ? new Date(org.lastActiveAt).toLocaleDateString() : 'unknown'}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </MotionSection>
     </>

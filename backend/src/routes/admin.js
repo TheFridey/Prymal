@@ -6,6 +6,7 @@
 
 import { Hono } from 'hono';
 import overviewRouter from './admin/overview.js';
+import growthRouter from './admin/growth.js';
 import organisationsRouter from './admin/organisations.js';
 import usersRouter from './admin/users.js';
 import billingRouter from './admin/billing.js';
@@ -20,6 +21,7 @@ import searchRouter from './admin/search.js';
 const router = new Hono();
 
 router.route('/', overviewRouter);
+router.route('/', growthRouter);
 router.route('/', organisationsRouter);
 router.route('/', usersRouter);
 router.route('/', billingRouter);

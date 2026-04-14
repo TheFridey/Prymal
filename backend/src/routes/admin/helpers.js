@@ -168,6 +168,13 @@ export function mapTraceRow(row) {
     fallbackModel: row.metadata?.fallbackModel ?? row.metadata?.routing?.fallbackModelUsed ?? null,
     fallbackChain: row.metadata?.routing?.fallbackChain ?? [],
     routing: row.metadata?.routing ?? null,
+    mode: row.metadata?.mode ?? null,
+    attachmentCount: row.metadata?.attachmentCount ?? 0,
+    sourceCount: row.metadata?.sourceCount ?? (row.metadata?.sources?.length ?? 0),
+    sourceTypes: row.metadata?.sourceTypes ?? [],
+    errorCode: row.metadata?.code ?? null,
+    errorMessage: row.metadata?.message ?? null,
+    requestId: row.metadata?.requestId ?? null,
     createdAt: row.createdAt,
   };
 }

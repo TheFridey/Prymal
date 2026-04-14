@@ -160,6 +160,8 @@ cd frontend
 npm run verify-build
 ```
 
+Release gating and branch protection recommendations are documented in [RELEASE.md](./RELEASE.md).
+
 ## Environment variables
 
 ### Backend essentials
@@ -191,7 +193,7 @@ Backend env loading is now split into:
 - Invitations: `RESEND_API_KEY`, `EMAIL_FROM`, optional `INVITE_EMAIL_REPLY_TO`
 - Tiered internal staff access: `STAFF_SUPPORT_*`, `STAFF_OPS_*`, `STAFF_FINANCE_*`, `STAFF_SUPERADMIN_*`
 - Model lanes and overrides: `ANTHROPIC_MODEL_PREMIUM`, `ANTHROPIC_MODEL_DEFAULT`, `ANTHROPIC_MODEL_FAST`, `OPENAI_MODEL_PREMIUM`, `OPENAI_MODEL_ROUTER`, `OPENAI_MODEL_LIGHTWEIGHT`, optional `ORG_MODEL_POLICY_OVERRIDES`
-- Google Gemini (optional third lane): `GEMINI_API_KEY`, `GEMINI_MODEL_FLASH` (default `gemini-2.0-flash`), `GEMINI_MODEL_PRO` (default `gemini-2.5-pro`)
+- Google Gemini (optional third lane): `GEMINI_API_KEY`, `GEMINI_MODEL_FLASH` (default `gemini-2.5-flash`), `GEMINI_MODEL_PRO` (default `gemini-2.5-pro`)
 - Optional model cost overrides for LLM tracing: `MODEL_COST_OVERRIDES`
 - Workflow runtime controls: `WORKFLOW_NODE_TIMEOUT_MS`, `WORKFLOW_RUN_TIMEOUT_MS`, `WORKFLOW_MAX_ATTEMPTS`
 - Optional distributed rate limiting: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
