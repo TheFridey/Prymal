@@ -87,3 +87,34 @@ node --check src/routes/workflows.js
 - Keep `README.md` honest.
 - Keep `frontend/.env.example` and `backend/.env.example` current when adding or removing env vars.
 - If a feature is partial, either finish it or narrow the docs and UI language immediately.
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+| Service | Port | Start command |
+|---------|------|---------------|
+| PostgreSQL + pgvector | 5433 | `docker compose up -d axiom-db` (from repo root) |
+| Backend (Hono API) | 3001 | `cd backend && npm run dev` |
+| Frontend (Vite React) | 5173 | `cd frontend && npm run dev` |
+
+### Startup sequence
+
+1. Start Docker and the database: `docker compose up -d axiom-db` (waits ~5s for healthcheck).
+2. Backend: `cd backend && npm run dev` — requires non-placeholder values for `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `ANTHROPIC_API_KEY`, and `OPENAI_API_KEY` in `backend/.env`. Copy from `.env.example` and replace placeholders. Without real keys, the server starts but auth and LLM calls will fail.
+3. Frontend: `cd frontend && npm run dev` — uses `.env` copied from `.env.example`.
+
+### Testing
+
+- **Backend unit tests:** `cd backend && NODE_ENV=test node --test src/**/*.test.js` (130 tests; `NODE_ENV=test` skips strict env validation so placeholder keys work). Note: `npm test` runs `node --test src` which tries to load all `.js` files including non-test source; prefer the glob pattern above.
+- **Backend syntax check:** `cd backend && node --check src/index.js` (and other route files per "Local run commands" above).
+- **Frontend unit tests:** `cd frontend && npx vitest run` (6 tests).
+- **Frontend build:** `cd frontend && npx vite build`.
+- **Frontend E2E:** `cd frontend && npx playwright test` (requires Playwright browsers installed; run `npx playwright install --with-deps chromium` first).
+- No dedicated lint script exists in either `package.json`.
+
+### Gotchas
+
+- The `frontend/node_modules` directory sometimes gets a broken rollup native binary on first `npm install`. If `vite build` fails with "Cannot find module @rollup/rollup-linux-x64-gnu", delete `node_modules` and `package-lock.json`, then re-run `npm install`.
+- The database schema is auto-seeded from `database/schema.sql` on first `docker compose up`. Subsequent migrations in `database/migrations/` may need manual application.
+- The backend validates certain env vars at startup and will crash if they contain placeholder patterns (`xxxx`, `your_`, `placeholder`). Set them to any non-placeholder string for local dev without real provider access.
