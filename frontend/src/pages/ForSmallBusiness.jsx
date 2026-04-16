@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { AgentAvatar, Button, PageShell } from '../components/ui';
-import { MotionCard, MotionList, MotionListItem, MotionSection } from '../components/motion';
+import { MotionCard, MotionList, MotionListItem, MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import { getAgentMeta } from '../lib/constants';
 import { UseCaseHero } from '../features/marketing/UseCaseHero';
 import { UseCaseSignalBoard } from '../features/marketing/UseCaseSignalBoard';
+import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import '../styles/landing-rebuild.css';
 
 const smbAgents = ['wren', 'herald', 'oracle', 'cipher', 'ledger']
   .map((agentId) => getAgentMeta(agentId))
@@ -167,6 +169,7 @@ const faqItems = [
 ];
 
 export default function ForSmallBusiness() {
+  const reducedMotion = usePrymalReducedMotion();
   const trackSignup = (source) => {
     if (typeof window !== 'undefined' && typeof window.prymalTrack === 'function') {
       window.prymalTrack('signup_button_clicked', { source });
@@ -174,7 +177,7 @@ export default function ForSmallBusiness() {
   };
 
   return (
-    <div className="marketing-page prymal-marketing prymal-usecase-page prymal-usecase-page--small-business">
+    <div className="marketing-page prymal-marketing pm-page">
       <PageMeta
         title="Prymal for Small Business | 15 AI agents from GBP 39/month"
         description="Support, follow-ups, reporting, and website review handled by specialist AI agents. Built for owner-led businesses and lean teams."
@@ -193,8 +196,7 @@ export default function ForSmallBusiness() {
         }}
       />
 
-      <div className="prymal-marketing__aura prymal-marketing__aura--one" />
-      <div className="prymal-marketing__aura prymal-marketing__aura--two" />
+      <MagicalCanvas reducedMotion={reducedMotion} />
 
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="small-business" onSignupClick={trackSignup} />

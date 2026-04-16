@@ -3,6 +3,9 @@ import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { AGENT_LIBRARY, INTEGRATION_LIBRARY, POWERUP_LIBRARY, getAgentMeta } from '../lib/constants';
 import { AgentAvatar, BrandMark, Button, Reveal, StatusPill, ThemeToggle } from '../components/ui';
 import { PageMeta } from '../components/PublicPageChrome';
+import { usePrymalReducedMotion } from '../components/motion';
+import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import '../styles/landing-rebuild.css';
 
 export default function AgentProfile() {
   const { agentId } = useParams();
@@ -19,8 +22,11 @@ export default function AgentProfile() {
   const companionAgents = AGENT_LIBRARY.filter((entry) => entry.id !== agent.id).slice(0, 4);
   const agentPowerUps = POWERUP_LIBRARY.filter((entry) => entry.agentId === agent.id);
 
+  const reducedMotion = usePrymalReducedMotion();
+
   return (
-    <div className="agent-profile-shell">
+    <div className="agent-profile-shell pm-page">
+      <MagicalCanvas reducedMotion={reducedMotion} />
       <PageMeta
         title={`${agent.name} — ${agent.title} | Prymal`}
         description={agent.description}
