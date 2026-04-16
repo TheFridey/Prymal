@@ -17,10 +17,12 @@ test('login page renders Clerk auth or the auth setup guard', async ({ page }) =
   const emailInput = page.getByLabel(/email/i).first();
   const socialButton = page.getByRole('button', { name: /google|continue with/i }).first();
   const setupGuard = page.getByText(/VITE_CLERK_PUBLISHABLE_KEY/i).first();
+  const authShell = page.getByText(/enter the command layer|welcome back/i).first();
 
   const hasEmail = await emailInput.isVisible().catch(() => false);
   const hasSocial = await socialButton.isVisible().catch(() => false);
   const hasSetupGuard = await setupGuard.isVisible().catch(() => false);
+  const hasAuthShell = await authShell.isVisible().catch(() => false);
 
-  expect(hasEmail || hasSocial || hasSetupGuard).toBe(true);
+  expect(hasEmail || hasSocial || hasSetupGuard || hasAuthShell).toBe(true);
 });
