@@ -37,6 +37,7 @@ jobs:
       - run: npm test
         env:
           NODE_ENV: test
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
 
   frontend-verify-build:
     name: Frontend verify-build
