@@ -3,10 +3,10 @@ import { AgentAvatar, Button, PageShell } from '../components/ui';
 import { MotionCard, MotionList, MotionListItem, MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import { getAgentMeta } from '../lib/constants';
-import { UseCaseHero } from '../features/marketing/UseCaseHero';
-import { UseCaseSignalBoard } from '../features/marketing/UseCaseSignalBoard';
+import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import '../styles/landing-rebuild.css';
+import '../styles/app-rebuild.css';
 
 const smbAgents = ['wren', 'herald', 'oracle', 'cipher', 'ledger']
   .map((agentId) => getAgentMeta(agentId))
@@ -203,81 +203,43 @@ export default function ForSmallBusiness() {
 
         <PageShell width="100%">
           <div className="prymal-usecase-page__inner">
-            <UseCaseHero
-              eyebrow="For small business"
-              title="A premium AI operating layer for the recurring work founders and lean teams never get back."
-              description="Prymal helps small businesses clear support, follow-ups, reporting, SEO review, and weekly operating admin fast enough to feel the relief immediately, not eventually."
-              metrics={heroMetrics}
-              trustChips={['Support cover', 'Follow-up system', 'Website review', 'Weekly reporting']}
-              sceneAgentIds={['wren', 'herald', 'oracle', 'cipher', 'ledger', 'lore']}
-              primaryAction={{ label: 'Start free', to: '/signup', onClick: () => trackSignup('small-business-hero') }}
-              secondaryAction={{ label: 'See pricing', href: '/#pricing' }}
-              hudCards={[
-                {
-                  title: 'Owner-mode relief',
-                  body: 'The system covers the repetitive work that usually steals time from selling, delivery, and actual decision-making.',
-                  position: 'prymal-cinematic-stage__hud-card--top',
-                },
-                {
-                  title: 'High-trust outputs',
-                  chips: ['WREN', 'ORACLE', 'LEDGER'],
-                  position: 'prymal-cinematic-stage__hud-card--left',
-                },
-                {
-                  title: 'First-week value',
-                  body: 'Support, site review, and reporting are the fastest routes to a visible win for a lean team.',
-                  position: 'prymal-cinematic-stage__hud-card--bottom',
-                },
-              ]}
-              stageClassName="prymal-cinematic-stage--small-business"
-            />
-
-            <UseCaseSignalBoard
-              eyebrow="First-week operating picture"
-              title="What Prymal can take off your plate in the first week."
-              statusLabel="Owner mode active"
-              lead={{
-                label: 'Small-team command view',
-                title: 'Inbox pressure, lead follow-up, reporting, and site fixes stop competing for the same human hour.',
-                copy:
-                  'The value is not one giant automation project. It is turning dozens of repeatable jobs into a calmer, clearer operating rhythm that actually holds.',
-              }}
-              agentIds={['wren', 'herald', 'oracle', 'cipher']}
-              panels={[
-                {
-                  label: 'Owner reality',
-                  value: 'Inbox, leads, reports, and site changes all waiting at once.',
-                  copy: 'Prymal works best when the pressure comes from too many recurring jobs rather than one big transformation project.',
-                  accent: '#68f5d0',
-                },
-                {
-                  label: 'Immediate wins',
-                  timeline: [
-                    { label: 'Support drafts', detail: 'Calm, customer-friendly replies and FAQ-ready patterns.' },
-                    { label: 'Lead movement', detail: 'Warm follow-ups, reminders, and next-step messages ready to send.' },
-                    { label: 'Reporting clarity', detail: 'Weekly summaries that explain what changed and what to do next.' },
-                  ],
-                  accent: '#7f8cff',
-                },
-                {
-                  label: 'Where time comes back',
-                  copy: 'Small businesses do not need more dashboards. They need recurring work to stop stealing attention.',
-                  bars: [
-                    { label: 'Support cover', width: '76%' },
-                    { label: 'Follow-up continuity', width: '81%' },
-                    { label: 'Weekly reporting clarity', width: '72%' },
-                  ],
-                  accent: '#ff8e6a',
-                },
-                {
-                  label: 'System signals',
-                  chips: ['LORE context', 'Voice input', 'NEXUS workflows', 'Source-backed analysis'],
-                  copy: 'The same platform can clear the immediate jobs, then turn the winners into repeatable workflows once the team is ready.',
-                  wide: true,
-                  accent: '#b8d7ff',
-                },
-              ]}
-            />
+            <section className="pm-uc-hero" style={{ '--uc-accent': '#68f5d0', '--uc-accent-end': '#7f8cff' }}>
+              <div className="pm-uc-hero__eyebrow">
+                <span className="pm-uc-hero__eyebrow-dot" />
+                For small business
+              </div>
+              <h1 className="pm-uc-hero__title">
+                A premium <span>AI operating layer</span> for lean teams.
+              </h1>
+              <p className="pm-uc-hero__desc">
+                Prymal helps small businesses clear support, follow-ups, reporting, SEO review, and weekly operating admin fast enough to feel the relief immediately, not eventually.
+              </p>
+              <div className="pm-uc-hero__metrics">
+                {heroMetrics.map((m) => (
+                  <div key={m.label} className="pm-uc-hero__metric">
+                    <span className="pm-uc-hero__metric-value">{m.value}</span>
+                    <span className="pm-uc-hero__metric-label">{m.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="pm-uc-hero__ctas">
+                <Link to="/signup" className="pm-btn pm-btn--primary" onClick={() => trackSignup('small-business-hero')}>Start free →</Link>
+                <a href="/#pricing" className="pm-btn pm-btn--ghost">See pricing</a>
+              </div>
+              <div className="pm-uc-hero__chips">
+                {['Support cover', 'Follow-up system', 'Website review', 'Weekly reporting'].map((chip) => (
+                  <span key={chip} className="pm-uc-hero__chip">{chip}</span>
+                ))}
+              </div>
+              <div className="pm-uc-hero__agents">
+                {smbAgents.map((agent) => (
+                  <Link key={agent.id} to={`/agents/${agent.id}`} className="pm-uc-hero__agent" style={{ '--agent-color': agent.color }}>
+                    <AgentAvatarDisplay agent={agent} className="pm-uc-hero__agent-avatar" />
+                    <span className="pm-uc-hero__agent-name">{agent.name}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
 
             <section className="prymal-section prymal-usecase-section">
               <div className="prymal-section__header">

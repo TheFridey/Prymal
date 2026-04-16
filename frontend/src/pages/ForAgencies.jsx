@@ -3,10 +3,10 @@ import { AgentAvatar, Button, PageShell } from '../components/ui';
 import { MotionCard, MotionList, MotionListItem, MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import { getAgentMeta } from '../lib/constants';
-import { UseCaseHero } from '../features/marketing/UseCaseHero';
-import { UseCaseSignalBoard } from '../features/marketing/UseCaseSignalBoard';
+import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import '../styles/landing-rebuild.css';
+import '../styles/app-rebuild.css';
 
 const agencyAgents = ['herald', 'forge', 'echo', 'vance', 'atlas']
   .map((agentId) => getAgentMeta(agentId))
@@ -214,81 +214,43 @@ export default function ForAgencies() {
 
         <PageShell width="100%">
           <div className="prymal-usecase-page__inner">
-            <UseCaseHero
-              eyebrow="For agencies"
-              title="An agency operating pod for campaigns, client comms, proposals, and delivery control."
-              description="Prymal gives agencies a live AI system for the messy middle of service delivery: follow-ups, content, planning, reporting, and the operational handoffs that usually consume the sharpest hours of the week."
-              metrics={heroMetrics}
-              trustChips={['Client-ready drafts', 'Shared LORE memory', 'NEXUS workflow handoffs', 'Operator receipts']}
-              sceneAgentIds={['forge', 'herald', 'echo', 'atlas', 'vance', 'lore']}
-              primaryAction={{ label: 'Start free', to: '/signup', onClick: () => trackSignup('agencies-hero') }}
-              secondaryAction={{ label: 'See plans', href: '/#pricing' }}
-              hudCards={[
-                {
-                  title: 'Agency command pod',
-                  body: 'One brief fans out into positioning, channel content, stakeholder comms, and execution planning without losing the thread.',
-                  position: 'prymal-cinematic-stage__hud-card--top',
-                },
-                {
-                  title: 'Trust layer',
-                  chips: ['LORE', 'SENTINEL', 'Receipts'],
-                  position: 'prymal-cinematic-stage__hud-card--left',
-                },
-                {
-                  title: 'Commercial continuity',
-                  body: 'Ops, delivery, reporting, and next-step movement stay linked inside the same workspace.',
-                  position: 'prymal-cinematic-stage__hud-card--bottom',
-                },
-              ]}
-              stageClassName="prymal-cinematic-stage--agency"
-            />
-
-            <UseCaseSignalBoard
-              eyebrow="Live delivery view"
-              title="What one agency workflow can feel like when the system is actually orchestrated."
-              statusLabel="Agency pod active"
-              lead={{
-                label: 'Campaign command pod',
-                title: 'One client brief becomes outreach, production, delivery structure, and reporting rhythm.',
-                copy:
-                  'Instead of copying the same context between tabs, Prymal keeps the narrative, evidence, and next-step movement connected from first draft to client-facing recap.',
-              }}
-              agentIds={['forge', 'echo', 'herald', 'atlas']}
-              panels={[
-                {
-                  label: 'Client brief in',
-                  value: 'Launch a Q2 demand-generation campaign for a B2B SaaS retainer.',
-                  copy: 'The system pulls in brand context, prior campaign memory, search signals, and delivery constraints before anyone starts rewriting the brief.',
-                  accent: '#7f8cff',
-                },
-                {
-                  label: 'Outputs moving back',
-                  timeline: [
-                    { label: 'Campaign narrative', detail: 'A sharper angle, positioning hierarchy, and launch copy system.' },
-                    { label: 'Channel repurposing', detail: 'LinkedIn, email, and teaser variants built from the same approved idea.' },
-                    { label: 'Client follow-through', detail: 'Stakeholder update, owner list, and milestone mapping ready to ship.' },
-                  ],
-                  accent: '#68f5d0',
-                },
-                {
-                  label: 'Commercial effect',
-                  copy: 'The agency gets faster delivery, fewer handoff gaps, and better use of senior attention.',
-                  bars: [
-                    { label: 'Pitch-to-delivery continuity', width: '82%' },
-                    { label: 'Client-ready comms speed', width: '74%' },
-                    { label: 'Reporting clarity', width: '88%' },
-                  ],
-                  accent: '#ff8e6a',
-                },
-                {
-                  label: 'Pod signals',
-                  chips: ['Shared memory', 'Run receipts', 'Workflow replay', 'Citation-backed outputs'],
-                  copy: 'The system feels less like AI chat and more like a premium operating layer for service delivery.',
-                  wide: true,
-                  accent: '#b8d7ff',
-                },
-              ]}
-            />
+            <section className="pm-uc-hero" style={{ '--uc-accent': '#7f8cff', '--uc-accent-end': '#68f5d0' }}>
+              <div className="pm-uc-hero__eyebrow">
+                <span className="pm-uc-hero__eyebrow-dot" />
+                For agencies
+              </div>
+              <h1 className="pm-uc-hero__title">
+                An agency <span>operating pod</span> for campaigns, comms, and delivery.
+              </h1>
+              <p className="pm-uc-hero__desc">
+                Prymal gives agencies a live AI system for the messy middle of service delivery: follow-ups, content, planning, reporting, and the operational handoffs that usually consume the sharpest hours of the week.
+              </p>
+              <div className="pm-uc-hero__metrics">
+                {heroMetrics.map((m) => (
+                  <div key={m.label} className="pm-uc-hero__metric">
+                    <span className="pm-uc-hero__metric-value">{m.value}</span>
+                    <span className="pm-uc-hero__metric-label">{m.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="pm-uc-hero__ctas">
+                <Link to="/signup" className="pm-btn pm-btn--primary" onClick={() => trackSignup('agencies-hero')}>Start free →</Link>
+                <a href="/#pricing" className="pm-btn pm-btn--ghost">See plans</a>
+              </div>
+              <div className="pm-uc-hero__chips">
+                {['Client-ready drafts', 'Shared LORE memory', 'NEXUS workflow handoffs', 'Operator receipts'].map((chip) => (
+                  <span key={chip} className="pm-uc-hero__chip">{chip}</span>
+                ))}
+              </div>
+              <div className="pm-uc-hero__agents">
+                {agencyAgents.map((agent) => (
+                  <Link key={agent.id} to={`/agents/${agent.id}`} className="pm-uc-hero__agent" style={{ '--agent-color': agent.color }}>
+                    <AgentAvatarDisplay agent={agent} className="pm-uc-hero__agent-avatar" />
+                    <span className="pm-uc-hero__agent-name">{agent.name}</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
 
             <section className="prymal-section prymal-usecase-section">
               <div className="prymal-section__header">
