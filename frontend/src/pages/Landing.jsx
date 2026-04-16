@@ -116,17 +116,21 @@ export default function Landing() {
           stagger: 0.08,
         });
 
-        const track = document.querySelector('.pm-agents-parade__track');
-        if (track) {
-          ScrollTrigger.create({
-            trigger: '.pm-agents-parade',
-            start: 'top 60%',
-            onEnter: () => {
-              gsap.to(track, { scrollLeft: 300, duration: 1.5, ease: 'power2.inOut' });
+        gsap.utils.toArray('.pm-agents-parade__grid .pm-agent-float').forEach((card, i) => {
+          gsap.fromTo(
+            card,
+            { opacity: 0, y: 30, scale: 0.9 },
+            {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              duration: 0.5,
+              ease: 'back.out(1.4)',
+              delay: i * 0.04,
+              scrollTrigger: { trigger: '.pm-agents-parade', start: 'top 75%', toggleActions: 'play none none none' },
             },
-            once: true,
-          });
-        }
+          );
+        });
 
         gsap.utils.toArray('.pm-how__row').forEach((row, i) => {
           gsap.fromTo(
@@ -265,10 +269,11 @@ export default function Landing() {
             {/* ── Agent Parade ── */}
             <section className="pm-agents-parade">
               <div className="pm-agents-parade__label">Meet your team</div>
-              <div className="pm-agents-parade__track">
+              <div className="pm-agents-parade__grid">
                 {AGENT_PARADE_DATA.map((agent, i) => (
-                  <div
+                  <Link
                     key={agent.id}
+                    to={`/agents/${agent.id}`}
                     className="pm-agent-float"
                     style={{ '--float-delay': `${i * 0.15}s`, '--float-color': agent.color }}
                   >
@@ -286,7 +291,7 @@ export default function Landing() {
                     </div>
                     <div className="pm-agent-float__name">{agent.name}</div>
                     <div className="pm-agent-float__role">{agent.title}</div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </section>
@@ -312,17 +317,20 @@ export default function Landing() {
               ))}
             </section>
 
-            {/* ── Bento Grid ── */}
+            {/* ── Full Roster Grid ── */}
             <section className="pm-bento">
               <div className="pm-bento__label">The full roster</div>
+              <p className="pm-bento__sub">14 specialist agents, each with defined contracts, output schemas, and a clear commercial job.</p>
               <div className="pm-bento__grid">
-                {AGENT_LIBRARY.filter((a) => a.id !== 'sentinel').slice(0, 6).map((agent) => (
-                  <div key={agent.id} className="pm-bento__card" style={{ '--card-color': agent.color }}>
+                {AGENT_LIBRARY.filter((a) => a.id !== 'sentinel').map((agent) => (
+                  <Link key={agent.id} to={`/agents/${agent.id}`} className="pm-bento__card" style={{ '--card-color': agent.color }}>
                     <div className="pm-bento__card-glow" />
                     <AgentAvatarDisplay agent={agent} className="pm-bento__card-character" />
                     <div className="pm-bento__card-name">{agent.name}</div>
                     <div className="pm-bento__card-role">{agent.title}</div>
-                  </div>
+                    <p className="pm-bento__card-desc">{agent.description}</p>
+                    <span className="pm-bento__card-cta">Explore {agent.name} →</span>
+                  </Link>
                 ))}
               </div>
             </section>
