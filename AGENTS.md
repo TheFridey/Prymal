@@ -87,3 +87,23 @@ node --check src/routes/workflows.js
 - Keep `README.md` honest.
 - Keep `frontend/.env.example` and `backend/.env.example` current when adding or removing env vars.
 - If a feature is partial, either finish it or narrow the docs and UI language immediately.
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+| Service | Port | Start command |
+|---|---|---|
+| PostgreSQL + pgvector | 5433 | `sudo dockerd` then `docker compose up -d axiom-db` (from repo root) |
+| Backend (Hono) | 3001 | `cd backend && npm run dev` |
+| Frontend (Vite) | 5173 | `cd frontend && npm run dev` |
+
+### Gotchas
+
+- **Docker-in-Docker**: The cloud VM is a container inside Firecracker. Docker requires `fuse-overlayfs` as storage driver and `iptables-legacy`. These are pre-configured in the snapshot; just run `sudo dockerd &` before `docker compose up`.
+- **Frontend platform deps**: `package.json` lists Windows-only optional rollup/esbuild binaries. Use `npm install --force` to skip platform checks, then ensure `@rollup/rollup-linux-x64-gnu` is present (the update script handles this).
+- **ENCRYPTION_KEY**: The backend validates this is a 64-character hex string. If a system-level env var overrides the `.env` file value (dotenv doesn't override existing vars), the backend logs a warning but still starts. Generate a fresh key with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` and set it in `backend/.env`.
+- **Clerk auth**: All `/api/*` routes (except Clerk webhooks) require a valid Clerk JWT. Without real Clerk keys, authenticated flows cannot be tested end-to-end; the landing page and login page still render.
+- **Backend tests**: Run with `NODE_ENV=test npm test` — this skips strict env validation and allows placeholder API keys.
+- **Frontend tests**: `npm test` (Vitest unit tests) and `npm run test:e2e` (Playwright). E2E tests build the app first.
+- **Database migrations**: The Docker init script loads `database/schema.sql` on first container start. Additional migrations in `database/migrations/` should be applied manually with `docker exec -i axiom-db psql -U postgres -d axiom < database/migrations/<file>.sql`.
