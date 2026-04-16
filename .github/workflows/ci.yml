@@ -37,6 +37,7 @@ jobs:
       - run: npm test
         env:
           NODE_ENV: test
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
 
   frontend-verify-build:
     name: Frontend verify-build
@@ -91,7 +92,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npx playwright install chromium --with-deps
-      - run: npm run test:e2e -- --project=chromium tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
+      - run: npm run test:e2e -- tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
         env:
           CI: true
           VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
@@ -112,7 +113,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npx playwright install chromium --with-deps
-      - run: npm run test:e2e -- --project=chromium tests/workspace-smoke.spec.js tests/settings-smoke.spec.js tests/app-core.spec.js tests/admin-operator.spec.js
+      - run: npm run test:e2e -- tests/workspace-smoke.spec.js tests/settings-smoke.spec.js tests/app-core.spec.js tests/admin-operator.spec.js
         env:
           CI: true
           VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}

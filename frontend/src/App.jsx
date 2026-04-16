@@ -68,7 +68,7 @@ function ThemedApp() {
     if (ref) sessionStorage.setItem('prymal_referral', ref);
   }, []);
 
-  if (!CLERK_KEY) {
+  if (!CLERK_KEY || CLERK_KEY === 'pk_test_placeholder' || CLERK_KEY.length < 20) {
     return (
       <div className="auth-screen">
         <div className="setup-card">

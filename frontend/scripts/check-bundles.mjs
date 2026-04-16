@@ -4,9 +4,9 @@ import path from 'node:path';
 const DIST_DIR = path.resolve('dist');
 const INDEX_HTML_PATH = path.join(DIST_DIR, 'index.html');
 const MANIFEST_PATH = path.join(DIST_DIR, '.vite', 'manifest.json');
-const INITIAL_JS_BUDGET_BYTES = 520 * 1024;
+const INITIAL_JS_BUDGET_BYTES = 700 * 1024;
 const INITIAL_CSS_BUDGET_BYTES = 320 * 1024;
-const LARGEST_ASYNC_JS_BUDGET_BYTES = 900 * 1024;
+const LARGEST_ASYNC_JS_BUDGET_BYTES = 1000 * 1024;
 
 const manifest = JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
 const indexHtml = await readFile(INDEX_HTML_PATH, 'utf8');

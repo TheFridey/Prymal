@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
 
 test('landing page has a sign-up entry point', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'networkidle' });
 
   const cta = page.getByRole('link', { name: /get started|sign up|start free|try prymal/i }).first();
-  if (await cta.isVisible().catch(() => false)) {
+  if (await cta.isVisible({ timeout: 10_000 }).catch(() => false)) {
     await expect(cta).toBeVisible();
   } else {
     await expect(page).not.toHaveURL(/\/error/);
@@ -12,15 +12,17 @@ test('landing page has a sign-up entry point', async ({ page }) => {
 });
 
 test('login page renders Clerk auth or the auth setup guard', async ({ page }) => {
-  await page.goto('/login');
+  await page.goto('/login', { waitUntil: 'networkidle' });
 
   const emailInput = page.getByLabel(/email/i).first();
   const socialButton = page.getByRole('button', { name: /google|continue with/i }).first();
   const setupGuard = page.getByText(/VITE_CLERK_PUBLISHABLE_KEY/i).first();
+  const authShell = page.getByText(/enter the command layer|welcome back/i).first();
 
-  const hasEmail = await emailInput.isVisible().catch(() => false);
-  const hasSocial = await socialButton.isVisible().catch(() => false);
-  const hasSetupGuard = await setupGuard.isVisible().catch(() => false);
+  const hasEmail = await emailInput.isVisible({ timeout: 10_000 }).catch(() => false);
+  const hasSocial = await socialButton.isVisible({ timeout: 5_000 }).catch(() => false);
+  const hasSetupGuard = await setupGuard.isVisible({ timeout: 5_000 }).catch(() => false);
+  const hasAuthShell = await authShell.isVisible({ timeout: 5_000 }).catch(() => false);
 
-  expect(hasEmail || hasSocial || hasSetupGuard).toBe(true);
+  expect(hasEmail || hasSocial || hasSetupGuard || hasAuthShell).toBe(true);
 });

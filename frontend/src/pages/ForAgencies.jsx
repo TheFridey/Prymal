@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { AgentAvatar, Button, PageShell } from '../components/ui';
-import { MotionCard, MotionList, MotionListItem, MotionSection } from '../components/motion';
+import { MotionCard, MotionList, MotionListItem, MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import { getAgentMeta } from '../lib/constants';
 import { UseCaseHero } from '../features/marketing/UseCaseHero';
 import { UseCaseSignalBoard } from '../features/marketing/UseCaseSignalBoard';
+import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import '../styles/landing-rebuild.css';
 
 const agencyAgents = ['herald', 'forge', 'echo', 'vance', 'atlas']
   .map((agentId) => getAgentMeta(agentId))
@@ -178,6 +180,7 @@ const faqItems = [
 ];
 
 export default function ForAgencies() {
+  const reducedMotion = usePrymalReducedMotion();
   const trackSignup = (source) => {
     if (typeof window !== 'undefined' && typeof window.prymalTrack === 'function') {
       window.prymalTrack('signup_button_clicked', { source });
@@ -185,7 +188,7 @@ export default function ForAgencies() {
   };
 
   return (
-    <div className="marketing-page prymal-marketing prymal-usecase-page prymal-usecase-page--agencies">
+    <div className="marketing-page prymal-marketing pm-page">
       <PageMeta
         title="Prymal for Agencies | Your AI content, outreach, and ops team"
         description="Give your agency an AI pod for outreach, content, proposals, delivery planning, and client comms. First useful output in under 5 minutes."
@@ -204,8 +207,7 @@ export default function ForAgencies() {
         }}
       />
 
-      <div className="prymal-marketing__aura prymal-marketing__aura--one" />
-      <div className="prymal-marketing__aura prymal-marketing__aura--two" />
+      <MagicalCanvas reducedMotion={reducedMotion} />
 
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="agencies" onSignupClick={trackSignup} />
