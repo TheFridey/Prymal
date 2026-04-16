@@ -1,12 +1,11 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { AgentAvatar, Button, EmptyState, PageShell } from '../components/ui';
-import { MotionCard, MotionList, MotionListItem, MotionSection, usePrymalReducedMotion } from '../components/motion';
+import { MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { getAgentMeta, getRecommendedAgentsForWorkspaceProfile, getWorkspacePlanMeta } from '../lib/constants';
 import { api } from '../lib/api';
-
-const CinematicHeroScene = lazy(() => import('../features/marketing/CinematicHeroScene'));
+import '../styles/app-rebuild.css';
 
 const FIRST_WIN_LIBRARY = {
   cipher: {
@@ -68,20 +67,14 @@ function timeAgo(dateString) {
 function mergeUniqueAgents(agentLists, limit = 6) {
   const seen = new Set();
   const merged = [];
-
   for (const list of agentLists) {
     for (const agent of list) {
-      if (!agent || seen.has(agent.id)) {
-        continue;
-      }
+      if (!agent || seen.has(agent.id)) continue;
       seen.add(agent.id);
       merged.push(agent);
-      if (merged.length >= limit) {
-        return merged;
-      }
+      if (merged.length >= limit) return merged;
     }
   }
-
   return merged;
 }
 
@@ -89,8 +82,6 @@ export default function Dashboard() {
   const { viewer, agents } = useOutletContext();
   const location = useLocation();
   const navigate = useNavigate();
-  const reducedMotion = usePrymalReducedMotion();
-  const [heroSceneReady, setHeroSceneReady] = useState(false);
 
   const workspaceProfile = location.state?.onboardingWorkspaceProfile ?? viewer?.organisation?.metadata ?? {};
   const recommendedAgentIds =
@@ -119,39 +110,6 @@ export default function Dashboard() {
     queryFn: () => api.get('/workflows'),
   });
 
-  useEffect(() => {
-    if (reducedMotion) {
-      setHeroSceneReady(false);
-      return undefined;
-    }
-
-    let active = true;
-    let timeoutId = null;
-    let idleId = null;
-
-    const enable = () => {
-      if (active) {
-        setHeroSceneReady(true);
-      }
-    };
-
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      idleId = window.requestIdleCallback(enable, { timeout: 900 });
-    } else {
-      timeoutId = window.setTimeout(enable, 260);
-    }
-
-    return () => {
-      active = false;
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-      if (idleId && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-        window.cancelIdleCallback(idleId);
-      }
-    };
-  }, [reducedMotion]);
-
   const recentConversations = conversationsQuery.data?.conversations ?? [];
   const workflows = workflowsQuery.data?.workflows ?? [];
   const activeWorkflows = workflows.filter((workflow) => workflow.isActive);
@@ -167,20 +125,7 @@ export default function Dashboard() {
     [agents, recentConversationAgents, recommendedAgents],
   );
 
-  const heroAgents = useMemo(
-    () => mergeUniqueAgents([recommendedAgents, recentConversationAgents, [getAgentMeta('nexus'), getAgentMeta('lore')]], 6),
-    [recentConversationAgents, recommendedAgents],
-  );
-
   const missionAgents = conversationCount === 0 ? recommendedAgents : topAgents.slice(0, 3);
-
-  const heroTitle = conversationCount === 0
-    ? 'Launch your first high-trust operating lane.'
-    : `Mission control for ${orgName}.`;
-
-  const heroDescription = conversationCount === 0
-    ? 'Start with one agent, one real task, and one useful output. Prymal is strongest when the first move feels immediate, grounded, and valuable enough to reuse.'
-    : 'Resume live conversations, move into workflows, and steer the workspace from one premium operating surface instead of jumping between disconnected tools.';
 
   const heroPrimaryAction = latestConversation
     ? () => navigate(`/app/agents/${latestConversation.agentId}?conversation=${latestConversation.id}`)
@@ -188,304 +133,255 @@ export default function Dashboard() {
 
   const heroPrimaryLabel = latestConversation ? 'Resume latest conversation' : `Open ${recommendedAgents[0]?.name ?? 'Prymal'}`;
 
-  const heroStats = [
-    { label: 'Conversations', value: conversationCount },
-    { label: 'Configured workflows', value: workflows.length },
-    { label: 'Active automations', value: activeWorkflows.length },
-    { label: 'Plan', value: planMeta?.name ?? currentPlan },
-  ];
-
   return (
     <PageShell width="1260px">
-      <div className="prymal-dashboard">
-        <section className="prymal-dashboard__hero">
-          <div className="prymal-dashboard__hero-ambient" aria-hidden="true" />
-          <MotionSection className="prymal-dashboard__hero-copy" delay={0.04} reveal={{ y: 24, blur: 10 }}>
-            <div className="hero-pill prymal-dashboard__hero-pill">
-              Mission control · {planMeta?.name ?? currentPlan} plan · {conversationCount > 0 ? `${conversationCount} conversation${conversationCount === 1 ? '' : 's'}` : 'ready for first output'}
-            </div>
-            <h1 className="prymal-dashboard__headline">{heroTitle}</h1>
-            <p className="prymal-dashboard__subcopy">{heroDescription}</p>
+      <div className="pm-dash">
 
-            <div className="prymal-dashboard__actions">
-              <Button tone="accent" onClick={heroPrimaryAction}>
-                {heroPrimaryLabel}
-              </Button>
-              <Button tone="ghost" onClick={() => navigate('/app/workflows')}>
-                Open workflows
-              </Button>
-              <Button tone="ghost" onClick={() => navigate('/app/lore')}>
-                Open knowledge base
-              </Button>
-            </div>
+        {/* ── Hero ── */}
+        <section className="pm-dash__hero">
+          <div className="pm-dash__hero-ambient" aria-hidden="true" />
+          <div className="pm-dash__hero-content">
+            <MotionSection delay={0.04} reveal={{ y: 20, blur: 8 }}>
+              <div className="pm-dash__badge">
+                <span className="pm-dash__badge-dot" />
+                {planMeta?.name ?? currentPlan} plan · {conversationCount > 0 ? `${conversationCount} conversation${conversationCount === 1 ? '' : 's'}` : 'ready for first output'}
+              </div>
 
-            <div className="prymal-dashboard__metric-row">
-              {heroStats.map((stat) => (
-                <div key={stat.label} className="prymal-dashboard__metric">
-                  <span>{stat.label}</span>
-                  <strong>{stat.value}</strong>
-                </div>
-              ))}
-            </div>
+              <h1 className="pm-dash__headline">
+                {conversationCount === 0
+                  ? <>Launch your first <span>operating lane.</span></>
+                  : <>Mission control for <span>{orgName}.</span></>}
+              </h1>
 
-            <div className="prymal-dashboard__trust">
-              <span className="prymal-trust-chip">SENTINEL gated</span>
-              <span className="prymal-trust-chip">LORE grounded</span>
-              <span className="prymal-trust-chip">Realtime voice ready</span>
-              <span className="prymal-trust-chip">Workflow receipts + webhooks</span>
-            </div>
-          </MotionSection>
+              <p className="pm-dash__sub">
+                {conversationCount === 0
+                  ? 'Start with one agent, one real task, and one useful output. Prymal is strongest when the first move feels immediate and grounded.'
+                  : 'Resume conversations, push workflows forward, and steer the workspace from one operating surface.'}
+              </p>
 
-          <MotionSection className="prymal-dashboard__hero-scene" delay={0.12} reveal={{ x: 24, y: 0, blur: 10 }}>
-            <div className="prymal-cinematic-stage prymal-dashboard__scene-shell">
-              {heroSceneReady ? (
-                <Suspense
-                  fallback={(
-                    <div className="prymal-cinematic-stage__fallback">
-                      <div className="prymal-cinematic-stage__fallback-core" />
-                      <div className="prymal-cinematic-stage__fallback-ring prymal-cinematic-stage__fallback-ring--inner" />
-                      <div className="prymal-cinematic-stage__fallback-ring prymal-cinematic-stage__fallback-ring--outer" />
-                    </div>
-                  )}
-                >
-                  <CinematicHeroScene agents={heroAgents} />
-                </Suspense>
-              ) : (
-                <div className="prymal-cinematic-stage__fallback">
-                  <div className="prymal-cinematic-stage__fallback-core" />
-                  <div className="prymal-cinematic-stage__fallback-ring prymal-cinematic-stage__fallback-ring--inner" />
-                  <div className="prymal-cinematic-stage__fallback-ring prymal-cinematic-stage__fallback-ring--outer" />
-                  {heroAgents.map((agent) => (
-                    <span
-                      key={agent.id}
-                      className="prymal-cinematic-stage__fallback-node"
-                      style={{ '--node-accent': agent.color }}
-                    >
-                      {agent.name}
-                    </span>
+              <div className="pm-dash__actions">
+                <button type="button" className="pm-btn pm-btn--primary" onClick={heroPrimaryAction}>
+                  {heroPrimaryLabel} →
+                </button>
+                <button type="button" className="pm-btn pm-btn--ghost" onClick={() => navigate('/app/workflows')}>
+                  Open workflows
+                </button>
+                <button type="button" className="pm-btn pm-btn--ghost" onClick={() => navigate('/app/lore')}>
+                  Knowledge base
+                </button>
+              </div>
+
+              <div className="pm-dash__stats">
+                <div className="pm-dash__stat"><span>Conversations</span><strong>{conversationCount}</strong></div>
+                <div className="pm-dash__stat"><span>Workflows</span><strong>{workflows.length}</strong></div>
+                <div className="pm-dash__stat"><span>Active</span><strong>{activeWorkflows.length}</strong></div>
+                <div className="pm-dash__stat"><span>Plan</span><strong>{planMeta?.name ?? currentPlan}</strong></div>
+              </div>
+
+              <div className="pm-dash__trust">
+                <span className="pm-dash__trust-chip">SENTINEL gated</span>
+                <span className="pm-dash__trust-chip">LORE grounded</span>
+                <span className="pm-dash__trust-chip">Voice ready</span>
+                <span className="pm-dash__trust-chip">Webhook receipts</span>
+              </div>
+            </MotionSection>
+
+            <MotionSection className="pm-dash__posture" delay={0.12} reveal={{ x: 20, y: 0, blur: 8 }}>
+              <div className="pm-dash__posture-card">
+                <strong>Workspace posture</strong>
+                <span>
+                  {conversationCount === 0
+                    ? 'Ready for the first useful output. Start with the lane most likely to produce an immediate result.'
+                    : 'Live context available. Resume conversations and push workflows forward.'}
+                </span>
+              </div>
+              <div className="pm-dash__posture-card">
+                <strong>Fast lanes</strong>
+                <div className="pm-dash__posture-pills">
+                  {missionAgents.map((agent) => (
+                    <span key={agent.id} className="pm-dash__posture-pill">{agent.name}</span>
                   ))}
                 </div>
-              )}
-
-              <div className="prymal-cinematic-stage__hud">
-                <div className="prymal-cinematic-stage__hud-card prymal-cinematic-stage__hud-card--top">
-                  <strong>Workspace posture</strong>
-                  <span>
-                    {conversationCount === 0
-                      ? 'The system is ready for the first useful output. Start with the lane most likely to produce an immediate business result.'
-                      : 'The system already has live context. Resume conversations, push workflows forward, and keep the trust layer intact.'}
-                  </span>
-                </div>
-                <div className="prymal-cinematic-stage__hud-card prymal-cinematic-stage__hud-card--left">
-                  <strong>Fast lanes</strong>
-                  <div className="prymal-cinematic-stage__hud-pills">
-                    {missionAgents.map((agent) => (
-                      <span key={agent.id} className="prymal-cinematic-stage__hud-pill">
-                        {agent.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="prymal-cinematic-stage__hud-card prymal-cinematic-stage__hud-card--bottom">
-                  <strong>System signals</strong>
-                  <small>
-                    {activeWorkflows.length} active workflow{activeWorkflows.length === 1 ? '' : 's'} · {recentConversations.length} recent thread{recentConversations.length === 1 ? '' : 's'} · {isStaff ? 'admin console available' : 'operator mode active'}
-                  </small>
-                </div>
               </div>
-            </div>
-          </MotionSection>
+              <div className="pm-dash__posture-card">
+                <strong>System signals</strong>
+                <small>
+                  {activeWorkflows.length} active workflow{activeWorkflows.length === 1 ? '' : 's'} · {recentConversations.length} recent thread{recentConversations.length === 1 ? '' : 's'} · {isStaff ? 'admin available' : 'operator mode'}
+                </small>
+              </div>
+            </MotionSection>
+          </div>
         </section>
 
-        <div className="prymal-dashboard__grid">
-          <MotionCard className="prymal-dashboard-card prymal-dashboard-card--missions" accent="#68f5d0">
-            <div className="prymal-dashboard-card__header">
-              <div>
-                <div className="eyebrow" style={{ '--eyebrow-accent': '#68f5d0' }}>
-                  {conversationCount === 0 ? 'First wins' : 'Suggested missions'}
-                </div>
-                <h2>Start from a strong operating prompt.</h2>
-              </div>
-              <Link to={`/app/agents/${recommendedFirstAgentId}`} className="prymal-usecase-link">
-                Open recommended lane
-              </Link>
-            </div>
+        {/* ── Cards Grid ── */}
+        <div className="pm-dash__grid">
 
-            <MotionList className="prymal-dashboard__mission-grid">
+          {/* Missions */}
+          <div className="pm-dash__card pm-dash__card--full" style={{ '--card-accent': '#68f5d0' }}>
+            <div className="pm-dash__card-header">
+              <div>
+                <div className="pm-dash__card-eyebrow">{conversationCount === 0 ? 'First wins' : 'Suggested missions'}</div>
+                <h2 className="pm-dash__card-title">Start from a strong operating prompt.</h2>
+              </div>
+              <Link to={`/app/agents/${recommendedFirstAgentId}`} className="pm-dash__card-link">Open recommended lane →</Link>
+            </div>
+            <div className="pm-dash__mission-grid">
               {missionAgents.map((agent) => {
                 const starter = FIRST_WIN_LIBRARY[agent.id] ?? FIRST_WIN_LIBRARY.cipher;
                 return (
-                  <MotionListItem key={agent.id}>
-                    <button
-                      type="button"
-                      className="prymal-dashboard__mission-card"
-                      onClick={() =>
-                        navigate(`/app/agents/${agent.id}?new=1&draft=${encodeURIComponent(starter.message)}`)
-                      }
-                    >
-                      <div className="prymal-dashboard__mission-top">
-                        <AgentAvatar agent={agent} size={74} active />
-                        <div>
-                          <div className="prymal-dashboard__mission-name">{agent.name}</div>
-                          <div className="prymal-dashboard__mission-role">{agent.title}</div>
-                        </div>
+                  <button
+                    key={agent.id}
+                    type="button"
+                    className="pm-dash__mission"
+                    style={{ '--agent-color': agent.color }}
+                    onClick={() => navigate(`/app/agents/${agent.id}?new=1&draft=${encodeURIComponent(starter.message)}`)}
+                  >
+                    <div className="pm-dash__mission-top">
+                      <AgentAvatar agent={agent} size={52} active />
+                      <div>
+                        <div className="pm-dash__mission-name">{agent.name}</div>
+                        <div className="pm-dash__mission-role">{agent.title}</div>
                       </div>
-                      <p>{starter.summary}</p>
-                      <div className="prymal-dashboard__prompt-preview">“{starter.message}”</div>
-                    </button>
-                  </MotionListItem>
+                    </div>
+                    <p>{starter.summary}</p>
+                    <div className="pm-dash__mission-prompt">"{starter.message}"</div>
+                  </button>
                 );
               })}
-            </MotionList>
-          </MotionCard>
+            </div>
+          </div>
 
-          <MotionCard className="prymal-dashboard-card" accent="#7f8cff">
-            <div className="prymal-dashboard-card__header">
+          {/* Recent conversations */}
+          <div className="pm-dash__card" style={{ '--card-accent': '#7f8cff' }}>
+            <div className="pm-dash__card-header">
               <div>
-                <div className="eyebrow" style={{ '--eyebrow-accent': '#7f8cff' }}>Recent conversations</div>
-                <h2>Pick up the last active threads.</h2>
+                <div className="pm-dash__card-eyebrow">Recent conversations</div>
+                <h2 className="pm-dash__card-title">Pick up active threads.</h2>
               </div>
             </div>
-
             {recentConversations.length === 0 ? (
-              <EmptyState
-                title="No conversations yet"
-                description="The first live thread will appear here once you send a message in any agent workspace."
-                accent="#7f8cff"
-              />
+              <EmptyState title="No conversations yet" description="The first thread appears once you send a message." accent="#7f8cff" />
             ) : (
-              <MotionList className="prymal-dashboard__conversation-list">
+              <div className="pm-dash__conversations">
                 {recentConversations.map((conversation) => {
                   const agent = getAgentMeta(conversation.agentId);
                   return (
-                    <MotionListItem key={conversation.id}>
-                      <button
-                        type="button"
-                        className="prymal-dashboard__conversation-item"
-                        onClick={() => navigate(`/app/agents/${conversation.agentId}?conversation=${conversation.id}`)}
-                      >
-                        <AgentAvatar agent={agent} size={48} />
-                        <div>
-                          <div className="prymal-dashboard__conversation-name">{agent?.name ?? conversation.agentId}</div>
-                          <div className="prymal-dashboard__conversation-title">
-                            {conversation.title ?? conversation.contextSummary ?? 'Conversation'}
-                          </div>
-                        </div>
-                        <div className="prymal-dashboard__conversation-time">{timeAgo(conversation.lastActiveAt)}</div>
-                      </button>
-                    </MotionListItem>
+                    <button
+                      key={conversation.id}
+                      type="button"
+                      className="pm-dash__conv-item"
+                      onClick={() => navigate(`/app/agents/${conversation.agentId}?conversation=${conversation.id}`)}
+                    >
+                      <AgentAvatar agent={agent} size={36} />
+                      <div style={{ minWidth: 0 }}>
+                        <div className="pm-dash__conv-name">{agent?.name ?? conversation.agentId}</div>
+                        <div className="pm-dash__conv-title">{conversation.title ?? 'Conversation'}</div>
+                      </div>
+                      <div className="pm-dash__conv-time">{timeAgo(conversation.lastActiveAt)}</div>
+                    </button>
                   );
                 })}
-              </MotionList>
-            )}
-          </MotionCard>
-
-          <MotionCard className="prymal-dashboard-card" accent="#ff8e6a">
-            <div className="prymal-dashboard-card__header">
-              <div>
-                <div className="eyebrow" style={{ '--eyebrow-accent': '#ff8e6a' }}>Workflow posture</div>
-                <h2>Automation lanes worth watching.</h2>
               </div>
-              <Link to="/app/workflows" className="prymal-usecase-link">
-                Open NEXUS
-              </Link>
-            </div>
+            )}
+          </div>
 
+          {/* Workflows */}
+          <div className="pm-dash__card" style={{ '--card-accent': '#ff8e6a' }}>
+            <div className="pm-dash__card-header">
+              <div>
+                <div className="pm-dash__card-eyebrow">Workflow posture</div>
+                <h2 className="pm-dash__card-title">Automation lanes.</h2>
+              </div>
+              <Link to="/app/workflows" className="pm-dash__card-link">Open NEXUS →</Link>
+            </div>
             {workflows.length === 0 ? (
-              <EmptyState
-                title="No workflows configured"
-                description="Build the first orchestration graph and it will show up here with run posture and trigger state."
-                accent="#ff8e6a"
-              />
+              <EmptyState title="No workflows configured" description="Build the first orchestration graph." accent="#ff8e6a" />
             ) : (
-              <MotionList className="prymal-dashboard__workflow-list">
+              <div className="pm-dash__workflows">
                 {workflows.slice(0, 4).map((workflow) => (
-                  <MotionListItem key={workflow.id}>
-                    <div className="prymal-dashboard__workflow-item">
-                      <div className="prymal-dashboard__workflow-row">
-                        <strong>{workflow.name}</strong>
-                        <span className={`prymal-dashboard__status-pill${workflow.isActive ? ' is-active' : ''}`}>
-                          {workflow.isActive ? 'Active' : 'Paused'}
-                        </span>
-                      </div>
-                      <div className="prymal-dashboard__workflow-meta">
-                        <span>{workflow.triggerType}</span>
-                        <span>{workflow.nodes?.length ?? 0} nodes</span>
-                        <span>{workflow.runCount ?? 0} runs</span>
-                      </div>
+                  <div key={workflow.id} className="pm-dash__wf-item">
+                    <div className="pm-dash__wf-row">
+                      <strong>{workflow.name}</strong>
+                      <span className={`pm-dash__wf-status${workflow.isActive ? ' pm-dash__wf-status--active' : ''}`}>
+                        {workflow.isActive ? 'Active' : 'Paused'}
+                      </span>
                     </div>
-                  </MotionListItem>
+                    <div className="pm-dash__wf-meta">
+                      <span>{workflow.triggerType}</span>
+                      <span>{workflow.nodes?.length ?? 0} nodes</span>
+                      <span>{workflow.runCount ?? 0} runs</span>
+                    </div>
+                  </div>
                 ))}
-              </MotionList>
+              </div>
             )}
-          </MotionCard>
+          </div>
 
-          <MotionCard className="prymal-dashboard-card" accent="#b8d7ff">
-            <div className="prymal-dashboard-card__header">
+          {/* Agent roster */}
+          <div className="pm-dash__card" style={{ '--card-accent': '#b8d7ff' }}>
+            <div className="pm-dash__card-header">
               <div>
-                <div className="eyebrow" style={{ '--eyebrow-accent': '#b8d7ff' }}>Agent roster</div>
-                <h2>Jump straight into the right specialist.</h2>
+                <div className="pm-dash__card-eyebrow">Agent roster</div>
+                <h2 className="pm-dash__card-title">Jump into the right specialist.</h2>
               </div>
             </div>
-
-            <MotionList className="prymal-dashboard__agent-grid">
+            <div className="pm-dash__agent-grid">
               {topAgents.map((agent) => (
-                <MotionListItem key={agent.id}>
-                  <button
-                    type="button"
-                    className={`prymal-dashboard__agent-card${agent.id === recommendedFirstAgentId ? ' is-featured' : ''}`}
-                    onClick={() => navigate(`/app/agents/${agent.id}`)}
-                  >
-                    <AgentAvatar agent={agent} size={60} active={agent.id === recommendedFirstAgentId} />
-                    <div>
-                      <div className="prymal-dashboard__agent-name">{agent.name}</div>
-                      <div className="prymal-dashboard__agent-title">{agent.title}</div>
-                    </div>
-                  </button>
-                </MotionListItem>
+                <button
+                  key={agent.id}
+                  type="button"
+                  className={`pm-dash__agent-btn${agent.id === recommendedFirstAgentId ? ' pm-dash__agent-btn--featured' : ''}`}
+                  onClick={() => navigate(`/app/agents/${agent.id}`)}
+                >
+                  <AgentAvatar agent={agent} size={44} active={agent.id === recommendedFirstAgentId} />
+                  <div>
+                    <div className="pm-dash__agent-name">{agent.name}</div>
+                    <div className="pm-dash__agent-title">{agent.title}</div>
+                  </div>
+                </button>
               ))}
-            </MotionList>
-          </MotionCard>
+            </div>
+          </div>
 
-          <MotionCard className="prymal-dashboard-card prymal-dashboard-card--control" accent="#68f5d0">
-            <div className="prymal-dashboard-card__header">
+          {/* Control surfaces */}
+          <div className="pm-dash__card pm-dash__card--full" style={{ '--card-accent': '#68f5d0' }}>
+            <div className="pm-dash__card-header">
               <div>
-                <div className="eyebrow" style={{ '--eyebrow-accent': '#68f5d0' }}>Control surfaces</div>
-                <h2>Keep the rest of the system within reach.</h2>
+                <div className="pm-dash__card-eyebrow">Control surfaces</div>
+                <h2 className="pm-dash__card-title">Keep the system within reach.</h2>
               </div>
             </div>
-
-            <div className="prymal-dashboard__control-grid">
-              <Link to="/app/lore" className="prymal-dashboard__control-tile">
+            <div className="pm-dash__control-grid">
+              <Link to="/app/lore" className="pm-dash__control-tile">
                 <span>LORE</span>
                 <strong>Knowledge + retrieval trust</strong>
                 <small>Upload sources, inspect contradictions, and ground the next output.</small>
               </Link>
-              <Link to="/app/integrations" className="prymal-dashboard__control-tile">
+              <Link to="/app/integrations" className="pm-dash__control-tile">
                 <span>Integrations</span>
                 <strong>Wire inboxes, docs, and comms</strong>
-                <small>Connect the real operating context that the agents should work from.</small>
+                <small>Connect the real operating context agents should work from.</small>
               </Link>
-              <Link to="/app/settings" className="prymal-dashboard__control-tile">
+              <Link to="/app/settings" className="pm-dash__control-tile">
                 <span>Settings</span>
                 <strong>Plan, seats, API, and org controls</strong>
-                <small>Billing, entitlements, and environment settings live here.</small>
+                <small>Billing, entitlements, and environment settings.</small>
               </Link>
               {isStaff ? (
-                <Link to="/app/admin" className="prymal-dashboard__control-tile">
+                <Link to="/app/admin" className="pm-dash__control-tile">
                   <span>Admin</span>
                   <strong>Operator console</strong>
-                  <small>Investigate traces, action receipts, webhook health, and runtime events.</small>
+                  <small>Traces, receipts, webhook health, runtime events.</small>
                 </Link>
               ) : (
-                <div className="prymal-dashboard__control-tile is-passive">
+                <div className="pm-dash__control-tile is-passive">
                   <span>Plan posture</span>
                   <strong>{planMeta?.name ?? currentPlan}</strong>
-                  <small>{planMeta?.description ?? 'Your current operating tier for the workspace.'}</small>
+                  <small>{planMeta?.description ?? 'Current operating tier.'}</small>
                 </div>
               )}
             </div>
-          </MotionCard>
+          </div>
         </div>
       </div>
     </PageShell>
