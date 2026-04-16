@@ -14,13 +14,14 @@ test('landing page has a sign-up entry point', async ({ page }) => {
 test('login page renders Clerk auth or the auth setup guard', async ({ page }) => {
   await page.goto('/login');
 
-  const emailInput = page.getByLabel(/email/i).first();
-  const socialButton = page.getByRole('button', { name: /google|continue with/i }).first();
+  const loginHeading = page.getByRole('heading', { name: /enter the command layer/i }).first();
+  const loginIntro = page.getByText(/clerk-backed auth flow/i).first();
   const setupGuard = page.getByText(/VITE_CLERK_PUBLISHABLE_KEY/i).first();
 
-  const hasEmail = await emailInput.isVisible().catch(() => false);
-  const hasSocial = await socialButton.isVisible().catch(() => false);
+  await expect(page).toHaveURL(/\/login/);
+  const hasLoginShell = await loginHeading.isVisible().catch(() => false);
+  const hasLoginIntro = await loginIntro.isVisible().catch(() => false);
   const hasSetupGuard = await setupGuard.isVisible().catch(() => false);
 
-  expect(hasEmail || hasSocial || hasSetupGuard).toBe(true);
+  expect((hasLoginShell && hasLoginIntro) || hasSetupGuard).toBe(true);
 });
