@@ -1,80 +1,62 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
-import { BILLING_INTERVALS, PLAN_LIBRARY, getPlanPrice, getWorkspacePlanMeta } from '../lib/constants';
+import { AGENT_LIBRARY, BILLING_INTERVALS, PLAN_LIBRARY, getPlanPrice, getWorkspacePlanMeta } from '../lib/constants';
 import { api } from '../lib/api';
 import { getErrorMessage } from '../lib/utils';
 import { Button, InlineNotice, PageShell, TextInput } from '../components/ui';
-import { MotionCard, MotionSection, MotionStat, usePrymalReducedMotion } from '../components/motion';
+import { MotionCard, MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
+import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
+import '../styles/landing-rebuild.css';
 
-const HERO_METRICS = [
-  { value: '15', label: 'Specialist agents', detail: 'Named operators with contracts and output schemas.' },
-  { value: 'Hybrid RAG', label: 'Grounded trust', detail: 'Freshness, authority, contradiction checks.' },
-  { value: 'PASS / REPAIR / HOLD', label: 'SENTINEL QA', detail: 'Hard enforcement for sensitive outputs.' },
+const AGENT_PARADE_DATA = AGENT_LIBRARY.filter((a) => a.id !== 'sentinel').map((agent) => {
+  const iconMap = {
+    cipher: [{ emoji: '📊', x: '-20%', y: '-15%' }, { emoji: '🔍', x: '85%', y: '10%' }],
+    herald: [{ emoji: '✉️', x: '-25%', y: '0%' }, { emoji: '📨', x: '80%', y: '-20%' }],
+    echo: [{ emoji: '💙', x: '-15%', y: '-25%' }, { emoji: '📱', x: '88%', y: '5%' }],
+    oracle: [{ emoji: '🔮', x: '-20%', y: '-10%' }, { emoji: '📈', x: '82%', y: '-18%' }],
+    scout: [{ emoji: '🗺️', x: '-22%', y: '5%' }, { emoji: '🔭', x: '85%', y: '-15%' }],
+    lore: [{ emoji: '📚', x: '-18%', y: '-20%' }, { emoji: '✨', x: '88%', y: '0%' }],
+    forge: [{ emoji: '✏️', x: '-20%', y: '-10%' }, { emoji: '📝', x: '85%', y: '-15%' }],
+    atlas: [{ emoji: '🗓️', x: '-22%', y: '0%' }, { emoji: '📋', x: '84%', y: '-10%' }],
+    vance: [{ emoji: '🎯', x: '-20%', y: '-15%' }, { emoji: '💰', x: '86%', y: '5%' }],
+    wren: [{ emoji: '💬', x: '-18%', y: '-20%' }, { emoji: '❤️', x: '88%', y: '-10%' }],
+    ledger: [{ emoji: '📊', x: '-20%', y: '0%' }, { emoji: '💹', x: '84%', y: '-18%' }],
+    nexus: [{ emoji: '⚡', x: '-22%', y: '-10%' }, { emoji: '🔗', x: '86%', y: '0%' }],
+    pixel: [{ emoji: '🎨', x: '-20%', y: '-15%' }, { emoji: '🖼️', x: '85%', y: '5%' }],
+    sage: [{ emoji: '🧠', x: '-18%', y: '-10%' }, { emoji: '💡', x: '86%', y: '-15%' }],
+  };
+  return { ...agent, icons: iconMap[agent.id] || [] };
+});
+
+const HOW_IT_WORKS = [
+  {
+    agent: 'lore',
+    headline: 'Feed it your world.',
+    copy: 'Upload docs, paste URLs, add brand guidelines. LORE indexes everything and makes it available to every other agent automatically.',
+    color: '#C77DFF',
+  },
+  {
+    agent: 'nexus',
+    headline: 'Build workflows that run themselves.',
+    copy: 'Chain agents in sequence. HERALD drafts the email, CIPHER checks the numbers, ORACLE optimises the copy. Set it once.',
+    color: '#BDE0FE',
+  },
+  {
+    agent: 'sentinel',
+    headline: 'Nothing ships without a review.',
+    copy: 'SENTINEL checks every output before you see it. PASS, REPAIR, or HOLD. No hallucinations slipping through.',
+    color: '#F72585',
+  },
 ];
 
-const PRIMAL_STEPS = [
-  {
-    id: 'sense',
-    eyebrow: 'Sense',
-    title: 'Pull reality into the run',
-    copy: 'Documents, URLs, memory scopes, and live workspace context converge before a response is composed.',
-    accent: '#6cf6c4',
-  },
-  {
-    id: 'route',
-    eyebrow: 'Route',
-    title: 'Specialists with explicit contracts',
-    copy: 'Each agent has allowed tools, preferred policy lanes, and enforced output schemas.',
-    accent: '#7fa3ff',
-  },
-  {
-    id: 'execute',
-    eyebrow: 'Execute',
-    title: 'Workflows that feel alive',
-    copy: 'States, retries, and outbound delivery remain visible so the system never hides causality.',
-    accent: '#a18bff',
-  },
-  {
-    id: 'govern',
-    eyebrow: 'Govern',
-    title: 'Trust stays attached',
-    copy: 'SENTINEL, receipts, admin ops, and billing state remain part of the same surface.',
-    accent: '#ff9b7a',
-  },
-];
-
-const SHOWCASE_SECTIONS = [
-  {
-    id: 'workspace',
-    eyebrow: 'Workspace cockpit',
-    title: 'A command center that stays grounded.',
-    copy: 'Messages, citations, schema badges, and handoffs are designed to stay legible while the system is moving.',
-    accent: '#6cf6c4',
-    bullets: ['Citations reveal with confidence', 'Schema verdicts stay visible', 'Voice and handoffs stay in flow'],
-    videoLabel: 'Workspace demo reel',
-  },
-  {
-    id: 'workflow',
-    eyebrow: 'Workflow execution',
-    title: 'Execution that reads like causality.',
-    copy: 'Nodes, retries, and delivery events show a real operational timeline instead of a static graph.',
-    accent: '#7fa3ff',
-    bullets: ['Live node state pulses', 'Retries and failures are visible', 'Outbound webhooks close the loop'],
-    videoLabel: 'Workflow execution reel',
-  },
-  {
-    id: 'control',
-    eyebrow: 'Operator control plane',
-    title: 'Admin oversight without leaving the surface.',
-    copy: 'Trace drilldowns, receipts, billing posture, and webhook health live in the same operator-grade environment.',
-    accent: '#ff9b7a',
-    bullets: ['Trace drilldowns show policy + cost', 'Receipts preserve before/after history', 'Health and billing stay visible'],
-    videoLabel: 'Control plane reel',
-  },
-];
+function getAgentAvatar(agentId) {
+  const agent = AGENT_LIBRARY.find((a) => a.id === agentId.toLowerCase());
+  return agent?.avatarSrc ?? null;
+}
 
 export default function Landing() {
   const reducedMotion = usePrymalReducedMotion();
@@ -110,9 +92,7 @@ export default function Landing() {
   }, [waitlistResult]);
 
   useLayoutEffect(() => {
-    if (reducedMotion || !scopeRef.current) {
-      return undefined;
-    }
+    if (reducedMotion || !scopeRef.current) return undefined;
 
     let active = true;
     let gsapContext = null;
@@ -123,13 +103,12 @@ export default function Landing() {
         import('gsap/ScrollTrigger'),
       ]);
 
-      if (!active || !scopeRef.current) {
-        return;
-      }
+      if (!active || !scopeRef.current) return;
 
       gsap.registerPlugin(ScrollTrigger);
+
       gsapContext = gsap.context(() => {
-        gsap.from('.prymal-hero__copy > *', {
+        gsap.from('.pm-hero > *', {
           y: 28,
           opacity: 0,
           duration: 0.9,
@@ -137,110 +116,62 @@ export default function Landing() {
           stagger: 0.08,
         });
 
-        gsap.from('.prymal-video-card, .prymal-ivy__card, .prymal-showcase__panel', {
-          y: 28,
-          opacity: 0,
-          duration: 0.7,
-          ease: 'power2.out',
-          stagger: 0.08,
-          scrollTrigger: {
-            trigger: scopeRef.current,
-            start: 'top 70%',
-          },
-        });
-
-        gsap.from('.prymal-hero__metric, .prymal-trust-chip, .prymal-pricing__card, .prymal-waitlist__card', {
-          y: 20,
-          opacity: 0,
-          duration: 0.66,
-          ease: 'power2.out',
-          stagger: 0.06,
-          scrollTrigger: {
-            trigger: scopeRef.current,
-            start: 'top 66%',
-          },
-        });
-
-        gsap.to('.prymal-forest__trees--back', {
-          yPercent: -6,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: scopeRef.current,
-            start: 'top top',
-            end: 'bottom top',
-            scrub: true,
-          },
-        });
-
-        gsap.to('.prymal-forest__trees--mid', {
-          yPercent: -12,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: scopeRef.current,
-            start: 'top top',
-            end: 'bottom top',
-            scrub: true,
-          },
-        });
-
-        gsap.to('.prymal-forest__trees--front', {
-          yPercent: -18,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: scopeRef.current,
-            start: 'top top',
-            end: 'bottom top',
-            scrub: true,
-          },
-        });
-
-        gsap.to('.prymal-marketing__aura--one', {
-          xPercent: 8,
-          yPercent: -5,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: scopeRef.current,
-            start: 'top top',
-            end: 'bottom top',
-            scrub: true,
-          },
-        });
-
-        gsap.to('.prymal-marketing__aura--two', {
-          xPercent: -10,
-          yPercent: 6,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: scopeRef.current,
-            start: 'top top',
-            end: 'bottom top',
-            scrub: true,
-          },
-        });
-
-        gsap.to('.prymal-ivy__stem', {
-          scaleY: 1,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: '.prymal-ivy',
-            start: 'top 75%',
-            end: 'bottom 20%',
-            scrub: true,
-          },
-        });
-
-        gsap.utils.toArray('.prymal-showcase__visual').forEach((visual) => {
-          gsap.to(visual, {
-            y: -32,
-            ease: 'none',
-            scrollTrigger: {
-              trigger: visual,
-              start: 'top bottom',
-              end: 'bottom top',
-              scrub: 1.4,
+        const track = document.querySelector('.pm-agents-parade__track');
+        if (track) {
+          ScrollTrigger.create({
+            trigger: '.pm-agents-parade',
+            start: 'top 60%',
+            onEnter: () => {
+              gsap.to(track, { scrollLeft: 300, duration: 1.5, ease: 'power2.inOut' });
             },
+            once: true,
           });
+        }
+
+        gsap.utils.toArray('.pm-how__row').forEach((row, i) => {
+          gsap.fromTo(
+            row,
+            { opacity: 0, y: 60, filter: 'blur(12px)' },
+            {
+              opacity: 1,
+              y: 0,
+              filter: 'blur(0px)',
+              duration: 0.9,
+              ease: 'power3.out',
+              delay: i * 0.1,
+              scrollTrigger: { trigger: row, start: 'top 78%', toggleActions: 'play none none none' },
+            },
+          );
         });
+
+        gsap.utils.toArray('.pm-bento__card').forEach((card, i) => {
+          gsap.fromTo(
+            card,
+            { opacity: 0, scale: 0.85, y: 40 },
+            {
+              opacity: 1,
+              scale: 1,
+              y: 0,
+              duration: 0.7,
+              ease: 'back.out(1.5)',
+              delay: i * 0.08,
+              scrollTrigger: { trigger: '.pm-bento__grid', start: 'top 75%', toggleActions: 'play none none none' },
+            },
+          );
+        });
+
+        gsap.fromTo(
+          '.pm-agent-float__icon-badge',
+          { opacity: 0, scale: 0 },
+          {
+            opacity: 1,
+            scale: 1,
+            duration: 0.4,
+            ease: 'back.out(2)',
+            stagger: 0.05,
+            scrollTrigger: { trigger: '.pm-agents-parade', start: 'top 70%', toggleActions: 'play none none none' },
+          },
+        );
       }, scopeRef);
     })();
 
@@ -288,148 +219,121 @@ export default function Landing() {
         }}
       />
 
-      <div className="prymal-marketing__aura prymal-marketing__aura--one" />
-      <div className="prymal-marketing__aura prymal-marketing__aura--two" />
+      <MagicalCanvas reducedMotion={reducedMotion} />
 
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="landing" />
 
         <PageShell width="100%">
           <div className="prymal-homepage prymal-homepage--primal">
-            <section className="prymal-hero">
-              <div className="prymal-forest">
-                <div className="prymal-forest__sky" />
-                <div className="prymal-forest__trees prymal-forest__trees--back" />
-                <div className="prymal-forest__trees prymal-forest__trees--mid" />
-                <div className="prymal-forest__trees prymal-forest__trees--front" />
-                <div className="prymal-forest__mist" />
-                <div className="prymal-forest__ivy" />
+
+            {/* ── Hero ── */}
+            <section className="pm-hero">
+              <div className="pm-hero__badge">
+                <span className="pm-hero__badge-dot" />
+                15 Specialist AI Agents · Now Live
               </div>
 
-              <div className="prymal-hero__grid">
-                <div className="prymal-hero__copy">
-                  <div className="prymal-hero__pill">
-                    Premium AI operating system | 15 specialists | Trust + orchestration built in
-                  </div>
-                  <h1>Run your business like a primal operating system.</h1>
-                  <p>
-                    Prymal is a premium multi-agent OS with grounded retrieval, workflows, realtime voice, and operator
-                    oversight. It is built to feel alive, accountable, and execution-ready from the first click.
-                  </p>
+              <h1 className="pm-hero__headline">
+                Your Business.<br />
+                <span className="pm-hero__headline--glow">Orchestrated.</span>
+              </h1>
 
-                  <div className="prymal-hero__actions">
-                    <SignedOut>
-                      <Link to="/signup">
-                        <Button tone="accent">Start free</Button>
-                      </Link>
-                      <a href="#showcase">
-                        <Button tone="ghost">Watch the system</Button>
-                      </a>
-                    </SignedOut>
-                    <SignedIn>
-                      <Link to="/app/dashboard">
-                        <Button tone="accent">Open workspace</Button>
-                      </Link>
-                      <Link to="/app/workflows">
-                        <Button tone="ghost">View workflows</Button>
-                      </Link>
-                    </SignedIn>
-                  </div>
+              <p className="pm-hero__sub">
+                Not one AI. A full team. 15 specialist agents with contracts,
+                memory, and a QA gate — working together like they actually know your business.
+              </p>
 
-                  <div className="prymal-hero__metrics">
-                    {HERO_METRICS.map((metric) => (
-                      <MotionStat key={metric.label} className="prymal-hero__metric" accent="#6cf6c4">
-                        <strong>{metric.value}</strong>
-                        <span>{metric.label}</span>
-                        <small>{metric.detail}</small>
-                      </MotionStat>
-                    ))}
-                  </div>
-                </div>
+              <div className="pm-hero__ctas">
+                <SignedOut>
+                  <Link to="/signup" className="pm-btn pm-btn--primary">Start free →</Link>
+                  <a href="#pricing" className="pm-btn pm-btn--ghost">See plans</a>
+                </SignedOut>
+                <SignedIn>
+                  <Link to="/app/dashboard" className="pm-btn pm-btn--primary">Open workspace →</Link>
+                  <Link to="/app/workflows" className="pm-btn pm-btn--ghost">View workflows</Link>
+                </SignedIn>
+              </div>
 
-                <div className="prymal-hero__media">
-                  <div className="prymal-video-card">
-                    <div className="prymal-video-placeholder">
-                      <div className="prymal-video-placeholder__badge">Hero video placeholder</div>
-                      <div className="prymal-video-placeholder__caption">
-                        Drop a cinematic product reel here. This slot is designed for a 16:9 or 21:9 hero video.
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="prymal-hero__media-row">
-                    {['Workspace cut', 'Workflow cut', 'Admin cut'].map((label) => (
-                      <div key={label} className="prymal-video-mini">
-                        <span>{label}</span>
-                        <div className="prymal-video-mini__surface" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div className="pm-hero__trust">
+                <span>✓ No credit card</span>
+                <span>✓ Setup in 3 minutes</span>
+                <span>✓ Cancel anytime</span>
               </div>
             </section>
 
-            <MotionSection className="prymal-ivy" delay={0.06} reveal={{ y: 24, blur: 10 }}>
-              <div className="prymal-ivy__header">
-                <div className="hero-pill">Primal operating loop</div>
-                <h2>Sense. Route. Execute. Govern.</h2>
-                <p>Every step is visible, animated, and designed to feel like a living system instead of a static UI.</p>
-              </div>
-
-              <div className="prymal-ivy__track">
-                <div className="prymal-ivy__stem" />
-                <div className="prymal-ivy__leaves" />
-                <div className="prymal-ivy__cards">
-                  {PRIMAL_STEPS.map((step) => (
-                    <MotionCard key={step.id} className="prymal-ivy__card" accent={step.accent}>
-                      <span className="prymal-ivy__eyebrow">{step.eyebrow}</span>
-                      <h3>{step.title}</h3>
-                      <p>{step.copy}</p>
-                    </MotionCard>
-                  ))}
-                </div>
-              </div>
-            </MotionSection>
-
-            <MotionSection id="showcase" className="prymal-showcase" delay={0.06} reveal={{ y: 24, blur: 10 }}>
-              <div className="prymal-showcase__header">
-                <div className="hero-pill">Cinematic product surfaces</div>
-                <h2>Every surface is built for premium motion and trust.</h2>
-                <p>Drop your showcase videos in the slots below. The layout keeps them the hero of each section.</p>
-              </div>
-
-              <div className="prymal-showcase__grid">
-                {SHOWCASE_SECTIONS.map((section, index) => (
+            {/* ── Agent Parade ── */}
+            <section className="pm-agents-parade">
+              <div className="pm-agents-parade__label">Meet your team</div>
+              <div className="pm-agents-parade__track">
+                {AGENT_PARADE_DATA.map((agent, i) => (
                   <div
-                    key={section.id}
-                    className={`prymal-showcase__panel${index % 2 === 1 ? ' is-reversed' : ''}`}
+                    key={agent.id}
+                    className="pm-agent-float"
+                    style={{ '--float-delay': `${i * 0.15}s`, '--float-color': agent.color }}
                   >
-                    <div className="prymal-showcase__copy">
-                      <span style={{ color: section.accent }}>{section.eyebrow}</span>
-                      <h3>{section.title}</h3>
-                      <p>{section.copy}</p>
-                      <ul>
-                        {section.bullets.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="prymal-showcase__media prymal-showcase__visual">
-                      <div className="prymal-video-placeholder">
-                        <div className="prymal-video-placeholder__badge">{section.videoLabel}</div>
-                        <div className="prymal-video-placeholder__caption">
-                          Place your cinematic loop or walkthrough here. 16:9 recommended.
+                    <div className="pm-agent-float__scene">
+                      <AgentAvatarDisplay agent={agent} className="pm-agent-float__character" />
+                      {agent.icons.map((icon, j) => (
+                        <div
+                          key={j}
+                          className="pm-agent-float__icon-badge"
+                          style={{ '--badge-x': icon.x, '--badge-y': icon.y, '--badge-delay': `${j * 0.4}s` }}
+                        >
+                          {icon.emoji}
                         </div>
-                      </div>
+                      ))}
                     </div>
+                    <div className="pm-agent-float__name">{agent.name}</div>
+                    <div className="pm-agent-float__role">{agent.title}</div>
                   </div>
                 ))}
               </div>
-            </MotionSection>
+            </section>
 
-            <MotionSection id="pricing" className="prymal-pricing" delay={0.06} reveal={{ y: 24, blur: 10 }}>
-              <div className="prymal-pricing__header">
-                <div className="hero-pill">Plans built for real operators</div>
+            {/* ── How It Works ── */}
+            <section className="pm-how">
+              <div className="pm-how__label">How Prymal works</div>
+              {HOW_IT_WORKS.map((item, i) => (
+                <div key={item.agent} className={`pm-how__row${i % 2 === 1 ? ' pm-how__row--flip' : ''}`}>
+                  <div className="pm-how__character">
+                    <div className="pm-how__glow" style={{ '--glow-color': item.color }} />
+                    <AgentAvatarDisplay
+                      agent={AGENT_LIBRARY.find((a) => a.id === item.agent) || { glyph: '?', color: item.color }}
+                      className="pm-how__img"
+                    />
+                  </div>
+                  <div className="pm-how__copy">
+                    <div className="pm-how__step">0{i + 1}</div>
+                    <h2 className="pm-how__headline">{item.headline}</h2>
+                    <p className="pm-how__body">{item.copy}</p>
+                  </div>
+                </div>
+              ))}
+            </section>
+
+            {/* ── Bento Grid ── */}
+            <section className="pm-bento">
+              <div className="pm-bento__label">The full roster</div>
+              <div className="pm-bento__grid">
+                {AGENT_LIBRARY.filter((a) => a.id !== 'sentinel').slice(0, 6).map((agent) => (
+                  <div key={agent.id} className="pm-bento__card" style={{ '--card-color': agent.color }}>
+                    <div className="pm-bento__card-glow" />
+                    <AgentAvatarDisplay agent={agent} className="pm-bento__card-character" />
+                    <div className="pm-bento__card-name">{agent.name}</div>
+                    <div className="pm-bento__card-role">{agent.title}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* ── Pricing ── */}
+            <MotionSection id="pricing" className="pm-pricing-section" delay={0.06} reveal={{ y: 24, blur: 10 }}>
+              <div className="pm-pricing-section__header">
+                <div className="pm-hero__badge" style={{ animationDelay: '0.5s' }}>
+                  <span className="pm-hero__badge-dot" />
+                  Plans built for real operators
+                </div>
                 <h2>Pricing that scales with the team.</h2>
                 <p>All paid plans include the full specialist roster.</p>
               </div>
@@ -452,50 +356,54 @@ export default function Landing() {
                 {PLAN_LIBRARY.map((plan) => {
                   const price = getPlanPrice(plan, activeBillingInterval.id);
                   return (
-                    <MotionCard key={plan.id} className="prymal-pricing__card" accent={plan.accent}>
-                      <div className="prymal-pricing__top">
-                        <span>{plan.name}</span>
-                        <strong>
-                          {price.display}
-                          <small> / {price.suffix}</small>
-                        </strong>
-                        <p>{plan.description}</p>
+                    <div key={plan.id} className="pm-pricing__card" style={{ '--card-color': plan.accent || '#C77DFF' }}>
+                      <div className="pm-pricing__card-inner">
+                        <div className="prymal-pricing__top">
+                          <span>{plan.name}</span>
+                          <strong>
+                            {price.display}
+                            <small> / {price.suffix}</small>
+                          </strong>
+                          <p>{plan.description}</p>
+                        </div>
+                        <div className="prymal-pricing__features">
+                          {plan.features.map((feature) => (
+                            <span key={feature}>{feature}</span>
+                          ))}
+                        </div>
+                        <div className="prymal-pricing__cta">
+                          <SignedOut>
+                            <Link to="/signup">
+                              <Button tone={plan.id === 'agency' ? 'accent' : 'ghost'}>Start with {plan.name}</Button>
+                            </Link>
+                          </SignedOut>
+                          <SignedIn>
+                            <Link to="/app/settings?tab=Billing">
+                              <Button tone={plan.id === 'agency' ? 'accent' : 'ghost'}>Open billing</Button>
+                            </Link>
+                          </SignedIn>
+                        </div>
                       </div>
-                      <div className="prymal-pricing__features">
-                        {plan.features.map((feature) => (
-                          <span key={feature}>{feature}</span>
-                        ))}
-                      </div>
-                      <div className="prymal-pricing__cta">
-                        <SignedOut>
-                          <Link to="/signup">
-                            <Button tone={plan.id === 'agency' ? 'accent' : 'ghost'}>Start with {plan.name}</Button>
-                          </Link>
-                        </SignedOut>
-                        <SignedIn>
-                          <Link to="/app/settings?tab=Billing">
-                            <Button tone={plan.id === 'agency' ? 'accent' : 'ghost'}>Open billing</Button>
-                          </Link>
-                        </SignedIn>
-                      </div>
-                    </MotionCard>
+                    </div>
                   );
                 })}
               </div>
             </MotionSection>
 
-            <MotionSection className="prymal-waitlist" delay={0.06} reveal={{ y: 24, blur: 10 }}>
-              <div className="prymal-waitlist__card">
-                <div>
-                  <span className="hero-pill">Prefer a guided rollout?</span>
-                  <h2>Join the waitlist for a curated Prymal onboarding wave.</h2>
-                  <p>
-                    If you want a more hands-on workspace setup, leave your email and we will route you into the next
-                    guided rollout group.
-                  </p>
+            {/* ── Waitlist ── */}
+            <MotionSection className="pm-waitlist" delay={0.06} reveal={{ y: 24, blur: 10 }}>
+              <div className="pm-waitlist__inner">
+                <div className="pm-hero__badge" style={{ marginBottom: 18 }}>
+                  <span className="pm-hero__badge-dot" />
+                  Prefer a guided rollout?
                 </div>
+                <h2>Join the waitlist for a curated Prymal onboarding wave.</h2>
+                <p>
+                  If you want a more hands-on workspace setup, leave your email and we will route you into the next
+                  guided rollout group.
+                </p>
 
-                <form className="prymal-waitlist__form" onSubmit={handleWaitlistSubmit}>
+                <form className="pm-waitlist__form" onSubmit={handleWaitlistSubmit}>
                   <TextInput
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
@@ -514,6 +422,7 @@ export default function Landing() {
                 ) : null}
               </div>
             </MotionSection>
+
           </div>
         </PageShell>
 
