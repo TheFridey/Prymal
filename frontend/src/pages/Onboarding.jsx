@@ -5,7 +5,10 @@ import { api } from '../lib/api';
 import { getRecommendedAgentsForWorkspaceProfile, WORKFLOW_TEMPLATES } from '../lib/constants';
 import { getErrorMessage } from '../lib/utils';
 import { BrandMark, Button, InlineNotice, TextInput, ThemeToggle } from '../components/ui';
+import { usePrymalReducedMotion } from '../components/motion';
 import { useAppStore } from '../stores/useAppStore';
+import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import '../styles/landing-rebuild.css';
 
 const WORKSPACE_OPTIONS = [
   {
@@ -127,267 +130,175 @@ export default function Onboarding() {
     },
   });
 
+  const reducedMotion = usePrymalReducedMotion();
+
   return (
-    <div className="auth-screen">
-      <div className="setup-card" style={{ maxWidth: '920px' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: '14px',
-            alignItems: 'center',
-            marginBottom: '18px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <BrandMark />
-          <ThemeToggle />
-        </div>
-
-        <div className="setup-screen__header">
-          <div className="eyebrow" style={{ '--eyebrow-accent': 'var(--accent)' }}>
-            {inviteToken ? 'Accept invitation' : 'First-win onboarding'}
-          </div>
-          <h1 className="setup-screen__title">
-            {inviteToken
-              ? 'Join the Prymal workspace and start with the right agent.'
-              : 'Get from signup to your first useful AI output in minutes.'}
-          </h1>
-          <p className="setup-screen__copy">
-            This flow is intentionally short: define the workspace, pick the business outcome that matters most, and Prymal
-            will route you straight to the agent most likely to deliver value first.
-          </p>
-        </div>
-
-        <div style={{ display: 'grid', gap: '12px', marginBottom: '18px' }}>
-          <div
-            aria-hidden="true"
-            style={{
-              position: 'relative',
-              width: '100%',
-              height: '10px',
-              borderRadius: '999px',
-              border: '1px solid var(--line)',
-              background: 'rgba(255,255,255,0.06)',
-              overflow: 'hidden',
-            }}
-          >
-            <span
-              style={{
-                display: 'block',
-                width: `${progressPercent}%`,
-                height: '100%',
-                borderRadius: 'inherit',
-                background: 'linear-gradient(135deg, var(--accent), var(--accent-2), var(--accent-3))',
-              }}
-            />
+    <div className="pm-page">
+      <MagicalCanvas reducedMotion={reducedMotion} />
+      <div className="pm-onboarding">
+        <div className="pm-onboarding__card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap' }}>
+            <BrandMark />
+            <ThemeToggle />
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div className="pm-onboarding__header">
+            <div className="pm-page-header__eyebrow" style={{ display: 'inline-flex' }}>
+              <span className="pm-hero__badge-dot" />
+              {inviteToken ? 'Accept invitation' : 'First-win onboarding'}
+            </div>
+            <h1 className="pm-onboarding__title">
+              {inviteToken
+                ? 'Join the Prymal workspace and start with the right agent.'
+                : 'Get from signup to your first useful AI output in minutes.'}
+            </h1>
+            <p className="pm-onboarding__sub">
+              This flow is intentionally short: define the workspace, pick the business outcome that matters most, and Prymal
+              will route you straight to the agent most likely to deliver value first.
+            </p>
+          </div>
+
+          <div className="pm-onboarding__progress" aria-hidden="true">
+            <span className="pm-onboarding__progress-bar" style={{ width: `${progressPercent}%` }} />
+          </div>
+
+          <div className="pm-onboarding__steps">
             {[
               { id: 1, label: 'Workspace' },
               { id: 2, label: 'First win' },
             ].map((stepEntry) => (
               <div
                 key={stepEntry.id}
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '999px',
-                  border: '1px solid var(--line)',
-                  background: step >= stepEntry.id ? 'var(--panel-soft)' : 'transparent',
-                  color: step >= stepEntry.id ? 'var(--text-strong)' : 'var(--muted)',
-                  fontSize: '12px',
-                  letterSpacing: '0.16em',
-                  textTransform: 'uppercase',
-                }}
+                className={`pm-onboarding__step-pill${step >= stepEntry.id ? ' pm-onboarding__step-pill--active' : ''}`}
               >
                 Step {stepEntry.id} | {stepEntry.label}
               </div>
             ))}
           </div>
-        </div>
 
-        {step === 1 ? (
-          <div style={{ display: 'grid', gap: '16px' }}>
-            {inviteToken ? (
-              <InlineNotice tone="success">
-                Prymal detected an invitation link. Review the workspace shape below, then move straight into the first-win
-                step.
+          {step === 1 ? (
+            <div style={{ display: 'grid', gap: '16px' }}>
+              {inviteToken ? (
+                <InlineNotice tone="success">
+                  Prymal detected an invitation link. Review the workspace shape below, then move straight into the first-win step.
+                </InlineNotice>
+              ) : null}
+
+              {!inviteToken ? (
+                <label style={{ display: 'grid', gap: '8px' }}>
+                  <span className="pm-onboarding__summary-title">Organisation name</span>
+                  <TextInput value={orgName} onChange={(event) => setOrgName(event.target.value)} placeholder="Prymal Labs" maxLength={80} />
+                </label>
+              ) : null}
+
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <span className="pm-onboarding__summary-title">Workspace type</span>
+                <div style={{ display: 'grid', gap: '10px' }}>
+                  {WORKSPACE_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setWorkspaceFocus(option.id)}
+                      className={`pm-onboarding__option${workspaceFocus === option.id ? ' pm-onboarding__option--selected' : ''}`}
+                    >
+                      <div className="pm-onboarding__option-label">{option.label}</div>
+                      <div className="pm-onboarding__option-desc">{option.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button className="pm-btn pm-btn--primary" disabled={!canContinueStepOne} onClick={() => setStep(2)} type="button">
+                  Continue to first win →
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {step === 2 ? (
+            <div style={{ display: 'grid', gap: '16px' }}>
+              <div style={{ display: 'grid', gap: '8px' }}>
+                <span className="pm-onboarding__summary-title">Business type</span>
+                <select value={businessType} onChange={(event) => setBusinessType(event.target.value)} className="pm-onboarding__select">
+                  {BUSINESS_TYPE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gap: '8px' }}>
+                <span className="pm-onboarding__summary-title">Primary goal</span>
+                <select value={primaryGoal} onChange={(event) => setPrimaryGoal(event.target.value)} className="pm-onboarding__select">
+                  {PRIMARY_GOALS.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <InlineNotice tone="default">
+                Nothing else blocks this path. Integrations, LORE uploads, and workflow setup can all happen after your first conversation is already underway.
               </InlineNotice>
-            ) : null}
 
-            {!inviteToken ? (
-              <label style={{ display: 'grid', gap: '8px' }}>
-                <span className="section-label" style={{ marginBottom: 0 }}>Organisation name</span>
-                <TextInput
-                  value={orgName}
-                  onChange={(event) => setOrgName(event.target.value)}
-                  placeholder="Prymal Labs"
-                  maxLength={80}
-                />
-              </label>
-            ) : null}
-
-            <div style={{ display: 'grid', gap: '10px' }}>
-              <span className="section-label" style={{ marginBottom: 0 }}>Workspace type</span>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                {WORKSPACE_OPTIONS.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => setWorkspaceFocus(option.id)}
-                    style={{
-                      textAlign: 'left',
-                      padding: '14px 16px',
-                      borderRadius: '18px',
-                      border: '1px solid var(--line)',
-                      background: workspaceFocus === option.id ? 'var(--panel-soft)' : 'transparent',
-                      color: 'var(--text-strong)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ marginBottom: '4px', fontSize: '15px' }}>{option.label}</div>
-                    <div style={{ color: 'var(--muted)', lineHeight: 1.6 }}>{option.description}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <Button tone="accent" disabled={!canContinueStepOne} onClick={() => setStep(2)}>
-                Continue to first win
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
-        {step === 2 ? (
-          <div style={{ display: 'grid', gap: '16px' }}>
-            <div style={{ display: 'grid', gap: '8px' }}>
-              <span className="section-label" style={{ marginBottom: 0 }}>Business type</span>
-              <select
-                value={businessType}
-                onChange={(event) => setBusinessType(event.target.value)}
-                style={selectStyle}
-              >
-                {BUSINESS_TYPE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ display: 'grid', gap: '8px' }}>
-              <span className="section-label" style={{ marginBottom: 0 }}>Primary goal</span>
-              <select
-                value={primaryGoal}
-                onChange={(event) => setPrimaryGoal(event.target.value)}
-                style={selectStyle}
-              >
-                {PRIMARY_GOALS.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-            </div>
-
-            <InlineNotice tone="default">
-              Nothing else blocks this path. Integrations, LORE uploads, and workflow setup can all happen after your first
-              conversation is already underway.
-            </InlineNotice>
-
-            <SurfaceSummary
-              title="Recommended first agents"
-              body={`Based on your answers, ${recommendedAgents[0]?.name ?? 'CIPHER'} should get you to a useful output fastest.`}
-            >
-              <div style={{ display: 'grid', gap: '10px' }}>
-                {recommendedAgents.map((agent) => (
-                  <div
-                    key={agent.id}
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '18px',
-                      border: '1px solid var(--line)',
-                      background: 'var(--panel-soft)',
-                    }}
-                  >
-                    <div style={{ fontSize: '14px', marginBottom: '4px', color: 'var(--text-strong)' }}>{agent.name}</div>
-                    <div style={{ color: 'var(--muted)', lineHeight: 1.6 }}>{agent.description}</div>
+              <div className="pm-onboarding__summary">
+                <div>
+                  <div className="pm-onboarding__summary-title">Recommended first agents</div>
+                  <div className="pm-onboarding__summary-body">
+                    Based on your answers, {recommendedAgents[0]?.name ?? 'CIPHER'} should get you to a useful output fastest.
                   </div>
-                ))}
+                </div>
+                <div style={{ display: 'grid', gap: '10px' }}>
+                  {recommendedAgents.map((agent) => (
+                    <div key={agent.id} className="pm-card" style={{ padding: '14px 16px' }}>
+                      <div style={{ fontSize: '14px', marginBottom: '4px', color: '#fff', fontWeight: 600 }}>{agent.name}</div>
+                      <div style={{ color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, fontSize: '13px' }}>{agent.description}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </SurfaceSummary>
 
-            <SurfaceSummary
-              title="Suggested workflow after the first chat"
-              body="This step is intentionally deferred. Land the first output first, then turn it into a repeatable workflow."
-            >
-              <div style={{ fontSize: '16px', marginBottom: '6px', color: 'var(--text-strong)' }}>{recommendedWorkflow.name}</div>
-              <div style={{ color: 'var(--muted)', lineHeight: 1.7 }}>{recommendedWorkflow.description}</div>
-            </SurfaceSummary>
+              <div className="pm-onboarding__summary">
+                <div>
+                  <div className="pm-onboarding__summary-title">Suggested workflow after the first chat</div>
+                  <div className="pm-onboarding__summary-body">This step is intentionally deferred. Land the first output first, then turn it into a repeatable workflow.</div>
+                </div>
+                <div style={{ fontSize: '16px', marginBottom: '6px', color: '#fff', fontWeight: 700 }}>{recommendedWorkflow.name}</div>
+                <div style={{ color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>{recommendedWorkflow.description}</div>
+              </div>
 
-            <InlineNotice tone="success">
-              After setup, Prymal will drop you directly into the dashboard with {recommendedAgents[0]?.name ?? 'CIPHER'}
-              highlighted as the recommended first agent.
-            </InlineNotice>
+              <InlineNotice tone="success">
+                After setup, Prymal will drop you directly into the dashboard with {recommendedAgents[0]?.name ?? 'CIPHER'} highlighted as the recommended first agent.
+              </InlineNotice>
 
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              {!inviteToken ? <Button tone="ghost" onClick={() => setStep(1)}>Back</Button> : null}
-              <Button
-                tone="accent"
-                disabled={onboardMutation.isPending}
-                onClick={() =>
-                  onboardMutation.mutate({
-                    orgName: orgName.trim() || undefined,
-                    businessType,
-                    primaryGoal,
-                    workspaceFocus,
-                    inviteToken: inviteToken || undefined,
-                    referralCode: referralCode || undefined,
-                  })
-                }
-              >
-                {onboardMutation.isPending
-                  ? inviteToken
-                    ? 'Joining workspace'
-                    : 'Creating workspace'
-                  : inviteToken
-                    ? `Join workspace and open ${recommendedAgents[0]?.name ?? 'Prymal'}`
-                    : `Create workspace and open ${recommendedAgents[0]?.name ?? 'Prymal'}`}
-              </Button>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {!inviteToken ? <button className="pm-btn pm-btn--ghost" onClick={() => setStep(1)} type="button">Back</button> : null}
+                <button
+                  className="pm-btn pm-btn--primary"
+                  disabled={onboardMutation.isPending}
+                  type="button"
+                  onClick={() =>
+                    onboardMutation.mutate({
+                      orgName: orgName.trim() || undefined,
+                      businessType,
+                      primaryGoal,
+                      workspaceFocus,
+                      inviteToken: inviteToken || undefined,
+                      referralCode: referralCode || undefined,
+                    })
+                  }
+                >
+                  {onboardMutation.isPending
+                    ? inviteToken ? 'Joining workspace' : 'Creating workspace'
+                    : inviteToken
+                      ? `Join workspace and open ${recommendedAgents[0]?.name ?? 'Prymal'}`
+                      : `Create workspace and open ${recommendedAgents[0]?.name ?? 'Prymal'}`}
+                </button>
+              </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
     </div>
   );
 }
 
-function SurfaceSummary({ title, body, children }) {
-  return (
-    <div
-      style={{
-        padding: '18px',
-        borderRadius: '22px',
-        border: '1px solid var(--line)',
-        background: 'var(--panel-soft)',
-        display: 'grid',
-        gap: '12px',
-      }}
-    >
-      <div>
-        <div className="section-label" style={{ marginBottom: '6px' }}>{title}</div>
-        <div style={{ color: 'var(--muted)', lineHeight: 1.7 }}>{body}</div>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-const selectStyle = {
-  width: '100%',
-  padding: '14px 16px',
-  borderRadius: '18px',
-  border: '1px solid var(--line)',
-  background: 'rgba(255,255,255,0.72)',
-  color: 'var(--text-strong)',
-  outline: 'none',
-};

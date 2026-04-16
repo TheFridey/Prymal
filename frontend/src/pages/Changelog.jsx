@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
 import { Button, PageHeader, PageShell, Reveal, SurfaceCard } from '../components/ui';
+import { usePrymalReducedMotion } from '../components/motion';
 import { PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
+import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import '../styles/landing-rebuild.css';
 
 const CHANGELOG = [
   {
@@ -161,6 +164,8 @@ const TAG_COLORS = {
 };
 
 export default function Changelog() {
+  const reducedMotion = usePrymalReducedMotion();
+
   const trackSignup = () => {
     if (typeof window !== 'undefined' && typeof window.prymalTrack === 'function') {
       window.prymalTrack('signup_button_clicked', { source: 'changelog' });
@@ -168,61 +173,55 @@ export default function Changelog() {
   };
 
   return (
-    <div className="marketing-page prymal-marketing prymal-use-case-page prymal-use-case-page--legal">
+    <div className="marketing-page prymal-marketing pm-page">
       <PageMeta
         title="Changelog — Prymal"
         description="A running log of what has shipped in Prymal: new agents, features, fixes, and platform improvements."
         canonicalPath="/changelog"
       />
-      <div className="prymal-marketing__aura prymal-marketing__aura--one" />
-      <div className="prymal-marketing__aura prymal-marketing__aura--two" />
+      <MagicalCanvas reducedMotion={reducedMotion} />
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="changelog" onSignupClick={trackSignup} />
 
         <PageShell width="780px">
-          <div style={{ display: 'grid', gap: '24px' }}>
-            <PageHeader
-              eyebrow="CHANGELOG"
-              title="What has shipped"
-              description="A running record of new features, improvements, and fixes across the Prymal platform."
-              actions={
-                <Link to="/signup" onClick={trackSignup}>
-                  <Button tone="accent">Start free</Button>
-                </Link>
-              }
-            />
+          <div className="pm-page__inner" style={{ display: 'grid', gap: '24px' }}>
+            <div className="pm-page-header" style={{ paddingBottom: 0 }}>
+              <div className="pm-page-header__eyebrow">
+                <span className="pm-hero__badge-dot" />
+                Changelog
+              </div>
+              <h1 className="pm-page-header__title">What has shipped</h1>
+              <p className="pm-page-header__sub">
+                A running record of new features, improvements, and fixes across the Prymal platform.
+              </p>
+              <div className="pm-page-header__actions">
+                <Link to="/signup" className="pm-btn pm-btn--primary" onClick={trackSignup}>Start free →</Link>
+              </div>
+            </div>
 
             <div style={{ display: 'grid', gap: '16px' }}>
               {CHANGELOG.map((entry, index) => (
                 <Reveal key={entry.version} delay={index * 40}>
-                  <SurfaceCard
-                    title={
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span>{entry.title}</span>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            padding: '2px 8px',
-                            borderRadius: '999px',
-                            border: `1px solid ${TAG_COLORS[entry.tag] ?? 'var(--line)'}44`,
-                            color: TAG_COLORS[entry.tag] ?? 'var(--muted)',
-                            letterSpacing: '0.1em',
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          {entry.tag}
-                        </span>
+                  <div className="pm-changelog-entry">
+                    <div className="pm-changelog-entry__header">
+                      <span className="pm-changelog-entry__title">{entry.title}</span>
+                      <span
+                        className="pm-changelog-entry__tag"
+                        style={{
+                          borderColor: `${TAG_COLORS[entry.tag] ?? '#555'}44`,
+                          color: TAG_COLORS[entry.tag] ?? 'rgba(255,255,255,0.5)',
+                        }}
+                      >
+                        {entry.tag}
                       </span>
-                    }
-                    subtitle={`v${entry.version} · ${entry.date}`}
-                    accent={TAG_COLORS[entry.tag] ?? 'rgba(78, 205, 196, 0.4)'}
-                  >
-                    <ul style={{ margin: 0, padding: '0 0 0 18px', display: 'grid', gap: '8px', color: 'var(--muted)', lineHeight: 1.8 }}>
+                    </div>
+                    <div className="pm-changelog-entry__meta">v{entry.version} · {entry.date}</div>
+                    <ul>
                       {entry.entries.map((item) => (
                         <li key={item}>{item}</li>
                       ))}
                     </ul>
-                  </SurfaceCard>
+                  </div>
                 </Reveal>
               ))}
             </div>
