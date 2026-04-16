@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { api } from '../../../lib/api';
 import { formatNumber } from '../../../lib/utils';
 import { AgentAvatar } from '../../../components/ui';
-import { motion, MotionList, MotionListItem, MotionPresence, MotionSection } from '../../../components/motion';
+import { motion, MotionList, MotionListItem, MotionPresence, MotionSection, usePrymalReducedMotion } from '../../../components/motion';
 import {
   GeneratedImageCard,
   SchemaValidationBadge,
@@ -12,6 +12,7 @@ import {
 } from './MessageArtifacts';
 
 export function StudioMessage({ message, agent, streaming = false }) {
+  const reducedMotion = usePrymalReducedMotion();
   const isUser = message.role === 'user';
   const sources = message.metadata?.sources ?? [];
   const generatedImages = message.metadata?.generatedImages ?? [];
@@ -26,10 +27,15 @@ export function StudioMessage({ message, agent, streaming = false }) {
     <motion.div
       className={`workspace-studio__message${isUser ? ' is-user' : ''}`}
       layout
-      initial={{ opacity: 0, y: isUser ? 16 : 22, scale: 0.99, filter: 'blur(8px)' }}
+      initial={{
+        opacity: 0,
+        y: reducedMotion ? 0 : isUser ? 16 : 22,
+        scale: reducedMotion ? 1 : 0.99,
+        filter: reducedMotion ? 'none' : 'blur(8px)',
+      }}
       animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-      exit={{ opacity: 0, y: -10, scale: 0.99 }}
-      transition={{ duration: streaming ? 0.16 : 0.26 }}
+      exit={{ opacity: 0, y: reducedMotion ? 0 : -10, scale: reducedMotion ? 1 : 0.99 }}
+      transition={{ duration: reducedMotion ? 0.01 : streaming ? 0.16 : 0.26 }}
     >
       {!isUser ? (
         <AgentAvatar

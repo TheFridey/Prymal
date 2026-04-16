@@ -1,0 +1,84 @@
+@keyframes premiumAuraFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -14px, 0) scale(1.03);
+  }
+}
+
+@keyframes premiumStagePulse {
+  0%, 100% {
+    box-shadow:
+      0 34px 110px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  50% {
+    box-shadow:
+      0 40px 126px rgba(0, 0, 0, 0.6),
+      0 0 54px color-mix(in srgb, var(--accent-2) 20%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+}
+
+@keyframes premiumHudDrift {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+@keyframes premiumSignalSweep {
+  0% {
+    transform: translateX(-130%);
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.32;
+  }
+  100% {
+    transform: translateX(130%);
+    opacity: 0.1;
+  }
+}
+
+.prymal-marketing__aura {
+  animation: premiumAuraFloat 13s ease-in-out infinite;
+}
+
+.prymal-cinematic-stage--usecase {
+  animation: premiumStagePulse 9s ease-in-out infinite;
+}
+
+.prymal-cinematic-stage__hud-card {
+  animation: premiumHudDrift 7.2s ease-in-out infinite;
+}
+
+.prymal-cinematic-stage__hud-card:nth-child(2) {
+  animation-delay: -2.3s;
+}
+
+.prymal-cinematic-stage__hud-card:nth-child(3) {
+  animation-delay: -4.6s;
+}
+
+.prymal-cinematic-stage__canvas-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 8% -32%;
+  background: linear-gradient(110deg, transparent 28%, rgba(255, 255, 255, 0.2) 49%, transparent 72%);
+  transform: translateX(-130%);
+  animation: premiumSignalSweep 8.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prymal-marketing__aura,
+  .prymal-cinematic-stage--usecase,
+  .prymal-cinematic-stage__hud-card,
+  .prymal-cinematic-stage__canvas-wrap::after {
+    animation: none !important;
+  }
+}

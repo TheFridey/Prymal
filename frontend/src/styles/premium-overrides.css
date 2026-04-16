@@ -93,6 +93,16 @@
   padding: 24px;
 }
 
+.prymal-marketing__shell {
+  width: 100%;
+  max-width: none;
+}
+
+.prymal-marketing .page-shell__inner {
+  max-width: none !important;
+  padding-inline: clamp(16px, 3vw, 34px);
+}
+
 .prymal-marketing__aura {
   filter: blur(110px);
   opacity: 0.62;
@@ -698,10 +708,20 @@
   gap: 28px;
 }
 
+.prymal-usecase-page .prymal-marketing__shell {
+  width: 100%;
+  max-width: none;
+}
+
+.prymal-usecase-page .page-shell__inner {
+  max-width: none !important;
+  padding-inline: clamp(16px, 3vw, 34px);
+}
+
 .prymal-usecase-hero {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(460px, 1.05fr);
-  gap: 26px;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 1.08fr);
+  gap: clamp(20px, 2.4vw, 34px);
   align-items: center;
 }
 
@@ -716,10 +736,10 @@
 
 .prymal-usecase-hero__headline {
   margin: 0;
-  max-width: 11ch;
+  max-width: 12ch;
   font-family: var(--ff-display);
-  font-size: clamp(3.1rem, 7vw, 5.7rem);
-  line-height: 0.94;
+  font-size: clamp(2.7rem, 5.3vw, 5rem);
+  line-height: 0.97;
   letter-spacing: -0.04em;
   color: var(--text-strong);
   text-wrap: balance;
@@ -774,6 +794,23 @@
 
 .prymal-usecase-hero__scene {
   position: relative;
+  min-width: 0;
+}
+
+.prymal-usecase-hero__scene-shell {
+  animation: stageBreathe 10s ease-in-out infinite;
+}
+
+.prymal-usecase-hero .prymal-cinematic-stage__hud-card {
+  animation: usecaseHudFloat 7.4s ease-in-out infinite;
+}
+
+.prymal-usecase-hero .prymal-cinematic-stage__hud-card:nth-child(2) {
+  animation-delay: -2.2s;
+}
+
+.prymal-usecase-hero .prymal-cinematic-stage__hud-card:nth-child(3) {
+  animation-delay: -4.3s;
 }
 
 .prymal-cinematic-stage--usecase {
@@ -3228,6 +3265,11 @@
     min-height: 560px;
   }
 
+  .prymal-usecase-hero__headline {
+    max-width: none;
+    font-size: clamp(2.4rem, 8vw, 4.2rem);
+  }
+
   .prymal-cinematic-stage__hud-card--left,
   .prymal-cinematic-stage__hud-card--top {
     position: static;
@@ -3454,13 +3496,45 @@
   .prymal-hero-stage__signal,
   .prymal-command-stage__node--immersive,
   .prymal-band__track,
-  .prymal-showcase-preview__workflow-node.is-running span {
+  .prymal-showcase-preview__workflow-node.is-running span,
+  .prymal-usecase-hero__scene-shell,
+  .prymal-usecase-hero .prymal-cinematic-stage__hud-card {
     animation: none !important;
   }
 
   .prymal-cinematic-stage__canvas {
-    display: none;
+    opacity: 0.75;
+    filter: saturate(0.86);
   }
+}
+
+@keyframes stageBreathe {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.006);
+  }
+}
+
+@keyframes usecaseHudFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+html[data-prymal-motion='force'] .prymal-marketing__aura,
+html[data-prymal-motion='force'] .prymal-cinematic-stage__fallback-core,
+html[data-prymal-motion='force'] .prymal-cinematic-stage__fallback-ring,
+html[data-prymal-motion='force'] .prymal-cinematic-stage__fallback-node,
+html[data-prymal-motion='force'] .prymal-cinematic-stage__floating-card,
+html[data-prymal-motion='force'] .prymal-cinematic-stage__signal-line,
+html[data-prymal-motion='force'] .prymal-usecase-hero__scene-shell,
+html[data-prymal-motion='force'] .prymal-usecase-hero .prymal-cinematic-stage__hud-card {
+  animation-play-state: running !important;
 }
 
 .prymal-marketing--home .prymal-marketing__shell {
@@ -5912,4 +5986,249 @@
 [data-theme='light'] .prymal-pricing__features span,
 [data-theme='light'] .prymal-waitlist__card p {
   color: rgba(235, 242, 255, 0.78);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Web3 redesign layer                                                        */
+/* -------------------------------------------------------------------------- */
+
+.marketing-page,
+.app-shell,
+.prymal-dashboard,
+.workspace-studio {
+  position: relative;
+}
+
+.marketing-page::before,
+.app-shell::before,
+.workspace-studio::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(112, 128, 255, 0.18), transparent 28%),
+    radial-gradient(circle at 86% 12%, rgba(96, 255, 228, 0.15), transparent 26%),
+    radial-gradient(circle at 50% 110%, rgba(236, 137, 255, 0.08), transparent 34%);
+}
+
+.marketing-shell,
+.app-main,
+.workspace-studio__shell,
+.workspace-studio__tool-shell {
+  position: relative;
+  z-index: 1;
+}
+
+.button {
+  border-radius: 14px;
+  letter-spacing: 0.02em;
+  border-color: color-mix(in srgb, var(--line-soft) 80%, transparent);
+  transition: transform 240ms ease, box-shadow 240ms ease, border-color 240ms ease;
+}
+
+.button:hover {
+  transform: translateY(-2px);
+}
+
+.button--accent {
+  background: linear-gradient(120deg, var(--accent), var(--accent-2));
+  color: var(--accent-ink);
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.button--ghost {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), transparent), var(--surface-1);
+  color: var(--text-strong);
+}
+
+.surface-card,
+.page-header,
+.empty-state,
+.inline-notice,
+.workspace-modal,
+.workspace-studio__composer,
+.workspace-studio__messages,
+.workspace-studio__source-card,
+.workspace-studio__generated-card,
+.workspace-studio__prompt-card,
+.workspace-studio__conversation-card,
+.workspace-studio__agent-card,
+.workspace-workflow-panel__workflow,
+.workspace-knowledge-panel__result-card,
+.workspace-knowledge-panel__document-row,
+.staff-admin__surface {
+  border: 1px solid color-mix(in srgb, var(--line-soft) 84%, transparent);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.1), transparent 45%),
+    var(--surface-glass);
+  backdrop-filter: blur(20px) saturate(145%);
+  box-shadow: var(--shadow-float);
+}
+
+.marketing-nav,
+.prymal-nav,
+.app-mobile-bar,
+.app-launcher,
+.app-drawer,
+.prymal-footer {
+  border: 1px solid color-mix(in srgb, var(--line-soft) 82%, transparent);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 55%),
+    color-mix(in srgb, var(--surface-1) 96%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+.app-launcher__link.active,
+.app-launcher__link:hover {
+  background: linear-gradient(130deg, color-mix(in srgb, var(--accent) 22%, transparent), transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.prymal-cinematic-stage,
+.prymal-dashboard__scene-shell {
+  border-color: color-mix(in srgb, var(--line-soft) 90%, transparent);
+  background:
+    radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--accent-2) 18%, transparent), transparent 35%),
+    radial-gradient(circle at 50% 80%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 58%),
+    rgba(6, 12, 24, 0.85);
+}
+
+.workspace-studio__bubble--assistant,
+.workspace-studio__bubble--agent {
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  background:
+    linear-gradient(130deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent 56%),
+    color-mix(in srgb, var(--surface-2) 92%, transparent);
+}
+
+.workspace-studio__bubble--user {
+  border: 1px solid color-mix(in srgb, var(--accent-2) 24%, var(--line));
+  background:
+    linear-gradient(130deg, color-mix(in srgb, var(--accent-2) 12%, transparent), transparent 56%),
+    color-mix(in srgb, var(--surface-1) 92%, transparent);
+}
+
+.workspace-studio__thinking-dot,
+.workspace-studio__voice-dot {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.prymal-hero__pill,
+.hero-pill {
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, transparent), transparent 68%),
+    color-mix(in srgb, var(--surface-2) 88%, transparent);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.prymal-marketing__aura,
+.app-shell__glow {
+  animation-duration: 13s;
+  filter: blur(110px);
+}
+
+@media (max-width: 920px) {
+  .surface-card,
+  .page-header,
+  .workspace-modal,
+  .workspace-studio__composer,
+  .workspace-studio__messages {
+    backdrop-filter: blur(12px) saturate(126%);
+  }
+
+  .prymal-marketing__aura,
+  .app-shell__glow {
+    animation-duration: 20s;
+    opacity: 0.42;
+  }
+}
+
+.prymal-nav-wrap {
+  position: relative;
+}
+
+.prymal-nav-wrap__ambient {
+  position: absolute;
+  inset: -20px 0 auto;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.prymal-nav-wrap__ambient-orb {
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  filter: blur(70px);
+  opacity: 0.4;
+  animation: ambientOrbit 18s linear infinite;
+}
+
+.prymal-nav-wrap__ambient-orb--one {
+  left: 10%;
+  background: var(--glow-blue);
+}
+
+.prymal-nav-wrap__ambient-orb--two {
+  right: 8%;
+  background: var(--glow-cyan);
+  animation-direction: reverse;
+}
+
+.prymal-nav {
+  position: relative;
+  z-index: 1;
+}
+
+.prymal-footer {
+  position: relative;
+  overflow: hidden;
+}
+
+.prymal-footer__ambient {
+  position: absolute;
+  width: 360px;
+  height: 360px;
+  right: -120px;
+  bottom: -180px;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-3) 36%, transparent), transparent 70%);
+  filter: blur(36px);
+  pointer-events: none;
+}
+
+.prymal-dashboard__hero {
+  overflow: hidden;
+}
+
+.prymal-dashboard__hero-ambient {
+  position: absolute;
+  inset: -20% -8% auto;
+  height: 72%;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--accent-2) 28%, transparent), transparent 38%),
+    radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 35%);
+  filter: blur(26px);
+}
+
+.workspace-studio--panel {
+  overflow: hidden;
+}
+
+.workspace-studio__ambient {
+  position: absolute;
+  inset: -10% -6% auto;
+  height: 48%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 25% 10%, color-mix(in srgb, var(--studio-accent) 22%, transparent), transparent 40%),
+    radial-gradient(circle at 76% 0%, color-mix(in srgb, var(--accent-2) 18%, transparent), transparent 38%);
+  filter: blur(24px);
+  animation: ambientOrbit 18s ease-in-out infinite;
 }

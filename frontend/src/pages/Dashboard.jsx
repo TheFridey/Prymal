@@ -199,6 +199,7 @@ export default function Dashboard() {
     <PageShell width="1260px">
       <div className="prymal-dashboard">
         <section className="prymal-dashboard__hero">
+          <div className="prymal-dashboard__hero-ambient" aria-hidden="true" />
           <MotionSection className="prymal-dashboard__hero-copy" delay={0.04} reveal={{ y: 24, blur: 10 }}>
             <div className="hero-pill prymal-dashboard__hero-pill">
               Mission control · {planMeta?.name ?? currentPlan} plan · {conversationCount > 0 ? `${conversationCount} conversation${conversationCount === 1 ? '' : 's'}` : 'ready for first output'}

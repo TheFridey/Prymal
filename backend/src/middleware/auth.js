@@ -12,9 +12,15 @@ export async function requireOrg(context, next) {
     return context.json({ error: 'Unauthorised' }, 401);
   }
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, auth.userId),
-  });
+  let user;
+  try {
+    user = await db.query.users.findFirst({
+      where: eq(users.id, auth.userId),
+    });
+  } catch (error) {
+    console.error('[AUTH] Database lookup failed in requireOrg:', error?.message ?? error);
+    return context.json({ error: 'Database unavailable. Please retry shortly.' }, 503);
+  }
 
   if (!user) {
     return context.json({ error: 'User not found. Complete onboarding first.' }, 403);
@@ -24,9 +30,15 @@ export async function requireOrg(context, next) {
     return context.json({ error: 'No organisation found. Please complete setup.' }, 403);
   }
 
-  const organisation = await db.query.organisations.findFirst({
-    where: eq(organisations.id, user.orgId),
-  });
+  let organisation;
+  try {
+    organisation = await db.query.organisations.findFirst({
+      where: eq(organisations.id, user.orgId),
+    });
+  } catch (error) {
+    console.error('[AUTH] Organisation lookup failed in requireOrg:', error?.message ?? error);
+    return context.json({ error: 'Database unavailable. Please retry shortly.' }, 503);
+  }
 
   if (!organisation) {
     return context.json({ error: 'Organisation not found.' }, 403);
@@ -91,9 +103,15 @@ export async function requireStaff(context, next) {
     return context.json({ error: 'Unauthorised' }, 401);
   }
 
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, auth.userId),
-  });
+  let user;
+  try {
+    user = await db.query.users.findFirst({
+      where: eq(users.id, auth.userId),
+    });
+  } catch (error) {
+    console.error('[AUTH] Database lookup failed in requireStaff:', error?.message ?? error);
+    return context.json({ error: 'Database unavailable. Please retry shortly.' }, 503);
+  }
 
   if (!user) {
     return context.json({ error: 'User not found.' }, 404);

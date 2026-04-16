@@ -149,6 +149,18 @@ export default function Landing() {
           },
         });
 
+        gsap.from('.prymal-hero__metric, .prymal-trust-chip, .prymal-pricing__card, .prymal-waitlist__card', {
+          y: 20,
+          opacity: 0,
+          duration: 0.66,
+          ease: 'power2.out',
+          stagger: 0.06,
+          scrollTrigger: {
+            trigger: scopeRef.current,
+            start: 'top 66%',
+          },
+        });
+
         gsap.to('.prymal-forest__trees--back', {
           yPercent: -6,
           ease: 'none',
@@ -173,6 +185,30 @@ export default function Landing() {
 
         gsap.to('.prymal-forest__trees--front', {
           yPercent: -18,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: scopeRef.current,
+            start: 'top top',
+            end: 'bottom top',
+            scrub: true,
+          },
+        });
+
+        gsap.to('.prymal-marketing__aura--one', {
+          xPercent: 8,
+          yPercent: -5,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: scopeRef.current,
+            start: 'top top',
+            end: 'bottom top',
+            scrub: true,
+          },
+        });
+
+        gsap.to('.prymal-marketing__aura--two', {
+          xPercent: -10,
+          yPercent: 6,
           ease: 'none',
           scrollTrigger: {
             trigger: scopeRef.current,

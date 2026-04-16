@@ -23,13 +23,13 @@ function getRgb(hex) {
 function SignalParticles({ reducedMotion }) {
   const particles = useMemo(
     () =>
-      Array.from({ length: 28 }, (_, index) => ({
+      Array.from({ length: 44 }, (_, index) => ({
         id: `particle-${index}`,
-        radius: 2.35 + (index % 6) * 0.22,
-        angle: (index / 28) * Math.PI * 2,
+        radius: 2.2 + (index % 7) * 0.24,
+        angle: (index / 44) * Math.PI * 2,
         y: ((index % 5) - 2) * 0.12,
-        scale: 0.022 + (index % 4) * 0.01,
-        speed: 0.15 + (index % 6) * 0.02,
+        scale: 0.015 + (index % 5) * 0.008,
+        speed: 0.12 + (index % 6) * 0.018,
       })),
     [],
   );
@@ -66,7 +66,7 @@ function Particle({ particle, reducedMotion }) {
         Math.sin(particle.angle) * particle.radius,
       ]}
     >
-      <sphereGeometry args={[particle.scale, 12, 12]} />
+      <sphereGeometry args={[particle.scale, 16, 16]} />
       <meshBasicMaterial color="#7fe0ff" transparent opacity={0.55} />
     </mesh>
   );
@@ -93,7 +93,7 @@ function AgentSatellite({ agent, index, count, reducedMotion }) {
     <Float speed={reducedMotion ? 0 : 1.8} rotationIntensity={reducedMotion ? 0 : 0.28} floatIntensity={reducedMotion ? 0 : 0.16}>
       <group ref={groupRef}>
         <mesh>
-          <icosahedronGeometry args={[0.16, 0]} />
+          <icosahedronGeometry args={[0.16, 2]} />
           <meshStandardMaterial
             color={agent.color}
             emissive={agent.color}
@@ -103,7 +103,7 @@ function AgentSatellite({ agent, index, count, reducedMotion }) {
           />
         </mesh>
         <mesh scale={1.55}>
-          <icosahedronGeometry args={[0.16, 0]} />
+          <icosahedronGeometry args={[0.16, 2]} />
           <meshBasicMaterial color={agent.color} transparent opacity={0.08} />
         </mesh>
       </group>
@@ -169,7 +169,7 @@ function IntelligenceCore({ agents, reducedMotion }) {
       <pointLight position={[3, 2, 4]} intensity={1.4} color="#ff8a66" />
 
       <mesh>
-        <icosahedronGeometry args={[0.82, 1]} />
+        <icosahedronGeometry args={[0.82, 2]} />
         <meshStandardMaterial
           color="#91b9ff"
           emissive="#4f9dff"
@@ -180,12 +180,12 @@ function IntelligenceCore({ agents, reducedMotion }) {
       </mesh>
 
       <mesh scale={1.36}>
-        <icosahedronGeometry args={[0.82, 1]} />
+        <icosahedronGeometry args={[0.82, 2]} />
         <meshBasicMaterial color="#68f5d0" transparent opacity={0.08} />
       </mesh>
 
       <mesh rotation={[Math.PI / 4, Math.PI / 5, 0]}>
-        <torusKnotGeometry args={[0.95, 0.06, 180, 16]} />
+        <torusKnotGeometry args={[0.95, 0.048, 260, 26]} />
         <meshStandardMaterial
           color="#68f5d0"
           emissive="#68f5d0"
@@ -254,7 +254,7 @@ export default function CinematicHeroScene({ agents = [] }) {
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
         className="prymal-cinematic-stage__canvas"
       >
-        <PerspectiveCamera makeDefault position={[0, 0.8, 7.5]} fov={38} />
+        <PerspectiveCamera makeDefault position={[0, 0.8, 7.2]} fov={36} />
         <fog attach="fog" args={['#07090f', 7.2, 12.6]} />
         <IntelligenceCore agents={sceneAgents} reducedMotion={reducedMotion} />
       </Canvas>

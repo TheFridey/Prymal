@@ -86,6 +86,10 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
 
   return (
     <header className="prymal-nav-wrap">
+      <div className="prymal-nav-wrap__ambient" aria-hidden="true">
+        <span className="prymal-nav-wrap__ambient-orb prymal-nav-wrap__ambient-orb--one" />
+        <span className="prymal-nav-wrap__ambient-orb prymal-nav-wrap__ambient-orb--two" />
+      </div>
       <div className="marketing-nav prymal-nav">
         <Link to="/" onClick={closeMenu}>
           <BrandMark compact />
@@ -173,6 +177,7 @@ export function PublicPageFooter({ sourcePrefix = '', onSignupClick = () => {} }
 
   return (
     <footer className="prymal-footer">
+      <div className="prymal-footer__ambient" aria-hidden="true" />
       <div className="prymal-footer__brand">
         <BrandMark />
         <p className="prymal-footer__copy">

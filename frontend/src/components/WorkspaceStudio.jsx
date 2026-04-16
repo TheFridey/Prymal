@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Button } from './ui';
-import { MotionPresence, motion } from './motion';
+import { MotionPresence, motion, usePrymalReducedMotion } from './motion';
 import WorkspaceChatExperience from '../features/workspace/chat/WorkspaceChatExperience';
 import LorePanel from '../features/workspace/lore/LorePanel';
 import WorkflowPanel from '../features/workspace/workflows/WorkflowPanel';
@@ -13,6 +13,7 @@ const PANEL_META = {
 
 export default function WorkspaceStudio(props) {
   const [activePanel, setActivePanel] = useState('chat');
+  const reducedMotion = usePrymalReducedMotion();
 
   const fallbackAccent = useMemo(() => {
     const initialAgent = (props.fallbackAgents ?? []).find((agent) => agent.id === props.initialAgentId);
@@ -45,16 +46,17 @@ export default function WorkspaceStudio(props) {
       className="workspace-studio workspace-studio--panel"
       style={{ '--studio-accent': activeMeta?.accent ?? fallbackAccent }}
     >
+      <div className="workspace-studio__ambient" aria-hidden="true" />
       <div className="workspace-studio__tool-shell">
         {panelSwitcher}
         <div className="workspace-studio__tool-surface">
           <MotionPresence mode="wait" initial={false}>
             <motion.div
               key={activePanel}
-              initial={{ opacity: 0, y: 18, scale: 0.99, filter: 'blur(8px)' }}
+              initial={{ opacity: 0, y: reducedMotion ? 0 : 18, scale: reducedMotion ? 1 : 0.99, filter: reducedMotion ? 'none' : 'blur(8px)' }}
               animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-              exit={{ opacity: 0, y: -14, scale: 0.99, filter: 'blur(6px)' }}
-              transition={{ duration: 0.28 }}
+              exit={{ opacity: 0, y: reducedMotion ? 0 : -14, scale: reducedMotion ? 1 : 0.99, filter: reducedMotion ? 'none' : 'blur(6px)' }}
+              transition={{ duration: reducedMotion ? 0.01 : 0.28 }}
             >
               {activePanel === 'lore' ? <LorePanel /> : <WorkflowPanel />}
             </motion.div>

@@ -148,6 +148,7 @@ export default function AppLayout({ viewer }) {
       ) : null}
 
       <div className="app-shell app-shell--studio">
+        <div className="ambient-background" aria-hidden="true" />
         <div className="app-shell__ambience" aria-hidden="true">
           <span className="app-shell__glow app-shell__glow--one" />
           <span className="app-shell__glow app-shell__glow--two" />

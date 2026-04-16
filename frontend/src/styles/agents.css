@@ -975,3 +975,44 @@
   0%, 100% { opacity: 0.46; transform: scale(0.98); }
   50% { opacity: 0.88; transform: scale(1.04); }
 }
+
+.agent-avatar {
+  box-shadow:
+    0 14px 34px color-mix(in srgb, var(--avatar-accent) 24%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.agent-avatar::after {
+  content: '';
+  position: absolute;
+  inset: -18%;
+  border-radius: inherit;
+  border: 1px solid color-mix(in srgb, var(--avatar-accent) 34%, transparent);
+  opacity: 0.2;
+  animation: avatarHalo 4.4s ease-in-out infinite;
+}
+
+body.motion-depth-high .agent-avatar__scene > span {
+  animation-duration: calc(var(--scene-duration, 8s) * 0.78);
+}
+
+body.motion-depth-low .agent-avatar__scene > span {
+  animation-duration: calc(var(--scene-duration, 8s) * 1.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-avatar::after {
+    animation: none;
+  }
+}
+
+@keyframes avatarHalo {
+  0%, 100% {
+    transform: scale(0.96);
+    opacity: 0.18;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 0.36;
+  }
+}

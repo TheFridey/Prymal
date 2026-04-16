@@ -4,151 +4,98 @@
    Import this file first in any context that needs brand/theme values.
    ============================================================================= */
 
-/* --------------------------------------------------------------------------
-   Light theme (default)
-   -------------------------------------------------------------------------- */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  /* -- Backgrounds --------------------------------------------------------- */
-  --bg: #f3f6ff;
-  --bg-elevated: #eef2ff;
+  --bg: #040711;
+  --bg-elevated: #080f1f;
   --page-gradient:
-    radial-gradient(circle at 12% 18%, rgba(87, 127, 255, 0.16), transparent 28%),
-    radial-gradient(circle at 84% 16%, rgba(78, 205, 196, 0.14), transparent 24%),
-    linear-gradient(180deg, #fbfcff 0%, #eef3ff 52%, #e8efff 100%);
+    radial-gradient(circle at 12% 10%, rgba(88, 111, 255, 0.36), transparent 28%),
+    radial-gradient(circle at 84% 6%, rgba(89, 255, 226, 0.22), transparent 24%),
+    radial-gradient(circle at 50% 100%, rgba(210, 127, 255, 0.14), transparent 32%),
+    linear-gradient(180deg, #040811 0%, #050b17 42%, #040915 100%);
 
-  /* -- Grid & lines -------------------------------------------------------- */
-  --grid-line: rgba(123, 145, 193, 0.12);
-  --line: rgba(66, 91, 145, 0.14);
-  --line-soft: rgba(97, 118, 170, 0.18);
+  --grid-line: rgba(118, 138, 188, 0.11);
+  --line: rgba(136, 161, 219, 0.2);
+  --line-soft: rgba(153, 175, 228, 0.3);
 
-  /* -- Panels & surfaces --------------------------------------------------- */
-  --panel: rgba(255, 255, 255, 0.72);
-  --panel-strong: rgba(255, 255, 255, 0.88);
-  --panel-soft: rgba(242, 246, 255, 0.8);
+  --panel: rgba(9, 15, 28, 0.72);
+  --panel-strong: rgba(9, 16, 30, 0.86);
+  --panel-soft: rgba(10, 18, 34, 0.8);
 
-  /* -- Elevation / shadows ------------------------------------------------- */
-  --shadow: 0 24px 70px rgba(88, 112, 170, 0.16);
-  --shadow-strong: 0 40px 120px rgba(63, 79, 122, 0.18);
-  --shadow-premium: 0 30px 80px rgba(2, 6, 18, 0.24);
-  --shadow-float: 0 18px 40px rgba(2, 6, 18, 0.18);
+  --shadow: 0 26px 70px rgba(0, 0, 0, 0.34);
+  --shadow-strong: 0 42px 130px rgba(0, 0, 0, 0.52);
+  --shadow-premium: 0 40px 110px rgba(1, 4, 12, 0.62);
+  --shadow-float: 0 20px 48px rgba(1, 4, 12, 0.44);
 
-  /* -- Text ---------------------------------------------------------------- */
-  --text: #162033;
-  --text-strong: #0b1220;
-  --muted: #5f6f8e;
-  --muted-2: #8490aa;
+  --text: #d8e3ff;
+  --text-strong: #f6f9ff;
+  --muted: #9aa9c8;
+  --muted-2: #7d8cae;
 
-  /* -- Brand accents ------------------------------------------------------- */
-  --accent: #295dff;
-  --accent-2: #4ecdc4;
-  --accent-3: #ff8e6a;
-  --accent-4: #b8d7ff;
-  --accent-soft: rgba(41, 93, 255, 0.1);
-  --accent-ink: #f8fbff;
+  --accent: #67f7d1;
+  --accent-2: #7f8cff;
+  --accent-3: #fd8ab4;
+  --accent-4: #b6d7ff;
+  --accent-soft: rgba(103, 247, 209, 0.14);
+  --accent-ink: #041620;
 
-  /* -- Semantic colours ---------------------------------------------------- */
-  --danger-surface: rgba(239, 68, 68, 0.08);
-  --danger-ink: #b43434;
-  --warning-surface: rgba(245, 158, 11, 0.1);
-  --warning-ink: #b06d06;
-  --success-surface: rgba(16, 185, 129, 0.1);
-  --success-ink: #0c8b61;
+  --danger-surface: rgba(239, 68, 68, 0.15);
+  --danger-ink: #ff8f8f;
+  --warning-surface: rgba(245, 158, 11, 0.16);
+  --warning-ink: #f8ca73;
+  --success-surface: rgba(16, 185, 129, 0.16);
+  --success-ink: #a9f7dc;
 
-  /* -- Radius scale -------------------------------------------------------- */
   --radius-xl: 32px;
   --radius-lg: 24px;
   --radius-md: 18px;
   --radius-sm: 14px;
 
-  /* -- Typography ---------------------------------------------------------- */
   --ff-display: 'Space Grotesk', sans-serif;
   --ff-body: 'Space Grotesk', sans-serif;
   --ff-mono: 'JetBrains Mono', monospace;
 
-  /* -- Premium surface tokens (composites) --------------------------------- */
-  --surface-1: color-mix(in srgb, var(--panel) 94%, rgba(255, 255, 255, 0.02));
-  --surface-2: color-mix(in srgb, var(--panel-strong) 92%, rgba(255, 255, 255, 0.03));
-  --surface-3: color-mix(in srgb, var(--panel-soft) 96%, rgba(255, 255, 255, 0.04));
-  --surface-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.15), transparent 42%), var(--surface-1);
+  --surface-1: color-mix(in srgb, var(--panel) 95%, rgba(255, 255, 255, 0.04));
+  --surface-2: color-mix(in srgb, var(--panel-strong) 93%, rgba(255, 255, 255, 0.06));
+  --surface-3: color-mix(in srgb, var(--panel-soft) 96%, rgba(255, 255, 255, 0.07));
+  --surface-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.11), transparent 38%), var(--surface-1);
 
-  /* -- Glow colours -------------------------------------------------------- */
-  --ring-subtle: color-mix(in srgb, var(--line-soft) 72%, transparent);
-  --glow-cyan: rgba(104, 245, 208, 0.18);
-  --glow-blue: rgba(118, 140, 255, 0.18);
-  --glow-ember: rgba(255, 142, 106, 0.16);
+  --ring-subtle: color-mix(in srgb, var(--line-soft) 76%, transparent);
+  --glow-cyan: rgba(103, 247, 209, 0.24);
+  --glow-blue: rgba(127, 140, 255, 0.25);
+  --glow-ember: rgba(253, 138, 180, 0.22);
 
-  /* -- Misc ---------------------------------------------------------------- */
-  --noise-opacity: 0.04;
+  --noise-opacity: 0.06;
 }
 
-/* --------------------------------------------------------------------------
-   Dark theme
-   -------------------------------------------------------------------------- */
 [data-theme='dark'] {
   color-scheme: dark;
-
-  /* -- Backgrounds --------------------------------------------------------- */
-  --bg: #07101d;
-  --bg-elevated: #0b1424;
+  --bg: #02050d;
+  --bg-elevated: #070d1b;
   --page-gradient:
-    radial-gradient(circle at 18% 18%, rgba(53, 110, 255, 0.18), transparent 28%),
-    radial-gradient(circle at 82% 14%, rgba(42, 227, 196, 0.14), transparent 24%),
-    linear-gradient(180deg, #08111d 0%, #060d18 44%, #07111f 100%);
-
-  /* -- Grid & lines -------------------------------------------------------- */
-  --grid-line: rgba(106, 132, 186, 0.09);
-  --line: rgba(118, 141, 188, 0.16);
-  --line-soft: rgba(136, 155, 201, 0.24);
-
-  /* -- Panels & surfaces --------------------------------------------------- */
-  --panel: rgba(10, 18, 32, 0.72);
-  --panel-strong: rgba(12, 21, 38, 0.88);
-  --panel-soft: rgba(13, 24, 40, 0.88);
-
-  /* -- Elevation / shadows ------------------------------------------------- */
-  --shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
-  --shadow-strong: 0 40px 120px rgba(0, 0, 0, 0.34);
-
-  /* -- Text ---------------------------------------------------------------- */
-  --text: #edf3ff;
-  --text-strong: #ffffff;
-  --muted: #9aabc8;
-  --muted-2: #7b8da9;
-
-  /* -- Brand accents ------------------------------------------------------- */
-  --accent: #68f5d0;
-  --accent-2: #7f8cff;
-  --accent-soft: rgba(104, 245, 208, 0.12);
-  --accent-ink: #041620;
-
-  /* -- Semantic colours ---------------------------------------------------- */
-  --danger-surface: rgba(239, 68, 68, 0.12);
-  --danger-ink: #ff9797;
-  --warning-surface: rgba(245, 158, 11, 0.16);
-  --warning-ink: #f5c96a;
-  --success-surface: rgba(16, 185, 129, 0.12);
-  --success-ink: #a1f1d2;
+    radial-gradient(circle at 18% 8%, rgba(60, 103, 255, 0.38), transparent 30%),
+    radial-gradient(circle at 82% 6%, rgba(68, 236, 212, 0.24), transparent 24%),
+    radial-gradient(circle at 50% 100%, rgba(212, 117, 255, 0.16), transparent 30%),
+    linear-gradient(180deg, #03070f 0%, #040915 44%, #030913 100%);
 }
 
-/* Dark-mode body override (richer atmospheric gradient) */
 [data-theme='dark'] body {
   background:
-    radial-gradient(circle at 14% 18%, rgba(79, 124, 255, 0.2), transparent 25%),
-    radial-gradient(circle at 86% 12%, rgba(104, 245, 208, 0.14), transparent 18%),
-    radial-gradient(circle at 50% 120%, rgba(255, 142, 106, 0.12), transparent 34%),
-    linear-gradient(180deg, #060910 0%, #070c14 28%, #060911 62%, #09111e 100%);
+    radial-gradient(circle at 14% 16%, rgba(91, 113, 255, 0.26), transparent 24%),
+    radial-gradient(circle at 86% 8%, rgba(87, 248, 219, 0.2), transparent 20%),
+    radial-gradient(circle at 50% 118%, rgba(251, 128, 184, 0.16), transparent 34%),
+    linear-gradient(180deg, #030711 0%, #040915 28%, #030711 62%, #050d1a 100%);
 }
 
 [data-theme='dark'] body::before {
-  opacity: 0.78;
-  background-size: 52px 52px;
+  opacity: 0.82;
+  background-size: 48px 48px;
 }
 
 [data-theme='dark'] body::after {
   background:
-    radial-gradient(circle at 50% 0%, rgba(136, 164, 255, 0.16), transparent 28%),
-    radial-gradient(circle at 0% 100%, rgba(104, 245, 208, 0.11), transparent 24%),
-    radial-gradient(circle at 100% 100%, rgba(255, 142, 106, 0.12), transparent 22%);
+    radial-gradient(circle at 50% 0%, rgba(136, 164, 255, 0.2), transparent 28%),
+    radial-gradient(circle at 0% 100%, rgba(104, 245, 208, 0.13), transparent 24%),
+    radial-gradient(circle at 100% 100%, rgba(255, 142, 106, 0.14), transparent 22%);
 }

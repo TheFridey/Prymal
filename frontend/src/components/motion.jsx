@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useEffect } from 'react';
 import {
   AnimatePresence,
   LazyMotion,
@@ -20,6 +20,26 @@ import {
 } from '../design-system/motion';
 
 export function MotionProvider({ children }) {
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const mediaQuery = window.matchMedia('(max-width: 920px)');
+    document.documentElement.setAttribute('data-prymal-motion', 'force');
+    const syncMotionDepth = () => {
+      document.body.classList.toggle('motion-depth-low', mediaQuery.matches);
+      document.body.classList.toggle('motion-depth-high', !mediaQuery.matches);
+    };
+
+    syncMotionDepth();
+    mediaQuery.addEventListener('change', syncMotionDepth);
+    return () => {
+      mediaQuery.removeEventListener('change', syncMotionDepth);
+      document.documentElement.removeAttribute('data-prymal-motion');
+    };
+  }, []);
+
   return (
     <LazyMotion features={domAnimation}>
       <MotionConfig reducedMotion="user">
@@ -30,7 +50,19 @@ export function MotionProvider({ children }) {
 }
 
 export function usePrymalReducedMotion() {
-  return useReducedMotion() ?? false;
+  const systemReducedMotion = useReducedMotion() ?? false;
+
+  if (typeof window !== 'undefined') {
+    const forced = window.localStorage.getItem('prymal.motion');
+    if (forced === 'off') {
+      return true;
+    }
+    if (forced === 'on') {
+      return false;
+    }
+    return false;
+  }
+  return systemReducedMotion;
 }
 
 export function MotionPresence({ children, ...props }) {

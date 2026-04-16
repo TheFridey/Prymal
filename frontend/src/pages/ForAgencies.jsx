@@ -210,7 +210,7 @@ export default function ForAgencies() {
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="agencies" onSignupClick={trackSignup} />
 
-        <PageShell width="1260px">
+        <PageShell width="100%">
           <div className="prymal-usecase-page__inner">
             <UseCaseHero
               eyebrow="For agencies"

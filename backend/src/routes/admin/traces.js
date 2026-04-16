@@ -211,7 +211,7 @@ router.get('/scheduler-status', requireStaff, requireStaffPermission('admin.acti
   return context.json({ mode, registeredSchedules });
 });
 
-router.get('/model-policy', requireStaff, requireStaffPermission('admin.activity.read'), (context) => {
+router.get('/model-policy', requireStaff, requireStaffPermission('admin.activity.read'), async (context) => {
   const anthropicModels = getAnthropicModels();
   const openAIModels = getOpenAIModels();
   const geminiModels = getGeminiModels();

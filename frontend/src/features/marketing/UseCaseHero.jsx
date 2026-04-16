@@ -106,13 +106,25 @@ export function UseCaseHero({
 
       gsap.registerPlugin(ScrollTrigger);
       gsapContext = gsap.context(() => {
-        gsap.from('.prymal-usecase-hero__copy > *', {
-          y: 26,
-          opacity: 0,
-          duration: 0.82,
-          ease: 'power3.out',
-          stagger: 0.075,
-        });
+        const introTimeline = gsap.timeline({ defaults: { ease: 'power3.out' } });
+        introTimeline
+          .from('.prymal-usecase-hero__copy > *', {
+            y: 34,
+            opacity: 0,
+            duration: 0.88,
+            stagger: 0.08,
+          })
+          .from(
+            '.prymal-usecase-hero__scene-shell',
+            {
+              y: 24,
+              opacity: 0,
+              scale: 0.985,
+              filter: 'blur(10px)',
+              duration: 0.92,
+            },
+            '-=0.58',
+          );
 
         gsap.from('.prymal-usecase-hero .prymal-cinematic-stage__hud-card', {
           y: 24,
@@ -123,8 +135,17 @@ export function UseCaseHero({
           delay: 0.14,
         });
 
+        gsap.from('.prymal-usecase-metric, .prymal-usecase-hero .prymal-trust-chip', {
+          y: 18,
+          opacity: 0,
+          duration: 0.62,
+          ease: 'power2.out',
+          stagger: 0.06,
+          delay: 0.18,
+        });
+
         gsap.to('.prymal-usecase-hero__scene-shell', {
-          yPercent: 4,
+          yPercent: 6,
           ease: 'none',
           scrollTrigger: {
             trigger: scopeRef.current,
@@ -132,6 +153,19 @@ export function UseCaseHero({
             end: 'bottom top',
             scrub: true,
           },
+        });
+
+        gsap.utils.toArray('.prymal-cinematic-stage__hud-card').forEach((card) => {
+          gsap.to(card, {
+            y: -20,
+            ease: 'none',
+            scrollTrigger: {
+              trigger: card,
+              start: 'top bottom',
+              end: 'bottom top',
+              scrub: 1.3,
+            },
+          });
         });
       }, scopeRef);
     })();

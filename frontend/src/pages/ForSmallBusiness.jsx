@@ -199,7 +199,7 @@ export default function ForSmallBusiness() {
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="small-business" onSignupClick={trackSignup} />
 
-        <PageShell width="1260px">
+        <PageShell width="100%">
           <div className="prymal-usecase-page__inner">
             <UseCaseHero
               eyebrow="For small business"

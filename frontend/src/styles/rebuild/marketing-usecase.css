@@ -1,0 +1,95 @@
+.prymal-usecase-page {
+  position: relative;
+}
+
+.prymal-usecase-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 8% 6%, rgba(95, 111, 255, 0.24), transparent 26%),
+    radial-gradient(circle at 86% 8%, rgba(98, 244, 217, 0.2), transparent 24%),
+    radial-gradient(circle at 50% 105%, rgba(202, 116, 255, 0.14), transparent 32%);
+}
+
+.prymal-usecase-page__inner {
+  position: relative;
+  z-index: 1;
+  gap: clamp(26px, 2.6vw, 42px);
+}
+
+.prymal-usecase-hero__copy {
+  border: 1px solid color-mix(in srgb, var(--line-soft) 88%, transparent);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 56%),
+    linear-gradient(130deg, color-mix(in srgb, var(--accent) 14%, transparent), transparent 54%),
+    color-mix(in srgb, var(--surface-2) 92%, transparent);
+  box-shadow: var(--shadow-premium);
+}
+
+.prymal-usecase-hero__subcopy {
+  font-size: clamp(1rem, 1.03vw, 1.08rem);
+  line-height: 1.82;
+}
+
+.prymal-cinematic-stage--usecase {
+  min-height: clamp(620px, 72vh, 780px);
+  border: 1px solid color-mix(in srgb, var(--line-soft) 92%, transparent);
+  background:
+    radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--accent-2) 20%, transparent), transparent 32%),
+    radial-gradient(circle at 50% 66%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 52%),
+    rgba(5, 11, 24, 0.9);
+}
+
+.prymal-cinematic-stage__canvas {
+  filter: contrast(1.08) saturate(1.08);
+}
+
+.prymal-cinematic-stage__hud {
+  padding: clamp(18px, 2vw, 30px);
+}
+
+.prymal-cinematic-stage__hud-card {
+  border: 1px solid color-mix(in srgb, var(--line-soft) 88%, transparent);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 52%),
+    color-mix(in srgb, var(--surface-1) 92%, transparent);
+  backdrop-filter: blur(18px) saturate(155%);
+  box-shadow: var(--shadow-float);
+}
+
+.prymal-cinematic-stage__hud-card strong {
+  font-size: 0.8rem;
+  letter-spacing: 0.09em;
+}
+
+.prymal-cinematic-stage__hud-card span {
+  line-height: 1.65;
+}
+
+.prymal-usecase-metric,
+.prymal-usecase-card,
+.prymal-usecase-lane,
+.prymal-usecase-proof-card,
+.prymal-usecase-flow__step {
+  border: 1px solid color-mix(in srgb, var(--line-soft) 86%, transparent);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.11), transparent 56%),
+    linear-gradient(130deg, color-mix(in srgb, var(--motion-card-accent, var(--accent)) 10%, transparent), transparent 52%),
+    color-mix(in srgb, var(--surface-2) 94%, transparent);
+}
+
+@media (max-width: 1100px) {
+  .prymal-cinematic-stage--usecase {
+    min-height: 560px;
+  }
+}
+
+@media (max-width: 720px) {
+  .prymal-cinematic-stage--usecase {
+    min-height: 480px;
+  }
+}
