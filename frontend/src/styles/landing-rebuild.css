@@ -133,8 +133,7 @@
 
 /* ── Agent Parade ── */
 .pm-agents-parade {
-  padding: 80px 0 120px;
-  overflow: hidden;
+  padding: 80px 24px 120px;
   position: relative;
   z-index: 1;
 }
@@ -150,31 +149,24 @@
   font-weight: 600;
 }
 
-.pm-agents-parade__track {
-  display: flex;
-  gap: 32px;
-  padding: 40px 60px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.pm-agents-parade__track::-webkit-scrollbar {
-  display: none;
+.pm-agents-parade__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 12px;
 }
 
 .pm-agent-float {
-  flex-shrink: 0;
-  width: 200px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  scroll-snap-align: center;
   animation: pm-agent-hover calc(3s + var(--float-delay, 0s) * 2) ease-in-out infinite;
   animation-delay: var(--float-delay, 0s);
   cursor: pointer;
   transition: transform 0.2s;
+  text-decoration: none;
 }
 
 .pm-agent-float:hover {
@@ -333,7 +325,7 @@
   margin: 0;
 }
 
-/* ── Bento Agent Grid ── */
+/* ── Full Roster Agent Grid ── */
 .pm-bento {
   padding: 80px 24px 120px;
   position: relative;
@@ -346,15 +338,24 @@
   text-transform: uppercase;
   letter-spacing: 0.16em;
   color: rgba(255, 255, 255, 0.3);
-  margin-bottom: 60px;
+  margin-bottom: 12px;
   font-weight: 600;
+}
+
+.pm-bento__sub {
+  text-align: center;
+  font-size: clamp(14px, 1.5vw, 16px);
+  color: rgba(255, 255, 255, 0.4);
+  max-width: 540px;
+  margin: 0 auto 48px;
+  line-height: 1.6;
 }
 
 .pm-bento__grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-  max-width: 960px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -363,18 +364,21 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 32px 16px 24px;
+  padding: 28px 20px 24px;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: transform 0.3s, box-shadow 0.3s;
-  cursor: default;
+  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+  cursor: pointer;
   overflow: hidden;
+  text-decoration: none;
+  color: inherit;
 }
 
 .pm-bento__card:hover {
   transform: translateY(-6px);
   box-shadow: 0 20px 60px color-mix(in srgb, var(--card-color) 25%, transparent);
+  border-color: color-mix(in srgb, var(--card-color) 35%, transparent);
 }
 
 .pm-bento__card-glow {
@@ -392,17 +396,22 @@
 }
 
 .pm-bento__card-character {
-  width: 120px;
-  height: 120px;
+  width: 100px;
+  height: 100px;
   object-fit: contain;
   margin-bottom: 14px;
   position: relative;
   z-index: 1;
   filter: drop-shadow(0 6px 18px color-mix(in srgb, var(--card-color) 35%, transparent));
+  transition: transform 0.3s;
+}
+
+.pm-bento__card:hover .pm-bento__card-character {
+  transform: translateY(-4px) scale(1.05);
 }
 
 .pm-bento__card-name {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.12em;
   color: var(--card-color, #fff);
@@ -411,9 +420,34 @@
 }
 
 .pm-bento__card-role {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
   text-align: center;
+  margin-bottom: 10px;
+}
+
+.pm-bento__card-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: center;
+  line-height: 1.55;
+  margin: 0 0 14px;
+  flex: 1;
+}
+
+.pm-bento__card-cta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--card-color, rgba(255, 255, 255, 0.5));
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.25s, transform 0.25s;
+}
+
+.pm-bento__card:hover .pm-bento__card-cta {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ── Pricing ── */
@@ -597,25 +631,21 @@
     gap: 14px;
   }
 
-  .pm-agents-parade__track {
-    padding: 20px 18px;
-    gap: 18px;
-  }
-
-  .pm-agent-float {
-    width: 150px;
+  .pm-agents-parade__grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 16px;
+    padding: 0;
   }
 
   .pm-agent-float__scene {
-    width: 120px;
-    height: 120px;
+    width: 100px;
+    height: 100px;
   }
 }
 
 @media (max-width: 480px) {
   .pm-bento__grid {
     grid-template-columns: 1fr;
-    max-width: 280px;
   }
 
   .pm-hero__ctas {
