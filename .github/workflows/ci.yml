@@ -23,6 +23,20 @@ jobs:
   backend-test:
     name: Backend tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: axiom_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d axiom_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: backend
@@ -37,6 +51,7 @@ jobs:
       - run: npm test
         env:
           NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/axiom_test
 
   frontend-verify-build:
     name: Frontend verify-build
@@ -91,7 +106,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npx playwright install chromium --with-deps
-      - run: npm run test:e2e -- --project=chromium tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
+      - run: npm run test:e2e -- tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
         env:
           CI: true
           VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
@@ -112,7 +127,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npx playwright install chromium --with-deps
-      - run: npm run test:e2e -- --project=chromium tests/workspace-smoke.spec.js tests/settings-smoke.spec.js tests/app-core.spec.js tests/admin-operator.spec.js
+      - run: npm run test:e2e -- tests/workspace-smoke.spec.js tests/settings-smoke.spec.js tests/app-core.spec.js tests/admin-operator.spec.js
         env:
           CI: true
           VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
