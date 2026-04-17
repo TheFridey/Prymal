@@ -7,8 +7,6 @@ import {
   RedirectToSignIn,
   SignIn,
   SignUp,
-  SignedIn,
-  SignedOut,
   useAuth,
 } from '@clerk/clerk-react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
@@ -231,7 +229,7 @@ function AppErrorFallback() {
 }
 
 function ProtectedOnly({ children }) {
-  const { isLoaded, getToken } = useAuth();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
 
   useEffect(() => {
     configureApi({
@@ -240,18 +238,15 @@ function ProtectedOnly({ children }) {
     });
   }, [getToken]);
 
-  if (!isLoaded) {
+  if (!isLoaded || typeof isSignedIn === 'undefined') {
     return <LoadingPanel label="Checking session..." />;
   }
 
-  return (
-    <>
-      <SignedIn>{children}</SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
+  if (!isSignedIn) {
+    return <RedirectToSignIn />;
+  }
+
+  return children;
 }
 
 function ProtectedWorkspace() {
