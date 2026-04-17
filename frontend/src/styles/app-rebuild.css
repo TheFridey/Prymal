@@ -103,7 +103,7 @@
   font-weight: 900;
   line-height: 1.08;
   letter-spacing: -0.03em;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0 0 12px;
 }
 
@@ -116,7 +116,7 @@
 
 .pm-dash__sub {
   font-size: clamp(14px, 1.4vw, 16px);
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   max-width: 520px;
   line-height: 1.65;
   margin: 0 0 24px;
@@ -143,7 +143,7 @@
 
 .pm-dash__stat span {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--muted-2, rgba(255,255,255,0.35));
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -151,7 +151,7 @@
 .pm-dash__stat strong {
   font-size: 22px;
   font-weight: 800;
-  color: #fff;
+  color: var(--text-strong, #fff);
 }
 
 .pm-dash__trust {
@@ -167,7 +167,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--muted-2, rgba(255,255,255,0.4));
   letter-spacing: 0.04em;
 }
 
@@ -188,7 +188,7 @@
 
 .pm-dash__posture-card strong {
   font-size: 12px;
-  color: #fff;
+  color: var(--text-strong, #fff);
   display: block;
   margin-bottom: 6px;
 }
@@ -196,7 +196,7 @@
 .pm-dash__posture-card span,
 .pm-dash__posture-card small {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--muted-2, rgba(255,255,255,0.4));
   line-height: 1.55;
 }
 
@@ -212,7 +212,7 @@
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
 }
 
 /* ── Dashboard Cards Grid ── */
@@ -257,7 +257,7 @@
 .pm-dash__card-title {
   font-size: clamp(16px, 2vw, 20px);
   font-weight: 800;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0;
   line-height: 1.2;
 }
@@ -271,7 +271,7 @@
   transition: color 0.2s;
 }
 
-.pm-dash__card-link:hover { color: #fff; }
+.pm-dash__card-link:hover { color: var(--text-strong, #fff); }
 
 /* ── Mission Cards ── */
 .pm-dash__mission-grid {
@@ -316,19 +316,19 @@
 
 .pm-dash__mission-role {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--muted-2, rgba(255,255,255,0.4));
 }
 
 .pm-dash__mission p {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   line-height: 1.55;
   margin: 0 0 10px;
 }
 
 .pm-dash__mission-prompt {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--muted-2, rgba(255,255,255,0.3));
   font-style: italic;
   line-height: 1.5;
   padding: 8px 12px;
@@ -368,14 +368,14 @@
 .pm-dash__conv-name {
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-strong, #fff);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .pm-dash__conv-title {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -383,7 +383,7 @@
 
 .pm-dash__conv-time {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--muted-2, rgba(255,255,255,0.3));
   white-space: nowrap;
 }
 
@@ -410,7 +410,7 @@
 
 .pm-dash__wf-row strong {
   font-size: 14px;
-  color: #fff;
+  color: var(--text-strong, #fff);
 }
 
 .pm-dash__wf-status {
@@ -418,7 +418,7 @@
   padding: 3px 10px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--muted-2, rgba(255,255,255,0.4));
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
@@ -433,7 +433,7 @@
   display: flex;
   gap: 14px;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--muted-2, rgba(255,255,255,0.3));
 }
 
 /* ── Agent Quick Grid ── */
@@ -473,14 +473,14 @@
 .pm-dash__agent-name {
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-strong, #fff);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .pm-dash__agent-title {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--muted-2, rgba(255,255,255,0.4));
 }
 
 /* ── Control Tiles ── */
@@ -513,17 +513,17 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--muted-2, rgba(255,255,255,0.3));
 }
 
 .pm-dash__control-tile strong {
   font-size: 14px;
-  color: #fff;
+  color: var(--text-strong, #fff);
 }
 
 .pm-dash__control-tile small {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--muted-2, rgba(255,255,255,0.35));
   line-height: 1.5;
 }
 
@@ -570,7 +570,7 @@
   font-weight: 900;
   line-height: 1.04;
   letter-spacing: -0.035em;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0 0 20px;
   max-width: 820px;
   margin-inline: auto;
@@ -586,7 +586,7 @@
 
 .pm-uc-hero__desc {
   font-size: clamp(15px, 1.6vw, 18px);
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   max-width: 620px;
   margin: 0 auto 36px;
   line-height: 1.65;
@@ -607,7 +607,7 @@
 .pm-uc-hero__metric-value {
   font-size: clamp(24px, 3vw, 36px);
   font-weight: 800;
-  color: #fff;
+  color: var(--text-strong, #fff);
   display: block;
   line-height: 1;
   margin-bottom: 4px;
@@ -615,7 +615,7 @@
 
 .pm-uc-hero__metric-label {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--muted-2, rgba(255,255,255,0.4));
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -642,7 +642,7 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.03);
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--muted-2, rgba(255,255,255,0.45));
 }
 
 .pm-uc-hero__agents {
@@ -676,6 +676,30 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--agent-color, rgba(255, 255, 255, 0.5));
+}
+
+/* ── Page header fixes for /app/* pages ── */
+.page-header {
+  border-radius: var(--radius-xl, 32px) !important;
+  padding: 28px 32px !important;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.page-description {
+  max-width: 620px;
+}
+
+.surface-card {
+  border-radius: var(--radius-lg, 24px) !important;
+}
+
+.stat-grid {
+  border-radius: var(--radius-lg, 24px) !important;
 }
 
 /* ── Responsive ── */
