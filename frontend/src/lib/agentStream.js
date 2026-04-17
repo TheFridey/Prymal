@@ -15,6 +15,36 @@ export async function consumeAgentStream(response, handlers) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let terminalReceived = false;
+
+  function dispatchEvent(event) {
+    if (event.type === 'chunk') {
+      handlers.onChunk?.(event.text ?? '');
+      return;
+    }
+    if (event.type === 'started') {
+      handlers.onStarted?.(event);
+      return;
+    }
+    if (event.type === 'done') {
+      terminalReceived = true;
+      handlers.onDone?.(event);
+      return;
+    }
+    if (event.type === 'hold') {
+      terminalReceived = true;
+      handlers.onHold?.(event);
+      return;
+    }
+    if (event.type === 'error') {
+      terminalReceived = true;
+      const error = new Error(event.message || 'Streaming failed.');
+      error.code = event.code;
+      error.upgrade = event.upgrade;
+      error.conversationId = event.conversationId ?? null;
+      throw error;
+    }
+  }
 
   while (true) {
     const { done, value } = await reader.read();
@@ -35,26 +65,7 @@ export async function consumeAgentStream(response, handlers) {
         continue;
       }
 
-      const event = JSON.parse(dataLine.slice(6));
-      if (event.type === 'chunk') {
-        handlers.onChunk?.(event.text ?? '');
-      }
-      if (event.type === 'started') {
-        handlers.onStarted?.(event);
-      }
-      if (event.type === 'done') {
-        handlers.onDone?.(event);
-      }
-      if (event.type === 'hold') {
-        handlers.onHold?.(event);
-      }
-      if (event.type === 'error') {
-        const error = new Error(event.message || 'Streaming failed.');
-        error.code = event.code;
-        error.upgrade = event.upgrade;
-        error.conversationId = event.conversationId ?? null;
-        throw error;
-      }
+      dispatchEvent(JSON.parse(dataLine.slice(6)));
     }
   }
 
@@ -64,23 +75,15 @@ export async function consumeAgentStream(response, handlers) {
       .find((line) => line.startsWith('data: '));
 
     if (dataLine) {
-      const event = JSON.parse(dataLine.slice(6));
-      if (event.type === 'done') {
-        handlers.onDone?.(event);
-      }
-      if (event.type === 'started') {
-        handlers.onStarted?.(event);
-      }
-      if (event.type === 'hold') {
-        handlers.onHold?.(event);
-      }
-      if (event.type === 'error') {
-        const error = new Error(event.message || 'Streaming failed.');
-        error.code = event.code;
-        error.upgrade = event.upgrade;
-        error.conversationId = event.conversationId ?? null;
-        throw error;
-      }
+      dispatchEvent(JSON.parse(dataLine.slice(6)));
     }
+  }
+
+  if (!terminalReceived) {
+    const error = new Error(
+      'The agent response ended unexpectedly. Please try again.',
+    );
+    error.code = 'STREAM_INCOMPLETE';
+    throw error;
   }
 }

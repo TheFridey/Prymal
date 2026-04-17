@@ -386,6 +386,42 @@ router.post('/chat', requireOrg, planAwareRateLimit({
               escalationReason: escalationResult.triggerReason ?? null,
             }),
           });
+        } else if (event.type === 'hold') {
+          const [heldMessage] = await db
+            .insert(messages)
+            .values({
+              conversationId: conversation.id,
+              role: 'assistant',
+              content: '',
+              processingMs: Date.now() - startedAt,
+              metadata: {
+                held: true,
+                sentinelConcerns: event.sentinelConcerns ?? [],
+                sentinelRepairActions: event.sentinelRepairActions ?? [],
+              },
+            })
+            .returning();
+
+          await db
+            .update(conversations)
+            .set({
+              title: conversation.title || buildConversationTitle(payload.message),
+              lastActiveAt: new Date(),
+              messageCount: history.length + 2,
+            })
+            .where(eq(conversations.id, conversation.id));
+
+          await stream.writeSSE({
+            data: JSON.stringify({
+              type: 'hold',
+              messageId: heldMessage.id,
+              conversationId: conversation.id,
+              agentId: payload.agentId,
+              message: event.message,
+              sentinelConcerns: event.sentinelConcerns ?? [],
+              sentinelRepairActions: event.sentinelRepairActions ?? [],
+            }),
+          });
         } else if (event.type === 'error') {
           await stream.writeSSE({
             data: JSON.stringify({

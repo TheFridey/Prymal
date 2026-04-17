@@ -11,6 +11,116 @@ import {
   SourceCard,
 } from './MessageArtifacts';
 
+function tryParseJson(content) {
+  if (!content || typeof content !== 'string') return null;
+  const trimmed = content.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+function CipherScorecard({ data }) {
+  const { summary, keyMetrics, anomalies, recommendations, confidence, dataQuality } = data ?? {};
+  const severityColor = (s) =>
+    s === 'high' ? '#FF3B6B' : s === 'medium' ? '#FF9500' : 'var(--muted)';
+  const severityBg = (s) =>
+    s === 'high' ? 'rgba(255,59,107,0.08)' : s === 'medium' ? 'rgba(255,165,0,0.08)' : 'rgba(255,255,255,0.04)';
+  const severityBorder = (s) =>
+    s === 'high' ? 'rgba(255,59,107,0.2)' : s === 'medium' ? 'rgba(255,165,0,0.2)' : 'rgba(255,255,255,0.07)';
+
+  return (
+    <div style={{ display: 'grid', gap: '18px' }}>
+      {summary ? (
+        <p style={{ margin: 0, lineHeight: 1.8, color: 'var(--text)' }}>{summary}</p>
+      ) : null}
+
+      {keyMetrics && Object.keys(keyMetrics).length > 0 ? (
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '8px' }}>
+            Key Metrics
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
+            {Object.entries(keyMetrics).map(([key, value]) => (
+              <div
+                key={key}
+                style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '10px', padding: '10px 14px', border: '1px solid rgba(255,255,255,0.07)' }}
+              >
+                <div style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '4px', textTransform: 'capitalize' }}>
+                  {key.replace(/([A-Z])/g, ' $1').trim()}
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-strong)', wordBreak: 'break-word' }}>
+                  {value ?? '—'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {anomalies?.length > 0 ? (
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '8px' }}>
+            Anomalies
+          </div>
+          <div style={{ display: 'grid', gap: '6px' }}>
+            {anomalies.map((a, i) => (
+              <div
+                key={i}
+                style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '10px 14px', borderRadius: '10px', background: severityBg(a.severity), border: `1px solid ${severityBorder(a.severity)}` }}
+              >
+                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: severityBg(a.severity), color: severityColor(a.severity), flexShrink: 0, marginTop: '2px', textTransform: 'uppercase', border: `1px solid ${severityBorder(a.severity)}` }}>
+                  {a.severity ?? 'info'}
+                </span>
+                <span style={{ fontSize: '13px', color: 'var(--text)', lineHeight: 1.6 }}>{a.description}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {recommendations?.length > 0 ? (
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '8px' }}>
+            Recommendations
+          </div>
+          <ol style={{ margin: 0, paddingLeft: '20px', color: 'var(--text)', fontSize: '13px', lineHeight: 1.8, display: 'grid', gap: '4px' }}>
+            {recommendations.map((r, i) => <li key={i}>{r}</li>)}
+          </ol>
+        </div>
+      ) : null}
+
+      {(confidence !== undefined || dataQuality) ? (
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {confidence !== undefined ? (
+            <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', color: 'var(--muted)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              Confidence: {Math.round(Number(confidence) * 100)}%
+            </span>
+          ) : null}
+          {dataQuality ? (
+            <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', color: 'var(--muted)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              Data quality: {dataQuality}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function StructuredAgentOutput({ parsed, agentId }) {
+  if (agentId === 'cipher' && parsed?.agent === 'cipher') {
+    return <CipherScorecard data={parsed} />;
+  }
+  return (
+    <pre style={{ margin: 0, background: 'rgba(0,0,0,0.18)', borderRadius: '10px', padding: '16px', overflow: 'auto', fontSize: '12px', lineHeight: 1.7, color: 'var(--text-muted, var(--muted))' }}>
+      <code>{JSON.stringify(parsed, null, 2)}</code>
+    </pre>
+  );
+}
+
 export function StudioMessage({ message, agent, streaming = false }) {
   const reducedMotion = usePrymalReducedMotion();
   const isUser = message.role === 'user';
@@ -19,6 +129,10 @@ export function StudioMessage({ message, agent, streaming = false }) {
   const schemaValidation = message.schemaValidation ?? message.metadata?.schemaValidation ?? null;
   const sentinelReview = message.sentinelReview ?? message.metadata?.sentinelReview ?? null;
   const showThinkingState = streaming && !message.content.trim();
+
+  // Detect structured JSON output for schema-enforced agents — only after streaming completes.
+  const parsedJsonContent = !isUser && !streaming ? tryParseJson(message.content) : null;
+  const isStructuredOutput = Boolean(parsedJsonContent);
 
   const isHeraldDraft = !isUser && !streaming && agent?.id === 'herald' && /subject:/i.test(message.content);
   const isAtlasSummary = !isUser && !streaming && agent?.id === 'atlas' && message.content.trim().length > 50;
@@ -49,6 +163,8 @@ export function StudioMessage({ message, agent, streaming = false }) {
           <ThinkingBubble agent={agent} />
         ) : isUser ? (
           <div style={{ lineHeight: 1.8 }}>{message.content}</div>
+        ) : isStructuredOutput ? (
+          <StructuredAgentOutput parsed={parsedJsonContent} agentId={agent?.id} />
         ) : (
           <div className="markdown">
             <ReactMarkdown>{message.content}</ReactMarkdown>
