@@ -3478,7 +3478,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .prymal-marketing__aura,
-  .brand-mark__orb,
+  .brand-mark__media::after,
+  .prymal-nav .brand-mark__media::before,
   .agent-avatar__glow,
   .workspace-studio__live-pulse,
   .workspace-workflow-panel__live-pulse,

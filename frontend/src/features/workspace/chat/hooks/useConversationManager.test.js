@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { resolveConversationSelection } from './useConversationManager';
+import { mergeConversationMessages, resolveConversationSelection } from './useConversationManager';
 
 describe('resolveConversationSelection', () => {
-  test('keeps a route-provided conversation selected even before conversations refetch', () => {
+  test('waits for agent history before trusting an unknown route conversation', () => {
     const selection = resolveConversationSelection({
       initialConversationId: 'conversation-new',
       selectedConversationId: 'conversation-old',
@@ -13,7 +13,7 @@ describe('resolveConversationSelection', () => {
     });
 
     expect(selection).toEqual({
-      conversationId: null,
+      conversationId: 'conversation-old',
       isDraftingNewChat: false,
     });
   });
@@ -30,6 +30,38 @@ describe('resolveConversationSelection', () => {
 
     expect(selection).toEqual({
       conversationId: 'conversation-new',
+      isDraftingNewChat: false,
+    });
+  });
+
+  test('preserves a freshly created route conversation even before the sidebar history catches up', () => {
+    const selection = resolveConversationSelection({
+      initialConversationId: 'conversation-new',
+      selectedConversationId: 'conversation-new',
+      pendingConversationId: 'conversation-new',
+      isDraftingNewChat: false,
+      conversations: [{ id: 'conversation-old' }],
+      hasLoadedConversations: false,
+    });
+
+    expect(selection).toEqual({
+      conversationId: 'conversation-new',
+      isDraftingNewChat: false,
+    });
+  });
+
+  test('keeps the currently selected conversation if a refetch temporarily omits it', () => {
+    const selection = resolveConversationSelection({
+      initialConversationId: '',
+      selectedConversationId: 'conversation-current',
+      pendingConversationId: null,
+      isDraftingNewChat: false,
+      conversations: [{ id: 'conversation-other' }],
+      hasLoadedConversations: true,
+    });
+
+    expect(selection).toEqual({
+      conversationId: 'conversation-current',
       isDraftingNewChat: false,
     });
   });
@@ -80,5 +112,39 @@ describe('resolveConversationSelection', () => {
       conversationId: 'conversation-cipher',
       isDraftingNewChat: false,
     });
+  });
+});
+
+describe('mergeConversationMessages', () => {
+  test('preserves the in-flight local thread when the server fetch is still empty', () => {
+    const merged = mergeConversationMessages(
+      [
+        { id: 'pending-user-1', role: 'user', content: 'Hello there' },
+        { id: 'assistant-1', role: 'assistant', content: 'Working on it now' },
+      ],
+      [],
+    );
+
+    expect(merged).toEqual([
+      { id: 'pending-user-1', role: 'user', content: 'Hello there' },
+      { id: 'assistant-1', role: 'assistant', content: 'Working on it now' },
+    ]);
+  });
+
+  test('merges server history without duplicating matching optimistic messages', () => {
+    const merged = mergeConversationMessages(
+      [
+        { id: 'pending-user-1', role: 'user', content: 'Hello there' },
+        { id: 'assistant-live', role: 'assistant', content: 'Newest reply' },
+      ],
+      [
+        { id: 'db-user-1', role: 'user', content: 'Hello there' },
+      ],
+    );
+
+    expect(merged).toEqual([
+      { id: 'db-user-1', role: 'user', content: 'Hello there' },
+      { id: 'assistant-live', role: 'assistant', content: 'Newest reply' },
+    ]);
   });
 });

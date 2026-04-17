@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { api } from '../../../../lib/api';
 import { consumeAgentStream } from '../../../../lib/agentStream';
-import { findAgentByInvocation } from '../../../../lib/constants';
+import { findAgentByInvocation, stripAgentInvocationPrefix } from '../../../../lib/constants';
 import { getErrorMessage } from '../../../../lib/utils';
 import { extractImagePrompt } from '../../composer/commands';
 import {
@@ -10,6 +10,34 @@ import {
   getVoiceReplyRate,
 } from '../../composer/voice';
 import { getSpeechPreviewText } from '../messagePresentation';
+
+function summarizeStreamingInput(value) {
+  return String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160);
+}
+
+function buildStreamingTask({
+  kind,
+  targetAgent,
+  message = '',
+  prompt = '',
+  url = '',
+  useLore = false,
+  hasAttachments = false,
+}) {
+  return {
+    kind,
+    agentId: targetAgent?.id ?? null,
+    agentName: targetAgent?.name ?? 'Prymal',
+    messagePreview: summarizeStreamingInput(message),
+    promptPreview: summarizeStreamingInput(prompt),
+    url,
+    useLore: Boolean(useLore),
+    hasAttachments: Boolean(hasAttachments),
+  };
+}
 
 /**
  * Owns streaming state and all send/image/file/audit actions.
@@ -44,6 +72,7 @@ export function useChatSend({
 }) {
   const [streamingText, setStreamingText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingTask, setStreamingTask] = useState(null);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [auditUrl, setAuditUrl] = useState('');
   const [isAuditing, setIsAuditing] = useState(false);
@@ -65,6 +94,12 @@ export function useChatSend({
 
     setDraft('');
     setStreamingText('');
+    setStreamingTask(buildStreamingTask({
+      kind: 'image',
+      targetAgent,
+      prompt,
+      useLore: settings.useLore,
+    }));
     setIsStreaming(true);
     setMessages((current) => [
       ...current,
@@ -83,6 +118,7 @@ export function useChatSend({
       });
 
       setIsStreaming(false);
+      setStreamingTask(null);
       setMessages((current) => [...current, response.message]);
 
       if (targetAgent.id === activeAgentRef.current?.id) {
@@ -105,6 +141,7 @@ export function useChatSend({
       });
     } catch (error) {
       setIsStreaming(false);
+      setStreamingTask(null);
       notify({ type: 'error', title: 'Image generation failed', message: getErrorMessage(error) });
     }
   }
@@ -122,9 +159,10 @@ export function useChatSend({
         : agent;
 
     const cleanedMessage = invokedAgent
-      ? input.replace(new RegExp(`^hey\\s+${invokedAgent.name}`, 'i'), '').trim().replace(/^[:,.\\-\\s]+/, '')
+      ? stripAgentInvocationPrefix(input, invokedAgent)
       : input;
     const finalMessage = cleanedMessage || input;
+    const settings = settingsByAgentRef.current[targetAgent.id] ?? {};
 
     if (routeMode && targetAgent.id !== agent.id) {
       navigate(`/app/agents/${targetAgent.id}`);
@@ -163,6 +201,13 @@ export function useChatSend({
     setDraft('');
     setAttachedFiles([]);
     setStreamingText('');
+    setStreamingTask(buildStreamingTask({
+      kind: 'chat',
+      targetAgent,
+      message: finalMessage,
+      useLore: settings.useLore,
+      hasAttachments: attachedFiles.length > 0,
+    }));
     setIsStreaming(true);
     setMessages((current) => [
       ...current,
@@ -171,7 +216,6 @@ export function useChatSend({
 
     try {
       let fullText = '';
-      const settings = settingsByAgentRef.current[targetAgent.id] ?? {};
       const response = await api.stream('/agents/chat', {
         method: 'POST',
         body: {
@@ -202,6 +246,7 @@ export function useChatSend({
         onHold: (event) => {
           setStreamingText('');
           setIsStreaming(false);
+          setStreamingTask(null);
           setMessages((current) => [
             ...current,
             {
@@ -225,6 +270,7 @@ export function useChatSend({
         onDone: async (event) => {
           setStreamingText('');
           setIsStreaming(false);
+          setStreamingTask(null);
           if (event.escalated) setWrenEscalated(true);
 
           setMessages((current) => [
@@ -289,6 +335,7 @@ export function useChatSend({
     } catch (error) {
       setIsStreaming(false);
       setStreamingText('');
+      setStreamingTask(null);
       const conversationId = error?.conversationId || selectedConversationIdsRef.current[targetAgent.id];
       if (conversationId) {
         await Promise.all([
@@ -393,6 +440,12 @@ export function useChatSend({
     setIsAuditing(true);
     setIsStreaming(true);
     setStreamingText('');
+    setStreamingTask(buildStreamingTask({
+      kind: 'audit',
+      targetAgent: activeAgentRef.current,
+      url: normalized,
+      useLore: false,
+    }));
     setMessages((current) => [
       ...current,
       { id: `audit-user-${Date.now()}`, role: 'user', content: `URL audit request: ${normalized}` },
@@ -414,6 +467,7 @@ export function useChatSend({
           setStreamingText('');
           setIsStreaming(false);
           setIsAuditing(false);
+          setStreamingTask(null);
           setMessages((current) => [
             ...current,
             { id: `audit-assistant-${Date.now()}`, role: 'assistant', content: fullText },
@@ -423,6 +477,7 @@ export function useChatSend({
           setStreamingText('');
           setIsStreaming(false);
           setIsAuditing(false);
+          setStreamingTask(null);
           notify({ type: 'error', title: 'Audit failed', message: errorMessage });
         },
       });
@@ -430,6 +485,7 @@ export function useChatSend({
       setStreamingText('');
       setIsStreaming(false);
       setIsAuditing(false);
+      setStreamingTask(null);
       notify({ type: 'error', title: 'Audit failed', message: error?.message ?? 'Unknown error.' });
     }
   }
@@ -447,6 +503,7 @@ export function useChatSend({
   /** Called during startNewChat / clearCurrentConversation. */
   function resetSendState() {
     setStreamingText('');
+    setStreamingTask(null);
     setAttachedFiles([]);
     setWrenEscalated(false);
   }
@@ -454,6 +511,7 @@ export function useChatSend({
   return {
     streamingText,
     isStreaming,
+    streamingTask,
     attachedFiles,
     setAttachedFiles,
     auditUrl,

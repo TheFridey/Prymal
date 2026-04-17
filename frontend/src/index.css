@@ -92,13 +92,59 @@ textarea {
   gap: 10px;
 }
 
-.brand-mark__orb {
-  width: 18px;
-  height: 18px;
-  border-radius: 7px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  box-shadow: 0 10px 26px rgba(69, 115, 255, 0.35);
-  animation: orbPulse 3.6s ease-in-out infinite;
+.brand-mark__copy {
+  display: grid;
+  gap: 3px;
+}
+
+.brand-mark__media {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 1px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.26), transparent 46%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 0 0 1px rgba(91, 141, 255, 0.12),
+    0 16px 30px rgba(43, 103, 255, 0.18);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+.brand-mark.compact .brand-mark__media {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 16px;
+}
+
+.brand-mark__media::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 56%);
+  pointer-events: none;
+}
+
+.brand-mark__image {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  transform: scale(1.12);
+  transform-origin: center;
+  filter: drop-shadow(0 10px 18px rgba(22, 36, 72, 0.18));
+}
+
+.brand-mark.compact .brand-mark__image {
+  transform: scale(1.16);
 }
 
 .brand-mark__name {
@@ -107,6 +153,11 @@ textarea {
   font-weight: 700;
   letter-spacing: 0.38em;
   text-transform: uppercase;
+}
+
+.brand-mark.compact .brand-mark__name {
+  font-size: 1rem;
+  letter-spacing: 0.34em;
 }
 
 .brand-mark__tag {
@@ -4842,16 +4893,10 @@ body::after {
   animation: prymalAurora 16s ease-in-out infinite alternate;
 }
 
-.brand-mark__orb {
-  width: 22px;
-  height: 22px;
-  border-radius: 9px;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.9), transparent 26%),
-    linear-gradient(135deg, var(--accent), var(--accent-2) 55%, var(--accent-3));
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.18),
-    0 20px 34px rgba(62, 123, 255, 0.32);
+.brand-mark__media {
+  width: 60px;
+  height: 60px;
+  border-radius: 22px;
 }
 
 .brand-mark__name {
@@ -4958,6 +5003,22 @@ body::after {
     var(--panel);
   backdrop-filter: blur(22px) saturate(150%);
   box-shadow: var(--shadow);
+}
+
+.prymal-nav .brand-mark__media {
+  isolation: isolate;
+}
+
+.prymal-nav .brand-mark__media::before {
+  content: '';
+  position: absolute;
+  inset: -18% -72%;
+  z-index: 2;
+  background: linear-gradient(112deg, transparent 34%, rgba(255, 255, 255, 0.16) 46%, rgba(255, 255, 255, 0.72) 50%, rgba(255, 255, 255, 0.18) 54%, transparent 66%);
+  transform: translateX(-62%) rotate(11deg);
+  animation: brandMarkShine 5.8s ease-in-out infinite;
+  pointer-events: none;
+  mix-blend-mode: screen;
 }
 
 .prymal-nav__links,
@@ -6606,9 +6667,18 @@ body::after {
   gap: 0;
 }
 
-.app-launcher__brand .brand-mark__orb {
-  width: 22px;
-  height: 22px;
+.app-launcher__brand .brand-mark__media {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 14px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-launcher__brand .brand-mark__image {
+  transform: scale(1.2);
 }
 
 .app-launcher__nav,
@@ -8197,6 +8267,24 @@ body::after {
   }
   50% {
     transform: translate3d(0, -24px, 0);
+  }
+}
+
+@keyframes brandMarkShine {
+  0%, 14% {
+    transform: translateX(-62%) rotate(11deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  34% {
+    transform: translateX(58%) rotate(11deg);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateX(58%) rotate(11deg);
+    opacity: 0;
   }
 }
 

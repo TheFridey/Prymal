@@ -117,7 +117,7 @@ export default function WorkspaceChatExperience({
 
   // ── derived ───────────────────────────────────────────────────────────────
   const hasConversationContent =
-    conv.messages.length > 0 || Boolean(chat.streamingText) || !conv.isDraftingNewChat;
+    conv.messages.length > 0 || chat.isStreaming || Boolean(chat.streamingText) || !conv.isDraftingNewChat;
 
   const recentAgentIds = useMemo(
     () =>
@@ -386,6 +386,7 @@ export default function WorkspaceChatExperience({
               messages={conv.messages}
               streamingText={chat.streamingText}
               isStreaming={chat.isStreaming}
+              streamingTask={chat.streamingTask}
               hasConversationContent={hasConversationContent}
               promptCards={promptCards}
               auditUrl={chat.auditUrl}

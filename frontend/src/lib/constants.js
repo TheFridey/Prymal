@@ -1,20 +1,20 @@
 import {
-  atlasAvatar,
-  cipherAvatar,
-  echoAvatar,
-  forgeAvatar,
-  heraldAvatar,
-  ledgerAvatar,
-  loreAvatar,
-  nexusAvatar,
-  oracleAvatar,
-  pixelAvatar,
-  sageAvatar,
-  scoutAvatar,
-  sentinelAvatar,
-  vanceAvatar,
-  wrenAvatar,
 } from '../assets/agents/finalAvatars';
+import atlasAvatar from '../assets/agents/atlas.webp';
+import cipherAvatar from '../assets/agents/cipher.webp';
+import echoAvatar from '../assets/agents/echo.webp';
+import forgeAvatar from '../assets/agents/forge.webp';
+import heraldAvatar from '../assets/agents/herald.webp';
+import ledgerAvatar from '../assets/agents/ledger.webp';
+import loreAvatar from '../assets/agents/lore.webp';
+import nexusAvatar from '../assets/agents/nexus.webp';
+import oracleAvatar from '../assets/agents/oracle.webp';
+import pixelAvatar from '../assets/agents/pixel.webp';
+import sageAvatar from '../assets/agents/sage.webp';
+import scoutAvatar from '../assets/agents/scout.webp';
+import sentinelAvatar from '../assets/agents/sentinel.webp';
+import vanceAvatar from '../assets/agents/vance.webp';
+import wrenAvatar from '../assets/agents/wren.webp';
 
 export const NAV_ITEMS = [
   { to: '/app/dashboard', label: 'Dashboard', icon: '[]' },
@@ -798,20 +798,53 @@ export function getAgentMeta(agentId) {
 }
 
 export function findAgentByInvocation(input) {
-  const normalized = String(input ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s]/g, ' ');
+  const normalized = normalizeAgentInvocationInput(input);
 
   if (!normalized) {
     return null;
   }
 
-  return (
-    AGENT_LIBRARY.find((agent) => normalized.includes(agent.name.toLowerCase())) ??
-    AGENT_LIBRARY.find((agent) => normalized.includes(agent.title.toLowerCase().split(' ')[0])) ??
-    null
-  );
+  return AGENT_LIBRARY.find((agent) => getAgentInvocationPatterns(agent).some((pattern) => pattern.test(normalized))) ?? null;
+}
+
+export function stripAgentInvocationPrefix(input, agent) {
+  const raw = String(input ?? '').trim();
+  if (!raw || !agent) {
+    return raw;
+  }
+
+  const stripped = getAgentInvocationPatterns(agent)
+    .reduce((current, pattern) => {
+      if (current !== raw) {
+        return current;
+      }
+
+      return pattern.test(raw) ? raw.replace(pattern, '') : current;
+    }, raw)
+    .replace(/^[:,.\-\s]+/, '')
+    .trim();
+
+  return stripped;
+}
+
+function getAgentInvocationPatterns(agent) {
+  const names = [agent?.name, agent?.id]
+    .map((value) => String(value ?? '').trim())
+    .filter(Boolean);
+
+  return names.map((name) => (
+    new RegExp(`^(?:hey\\s+)?@?${escapeRegExp(name)}(?:\\b|\\s*[:,.-])\\s*[:,.-]*\\s*`, 'i')
+  ));
+}
+
+function normalizeAgentInvocationInput(input) {
+  return String(input ?? '')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export function getAgentsForIntegration(serviceId) {

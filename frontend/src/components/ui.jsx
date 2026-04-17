@@ -6,12 +6,23 @@ import {
   createSurfaceAccentVars,
 } from '../design-system/surfaces';
 import { withAlpha } from '../design-system/tokens';
+import prymalCharacterMark from '../assets/brand/prymal-character.webp';
 
 export function BrandMark({ compact = false }) {
   return (
     <div className={`brand-mark${compact ? ' compact' : ''}`}>
-      <div className="brand-mark__orb" />
-      <div>
+      <div className="brand-mark__media" aria-hidden="true">
+        <img
+          src={prymalCharacterMark}
+          alt=""
+          width="420"
+          height="408"
+          className="brand-mark__image"
+          decoding="async"
+          loading="eager"
+        />
+      </div>
+      <div className="brand-mark__copy">
         <div className="brand-mark__name">PRYMAL</div>
         {!compact ? <div className="brand-mark__tag">Instinctive AI operations</div> : null}
       </div>

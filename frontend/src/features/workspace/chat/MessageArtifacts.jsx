@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../../../lib/api';
 
 const SCHEMA_BADGE_STYLES = {
@@ -186,13 +186,59 @@ export function SentinelReviewBadge({ review }) {
 
 export function GeneratedImageCard({ image }) {
   const origin = API_BASE_URL.replace(/\/api$/, '');
-  const imageUrl = image.url ? new URL(image.url, origin).toString() : null;
+  const baseImageUrl = image.url ? new URL(image.url, origin).toString() : null;
+  const [cacheBust, setCacheBust] = useState('');
+  const [retryCount, setRetryCount] = useState(0);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  useEffect(() => {
+    setCacheBust('');
+    setRetryCount(0);
+    setHasLoaded(false);
+  }, [baseImageUrl]);
+
+  useEffect(() => {
+    if (!baseImageUrl || hasLoaded || retryCount === 0 || retryCount > 5) {
+      return undefined;
+    }
+
+    const delayMs = Math.min(700 * retryCount, 2200);
+    const timeoutId = window.setTimeout(() => {
+      setCacheBust(`v=${Date.now()}`);
+    }, delayMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [baseImageUrl, hasLoaded, retryCount]);
+
+  const imageUrl = baseImageUrl
+    ? `${baseImageUrl}${cacheBust ? `${baseImageUrl.includes('?') ? '&' : '?'}${cacheBust}` : ''}`
+    : null;
+
+  function handleLoad() {
+    setHasLoaded(true);
+  }
+
+  function handleError() {
+    if (retryCount >= 5) {
+      return;
+    }
+
+    setRetryCount((current) => current + 1);
+  }
 
   return (
     <div className="workspace-studio__generated-card">
       {imageUrl ? (
         <a href={imageUrl} target="_blank" rel="noreferrer" className="workspace-studio__generated-link">
-          <img src={imageUrl} alt={image.prompt ?? 'Generated visual'} className="workspace-studio__generated-image" loading="lazy" />
+          <img
+            src={imageUrl}
+            alt={image.prompt ?? 'Generated visual'}
+            className="workspace-studio__generated-image"
+            loading="eager"
+            decoding="async"
+            onLoad={handleLoad}
+            onError={handleError}
+          />
         </a>
       ) : null}
       <div className="workspace-studio__generated-meta">
@@ -208,6 +254,11 @@ export function GeneratedImageCard({ image }) {
           </a>
         ) : null}
       </div>
+      {!hasLoaded && retryCount > 0 ? (
+        <div className="workspace-studio__source-summary">
+          Loading the generated preview...
+        </div>
+      ) : null}
       {image.revisedPrompt ? <div className="workspace-studio__source-summary">{image.revisedPrompt}</div> : null}
     </div>
   );

@@ -31,6 +31,26 @@ export function resolveConversationSelection({
 }) {
   const normalizedInitialConversationId = initialConversationId?.trim() || null;
   const availableConversationIds = new Set(conversations.map((conversation) => conversation.id));
+  const selectedMatchesInitial =
+    Boolean(normalizedInitialConversationId)
+    && selectedConversationId === normalizedInitialConversationId;
+  const pendingMatchesInitial =
+    Boolean(normalizedInitialConversationId)
+    && pendingConversationId === normalizedInitialConversationId;
+
+  if (selectedMatchesInitial || pendingMatchesInitial) {
+    return {
+      conversationId: normalizedInitialConversationId,
+      isDraftingNewChat: false,
+    };
+  }
+
+  if (selectedConversationId && normalizedInitialConversationId && !hasLoadedConversations) {
+    return {
+      conversationId: selectedConversationId,
+      isDraftingNewChat: false,
+    };
+  }
 
   if (normalizedInitialConversationId && !hasLoadedConversations) {
     return {
@@ -46,14 +66,7 @@ export function resolveConversationSelection({
     };
   }
 
-  if (
-    selectedConversationId
-    && (
-      !hasLoadedConversations
-      || availableConversationIds.has(selectedConversationId)
-      || pendingConversationId === selectedConversationId
-    )
-  ) {
+  if (selectedConversationId) {
     return {
       conversationId: selectedConversationId,
       isDraftingNewChat: false,
@@ -71,6 +84,46 @@ export function resolveConversationSelection({
     conversationId: conversations[0]?.id ?? null,
     isDraftingNewChat: false,
   };
+}
+
+export function mergeConversationMessages(currentMessages, serverMessages) {
+  const nextServerMessages = Array.isArray(serverMessages) ? serverMessages.filter(Boolean) : [];
+  const nextCurrentMessages = Array.isArray(currentMessages) ? currentMessages.filter(Boolean) : [];
+
+  if (nextServerMessages.length === 0) {
+    return nextCurrentMessages;
+  }
+
+  const mergedMessages = [...nextServerMessages];
+
+  nextCurrentMessages.forEach((message) => {
+    const alreadyPresent = nextServerMessages.some((serverMessage) => areMessagesEquivalent(serverMessage, message));
+    if (!alreadyPresent) {
+      mergedMessages.push(message);
+    }
+  });
+
+  return mergedMessages;
+}
+
+function areMessagesEquivalent(left, right) {
+  if (!left || !right) return false;
+
+  if (left.id && right.id && left.id === right.id) {
+    return true;
+  }
+
+  return (
+    left.role === right.role
+    && normalizeMessageSignature(left.content) === normalizeMessageSignature(right.content)
+    && Boolean(left._held) === Boolean(right._held)
+  );
+}
+
+function normalizeMessageSignature(content) {
+  return String(content ?? '')
+    .replace(/\r\n?/g, '\n')
+    .trim();
 }
 
 /**
@@ -184,7 +237,7 @@ export function useConversationManager({ activeAgentId, activeAgent, notify, sto
 
   useEffect(() => {
     if (messagesQuery.data?.messages && currentConversationId) {
-      setMessages(messagesQuery.data.messages);
+      setMessages((current) => mergeConversationMessages(current, messagesQuery.data.messages));
     }
   }, [currentConversationId, messagesQuery.data]);
 

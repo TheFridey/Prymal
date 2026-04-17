@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { api } from '../../../lib/api';
 import { formatNumber } from '../../../lib/utils';
@@ -426,6 +426,87 @@ function MessageBody({ presentation, agentId }) {
   );
 }
 
+function StructuredStreamingPlaceholder({ agent, content }) {
+  const preview = getStructuredStreamingPreview(agent, content);
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gap: '14px',
+        padding: '16px 18px',
+        borderRadius: '18px',
+        border: '1px solid rgba(255,255,255,0.08)',
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))',
+      }}
+    >
+      <div style={{ display: 'grid', gap: '6px' }}>
+        <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+          Structured reply
+        </div>
+        <div style={{ fontSize: '18px', lineHeight: 1.3, color: 'var(--text-strong)', fontWeight: 700 }}>
+          {preview.title}
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: '14px', lineHeight: 1.6 }}>
+          {preview.subtitle}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        {preview.chips.map((chip) => (
+          <span
+            key={chip}
+            style={{
+              fontSize: '11px',
+              padding: '4px 10px',
+              borderRadius: '999px',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: 'var(--text)',
+              background: 'rgba(255,255,255,0.04)',
+            }}
+          >
+            {chip}
+          </span>
+        ))}
+      </div>
+
+      <div style={{ display: 'grid', gap: '8px' }} aria-hidden="true">
+        <div style={{ height: '12px', width: '88%', borderRadius: '999px', background: 'rgba(255,255,255,0.08)' }} />
+        <div style={{ height: '12px', width: '72%', borderRadius: '999px', background: 'rgba(255,255,255,0.06)' }} />
+        <div style={{ height: '12px', width: '61%', borderRadius: '999px', background: 'rgba(255,255,255,0.05)' }} />
+      </div>
+    </div>
+  );
+}
+
+function StreamingMessageBody({ content, agent }) {
+  const normalizedContent = String(content ?? '').trim();
+  const isStructuredCandidate = looksLikeStructuredStreaming(normalizedContent);
+  const presentation = isStructuredCandidate
+    ? buildMessagePresentation({ content: normalizedContent, agentId: agent?.id })
+    : null;
+
+  if (presentation?.structuredData) {
+    return (
+      <div className="workspace-studio__message-rich">
+        <StructuredAgentOutput parsed={presentation.structuredData} agentId={agent?.id} />
+      </div>
+    );
+  }
+
+  if (isStructuredCandidate) {
+    return <StructuredStreamingPlaceholder agent={agent} content={normalizedContent} />;
+  }
+
+  return (
+    <div className="workspace-studio__message-rich">
+      <div className="markdown">
+        <ReactMarkdown>{content}</ReactMarkdown>
+      </div>
+    </div>
+  );
+}
+
 function ResearchTrace({ sources }) {
   return (
     <div className="workspace-studio__trace-panel">
@@ -443,7 +524,7 @@ function ResearchTrace({ sources }) {
   );
 }
 
-export function StudioMessage({ message, agent, streaming = false }) {
+export function StudioMessage({ message, agent, streaming = false, streamingTask = null }) {
   const reducedMotion = usePrymalReducedMotion();
   const isUser = message.role === 'user';
   const sources = message.metadata?.sources ?? [];
@@ -483,9 +564,11 @@ export function StudioMessage({ message, agent, streaming = false }) {
       ) : null}
       <div className={`workspace-studio__bubble${isUser ? ' is-user' : ''}`}>
         {showThinkingState ? (
-          <ThinkingBubble agent={agent} />
+          <ThinkingBubble agent={agent} streamingTask={streamingTask} content={message.content} />
         ) : isUser ? (
           <div style={{ lineHeight: 1.8 }}>{message.content}</div>
+        ) : streaming ? (
+          <StreamingMessageBody content={message.content} agent={agent} />
         ) : (
           <MessageBody
             presentation={presentation ?? buildMessagePresentation({ content: message.content, agentId: agent?.id })}
@@ -493,14 +576,7 @@ export function StudioMessage({ message, agent, streaming = false }) {
           />
         )}
         {streaming && !showThinkingState ? (
-          <div className="workspace-studio__bubble-meta workspace-studio__bubble-meta--thinking" style={{ color: agent.color }}>
-            <span className="workspace-studio__thinking-inline">
-              <span className="workspace-studio__thinking-dot" />
-              <span className="workspace-studio__thinking-dot" />
-              <span className="workspace-studio__thinking-dot" />
-            </span>
-            Prymal is thinking
-          </div>
+          <StreamingStatusMeta agent={agent} streamingTask={streamingTask} content={message.content} />
         ) : null}
         {message.tokensUsed ? <div className="workspace-studio__bubble-meta">{formatNumber(message.tokensUsed)} tokens</div> : null}
         <MotionPresence initial={false}>
@@ -692,7 +768,130 @@ function AtlasNotionExport({ content }) {
   );
 }
 
-function ThinkingBubble({ agent }) {
+function useCyclingStep(steps, shouldCycle = true, intervalMs = 2200) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const stepKey = steps.join('|');
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [stepKey]);
+
+  useEffect(() => {
+    if (!shouldCycle || steps.length < 2) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % steps.length);
+    }, intervalMs);
+
+    return () => window.clearInterval(intervalId);
+  }, [intervalMs, shouldCycle, stepKey, steps.length]);
+
+  return activeIndex;
+}
+
+function createTaskProfile({ agent, streamingTask, content }) {
+  const agentName = agent?.name ?? streamingTask?.agentName ?? 'Prymal';
+  const useLore = Boolean(streamingTask?.useLore);
+  const hasAttachments = Boolean(streamingTask?.hasAttachments);
+  const structuredReply = looksLikeStructuredStreaming(content);
+
+  if (streamingTask?.kind === 'image') {
+    return {
+      label: `${agentName} is creating the image`,
+      summary: 'Turning your brief into a polished visual and preparing the final asset.',
+      metaLabel: 'Rendering image',
+      steps: [
+        'Reading the prompt and visual constraints',
+        'Composing the scene, style, and framing',
+        'Rendering the final image file',
+      ],
+    };
+  }
+
+  if (streamingTask?.kind === 'audit' || agent?.id === 'oracle') {
+    return {
+      label: `${agentName} is auditing the page`,
+      summary: 'Checking the URL, reviewing the page signals, and assembling the audit.',
+      metaLabel: 'Auditing page',
+      steps: [
+        'Fetching the page and validating the target URL',
+        'Reviewing technical, content, and search signals',
+        'Packaging the audit into a readable report',
+      ],
+    };
+  }
+
+  if (agent?.id === 'herald') {
+    return {
+      label: `${agentName} is drafting the sequence`,
+      summary: 'Shaping the outreach angle, drafting the copy, and polishing the final message.',
+      metaLabel: 'Drafting sequence',
+      steps: [
+        hasAttachments ? 'Reviewing the brief and attached context' : 'Reviewing the audience and objective',
+        useLore ? 'Cross-checking prior conversations and lore' : 'Choosing the strongest outreach angle',
+        structuredReply ? 'Formatting the final sequence card' : 'Drafting the send-ready copy',
+      ],
+    };
+  }
+
+  if (agent?.id === 'cipher') {
+    return {
+      label: `${agentName} is analysing the brief`,
+      summary: 'Reviewing the signal, spotting the patterns, and assembling the clearest readout.',
+      metaLabel: 'Analysing signal',
+      steps: [
+        hasAttachments ? 'Reviewing the attached files and exports' : 'Reviewing the request and available signal',
+        useLore ? 'Cross-checking saved context and prior findings' : 'Looking for patterns, changes, and anomalies',
+        structuredReply ? 'Formatting the scorecard output' : 'Writing the final findings',
+      ],
+    };
+  }
+
+  if (agent?.id === 'atlas') {
+    return {
+      label: `${agentName} is shaping the plan`,
+      summary: 'Turning the request into a practical plan with clear structure and next steps.',
+      metaLabel: 'Building plan',
+      steps: [
+        hasAttachments ? 'Reviewing the brief and attached context' : 'Reviewing the objective and constraints',
+        useLore ? 'Cross-checking lore and prior operating context' : 'Structuring the milestones and dependencies',
+        structuredReply ? 'Formatting the final plan layout' : 'Drafting the final plan',
+      ],
+    };
+  }
+
+  if (agent?.id === 'sage') {
+    return {
+      label: `${agentName} is synthesising the answer`,
+      summary: 'Pulling the main threads together and turning them into one clear recommendation.',
+      metaLabel: 'Synthesising answer',
+      steps: [
+        hasAttachments ? 'Reviewing your files, notes, and prompt' : 'Reviewing the request and surrounding context',
+        useLore ? 'Cross-checking prior conversations and lore' : 'Connecting the strongest signals together',
+        'Drafting the final recommendation',
+      ],
+    };
+  }
+
+  return {
+    label: `${agentName} is preparing the reply`,
+    summary: 'Reviewing the request, pulling the right context, and drafting the response.',
+    metaLabel: 'Preparing reply',
+    steps: [
+      hasAttachments ? 'Reviewing your attachments and notes' : 'Reviewing your request',
+      useLore ? 'Cross-checking lore and prior context' : structuredReply ? 'Formatting the structured reply' : 'Pulling the relevant context',
+      'Drafting the final response',
+    ],
+  };
+}
+
+function ThinkingBubble({ agent, streamingTask, content }) {
+  const reducedMotion = usePrymalReducedMotion();
+  const profile = createTaskProfile({ agent, streamingTask, content });
+  const activeStep = useCyclingStep(profile.steps, !reducedMotion);
+
   return (
     <div className="workspace-studio__thinking">
       <motion.div
@@ -701,10 +900,42 @@ function ThinkingBubble({ agent }) {
         animate={{ opacity: [0.72, 1, 0.72] }}
         transition={{ duration: 1.8, repeat: Number.POSITIVE_INFINITY }}
       >
-        {agent.name} is thinking
+        {profile.label}
       </motion.div>
       <div className="workspace-studio__thinking-copy">
-        Pulling context, lining up the next move, and preparing a response.
+        {profile.summary}
+      </div>
+      <div style={{ display: 'grid', gap: '8px', marginTop: '4px' }}>
+        {profile.steps.map((step, index) => {
+          const status = index < activeStep ? 'complete' : index === activeStep ? 'active' : 'upcoming';
+          return (
+            <div
+              key={step}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                color: status === 'upcoming' ? 'var(--muted)' : 'var(--text-strong)',
+                opacity: status === 'upcoming' ? 0.66 : 1,
+                fontSize: '13px',
+                lineHeight: 1.5,
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  flexShrink: 0,
+                  borderRadius: '999px',
+                  background: status === 'complete' ? agent.color : status === 'active' ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.2)',
+                  boxShadow: status === 'active' ? `0 0 0 4px ${agent.color}22` : 'none',
+                }}
+              />
+              <span>{step}</span>
+            </div>
+          );
+        })}
       </div>
       <div className="workspace-studio__thinking-dots" aria-hidden="true">
         <span className="workspace-studio__thinking-dot" />
@@ -713,4 +944,74 @@ function ThinkingBubble({ agent }) {
       </div>
     </div>
   );
+}
+
+function StreamingStatusMeta({ agent, streamingTask, content }) {
+  const reducedMotion = usePrymalReducedMotion();
+  const profile = createTaskProfile({ agent, streamingTask, content });
+  const activeStep = useCyclingStep(profile.steps, !reducedMotion);
+
+  return (
+    <div className="workspace-studio__bubble-meta workspace-studio__bubble-meta--thinking" style={{ color: agent.color }}>
+      <span className="workspace-studio__thinking-inline">
+        <span className="workspace-studio__thinking-dot" />
+        <span className="workspace-studio__thinking-dot" />
+        <span className="workspace-studio__thinking-dot" />
+      </span>
+      {profile.metaLabel} | {profile.steps[activeStep] ?? profile.summary}
+    </div>
+  );
+}
+
+function looksLikeStructuredStreaming(content = '') {
+  const trimmed = String(content ?? '').trim();
+
+  if (!trimmed) {
+    return false;
+  }
+
+  return trimmed.startsWith('{') || trimmed.startsWith('```json');
+}
+
+function extractPartialJsonString(content, key) {
+  const pattern = new RegExp(`"${key}"\\s*:\\s*"([^"]*)`, 'i');
+  const match = String(content ?? '').match(pattern);
+  return match?.[1]?.trim() || '';
+}
+
+function getStructuredStreamingPreview(agent, content) {
+  const sequenceName = extractPartialJsonString(content, 'sequenceName');
+  const subject = extractPartialJsonString(content, 'subject');
+
+  if (agent?.id === 'herald') {
+    return {
+      title: sequenceName || 'Drafting email sequence',
+      subtitle: subject
+        ? `Finishing "${subject}" and formatting the final sequence card.`
+        : 'Preparing subject lines, body copy, and CTA for the final sequence card.',
+      chips: ['Sequence', 'Body copy', 'Variants'],
+    };
+  }
+
+  if (agent?.id === 'cipher') {
+    return {
+      title: 'Building scorecard',
+      subtitle: 'Organising the summary, metrics, and anomalies into the final scorecard.',
+      chips: ['Summary', 'Metrics', 'Anomalies'],
+    };
+  }
+
+  if (agent?.id === 'atlas') {
+    return {
+      title: 'Building plan outline',
+      subtitle: 'Structuring milestones, owners, and risks into the final operating plan.',
+      chips: ['Milestones', 'Owners', 'Risks'],
+    };
+  }
+
+  return {
+    title: `${agent?.name ?? 'Prymal'} is structuring the final reply`,
+    subtitle: 'Formatting the response into its final validated layout.',
+    chips: ['Structured', 'Validated', 'Formatting'],
+  };
 }

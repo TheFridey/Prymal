@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { Button, EmptyState, InlineNotice } from '../../../components/ui';
-import { MotionList, MotionListItem, MotionPresence, MotionSection } from '../../../components/motion';
+import { MotionPresence, MotionSection, motion } from '../../../components/motion';
 import { StudioMessage } from './renderers';
 
 function SentinelHoldBlock({ holdData, onRequestReview }) {
@@ -67,6 +67,7 @@ export default function ChatPanel({
   messages,
   streamingText,
   isStreaming,
+  streamingTask,
   hasConversationContent,
   promptCards,
 
@@ -122,7 +123,7 @@ export default function ChatPanel({
       ) : null}
 
       <div className="workspace-studio__messages" ref={messagesViewportRef} onScroll={onMessagesScroll}>
-        {messages.length === 0 && !streamingText ? (
+        {messages.length === 0 && !streamingText && !isStreaming ? (
           <MotionSection reveal={{ y: 20, blur: 8 }}>
             <EmptyState
               title={`Start a ${activeAgent.name} conversation`}
@@ -131,30 +132,41 @@ export default function ChatPanel({
             />
           </MotionSection>
         ) : (
-          <MotionList className="workspace-studio__message-list" staggerChildren={0.04}>
+          <div className="workspace-studio__message-list" aria-live="polite">
             <MotionPresence initial={false}>
               {messages.map((message) =>
                 message._held ? (
-                  <MotionListItem key={message.id} reveal={{ y: 12, blur: 4 }}>
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    exit={{ opacity: 0, y: -8, filter: 'blur(2px)' }}
+                    transition={{ duration: 0.2 }}
+                  >
                     <SentinelHoldBlock
                       holdData={message.holdData}
                       onRequestReview={onRequestReview}
                     />
-                  </MotionListItem>
+                  </motion.div>
                 ) : (
-                  <MotionListItem key={message.id} reveal={{ y: 12, blur: 4 }}>
-                    <StudioMessage message={message} agent={activeAgent} />
-                  </MotionListItem>
+                  <StudioMessage key={message.id} message={message} agent={activeAgent} />
                 ),
               )}
               {isStreaming ? (
-                <MotionListItem key="streaming" reveal={{ y: 8, blur: 3 }}>
+                <motion.div
+                  key="streaming"
+                  initial={{ opacity: 0, y: 8, filter: 'blur(3px)' }}
+                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, y: -8, filter: 'blur(2px)' }}
+                  transition={{ duration: 0.16 }}
+                >
                   <StudioMessage
                     message={{ id: 'streaming', role: 'assistant', content: streamingText }}
                     agent={activeAgent}
                     streaming
+                    streamingTask={streamingTask}
                   />
-                </MotionListItem>
+                </motion.div>
               ) : null}
             </MotionPresence>
             <MotionPresence initial={false}>
@@ -167,7 +179,7 @@ export default function ChatPanel({
               ) : null}
             </MotionPresence>
             <div ref={bottomRef} />
-          </MotionList>
+          </div>
         )}
       </div>
     </>
