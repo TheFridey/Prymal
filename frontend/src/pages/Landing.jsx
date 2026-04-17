@@ -53,10 +53,16 @@ const HOW_IT_WORKS = [
   },
 ];
 
-function getAgentAvatar(agentId) {
-  const agent = AGENT_LIBRARY.find((a) => a.id === agentId.toLowerCase());
-  return agent?.avatarSrc ?? null;
-}
+const FEATURED_AGENTS = ['cipher', 'herald', 'forge', 'lore', 'atlas', 'echo']
+  .map((id) => AGENT_LIBRARY.find((a) => a.id === id))
+  .filter(Boolean);
+
+const EXECUTION_STEPS = [
+  { agent: 'lore', label: 'Context loaded', detail: 'LORE retrieves relevant knowledge from your workspace.', color: '#C77DFF' },
+  { agent: 'cipher', label: 'Data analysed', detail: 'CIPHER processes the numbers and finds the signal.', color: '#33c7ff' },
+  { agent: 'herald', label: 'Draft composed', detail: 'HERALD shapes the output into a client-ready message.', color: '#ff8b5f' },
+  { agent: 'sentinel', label: 'QA reviewed', detail: 'SENTINEL checks for accuracy, schema compliance, and risk.', color: '#F72585' },
+];
 
 export default function Landing() {
   const reducedMotion = usePrymalReducedMotion();
@@ -266,6 +272,66 @@ export default function Landing() {
               </div>
             </section>
 
+            {/* ── Featured Agents ── */}
+            <section id="agents" className="pm-featured-agents">
+              <div className="pm-section__header">
+                <div className="pm-section__eyebrow" style={{ '--section-accent': '#C77DFF' }}>Core specialists</div>
+                <h2 className="pm-section__title">Meet the agents that run your business.</h2>
+                <p className="pm-section__sub">Each agent has a defined contract, output schema, and clear commercial job. They share memory, context, and a QA gate.</p>
+              </div>
+              <div className="pm-featured-agents__grid">
+                {FEATURED_AGENTS.map((agent) => (
+                  <Link key={agent.id} to={`/agents/${agent.id}`} className="pm-featured-agent" style={{ '--agent-color': agent.color }}>
+                    <div className="pm-featured-agent__avatar-wrap">
+                      <div className="pm-featured-agent__glow" />
+                      <AgentAvatarDisplay agent={agent} className="pm-featured-agent__avatar" />
+                    </div>
+                    <div className="pm-featured-agent__info">
+                      <div className="pm-featured-agent__name">{agent.name}</div>
+                      <div className="pm-featured-agent__title">{agent.title}</div>
+                      <p className="pm-featured-agent__desc">{agent.description}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              <div className="pm-featured-agents__cta">
+                <a href="#roster" className="pm-btn pm-btn--ghost">View the full team ↓</a>
+              </div>
+            </section>
+
+            {/* ── Execution Preview ── */}
+            <section id="stack" className="pm-execution">
+              <div className="pm-section__header">
+                <div className="pm-section__eyebrow" style={{ '--section-accent': '#4CC9F0' }}>Execution engine</div>
+                <h2 className="pm-section__title">How a single request becomes a trusted output.</h2>
+                <p className="pm-section__sub">Every response flows through context retrieval, specialist processing, and quality review before it reaches you.</p>
+              </div>
+              <div className="pm-execution__pipeline">
+                {EXECUTION_STEPS.map((step, i) => {
+                  const agent = AGENT_LIBRARY.find((a) => a.id === step.agent);
+                  return (
+                    <div key={step.agent} className="pm-execution__step" style={{ '--step-color': step.color, '--step-delay': `${i * 0.6}s` }}>
+                      <div className="pm-execution__step-line" />
+                      <div className="pm-execution__step-dot" />
+                      <div className="pm-execution__step-content">
+                        <div className="pm-execution__step-avatar">
+                          <AgentAvatarDisplay agent={agent || { glyph: '?', color: step.color }} className="pm-execution__step-img" />
+                        </div>
+                        <div>
+                          <div className="pm-execution__step-label">{step.label}</div>
+                          <p className="pm-execution__step-detail">{step.detail}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div className="pm-execution__result">
+                  <div className="pm-execution__result-dot" />
+                  <div className="pm-execution__result-label">✓ Output delivered</div>
+                </div>
+              </div>
+            </section>
+
             {/* ── Agent Parade ── */}
             <section className="pm-agents-parade">
               <div className="pm-agents-parade__label">Meet your team</div>
@@ -318,7 +384,7 @@ export default function Landing() {
             </section>
 
             {/* ── Full Roster Grid ── */}
-            <section className="pm-bento">
+            <section id="roster" className="pm-bento">
               <div className="pm-bento__label">The full roster</div>
               <p className="pm-bento__sub">14 specialist agents, each with defined contracts, output schemas, and a clear commercial job.</p>
               <div className="pm-bento__grid">
