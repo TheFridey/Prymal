@@ -243,6 +243,10 @@ router.post('/chat', requireOrg, planAwareRateLimit({
   return streamSSE(context, async (stream) => {
     const startedAt = Date.now();
     const attachments = payload.attachments ?? [];
+    const safeErrorMessage = (error) => {
+      const message = String(error?.message ?? '').trim();
+      return message || 'Generation failed.';
+    };
 
     const runner = runAgentChat({
       agentId: payload.agentId,
@@ -261,33 +265,114 @@ router.post('/chat', requireOrg, planAwareRateLimit({
       requestId: context.get('requestId') ?? null,
     });
 
-    let doneEvent = null;
+    await stream.writeSSE({
+      data: JSON.stringify({
+        type: 'started',
+        conversationId: conversation.id,
+        agentId: payload.agentId,
+      }),
+    });
 
-    for await (const event of runner) {
-      if (event.type === 'chunk') {
-        await stream.writeSSE({ data: JSON.stringify({ type: 'chunk', text: event.text }) });
-      } else if (event.type === 'done') {
-        doneEvent = event;
+    try {
+      for await (const event of runner) {
+        if (event.type === 'chunk') {
+          await stream.writeSSE({ data: JSON.stringify({ type: 'chunk', text: event.text }) });
+        } else if (event.type === 'done') {
+          // Base LLM credits + extra per attachment type
+          const attachmentCredits = attachments.reduce((sum, a) => {
+            if (a.mediaType.startsWith('image/')) return sum + 2;
+            if (a.mediaType === 'application/pdf') return sum + 3;
+            return sum;
+          }, 0);
+          const creditsUsed = Math.max(Math.ceil((event.tokensUsed ?? 0) / 1000), 1) + attachmentCredits;
+          await consumeCredits(org.orgId, creditsUsed);
 
-        // Base LLM credits + extra per attachment type
-        const attachmentCredits = attachments.reduce((sum, a) => {
-          if (a.mediaType.startsWith('image/')) return sum + 2;
-          if (a.mediaType === 'application/pdf') return sum + 3;
-          return sum;
-        }, 0);
-        const creditsUsed = Math.max(Math.ceil((event.tokensUsed ?? 0) / 1000), 1) + attachmentCredits;
-        await consumeCredits(org.orgId, creditsUsed);
+          const [savedMessage] = await db
+            .insert(messages)
+            .values({
+              conversationId: conversation.id,
+              role: 'assistant',
+              content: event.assistantText,
+              loreChunksUsed: event.loreChunkIds ?? [],
+              tokensUsed: event.tokensUsed ?? null,
+              processingMs: Date.now() - startedAt,
+              metadata: {
+                model: event.model ?? null,
+                provider: event.provider ?? null,
+                policyKey: event.policyKey ?? null,
+                policyClass: event.policyKey ?? null,
+                route: event.route ?? null,
+                routeReason: event.routeReason ?? null,
+                fallbackModel: event.selectionDetails?.fallbackModelUsed ?? null,
+                sources: event.sources ?? [],
+                schemaValidation: event.schemaValidation ?? null,
+                sentinelReview: event.sentinelReview ?? null,
+              },
+            })
+            .returning();
 
-        const [savedMessage] = await db
-          .insert(messages)
-          .values({
-            conversationId: conversation.id,
-            role: 'assistant',
-            content: event.assistantText,
-            loreChunksUsed: event.loreChunkIds ?? [],
-            tokensUsed: event.tokensUsed ?? null,
-            processingMs: Date.now() - startedAt,
-            metadata: {
+          await db
+            .update(conversations)
+            .set({
+              title: conversation.title || buildConversationTitle(payload.message),
+              lastActiveAt: new Date(),
+              messageCount: history.length + 2,
+              totalTokens: (conversation.totalTokens ?? 0) + (event.tokensUsed ?? 0),
+            })
+            .where(eq(conversations.id, conversation.id));
+
+          await Promise.all([
+            recordProductEvent({
+              orgId: org.orgId,
+              userId: org.userId,
+              eventName: 'chat.message_completed',
+              metadata: {
+                agentId: payload.agentId,
+                conversationId: conversation.id,
+                creditsUsed,
+                usedLore: payload.useLore,
+              },
+            }),
+            recordProductEvent({
+              orgId: org.orgId,
+              userId: org.userId,
+              eventName: 'activation.useful_output',
+              metadata: {
+                agentId: payload.agentId,
+                conversationId: conversation.id,
+                outputType: 'chat_response',
+              },
+            }),
+          ]);
+
+          let escalationResult = { triggered: false, triggerReason: null };
+
+          if (payload.agentId === 'wren') {
+            const recentMessages = history.slice(-3).map((m) => ({ role: m.role, content: m.content }));
+            escalationResult = detectEscalationTrigger(event.assistantText, recentMessages);
+
+            if (escalationResult.triggered) {
+              await dispatchWrenEscalation({
+                orgId: org.orgId,
+                userId: org.userId,
+                conversationId: conversation.id,
+                triggerReason: escalationResult.triggerReason,
+                severity: escalationResult.severity,
+                recentMessages,
+                db,
+              });
+            }
+          }
+
+          await stream.writeSSE({
+            data: JSON.stringify({
+              type: 'done',
+              messageId: savedMessage.id,
+              conversationId: conversation.id,
+              tokensUsed: event.tokensUsed ?? 0,
+              creditsUsed,
+              processingMs: Date.now() - startedAt,
+              sources: event.sources ?? [],
               model: event.model ?? null,
               provider: event.provider ?? null,
               policyKey: event.policyKey ?? null,
@@ -295,98 +380,34 @@ router.post('/chat', requireOrg, planAwareRateLimit({
               route: event.route ?? null,
               routeReason: event.routeReason ?? null,
               fallbackModel: event.selectionDetails?.fallbackModelUsed ?? null,
-              sources: event.sources ?? [],
               schemaValidation: event.schemaValidation ?? null,
               sentinelReview: event.sentinelReview ?? null,
-            },
-          })
-          .returning();
-
-        await db
-          .update(conversations)
-          .set({
-            title: conversation.title || buildConversationTitle(payload.message),
-            lastActiveAt: new Date(),
-            messageCount: history.length + 2,
-            totalTokens: (conversation.totalTokens ?? 0) + (event.tokensUsed ?? 0),
-          })
-          .where(eq(conversations.id, conversation.id));
-
-        await Promise.all([
-          recordProductEvent({
-            orgId: org.orgId,
-            userId: org.userId,
-            eventName: 'chat.message_completed',
-            metadata: {
-              agentId: payload.agentId,
+              escalated: escalationResult.triggered,
+              escalationReason: escalationResult.triggerReason ?? null,
+            }),
+          });
+        } else if (event.type === 'error') {
+          await stream.writeSSE({
+            data: JSON.stringify({
+              type: 'error',
+              message: event.message || 'Generation failed.',
+              code: event.code || 'CHAT_FAILED',
+              upgrade: Boolean(event.upgrade),
               conversationId: conversation.id,
-              creditsUsed,
-              usedLore: payload.useLore,
-            },
-          }),
-          recordProductEvent({
-            orgId: org.orgId,
-            userId: org.userId,
-            eventName: 'activation.useful_output',
-            metadata: {
-              agentId: payload.agentId,
-              conversationId: conversation.id,
-              outputType: 'chat_response',
-            },
-          }),
-        ]);
-
-        let escalationResult = { triggered: false, triggerReason: null };
-
-        if (payload.agentId === 'wren') {
-          const recentMessages = history.slice(-3).map((m) => ({ role: m.role, content: m.content }));
-          escalationResult = detectEscalationTrigger(event.assistantText, recentMessages);
-
-          if (escalationResult.triggered) {
-            await dispatchWrenEscalation({
-              orgId: org.orgId,
-              userId: org.userId,
-              conversationId: conversation.id,
-              triggerReason: escalationResult.triggerReason,
-              severity: escalationResult.severity,
-              recentMessages,
-              db,
-            });
-          }
+            }),
+          });
         }
-
-        await stream.writeSSE({
-          data: JSON.stringify({
-            type: 'done',
-            messageId: savedMessage.id,
-            conversationId: conversation.id,
-            tokensUsed: event.tokensUsed ?? 0,
-            creditsUsed,
-            processingMs: Date.now() - startedAt,
-            sources: event.sources ?? [],
-            model: event.model ?? null,
-            provider: event.provider ?? null,
-            policyKey: event.policyKey ?? null,
-            policyClass: event.policyKey ?? null,
-            route: event.route ?? null,
-            routeReason: event.routeReason ?? null,
-            fallbackModel: event.selectionDetails?.fallbackModelUsed ?? null,
-            schemaValidation: event.schemaValidation ?? null,
-            sentinelReview: event.sentinelReview ?? null,
-            escalated: escalationResult.triggered,
-            escalationReason: escalationResult.triggerReason ?? null,
-          }),
-        });
-      } else if (event.type === 'error') {
-        await stream.writeSSE({
-          data: JSON.stringify({
-            type: 'error',
-            message: event.message || 'Generation failed.',
-            code: event.code || 'CHAT_FAILED',
-            upgrade: Boolean(event.upgrade),
-          }),
-        });
       }
+    } catch (error) {
+      await stream.writeSSE({
+        data: JSON.stringify({
+          type: 'error',
+          message: safeErrorMessage(error),
+          code: error?.code || 'CHAT_STREAM_FAILED',
+          upgrade: Boolean(error?.upgrade),
+          conversationId: conversation.id,
+        }),
+      });
     }
   });
 });

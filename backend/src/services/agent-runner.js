@@ -98,6 +98,7 @@ export async function* runAgentChat({
       preferences,
       model,
       attachments,
+      mode,
     });
 
     for await (const event of generator) {
@@ -109,6 +110,13 @@ export async function* runAgentChat({
       if (event.type === 'done') {
         lastDoneEvent = event;
       }
+    }
+
+    if (!lastDoneEvent) {
+      const streamError = new Error('The agent response stream ended unexpectedly. Please try again.');
+      streamError.code = 'LLM_STREAM_INCOMPLETE';
+      streamError.status = 502;
+      throw streamError;
     }
 
     // Run eval on the completed response
@@ -269,7 +277,7 @@ export async function* runAgentChat({
 
     yield {
       type: 'error',
-      message: error.message || 'Generation failed.',
+      message: formatUserFacingAgentError(error),
       code: error.code || 'AGENT_RUN_FAILED',
       upgrade: Boolean(error.upgrade),
     };
@@ -294,4 +302,18 @@ function gateExtendedThinking(agent, orgPlan) {
   }
 
   return allowed;
+}
+
+function formatUserFacingAgentError(error) {
+  const message = String(error?.message ?? '').trim();
+
+  if (!message) {
+    return 'Prymal could not generate a response. Please try again.';
+  }
+
+  if (message === 'mode is not defined') {
+    return 'Prymal hit an internal routing error while selecting a model. Please retry your message.';
+  }
+
+  return message;
 }

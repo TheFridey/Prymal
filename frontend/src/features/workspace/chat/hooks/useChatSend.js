@@ -189,6 +189,11 @@ export function useChatSend({
       });
 
       await consumeAgentStream(response, {
+        onStarted: (event) => {
+          if (targetAgent.id === activeAgentRef.current?.id && event.conversationId) {
+            afterSendUpdate(targetAgent.id, event.conversationId);
+          }
+        },
         onChunk: (text) => {
           fullText += text;
           setStreamingText((current) => current + text);
@@ -279,6 +284,13 @@ export function useChatSend({
     } catch (error) {
       setIsStreaming(false);
       setStreamingText('');
+      const conversationId = error?.conversationId || selectedConversationIdsRef.current[targetAgent.id];
+      if (conversationId) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['studio-conversations', targetAgent.id] }),
+          queryClient.invalidateQueries({ queryKey: ['studio-messages', conversationId] }),
+        ]);
+      }
       if (error.code === 'RATE_LIMITED') {
         notify({
           type: 'warning',

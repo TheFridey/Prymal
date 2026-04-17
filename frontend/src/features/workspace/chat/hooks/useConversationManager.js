@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../../lib/api';
 import { getErrorMessage } from '../../../../lib/utils';
@@ -42,7 +42,7 @@ export function useConversationManager({ activeAgentId, activeAgent, notify, sto
   const [editTitle, setEditTitle] = useState('');
 
   // ── localStorage hydration ────────────────────────────────────────────────
-  const initialConversationAppliedRef = { current: false };
+  const initialConversationAppliedRef = useRef(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {

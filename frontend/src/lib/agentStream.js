@@ -39,6 +39,9 @@ export async function consumeAgentStream(response, handlers) {
       if (event.type === 'chunk') {
         handlers.onChunk?.(event.text ?? '');
       }
+      if (event.type === 'started') {
+        handlers.onStarted?.(event);
+      }
       if (event.type === 'done') {
         handlers.onDone?.(event);
       }
@@ -49,6 +52,7 @@ export async function consumeAgentStream(response, handlers) {
         const error = new Error(event.message || 'Streaming failed.');
         error.code = event.code;
         error.upgrade = event.upgrade;
+        error.conversationId = event.conversationId ?? null;
         throw error;
       }
     }
@@ -64,6 +68,9 @@ export async function consumeAgentStream(response, handlers) {
       if (event.type === 'done') {
         handlers.onDone?.(event);
       }
+      if (event.type === 'started') {
+        handlers.onStarted?.(event);
+      }
       if (event.type === 'hold') {
         handlers.onHold?.(event);
       }
@@ -71,6 +78,7 @@ export async function consumeAgentStream(response, handlers) {
         const error = new Error(event.message || 'Streaming failed.');
         error.code = event.code;
         error.upgrade = event.upgrade;
+        error.conversationId = event.conversationId ?? null;
         throw error;
       }
     }

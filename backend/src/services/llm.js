@@ -127,6 +127,7 @@ export async function* streamAgentResponse({
   preferences = {},
   model,
   attachments = [],
+  mode = 'chat',
 }) {
   const agent = getAgent(agentId);
 
@@ -281,6 +282,7 @@ export async function* streamAgentResponse({
 
       const needsValidation = agentRequiresSchemaValidation(agentId);
       let accumulatedText = '';
+      let emittedDone = false;
 
       for await (const event of generator) {
         if (event.type === 'text' && needsValidation) {
@@ -316,10 +318,18 @@ export async function* streamAgentResponse({
             },
             schemaValidation,
           };
+          emittedDone = true;
           return;
         }
 
         yield event;
+      }
+
+      if (!emittedDone) {
+        const streamError = new Error('The model stream ended before a completion event was received.');
+        streamError.code = 'LLM_STREAM_INCOMPLETE';
+        streamError.status = 502;
+        throw streamError;
       }
 
       return;
@@ -831,8 +841,17 @@ async function runGeminiResponse({ plan, systemPrompt, messages, userMessage, ma
     generationConfig: { maxOutputTokens: maxTokens },
   });
 
+  const text = result.response.text();
+
+  if (!String(text ?? '').trim()) {
+    const error = new Error('Google AI returned an empty response. Please try again.');
+    error.code = 'GEMINI_EMPTY_RESPONSE';
+    error.status = 502;
+    throw error;
+  }
+
   return {
-    text: result.response.text(),
+    text,
     model: plan.model,
     provider: 'google',
     route: plan.route,
@@ -863,6 +882,13 @@ async function runAnthropicResponse({ plan, agent, systemPrompt, messages, userM
     .join('\n')
     .trim();
 
+  if (!text) {
+    const error = new Error('Anthropic returned an empty response. Please try again.');
+    error.code = 'LLM_EMPTY_RESPONSE';
+    error.status = 502;
+    throw error;
+  }
+
   return {
     text,
     model: response.model ?? plan.model,
@@ -885,8 +911,17 @@ async function runOpenAIResponse({ plan, systemPrompt, messages, userMessage, ma
     max_output_tokens: maxTokens,
   });
 
+  const text = extractOpenAIOutputText(response);
+
+  if (!String(text ?? '').trim()) {
+    const error = new Error('OpenAI returned an empty response. Please try again.');
+    error.code = 'OPENAI_EMPTY_RESPONSE';
+    error.status = 502;
+    throw error;
+  }
+
   return {
-    text: extractOpenAIOutputText(response),
+    text,
     model: response.model ?? plan.model,
     provider: 'openai',
     route: plan.route,
