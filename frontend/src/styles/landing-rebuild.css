@@ -45,7 +45,7 @@
   font-weight: 900;
   line-height: 1.0;
   letter-spacing: -0.04em;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0 0 24px;
 }
 
@@ -61,7 +61,7 @@
 
 .pm-hero__sub {
   font-size: clamp(16px, 2vw, 20px);
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--muted, rgba(255,255,255,0.6));
   max-width: 560px;
   line-height: 1.65;
   margin: 0 auto 36px;
@@ -87,7 +87,7 @@
   padding: 14px 32px;
   border-radius: 999px;
   background: linear-gradient(135deg, #C77DFF, #4CC9F0);
-  color: #fff;
+  color: var(--text-strong, #fff);
   font-weight: 700;
   font-size: 15px;
   border: none;
@@ -119,14 +119,14 @@
 
 .pm-btn--ghost:hover {
   border-color: rgba(255, 255, 255, 0.4);
-  color: #fff;
+  color: var(--text-strong, #fff);
 }
 
 .pm-hero__trust {
   display: flex;
   gap: 20px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--muted-2, rgba(255,255,255,0.35));
   flex-wrap: wrap;
   justify-content: center;
 }
@@ -144,7 +144,7 @@
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--muted-2, rgba(255,255,255,0.3));
   margin-bottom: 60px;
   font-weight: 600;
 }
@@ -213,7 +213,7 @@
 
 .pm-agent-float__role {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--muted-2, rgba(255,255,255,0.4));
   text-align: center;
 }
 
@@ -250,7 +250,7 @@
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--muted-2, rgba(255,255,255,0.3));
   margin-bottom: 80px;
   font-weight: 600;
 }
@@ -306,21 +306,21 @@
 .pm-how__step {
   font-size: 13px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--muted-2, rgba(255,255,255,0.25));
   letter-spacing: 0.1em;
 }
 
 .pm-how__headline {
   font-size: clamp(24px, 3vw, 36px);
   font-weight: 800;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0;
   line-height: 1.15;
 }
 
 .pm-how__body {
   font-size: clamp(14px, 1.5vw, 17px);
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--muted, rgba(255,255,255,0.55));
   line-height: 1.7;
   margin: 0;
 }
@@ -337,7 +337,7 @@
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--muted-2, rgba(255,255,255,0.3));
   margin-bottom: 12px;
   font-weight: 600;
 }
@@ -345,7 +345,7 @@
 .pm-bento__sub {
   text-align: center;
   font-size: clamp(14px, 1.5vw, 16px);
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--muted-2, rgba(255,255,255,0.4));
   max-width: 540px;
   margin: 0 auto 48px;
   line-height: 1.6;
@@ -421,14 +421,14 @@
 
 .pm-bento__card-role {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--muted-2, rgba(255,255,255,0.45));
   text-align: center;
   margin-bottom: 10px;
 }
 
 .pm-bento__card-desc {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--muted-2, rgba(255,255,255,0.35));
   text-align: center;
   line-height: 1.55;
   margin: 0 0 14px;
@@ -465,13 +465,13 @@
 .pm-pricing-section__header h2 {
   font-size: clamp(28px, 4vw, 42px);
   font-weight: 800;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0 0 10px;
 }
 
 .pm-pricing-section__header p {
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   margin: 0;
 }
 
@@ -500,7 +500,7 @@
 }
 
 .pm-pricing__card-inner {
-  background: #090D1A;
+  background: var(--panel, #090D1A);
   border-radius: 22px;
   padding: 28px;
   height: 100%;
@@ -536,12 +536,12 @@
 .pm-waitlist__inner h2 {
   font-size: clamp(22px, 3vw, 32px);
   font-weight: 800;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0 0 10px;
 }
 
 .pm-waitlist__inner > p {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   font-size: 15px;
   margin: 0 0 24px;
   line-height: 1.6;
@@ -588,6 +588,14 @@
 
 @keyframes pm-border-spin {
   to { --angle: 360deg; }
+}
+
+/* ── How-it-works light mode fix ── */
+.pm-how__img,
+.pm-how__character,
+.pm-agent-float__character,
+.pm-bento__card-character {
+  border-radius: var(--radius-lg, 24px);
 }
 
 /* ── Reduced motion ── */
@@ -705,7 +713,7 @@
   font-weight: 900;
   line-height: 1.1;
   letter-spacing: -0.03em;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0 0 16px;
   max-width: 800px;
   margin-inline: auto;
@@ -713,7 +721,7 @@
 
 .pm-page-header__sub {
   font-size: clamp(15px, 1.8vw, 18px);
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--muted, rgba(255,255,255,0.55));
   max-width: 600px;
   margin: 0 auto 28px;
   line-height: 1.65;
@@ -739,7 +747,7 @@
   font-weight: 900;
   line-height: 1.05;
   letter-spacing: -0.03em;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0 0 18px;
   max-width: 780px;
   margin-inline: auto;
@@ -754,7 +762,7 @@
 
 .pm-usecase-hero__description {
   font-size: clamp(15px, 1.8vw, 18px);
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--muted, rgba(255,255,255,0.55));
   max-width: 620px;
   margin: 0 auto 32px;
   line-height: 1.65;
@@ -775,13 +783,13 @@
 .pm-usecase-hero__metric-value {
   font-size: 28px;
   font-weight: 800;
-  color: #fff;
+  color: var(--text-strong, #fff);
   display: block;
 }
 
 .pm-usecase-hero__metric-label {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--muted-2, rgba(255,255,255,0.4));
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -800,7 +808,7 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
 }
 
 /* ── Content Section ── */
@@ -832,14 +840,14 @@
 .pm-section__title {
   font-size: clamp(24px, 3.5vw, 40px);
   font-weight: 800;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0 0 12px;
   line-height: 1.15;
 }
 
 .pm-section__sub {
   font-size: clamp(14px, 1.4vw, 16px);
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   max-width: 640px;
   margin: 0 auto;
   line-height: 1.65;
@@ -873,14 +881,14 @@
 .pm-card h3 {
   font-size: 16px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0 0 8px;
   line-height: 1.3;
 }
 
 .pm-card p {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   margin: 0;
   line-height: 1.65;
 }
@@ -916,7 +924,7 @@
 
 .pm-lane-card__role {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--muted-2, rgba(255,255,255,0.4));
 }
 
 .pm-lane-card__chips {
@@ -931,7 +939,7 @@
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
 }
 
 .pm-lane-card__link {
@@ -946,7 +954,7 @@
   transition: color 0.2s;
 }
 
-.pm-lane-card__link:hover { color: #fff; }
+.pm-lane-card__link:hover { color: var(--text-strong, #fff); }
 
 /* ── Flow / Pipeline ── */
 .pm-flow {
@@ -968,7 +976,7 @@
 .pm-flow__index {
   font-size: 13px;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--muted-2, rgba(255,255,255,0.25));
   letter-spacing: 0.1em;
   padding-top: 2px;
 }
@@ -976,7 +984,7 @@
 .pm-flow__label {
   font-size: 15px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin-bottom: 6px;
 }
 
@@ -993,7 +1001,7 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--muted-2, rgba(255,255,255,0.3));
   display: block;
   margin-bottom: 4px;
 }
@@ -1020,7 +1028,7 @@
 .pm-proof-card h3 {
   font-size: clamp(18px, 2.5vw, 22px);
   font-weight: 800;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 12px 0 18px;
   line-height: 1.25;
 }
@@ -1048,13 +1056,13 @@
 .pm-cta__panel h2 {
   font-size: clamp(22px, 3vw, 30px);
   font-weight: 800;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0 0 10px;
   line-height: 1.2;
 }
 
 .pm-cta__panel p {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   line-height: 1.65;
   margin: 0;
 }
@@ -1146,13 +1154,13 @@
 
 .pm-profile__title {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   margin-bottom: 14px;
 }
 
 .pm-profile__description {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--muted-2, rgba(255,255,255,0.45));
   line-height: 1.65;
   margin: 0 0 18px;
 }
@@ -1169,7 +1177,7 @@
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   text-align: left;
   line-height: 1.5;
 }
@@ -1189,13 +1197,13 @@
 .pm-profile__section h2 {
   font-size: clamp(20px, 2.5vw, 26px);
   font-weight: 800;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 6px 0 12px;
   line-height: 1.2;
 }
 
 .pm-profile__section p {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   line-height: 1.65;
   margin: 0;
 }
@@ -1223,7 +1231,7 @@
 
 .pm-profile__stat-label {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--muted-2, rgba(255,255,255,0.35));
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-top: 4px;
@@ -1269,7 +1277,7 @@
 .pm-changelog-entry__title {
   font-size: 17px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-strong, #fff);
 }
 
 .pm-changelog-entry__tag {
@@ -1283,7 +1291,7 @@
 
 .pm-changelog-entry__meta {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--muted-2, rgba(255,255,255,0.35));
   margin-bottom: 14px;
 }
 
@@ -1292,7 +1300,7 @@
   padding: 0 0 0 18px;
   display: grid;
   gap: 8px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   line-height: 1.7;
   font-size: 14px;
 }
@@ -1308,12 +1316,12 @@
 .pm-legal-section h3 {
   font-size: 17px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0 0 14px;
 }
 
 .pm-legal-section p {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   line-height: 1.8;
   margin: 0 0 12px;
 }
@@ -1348,14 +1356,14 @@
 .pm-onboarding__title {
   font-size: clamp(24px, 3.5vw, 36px);
   font-weight: 800;
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 12px 0 8px;
   line-height: 1.15;
 }
 
 .pm-onboarding__sub {
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   line-height: 1.65;
   margin: 0;
 }
@@ -1390,7 +1398,7 @@
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: transparent;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--muted-2, rgba(255,255,255,0.35));
   font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1399,7 +1407,7 @@
 
 .pm-onboarding__step-pill--active {
   background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  color: var(--text-strong, #fff);
   border-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -1409,7 +1417,7 @@
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: transparent;
-  color: #fff;
+  color: var(--text-strong, #fff);
   cursor: pointer;
   width: 100%;
   transition: background 0.2s, border-color 0.2s;
@@ -1431,7 +1439,7 @@
 
 .pm-onboarding__option-desc {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--muted-2, rgba(255,255,255,0.45));
   line-height: 1.5;
 }
 
@@ -1441,14 +1449,14 @@
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.06);
-  color: #fff;
+  color: var(--text-strong, #fff);
   outline: none;
   font-size: 15px;
 }
 
 .pm-onboarding__select option {
   background: #0A0E1A;
-  color: #fff;
+  color: var(--text-strong, #fff);
 }
 
 .pm-onboarding__summary {
@@ -1464,12 +1472,12 @@
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--muted-2, rgba(255,255,255,0.35));
   margin-bottom: 4px;
 }
 
 .pm-onboarding__summary-body {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--muted, rgba(255,255,255,0.5));
   line-height: 1.65;
   font-size: 14px;
 }
