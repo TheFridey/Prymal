@@ -128,7 +128,7 @@ export default function Dashboard() {
   const missionAgents = conversationCount === 0 ? recommendedAgents : topAgents.slice(0, 3);
 
   const heroPrimaryAction = latestConversation
-    ? () => navigate(`/app/agents/${latestConversation.agentId}?conversation=${latestConversation.id}`)
+    ? () => navigate(`/app/agents/${latestConversation.agentId}?cid=${latestConversation.id}`)
     : () => navigate(`/app/agents/${recommendedFirstAgentId}`);
 
   const heroPrimaryLabel = latestConversation ? 'Resume latest conversation' : `Open ${recommendedAgents[0]?.name ?? 'Prymal'}`;
@@ -270,7 +270,7 @@ export default function Dashboard() {
                       key={conversation.id}
                       type="button"
                       className="pm-dash__conv-item"
-                      onClick={() => navigate(`/app/agents/${conversation.agentId}?conversation=${conversation.id}`)}
+                      onClick={() => navigate(`/app/agents/${conversation.agentId}?cid=${conversation.id}`)}
                     >
                       <AgentAvatar agent={agent} size={36} />
                       <div style={{ minWidth: 0 }}>

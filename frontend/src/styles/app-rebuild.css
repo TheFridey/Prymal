@@ -711,3 +711,111 @@
   .pm-uc-hero__metrics { gap: 24px; }
   .pm-uc-hero__agents { flex-wrap: wrap; }
 }
+
+/* ── Agent workspace polish (Sintra-inspired) ── */
+.workspace-studio--agents .workspace-studio__main > * {
+  max-width: none !important;
+  margin-inline: 0 !important;
+}
+
+.workspace-studio--agents .workspace-studio__messages {
+  padding: 24px 26px !important;
+}
+
+.workspace-studio--agents .workspace-studio__messages::before {
+  content: none !important;
+  display: none !important;
+}
+
+.workspace-studio--agents .workspace-studio__message-list {
+  max-width: none !important;
+  width: 100% !important;
+  gap: 20px;
+}
+
+.workspace-studio--agents .workspace-studio__bubble {
+  max-width: min(1120px, 96%) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 14px 36px rgba(6, 10, 24, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  font-size: 1rem !important;
+  line-height: 1.75 !important;
+}
+
+.workspace-studio--agents .workspace-studio__bubble .markdown {
+  font-size: 1rem !important;
+  line-height: 1.75 !important;
+}
+
+.workspace-studio--agents .workspace-studio__bubble .markdown p,
+.workspace-studio--agents .workspace-studio__bubble .markdown li,
+.workspace-studio--agents .workspace-studio__bubble .markdown div {
+  font-size: 1rem !important;
+  line-height: 1.75 !important;
+}
+
+.workspace-studio--agents .workspace-studio__sidebar {
+  border-right: 1px solid rgba(255, 255, 255, 0.09) !important;
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.workspace-studio--agents .workspace-studio__agent-hero {
+  padding: 18px 16px !important;
+  border-radius: 24px !important;
+  box-shadow: 0 14px 34px rgba(7, 12, 26, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+}
+
+.workspace-studio--agents .workspace-studio__hero-avatar {
+  margin-top: 14px;
+  margin-bottom: 12px;
+}
+
+.workspace-studio--agents .workspace-studio__composer {
+  border-radius: 24px !important;
+  box-shadow: 0 12px 30px rgba(5, 10, 24, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+.workspace-studio--agents .workspace-studio__composer-field .field--textarea {
+  min-height: 64px !important;
+  height: 64px !important;
+  max-height: 220px !important;
+  font-size: 1rem !important;
+  padding-top: 16px !important;
+  padding-bottom: 16px !important;
+}
+
+.workspace-studio--agents .workspace-studio__action-chip--composer,
+.workspace-studio--agents .workspace-studio__composer-cta .pm-btn {
+  min-height: 50px;
+}
+
+.workspace-studio--agents .workspace-studio__action-chip--composer {
+  width: 50px !important;
+  height: 50px !important;
+  border-radius: 14px !important;
+}
+
+.workspace-studio--agents .workspace-studio__composer-cta .pm-btn {
+  padding: 0 18px !important;
+  border-radius: 14px !important;
+  font-size: 0.9rem !important;
+  font-weight: 700;
+}
+
+/* Slim left icon rail only while in /app/agents/* */
+@supports selector(:has(*)) {
+  .app-shell--studio:has(.workspace-studio--agents) .app-launcher {
+    width: 62px !important;
+    min-width: 62px !important;
+    border-right-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .app-shell--studio:has(.workspace-studio--agents) .app-launcher__brand,
+  .app-shell--studio:has(.workspace-studio--agents) .app-launcher__profile {
+    width: 38px;
+    height: 38px;
+  }
+
+  .app-shell--studio:has(.workspace-studio--agents) .app-main--studio {
+    margin-left: 6px;
+  }
+}

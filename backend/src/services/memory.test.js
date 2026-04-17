@@ -5,16 +5,16 @@ import { setupTestEnv } from '../../test-helpers.js';
 setupTestEnv();
 
 const { db } = await import('../db/index.js');
-const { getAgentMemory } = await import('./memory.js');
+const { getAgentMemory, isMemoryEntryReadableByAgent } = await import('./memory.js');
 
 test('getAgentMemory prioritises user-scoped memory over org-scoped memory with the same key', async () => {
   const originalFindMany = db.query.agentMemory.findMany;
   const originalUpdate = db.update;
 
   db.query.agentMemory.findMany = async () => [
-    { id: '1', scope: 'user', memoryType: 'preference', key: 'tone', value: 'casual', confidence: 0.9 },
-    { id: '2', scope: 'org', memoryType: 'preference', key: 'tone', value: 'formal', confidence: 0.8 },
-    { id: '3', scope: 'org', memoryType: 'fact', key: 'company', value: 'Prymal', confidence: 0.8 },
+    { id: '1', scope: 'user', scopeKey: 'user:user_1', memoryType: 'preference', key: 'tone', value: 'casual', confidence: 0.9, userId: 'user_1', createdAt: new Date(), updatedAt: new Date() },
+    { id: '2', scope: 'org', scopeKey: 'org:org_1', memoryType: 'preference', key: 'tone', value: 'formal', confidence: 0.8, createdAt: new Date(), updatedAt: new Date() },
+    { id: '3', scope: 'org', scopeKey: 'org:org_1', memoryType: 'fact', key: 'company', value: 'Prymal', confidence: 0.8, createdAt: new Date(), updatedAt: new Date() },
   ];
   db.update = () => ({
     set: () => ({
@@ -157,6 +157,38 @@ test('getAgentMemory includes workflow-run memory for agents permitted to read i
     db.query.agentMemory.findMany = originalFindMany;
     db.update = originalUpdate;
   }
+});
+
+test('isMemoryEntryReadableByAgent allows cross-agent org and user memory but keeps agent-private memory isolated', () => {
+  assert.equal(
+    isMemoryEntryReadableByAgent({
+      entry: { scope: 'org', scopeKey: 'org:org_1', agentId: 'herald' },
+      orgId: 'org_1',
+      userId: 'user_1',
+      agentId: 'cipher',
+    }),
+    true,
+  );
+
+  assert.equal(
+    isMemoryEntryReadableByAgent({
+      entry: { scope: 'user', scopeKey: 'user:user_1', agentId: 'herald' },
+      orgId: 'org_1',
+      userId: 'user_1',
+      agentId: 'cipher',
+    }),
+    true,
+  );
+
+  assert.equal(
+    isMemoryEntryReadableByAgent({
+      entry: { scope: 'agent_private', scopeKey: 'agent:herald', agentId: 'herald' },
+      orgId: 'org_1',
+      userId: 'user_1',
+      agentId: 'cipher',
+    }),
+    false,
+  );
 });
 
 

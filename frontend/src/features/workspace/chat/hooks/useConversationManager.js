@@ -21,14 +21,68 @@ const DEFAULT_CHAT_SETTINGS = {
 
 export { DEFAULT_CHAT_SETTINGS };
 
+export function resolveConversationSelection({
+  initialConversationId,
+  selectedConversationId,
+  pendingConversationId,
+  isDraftingNewChat,
+  conversations,
+  hasLoadedConversations,
+}) {
+  const normalizedInitialConversationId = initialConversationId?.trim() || null;
+  const availableConversationIds = new Set(conversations.map((conversation) => conversation.id));
+
+  if (normalizedInitialConversationId && !hasLoadedConversations) {
+    return {
+      conversationId: null,
+      isDraftingNewChat: false,
+    };
+  }
+
+  if (normalizedInitialConversationId && availableConversationIds.has(normalizedInitialConversationId)) {
+    return {
+      conversationId: normalizedInitialConversationId,
+      isDraftingNewChat: false,
+    };
+  }
+
+  if (
+    selectedConversationId
+    && (
+      !hasLoadedConversations
+      || availableConversationIds.has(selectedConversationId)
+      || pendingConversationId === selectedConversationId
+    )
+  ) {
+    return {
+      conversationId: selectedConversationId,
+      isDraftingNewChat: false,
+    };
+  }
+
+  if (isDraftingNewChat) {
+    return {
+      conversationId: null,
+      isDraftingNewChat: true,
+    };
+  }
+
+  return {
+    conversationId: conversations[0]?.id ?? null,
+    isDraftingNewChat: false,
+  };
+}
+
 /**
  * Manages conversations, messages, per-agent settings, and pinning.
  */
 export function useConversationManager({ activeAgentId, activeAgent, notify, storageSuffix, initialConversationId }) {
   const queryClient = useQueryClient();
+  const previousThreadRef = useRef({ agentId: null, conversationId: null });
 
   // ── conversation selection state ──────────────────────────────────────────
   const [selectedConversationIds, setSelectedConversationIds] = useState({});
+  const [pendingConversationIds, setPendingConversationIds] = useState({});
   const [draftingNewMap, setDraftingNewMap] = useState({});
   const [messages, setMessages] = useState([]);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
@@ -42,7 +96,6 @@ export function useConversationManager({ activeAgentId, activeAgent, notify, sto
   const [editTitle, setEditTitle] = useState('');
 
   // ── localStorage hydration ────────────────────────────────────────────────
-  const initialConversationAppliedRef = useRef(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -73,32 +126,55 @@ export function useConversationManager({ activeAgentId, activeAgent, notify, sto
   });
 
   const conversations = conversationsQuery.data?.conversations ?? [];
+  const hasLoadedConversations = conversationsQuery.isFetched;
 
   const currentConversationId = activeAgent ? selectedConversationIds[activeAgent.id] ?? null : null;
   const isDraftingNewChat = activeAgent ? Boolean(draftingNewMap[activeAgent.id]) : false;
 
-  // ── initialConversationId handling ────────────────────────────────────────
   useEffect(() => {
-    if (!activeAgent || isDraftingNewChat) return;
+    if (!activeAgent) return;
+
+    const pendingConversationId = pendingConversationIds[activeAgent.id];
+    if (!pendingConversationId) return;
+    if (!conversations.some((conversation) => conversation.id === pendingConversationId)) return;
+
+    setPendingConversationIds((current) => ({
+      ...current,
+      [activeAgent.id]: null,
+    }));
+  }, [activeAgent, conversations, pendingConversationIds]);
+
+  useEffect(() => {
+    if (!activeAgent) return;
+
+    const activeId = activeAgent.id;
+    const selectedConversationId = selectedConversationIds[activeId] ?? null;
+    const pendingConversationId = pendingConversationIds[activeId] ?? null;
+    const resolvedSelection = resolveConversationSelection({
+      initialConversationId,
+      selectedConversationId,
+      pendingConversationId,
+      isDraftingNewChat,
+      conversations,
+      hasLoadedConversations,
+    });
 
     if (
-      initialConversationId &&
-      !initialConversationAppliedRef.current &&
-      conversations.some((c) => c.id === initialConversationId)
+      selectedConversationId === resolvedSelection.conversationId
+      && isDraftingNewChat === resolvedSelection.isDraftingNewChat
     ) {
-      initialConversationAppliedRef.current = true;
-      setSelectedConversationIds((current) => ({ ...current, [activeAgent.id]: initialConversationId }));
       return;
     }
 
-    const selected = selectedConversationIds[activeAgent.id];
-    if (selected) return;
-
     setSelectedConversationIds((current) => ({
       ...current,
-      [activeAgent.id]: conversations[0]?.id ?? null,
+      [activeId]: resolvedSelection.conversationId,
     }));
-  }, [activeAgent, conversations, initialConversationId, isDraftingNewChat, selectedConversationIds]);
+    setDraftingNewMap((current) => ({
+      ...current,
+      [activeId]: resolvedSelection.isDraftingNewChat,
+    }));
+  }, [activeAgent, conversations, hasLoadedConversations, initialConversationId, isDraftingNewChat, pendingConversationIds, selectedConversationIds]);
 
   const messagesQuery = useQuery({
     queryKey: ['studio-messages', currentConversationId],
@@ -113,12 +189,31 @@ export function useConversationManager({ activeAgentId, activeAgent, notify, sto
   }, [currentConversationId, messagesQuery.data]);
 
   useEffect(() => {
-    if (!activeAgent) return;
-    const selected = selectedConversationIds[activeAgent.id];
-    if (!selected) {
+    if (!activeAgent) {
+      setMessages([]);
+      previousThreadRef.current = { agentId: null, conversationId: null };
+      return;
+    }
+
+    const previousThread = previousThreadRef.current;
+    const nextThread = {
+      agentId: activeAgent.id,
+      conversationId: currentConversationId,
+    };
+
+    const agentChanged = Boolean(previousThread.agentId) && previousThread.agentId !== nextThread.agentId;
+    const conversationChanged =
+      Boolean(previousThread.conversationId)
+      && Boolean(nextThread.conversationId)
+      && previousThread.conversationId !== nextThread.conversationId;
+    const clearedConversation = Boolean(previousThread.conversationId) && !nextThread.conversationId;
+
+    if (agentChanged || conversationChanged || clearedConversation) {
       setMessages([]);
     }
-  }, [activeAgent, selectedConversationIds]);
+
+    previousThreadRef.current = nextThread;
+  }, [activeAgent, currentConversationId]);
 
   useEffect(() => {
     setAutoScrollEnabled(true);
@@ -171,6 +266,7 @@ export function useConversationManager({ activeAgentId, activeAgent, notify, sto
   function setCurrentConversation(conversationId) {
     if (!activeAgent) return;
     setSelectedConversationIds((current) => ({ ...current, [activeAgent.id]: conversationId }));
+    setPendingConversationIds((current) => ({ ...current, [activeAgent.id]: null }));
     setDraftingNewMap((current) => ({ ...current, [activeAgent.id]: false }));
     setEditingConversationId(null);
     setEditTitle('');
@@ -205,6 +301,7 @@ export function useConversationManager({ activeAgentId, activeAgent, notify, sto
   /** Call during startNewChat / clearCurrentConversation. */
   function resetConversationState(agentId) {
     setSelectedConversationIds((current) => ({ ...current, [agentId]: null }));
+    setPendingConversationIds((current) => ({ ...current, [agentId]: null }));
     setDraftingNewMap((current) => ({ ...current, [agentId]: true }));
     setMessages([]);
     setAutoScrollEnabled(true);
@@ -215,6 +312,10 @@ export function useConversationManager({ activeAgentId, activeAgent, notify, sto
     setSelectedConversationIds((current) => ({
       ...current,
       [agentId]: conversationId ?? current[agentId] ?? null,
+    }));
+    setPendingConversationIds((current) => ({
+      ...current,
+      [agentId]: conversationId ?? null,
     }));
     setDraftingNewMap((current) => ({ ...current, [agentId]: false }));
   }

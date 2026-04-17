@@ -10,17 +10,7 @@ import {
   SentinelReviewBadge,
   SourceCard,
 } from './MessageArtifacts';
-
-function tryParseJson(content) {
-  if (!content || typeof content !== 'string') return null;
-  const trimmed = content.trim();
-  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null;
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    return null;
-  }
-}
+import { buildMessagePresentation } from './messagePresentation';
 
 function CipherScorecard({ data }) {
   const { summary, keyMetrics, anomalies, recommendations, confidence, dataQuality } = data ?? {};
@@ -34,12 +24,12 @@ function CipherScorecard({ data }) {
   return (
     <div style={{ display: 'grid', gap: '18px' }}>
       {summary ? (
-        <p style={{ margin: 0, lineHeight: 1.8, color: 'var(--text)' }}>{summary}</p>
+        <p style={{ margin: 0, lineHeight: 1.8, color: 'var(--text)', fontSize: '15px' }}>{summary}</p>
       ) : null}
 
       {keyMetrics && Object.keys(keyMetrics).length > 0 ? (
         <div>
-          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '8px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '8px' }}>
             Key Metrics
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
@@ -48,10 +38,10 @@ function CipherScorecard({ data }) {
                 key={key}
                 style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '10px', padding: '10px 14px', border: '1px solid rgba(255,255,255,0.07)' }}
               >
-                <div style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '4px', textTransform: 'capitalize' }}>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '4px', textTransform: 'capitalize' }}>
                   {key.replace(/([A-Z])/g, ' $1').trim()}
                 </div>
-                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-strong)', wordBreak: 'break-word' }}>
+                <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-strong)', wordBreak: 'break-word', lineHeight: 1.6 }}>
                   {value ?? '—'}
                 </div>
               </div>
@@ -62,7 +52,7 @@ function CipherScorecard({ data }) {
 
       {anomalies?.length > 0 ? (
         <div>
-          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '8px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '8px' }}>
             Anomalies
           </div>
           <div style={{ display: 'grid', gap: '6px' }}>
@@ -71,10 +61,10 @@ function CipherScorecard({ data }) {
                 key={i}
                 style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '10px 14px', borderRadius: '10px', background: severityBg(a.severity), border: `1px solid ${severityBorder(a.severity)}` }}
               >
-                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: severityBg(a.severity), color: severityColor(a.severity), flexShrink: 0, marginTop: '2px', textTransform: 'uppercase', border: `1px solid ${severityBorder(a.severity)}` }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: severityBg(a.severity), color: severityColor(a.severity), flexShrink: 0, marginTop: '2px', textTransform: 'uppercase', border: `1px solid ${severityBorder(a.severity)}` }}>
                   {a.severity ?? 'info'}
                 </span>
-                <span style={{ fontSize: '13px', color: 'var(--text)', lineHeight: 1.6 }}>{a.description}</span>
+                <span style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.65 }}>{a.description}</span>
               </div>
             ))}
           </div>
@@ -83,10 +73,10 @@ function CipherScorecard({ data }) {
 
       {recommendations?.length > 0 ? (
         <div>
-          <div style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '8px' }}>
+          <div style={{ fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '8px' }}>
             Recommendations
           </div>
-          <ol style={{ margin: 0, paddingLeft: '20px', color: 'var(--text)', fontSize: '13px', lineHeight: 1.8, display: 'grid', gap: '4px' }}>
+          <ol style={{ margin: 0, paddingLeft: '20px', color: 'var(--text)', fontSize: '14px', lineHeight: 1.8, display: 'grid', gap: '4px' }}>
             {recommendations.map((r, i) => <li key={i}>{r}</li>)}
           </ol>
         </div>
@@ -95,12 +85,12 @@ function CipherScorecard({ data }) {
       {(confidence !== undefined || dataQuality) ? (
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {confidence !== undefined ? (
-            <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', color: 'var(--muted)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <span style={{ fontSize: '13px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', color: 'var(--muted)', border: '1px solid rgba(255,255,255,0.07)' }}>
               Confidence: {Math.round(Number(confidence) * 100)}%
             </span>
           ) : null}
           {dataQuality ? (
-            <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', color: 'var(--muted)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <span style={{ fontSize: '13px', padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', color: 'var(--muted)', border: '1px solid rgba(255,255,255,0.07)' }}>
               Data quality: {dataQuality}
             </span>
           ) : null}
@@ -110,14 +100,346 @@ function CipherScorecard({ data }) {
   );
 }
 
+function formatStructuredLabel(value) {
+  return String(value)
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function CopyBlock({ content, tone = 'default' }) {
+  return (
+    <div
+      style={{
+        padding: tone === 'soft' ? '12px 14px' : 0,
+        borderRadius: tone === 'soft' ? '14px' : 0,
+        background: tone === 'soft' ? 'rgba(255,255,255,0.04)' : 'transparent',
+        border: tone === 'soft' ? '1px solid rgba(255,255,255,0.06)' : 'none',
+      }}
+    >
+      <div className="markdown">
+        <ReactMarkdown>{content}</ReactMarkdown>
+      </div>
+    </div>
+  );
+}
+
+function StructuredGroup({ title, children }) {
+  return (
+    <section style={{ display: 'grid', gap: '10px' }}>
+      <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+        {title}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function StructuredMetric({ label, value }) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gap: '4px',
+        padding: '12px 14px',
+        borderRadius: '14px',
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.07)',
+      }}
+    >
+      <div style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)' }}>{label}</div>
+      <div style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--text-strong)' }}>{value}</div>
+    </div>
+  );
+}
+
+function HeraldSequenceCard({ data }) {
+  const sequenceName = data?.sequenceName ?? 'Email sequence';
+  const emails = Array.isArray(data?.emails) ? data.emails : [];
+
+  return (
+    <div style={{ display: 'grid', gap: '18px' }}>
+      <div style={{ display: 'grid', gap: '12px' }}>
+        <div style={{ display: 'grid', gap: '6px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+            Sequence
+          </div>
+          <div style={{ fontSize: '20px', lineHeight: 1.2, color: 'var(--text-strong)', fontWeight: 700 }}>{sequenceName}</div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+          {data?.targetAudience ? <StructuredMetric label="Audience" value={data.targetAudience} /> : null}
+          <StructuredMetric label="Emails" value={String((data?.totalEmails ?? emails.length) || 0)} />
+          {data?.notes ? <StructuredMetric label="Status" value="Needs personalization inputs" /> : null}
+        </div>
+      </div>
+
+      {emails.map((email, index) => (
+        <article
+          key={`${email.emailNumber ?? index}-${email.subject ?? 'email'}`}
+          style={{
+            display: 'grid',
+            gap: '14px',
+            padding: '18px',
+            borderRadius: '18px',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+              Email {email.emailNumber ?? index + 1}
+            </span>
+            <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text)', background: 'rgba(255,255,255,0.04)' }}>
+              Day {email.sendDay ?? 0}
+            </span>
+            {email?.tone ? (
+              <span style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '999px', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text)', background: 'rgba(255,255,255,0.04)' }}>
+                {email.tone}
+              </span>
+            ) : null}
+          </div>
+
+          <div style={{ display: 'grid', gap: '8px' }}>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '6px' }}>
+                Subject
+              </div>
+              <div style={{ fontSize: '18px', lineHeight: 1.35, color: 'var(--text-strong)', fontWeight: 600 }}>{email.subject}</div>
+            </div>
+
+            {email?.preview ? (
+              <div style={{ color: 'var(--muted)', fontSize: '14px', lineHeight: 1.6 }}>{email.preview}</div>
+            ) : null}
+          </div>
+
+          <StructuredGroup title="Body">
+            <CopyBlock content={email.body ?? ''} tone="soft" />
+          </StructuredGroup>
+
+          {email?.cta ? (
+            <StructuredGroup title="Call To Action">
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '14px',
+                  background: 'rgba(76, 201, 240, 0.08)',
+                  border: '1px solid rgba(76, 201, 240, 0.18)',
+                  color: 'var(--text-strong)',
+                  fontSize: '14px',
+                  lineHeight: 1.6,
+                }}
+              >
+                {email.cta}
+              </div>
+            </StructuredGroup>
+          ) : null}
+
+          {Array.isArray(email?.abVariants) && email.abVariants.length > 0 ? (
+            <StructuredGroup title="A/B Variants">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                {email.abVariants.map((variant, variantIndex) => (
+                  <div
+                    key={`${variant.variant ?? variantIndex}-${variant.subject ?? 'variant'}`}
+                    style={{
+                      padding: '12px 14px',
+                      borderRadius: '14px',
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.07)',
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '6px' }}>
+                      Variant {variant.variant ?? variantIndex + 1}
+                    </div>
+                    <div style={{ color: 'var(--text)', fontSize: '14px', lineHeight: 1.55 }}>{variant.subject}</div>
+                  </div>
+                ))}
+              </div>
+            </StructuredGroup>
+          ) : null}
+        </article>
+      ))}
+
+      {data?.notes ? (
+        <StructuredGroup title="Notes">
+          <CopyBlock content={data.notes} tone="soft" />
+        </StructuredGroup>
+      ) : null}
+    </div>
+  );
+}
+
+function renderStructuredValue(value, path) {
+  if (value == null || value === '') {
+    return <div style={{ color: 'var(--muted)' }}>-</div>;
+  }
+
+  if (typeof value === 'string') {
+    return value.includes('\n')
+      ? <CopyBlock content={value} tone="soft" />
+      : <div style={{ color: 'var(--text)', lineHeight: 1.6 }}>{value}</div>;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return <div style={{ color: 'var(--text-strong)', lineHeight: 1.6 }}>{String(value)}</div>;
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return <div style={{ color: 'var(--muted)' }}>None</div>;
+    }
+
+    if (value.every((item) => typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean')) {
+      return (
+        <ul style={{ margin: 0, paddingLeft: '18px', display: 'grid', gap: '6px', color: 'var(--text)', lineHeight: 1.6 }}>
+          {value.map((item, index) => <li key={`${path}-${index}`}>{String(item)}</li>)}
+        </ul>
+      );
+    }
+
+    return (
+      <div style={{ display: 'grid', gap: '10px' }}>
+        {value.map((item, index) => (
+          <div
+            key={`${path}-${index}`}
+            style={{
+              padding: '12px 14px',
+              borderRadius: '14px',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}
+          >
+            {renderStructuredValue(item, `${path}-${index}`)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (typeof value === 'object') {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+        {Object.entries(value).map(([key, nestedValue]) => (
+          <div
+            key={`${path}-${key}`}
+            style={{
+              display: 'grid',
+              gap: '6px',
+              padding: '12px 14px',
+              borderRadius: '14px',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}
+          >
+            <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+              {formatStructuredLabel(key)}
+            </div>
+            {renderStructuredValue(nestedValue, `${path}-${key}`)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return <div style={{ color: 'var(--text)' }}>{String(value)}</div>;
+}
+
+function GenericStructuredCard({ data }) {
+  const entries = Object.entries(data ?? {}).filter(([key]) => key !== 'agent');
+
+  return (
+    <div style={{ display: 'grid', gap: '16px' }}>
+      {entries.map(([key, value]) => (
+        <StructuredGroup key={key} title={formatStructuredLabel(key)}>
+          {renderStructuredValue(value, key)}
+        </StructuredGroup>
+      ))}
+    </div>
+  );
+}
+
 function StructuredAgentOutput({ parsed, agentId }) {
   if (agentId === 'cipher' && parsed?.agent === 'cipher') {
     return <CipherScorecard data={parsed} />;
   }
+  if (parsed?.agent === 'herald') {
+    return <HeraldSequenceCard data={parsed} />;
+  }
+  return <GenericStructuredCard data={parsed} />;
+}
+
+function MarkdownTable({ table }) {
   return (
-    <pre style={{ margin: 0, background: 'rgba(0,0,0,0.18)', borderRadius: '10px', padding: '16px', overflow: 'auto', fontSize: '12px', lineHeight: 1.7, color: 'var(--text-muted, var(--muted))' }}>
-      <code>{JSON.stringify(parsed, null, 2)}</code>
-    </pre>
+    <div className="workspace-studio__markdown-table-shell">
+      <table className="workspace-studio__markdown-table">
+        <thead>
+          <tr>
+            {table.headers.map((header) => (
+              <th key={header}>{header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {table.rows.map((row, rowIndex) => (
+            <tr key={`row-${rowIndex}`}>
+              {row.map((cell, cellIndex) => (
+                <td key={`${rowIndex}-${cellIndex}`}>{cell || '-'}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function MessageBody({ presentation, agentId }) {
+  if (presentation.structuredData && !presentation.markdown) {
+    return <StructuredAgentOutput parsed={presentation.structuredData} agentId={agentId} />;
+  }
+
+  return (
+    <div className="workspace-studio__message-rich">
+      {presentation.markdownBlocks.map((block, index) =>
+        block.type === 'table' ? (
+          <MarkdownTable key={`table-${index}`} table={block} />
+        ) : (
+          <div key={`text-${index}`} className="markdown">
+            <ReactMarkdown>{block.content}</ReactMarkdown>
+          </div>
+        ),
+      )}
+
+      {presentation.structuredData ? (
+        <details className="workspace-studio__structured-panel">
+          <summary>
+            <span>Structured output</span>
+            <span>{presentation.structuredData.agent?.toUpperCase() ?? 'JSON'}</span>
+          </summary>
+          <div className="workspace-studio__structured-panel-body">
+            <StructuredAgentOutput parsed={presentation.structuredData} agentId={agentId} />
+          </div>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function ResearchTrace({ sources }) {
+  return (
+    <div className="workspace-studio__trace-panel">
+      <div className="workspace-studio__trace-heading">Research trace</div>
+      <div className="workspace-studio__trace-grid">
+        {sources.map((source, index) => (
+          <div className="workspace-studio__trace-card" key={`${source.title}-${index}`}>
+            <div className="workspace-studio__trace-title">{source.title}</div>
+            {source.snippet ? <div className="workspace-studio__trace-snippet">{source.snippet}</div> : null}
+            <div className="workspace-studio__trace-meta">{source.mode}</div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -130,9 +452,10 @@ export function StudioMessage({ message, agent, streaming = false }) {
   const sentinelReview = message.sentinelReview ?? message.metadata?.sentinelReview ?? null;
   const showThinkingState = streaming && !message.content.trim();
 
-  // Detect structured JSON output for schema-enforced agents — only after streaming completes.
-  const parsedJsonContent = !isUser && !streaming ? tryParseJson(message.content) : null;
-  const isStructuredOutput = Boolean(parsedJsonContent);
+  // Normalize mixed markdown, embedded payloads, and tool traces once the response is complete.
+  const presentation = !isUser && !streaming
+    ? buildMessagePresentation({ content: message.content, agentId: agent?.id })
+    : null;
 
   const isHeraldDraft = !isUser && !streaming && agent?.id === 'herald' && /subject:/i.test(message.content);
   const isAtlasSummary = !isUser && !streaming && agent?.id === 'atlas' && message.content.trim().length > 50;
@@ -163,12 +486,11 @@ export function StudioMessage({ message, agent, streaming = false }) {
           <ThinkingBubble agent={agent} />
         ) : isUser ? (
           <div style={{ lineHeight: 1.8 }}>{message.content}</div>
-        ) : isStructuredOutput ? (
-          <StructuredAgentOutput parsed={parsedJsonContent} agentId={agent?.id} />
         ) : (
-          <div className="markdown">
-            <ReactMarkdown>{message.content}</ReactMarkdown>
-          </div>
+          <MessageBody
+            presentation={presentation ?? buildMessagePresentation({ content: message.content, agentId: agent?.id })}
+            agentId={agent?.id}
+          />
         )}
         {streaming && !showThinkingState ? (
           <div className="workspace-studio__bubble-meta workspace-studio__bubble-meta--thinking" style={{ color: agent.color }}>
@@ -216,6 +538,9 @@ export function StudioMessage({ message, agent, streaming = false }) {
               </MotionListItem>
             ))}
           </MotionList>
+        ) : null}
+        {sources.length === 0 && presentation?.traceSources?.length ? (
+          <ResearchTrace sources={presentation.traceSources} />
         ) : null}
         {isHeraldDraft ? <HeraldEmailSend content={message.content} /> : null}
         {isAtlasSummary ? <AtlasNotionExport content={message.content} /> : null}

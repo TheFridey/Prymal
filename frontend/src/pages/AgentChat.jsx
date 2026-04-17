@@ -8,7 +8,9 @@ export default function AgentChat() {
   const initialDraft = searchParams.get('draft')?.trim() || '';
   const forceNewChat = searchParams.get('new') === '1';
   const initialPowerupSlug = searchParams.get('powerup')?.trim() || '';
-  const initialConversationId = searchParams.get('cid')?.trim() || '';
+  const initialConversationId = searchParams.get('cid')?.trim()
+    || searchParams.get('conversation')?.trim()
+    || '';
 
   return (
     <WorkspaceStudio

@@ -46,7 +46,6 @@ export async function getAgentMemory({
     memories = await db.query.agentMemory.findMany({
       where: and(
         eq(agentMemory.orgId, orgId),
-        eq(agentMemory.agentId, agentId),
         or(...scopePredicates),
         or(isNull(agentMemory.expiresAt), gt(agentMemory.expiresAt, now)),
       ),
@@ -60,6 +59,17 @@ export async function getAgentMemory({
 
   const scopedMemories = mergeMemoryScopes(
     memories
+      .filter((entry) =>
+        isMemoryEntryReadableByAgent({
+          entry,
+          orgId,
+          userId,
+          agentId,
+          workflowRunId,
+          sessionKey,
+          contract,
+        }),
+      )
       .map((entry) => ({
         ...entry,
         effectiveConfidence: applyMemoryDecay(entry),
@@ -83,6 +93,45 @@ export async function getAgentMemory({
   }
 
   return scopedMemories;
+}
+
+export function isMemoryEntryReadableByAgent({
+  entry,
+  orgId,
+  userId = null,
+  agentId,
+  workflowRunId = null,
+  sessionKey = null,
+  contract = getRuntimeAgentContract(agentId),
+}) {
+  if (!entry) {
+    return false;
+  }
+
+  const allowedScopes = contract?.memoryPolicy?.readScopes ?? DEFAULT_READ_SCOPES;
+  if (!allowedScopes.includes(entry.scope)) {
+    return false;
+  }
+
+  switch (entry.scope) {
+    case 'org':
+      return entry.scopeKey === `org:${orgId}`;
+    case 'user':
+      return Boolean(userId) && entry.scopeKey === `user:${userId}`;
+    case 'agent_private':
+      return entry.scopeKey === `agent:${agentId}`;
+    case 'restricted':
+      return (
+        entry.scopeKey === `restricted:agent:${agentId}`
+        || (Boolean(userId) && entry.scopeKey === `restricted:user:${userId}`)
+      );
+    case 'workflow_run':
+      return Boolean(workflowRunId) && entry.scopeKey === `workflow:${workflowRunId}`;
+    case 'temporary_session':
+      return Boolean(sessionKey) && entry.scopeKey === `session:${sessionKey}`;
+    default:
+      return false;
+  }
 }
 
 export async function upsertMemory({

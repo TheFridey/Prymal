@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../../lib/api';
 import { mergeAgentState } from '../../../lib/constants';
 import { InlineNotice } from '../../../components/ui';
@@ -28,6 +28,7 @@ export default function WorkspaceChatExperience({
   routeMode = false,
   panelSwitcher = null,
 }) {
+  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const notify = useAppStore((state) => state.addNotification);
@@ -139,6 +140,21 @@ export default function WorkspaceChatExperience({
     setAutoScrollEnabled(true);
   }, [conv.currentConversationId]);
 
+  useEffect(() => {
+    if (!routeMode || !activeAgent || !conv.currentConversationId) return;
+    if (initialAgentId && activeAgent.id !== initialAgentId) return;
+
+    const searchParams = new URLSearchParams(location.search);
+    const currentConversationParam = searchParams.get('cid')?.trim() || searchParams.get('conversation')?.trim() || '';
+    const isLegacyConversationParam = searchParams.has('conversation');
+
+    if (currentConversationParam === conv.currentConversationId && !isLegacyConversationParam) {
+      return;
+    }
+
+    navigate(`/app/agents/${activeAgent.id}?cid=${conv.currentConversationId}`, { replace: true });
+  }, [activeAgent, conv.currentConversationId, initialAgentId, location.search, navigate, routeMode]);
+
   // ── composer resize ───────────────────────────────────────────────────────
   useEffect(() => {
     resizeComposer(composerRef.current);
@@ -194,6 +210,7 @@ export default function WorkspaceChatExperience({
     voice.resetInterim();
     setDraft('');
     setAutoScrollEnabled(true);
+    if (routeMode) navigate(`/app/agents/${activeAgent.id}?new=1`);
   }
 
   function clearCurrentConversation() {
@@ -202,6 +219,7 @@ export default function WorkspaceChatExperience({
     chat.resetSendState();
     setDraft('');
     setAutoScrollEnabled(true);
+    if (routeMode) navigate(`/app/agents/${activeAgent.id}?new=1`);
   }
 
   // ── slash command setup ───────────────────────────────────────────────────
@@ -307,7 +325,7 @@ export default function WorkspaceChatExperience({
 
   return (
     <>
-      <section className="workspace-studio" style={{ '--studio-accent': activeAgent.color }}>
+      <section className="workspace-studio workspace-studio--agents" style={{ '--studio-accent': activeAgent.color }}>
         <div className="workspace-studio__shell">
           <AgentSidebar
             activeAgent={activeAgent}
@@ -328,7 +346,13 @@ export default function WorkspaceChatExperience({
             agentStripDragRef={strip.agentStripDragRef}
             onSelectAgent={(agentId, dragRef) => {
               if (routeMode) {
-                navigate(`/app/agents/${agentId}`);
+                setActiveAgentId(agentId);
+                const selectedConversationId = conv.selectedConversationIds[agentId];
+                navigate(
+                  selectedConversationId
+                    ? `/app/agents/${agentId}?cid=${selectedConversationId}`
+                    : `/app/agents/${agentId}`,
+                );
               } else {
                 if (dragRef.current.suppressClick) {
                   dragRef.current.suppressClick = false;
@@ -343,7 +367,12 @@ export default function WorkspaceChatExperience({
             onAgentStripPointerMove={strip.handlePointerMove}
             onAgentStripPointerEnd={strip.handlePointerEnd}
             onAgentStripWheel={strip.handleWheel}
-            onSelectConversation={conv.setCurrentConversation}
+            onSelectConversation={(conversationId) => {
+              conv.setCurrentConversation(conversationId);
+              if (routeMode) {
+                navigate(`/app/agents/${activeAgent.id}?cid=${conversationId}`);
+              }
+            }}
             onTogglePinned={conv.togglePinned}
             onOpenRename={conv.openRename}
             onSetEditTitle={conv.setEditTitle}

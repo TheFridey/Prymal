@@ -9,6 +9,7 @@ import {
   getVoiceReplyPitch,
   getVoiceReplyRate,
 } from '../../composer/voice';
+import { getSpeechPreviewText } from '../messagePresentation';
 
 /**
  * Owns streaming state and all send/image/file/audit actions.
@@ -270,9 +271,13 @@ export function useChatSend({
             'speechSynthesis' in window &&
             fullText.trim()
           ) {
+            const spokenPreview = getSpeechPreviewText({
+              content: fullText,
+              agentId: targetAgent.id,
+            }) || fullText;
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(
-              fullText.slice(0, getVoiceReplyCharacterLimit(settings.voiceReplyLength)),
+              spokenPreview.slice(0, getVoiceReplyCharacterLimit(settings.voiceReplyLength)),
             );
             utterance.rate = getVoiceReplyRate(settings.voiceReplyRate);
             utterance.pitch = getVoiceReplyPitch(settings.voiceReplyPitch);

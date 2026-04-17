@@ -21,6 +21,7 @@ import { recordProductEvent } from '../services/telemetry.js';
 import { transcribeAudioFile } from '../services/transcription.js';
 import { runAgentChat } from '../services/agent-runner.js';
 import { detectEscalationTrigger, dispatchWrenEscalation } from '../services/wren-escalation.js';
+import { buildConversationAgentMismatchResponse } from './agent-conversation-utils.js';
 
 const router = new Hono();
 
@@ -215,6 +216,15 @@ router.post('/chat', requireOrg, planAwareRateLimit({
 
     if (!conversation) {
       return context.json({ error: 'Conversation not found' }, 404);
+    }
+
+    const mismatchResponse = buildConversationAgentMismatchResponse({
+      conversation,
+      requestedAgentId: payload.agentId,
+    });
+
+    if (mismatchResponse) {
+      return context.json(mismatchResponse.body, mismatchResponse.status);
     }
   } else {
     [conversation] = await db
@@ -478,6 +488,15 @@ router.post('/generate-image', requireOrg, zValidator('json', imageGenerationSch
 
     if (!conversation) {
       return context.json({ error: 'Conversation not found' }, 404);
+    }
+
+    const mismatchResponse = buildConversationAgentMismatchResponse({
+      conversation,
+      requestedAgentId: payload.agentId,
+    });
+
+    if (mismatchResponse) {
+      return context.json(mismatchResponse.body, mismatchResponse.status);
     }
   } else {
     [conversation] = await db
