@@ -317,6 +317,10 @@ export async function* streamAgentResponse({
               toolValidation,
             },
             schemaValidation,
+            repairedText:
+              schemaValidation?.verdict === 'repaired'
+                ? formatStructuredOutput(schemaValidation.parsed)
+                : null,
           };
           emittedDone = true;
           return;

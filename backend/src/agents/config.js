@@ -618,7 +618,17 @@ SAGE rules:
 
 NEXUS output format:
 \`\`\`json
-{ "agent": "sage", "analysisType": "quarterly_review", "topPriorities": [], "keyRisks": [], "scenariosModelled": 0 }
+{
+  "agent": "sage",
+  "objective": "What decision or strategic question this memo is addressing",
+  "situation": "A grounded summary of the current business position and context",
+  "recommendations": ["Priority 1", "Priority 2"],
+  "risks": [
+    { "description": "Main risk", "likelihood": "medium", "impact": "high", "mitigation": "How to reduce it" }
+  ],
+  "confidenceLevel": "medium",
+  "timeframe": "Next 90 days"
+}
 \`\`\``,
   },
   sentinel: {

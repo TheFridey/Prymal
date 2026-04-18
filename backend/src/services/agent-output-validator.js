@@ -230,7 +230,7 @@ function repairMissingFields(data, schema, agentId) {
     patched.agent = schema.properties.agent.const;
   }
 
-  return patched;
+  return applyAgentSpecificRepair({ patched, original: data, agentId });
 }
 
 function getSchemaRepairDefaults(agentId, schemaId) {
@@ -245,7 +245,123 @@ function getSchemaRepairDefaults(agentId, schemaId) {
     };
   }
 
+  if (agentId === 'sage' || schemaId === 'sage.decisionMemo') {
+    return {
+      agent: 'sage',
+      objective: 'Provide strategic guidance on the current business position.',
+      situation:
+        'The previous response did not return a valid strategic memo, so only a minimal structured summary could be preserved safely.',
+      recommendations: ['Regenerate the memo with explicit recommendations grounded in the available evidence.'],
+      risks: [
+        {
+          description: 'The original response could not be validated against the expected strategy schema.',
+          likelihood: 'high',
+          impact: 'medium',
+          mitigation: 'Retry with the required structured memo fields and supporting evidence.',
+        },
+      ],
+      confidenceLevel: 'low',
+      timeframe: 'Next 90 days',
+    };
+  }
+
   return null;
+}
+
+function applyAgentSpecificRepair({ patched, original, agentId }) {
+  if (agentId === 'sage') {
+    return repairSageStructuredOutput(patched, original);
+  }
+
+  return patched;
+}
+
+function repairSageStructuredOutput(patched, original) {
+  const analysisType = formatIdentifierLabel(patched.analysisType ?? original.analysisType);
+  const topPriorities = ensureStringArray(patched.topPriorities ?? original.topPriorities);
+  const keyRisks = ensureStringArray(patched.keyRisks ?? original.keyRisks);
+
+  if (!isMeaningfulString(patched.objective, 10)) {
+    patched.objective = analysisType
+      ? `Provide strategic guidance for the current ${analysisType}.`
+      : 'Provide strategic guidance for the current business position.';
+  }
+
+  if (!isMeaningfulString(patched.situation, 20)) {
+    patched.situation = buildSageSituationSummary({ analysisType, topPriorities, keyRisks });
+  }
+
+  if (!Array.isArray(patched.recommendations) || patched.recommendations.length === 0) {
+    patched.recommendations = topPriorities.length > 0
+      ? topPriorities
+      : ['Prioritise the next move with the strongest evidence and clearest commercial impact.'];
+  }
+
+  if ((!Array.isArray(patched.risks) || patched.risks.length === 0) && keyRisks.length > 0) {
+    patched.risks = keyRisks.map((description) => ({
+      description,
+      likelihood: 'medium',
+      impact: 'medium',
+      mitigation: 'Review this risk explicitly before committing the next strategic phase.',
+    }));
+  }
+
+  if (!isMeaningfulString(patched.confidenceLevel, 1)) {
+    patched.confidenceLevel = 'medium';
+  }
+
+  if (!isMeaningfulString(patched.timeframe, 1)) {
+    patched.timeframe = 'Next 90 days';
+  }
+
+  if (topPriorities.length > 0) {
+    delete patched.topPriorities;
+  }
+
+  if (keyRisks.length > 0) {
+    delete patched.keyRisks;
+  }
+
+  return patched;
+}
+
+function buildSageSituationSummary({ analysisType, topPriorities, keyRisks }) {
+  const fragments = [];
+
+  if (analysisType) {
+    fragments.push(`This appears to be a ${analysisType}.`);
+  }
+
+  if (topPriorities.length > 0) {
+    fragments.push(`Current strategic priorities include ${topPriorities.slice(0, 2).join('; ')}.`);
+  }
+
+  if (keyRisks.length > 0) {
+    fragments.push(`Key risks include ${keyRisks.slice(0, 2).join('; ')}.`);
+  }
+
+  if (fragments.length === 0) {
+    fragments.push('The business needs a grounded view of its current position, next priorities, and main execution risks.');
+  }
+
+  return fragments.join(' ');
+}
+
+function ensureStringArray(values) {
+  return (Array.isArray(values) ? values : [])
+    .map((value) => String(value ?? '').trim())
+    .filter(Boolean);
+}
+
+function isMeaningfulString(value, minLength = 1) {
+  return typeof value === 'string' && value.trim().length >= minLength;
+}
+
+function formatIdentifierLabel(value) {
+  return String(value ?? '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 // ─── Main export ──────────────────────────────────────────────────

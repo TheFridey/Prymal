@@ -119,6 +119,10 @@ export async function* runAgentChat({
       throw streamError;
     }
 
+    if (lastDoneEvent?.repairedText) {
+      assistantText = lastDoneEvent.repairedText;
+    }
+
     // Run eval on the completed response
     const evaluation = evaluateAgentOutput({
       agentId,

@@ -445,7 +445,7 @@ export const AGENT_CONTRACTS = {
     enforcement: {
       toolViolationAction: TOOL_VIOLATION_ACTIONS.WARN,
       schemaRepairAttempts: 2,
-      schemaRepairPrompt: 'Reformat as sage.decisionMemo with situation, tradeoffs[], recommendation, confidenceLevel, and evidenceSources[] fields.',
+      schemaRepairPrompt: 'Reformat as sage.decisionMemo with objective, situation, recommendations[], risks[], confidenceLevel, and timeframe fields.',
       hallucinationRiskThreshold: 0.55,
     },
     traceMetadata: {

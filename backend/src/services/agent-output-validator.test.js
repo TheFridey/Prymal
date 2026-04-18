@@ -100,6 +100,37 @@ test('validateAgentOutput repairs lore output with defaults when JSON block is m
   assert.match(validation.repairNotes ?? '', /schema defaults/i);
 });
 
+test('validateAgentOutput repairs sage strategy aliases into the decision memo schema', () => {
+  const validation = validateAgentOutput(
+    'sage',
+    JSON.stringify({
+      agent: 'sage',
+      analysisType: 'strategic_position_review',
+      topPriorities: [
+        'Achieve 95%+ reliability on single-agent tasks',
+        'Build a unit economics model for workflow cost',
+      ],
+      keyRisks: [
+        'API cost scaling outpacing revenue',
+        'Infrastructure ceiling hit during beta',
+      ],
+      scenariosModelled: 0,
+    }),
+  );
+
+  assert.equal(validation.verdict, 'repaired');
+  assert.match(validation.parsed.objective, /strategic position review/i);
+  assert.match(validation.parsed.situation, /Current strategic priorities include/i);
+  assert.deepEqual(validation.parsed.recommendations, [
+    'Achieve 95%+ reliability on single-agent tasks',
+    'Build a unit economics model for workflow cost',
+  ]);
+  assert.equal(validation.parsed.risks[0].description, 'API cost scaling outpacing revenue');
+  assert.equal(validation.parsed.confidenceLevel, 'medium');
+  assert.equal('topPriorities' in validation.parsed, false);
+  assert.equal('keyRisks' in validation.parsed, false);
+});
+
 test('buildSchemaRepairPrompt includes schema id and validation failures', () => {
   const prompt = buildSchemaRepairPrompt({
     agentId: 'ledger',
