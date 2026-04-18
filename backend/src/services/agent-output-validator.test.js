@@ -131,6 +131,36 @@ test('validateAgentOutput repairs sage strategy aliases into the decision memo s
   assert.equal('keyRisks' in validation.parsed, false);
 });
 
+test('validateAgentOutput normalizes sage enum-like values into allowed schema enums', () => {
+  const validation = validateAgentOutput(
+    'sage',
+    JSON.stringify({
+      agent: 'sage',
+      objective: 'Assess Prymal current strategic position and define the next priorities clearly.',
+      situation:
+        'Prymal is moving from stability work into early launch, with the biggest risks concentrated around reliability, cost control, and proving value with real users.',
+      recommendations: [
+        'Harden output reliability before pushing for broader adoption.',
+      ],
+      risks: [
+        {
+          description: 'Agent output failures erode early user trust.',
+          likelihood: 'high',
+          impact: 'critical',
+          mitigation: 'Validation layer hardening and graceful failure UX.',
+        },
+      ],
+      confidenceLevel: 'medium-high',
+      timeframe: 'Next 90 days',
+    }),
+  );
+
+  assert.equal(validation.verdict, 'repaired');
+  assert.equal(validation.parsed.risks[0].impact, 'high');
+  assert.equal(validation.parsed.confidenceLevel, 'high');
+  assert.match(validation.repairNotes ?? '', /normalized enum values/i);
+});
+
 test('buildSchemaRepairPrompt includes schema id and validation failures', () => {
   const prompt = buildSchemaRepairPrompt({
     agentId: 'ledger',

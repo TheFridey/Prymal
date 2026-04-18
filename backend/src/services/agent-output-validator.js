@@ -230,7 +230,8 @@ function repairMissingFields(data, schema, agentId) {
     patched.agent = schema.properties.agent.const;
   }
 
-  return applyAgentSpecificRepair({ patched, original: data, agentId });
+  const repaired = applyAgentSpecificRepair({ patched, original: data, agentId });
+  return normalizeDataAgainstSchema(repaired, schema);
 }
 
 function getSchemaRepairDefaults(agentId, schemaId) {
@@ -364,6 +365,123 @@ function formatIdentifierLabel(value) {
     .trim();
 }
 
+function normalizeDataAgainstSchema(data, schema) {
+  if (!schema || data == null) {
+    return data;
+  }
+
+  if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
+    for (const variant of schema.oneOf) {
+      const candidate = normalizeDataAgainstSchema(data, variant);
+      const validation = validateAgainstSchema(candidate, variant);
+      if (validation.valid) {
+        return candidate;
+      }
+    }
+
+    return data;
+  }
+
+  if (typeof data === 'string' && Array.isArray(schema.enum)) {
+    return normalizeEnumValue(data, schema.enum);
+  }
+
+  if (Array.isArray(data) && schema.items) {
+    return data.map((item) => normalizeDataAgainstSchema(item, schema.items));
+  }
+
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    const normalized = { ...data };
+
+    for (const [key, value] of Object.entries(normalized)) {
+      const propSchema = schema.properties?.[key];
+
+      if (propSchema) {
+        normalized[key] = normalizeDataAgainstSchema(value, propSchema);
+        continue;
+      }
+
+      if (schema.additionalProperties && typeof schema.additionalProperties === 'object') {
+        normalized[key] = normalizeDataAgainstSchema(value, schema.additionalProperties);
+      }
+    }
+
+    return normalized;
+  }
+
+  return data;
+}
+
+function normalizeEnumValue(value, allowedValues) {
+  if (typeof value !== 'string' || !Array.isArray(allowedValues) || allowedValues.length === 0) {
+    return value;
+  }
+
+  const directMatch = allowedValues.find((allowed) => String(allowed).toLowerCase() === value.toLowerCase());
+  if (directMatch) {
+    return directMatch;
+  }
+
+  const canonicalInput = canonicalizeEnumToken(value);
+  const canonicalMatch = allowedValues.find((allowed) => canonicalizeEnumToken(allowed) === canonicalInput);
+  if (canonicalMatch) {
+    return canonicalMatch;
+  }
+
+  const normalizedSet = new Set(allowedValues.map((allowed) => canonicalizeEnumToken(allowed)));
+  if (normalizedSet.has('low') && normalizedSet.has('medium') && normalizedSet.has('high')) {
+    if (/(critical|severe|urgent|major|highest|veryhigh|mediumhigh|highmedium)/.test(canonicalInput)) {
+      return allowedValues.find((allowed) => canonicalizeEnumToken(allowed) === 'high') ?? value;
+    }
+
+    if (/(moderate|mid|average)/.test(canonicalInput)) {
+      return allowedValues.find((allowed) => canonicalizeEnumToken(allowed) === 'medium') ?? value;
+    }
+
+    if (/(minor|small|light|lowmedium|mediumlow)/.test(canonicalInput)) {
+      return allowedValues.find((allowed) => canonicalizeEnumToken(allowed) === 'low') ?? value;
+    }
+  }
+
+  return value;
+}
+
+function canonicalizeEnumToken(value) {
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function buildRepairNotes(errors = []) {
+  const missingFields = errors
+    .map((error) => error.match(/missing required field "([^"]+)"/)?.[1])
+    .filter(Boolean);
+  const hasEnumNormalization = errors.some((error) => error.includes(' not in enum '));
+  const hasLengthRepair = errors.some(
+    (error) => error.includes('minLength') || error.includes('minItems'),
+  );
+
+  const notes = [];
+
+  if (missingFields.length > 0) {
+    notes.push(`filled required fields (${missingFields.join(', ')})`);
+  }
+
+  if (hasEnumNormalization) {
+    notes.push('normalized enum values');
+  }
+
+  if (hasLengthRepair) {
+    notes.push('expanded minimal fields to satisfy schema length requirements');
+  }
+
+  if (notes.length === 0) {
+    return 'Auto-repaired structured output to satisfy the schema contract.';
+  }
+
+  return `Auto-repaired structured output: ${notes.join('; ')}.`;
+}
+
 // ─── Main export ──────────────────────────────────────────────────
 
 /**
@@ -441,7 +559,7 @@ export function validateAgentOutput(agentId, responseText) {
       verdict: 'repaired',
       parsed: repaired,
       errors,
-      repairNotes: `Auto-repaired missing fields: ${errors.map((e) => e.match(/"([^"]+)"/)?.[1]).filter(Boolean).join(', ')}`,
+      repairNotes: buildRepairNotes(errors),
     };
   }
 
