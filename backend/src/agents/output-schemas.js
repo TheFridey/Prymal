@@ -405,42 +405,64 @@ export const FORGE_CONTENT_BRIEF = {
 };
 
 /**
- * ATLAS — atlas.contentSummary
- * Long-form content summarisation and structuring output.
+ * ATLAS — atlas.planOutline
+ * Project and operations planning output with phases, tasks, and delivery risk.
  */
-export const ATLAS_CONTENT_SUMMARY = {
+export const ATLAS_PLAN_OUTLINE = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  $id: 'atlas.contentSummary',
+  $id: 'atlas.planOutline',
   type: 'object',
-  required: ['agent', 'title', 'summary', 'keyPoints'],
+  required: ['agent', 'objective', 'phases', 'totalTasks'],
   additionalProperties: true,
   properties: {
     agent: { type: 'string', const: 'atlas' },
-    title: { type: 'string', minLength: 1 },
-    summary: { type: 'string', minLength: 30 },
-    keyPoints: { type: 'array', minItems: 1, items: { type: 'string' } },
-    sections: {
+    objective: { type: 'string', minLength: 10 },
+    phases: {
       type: 'array',
+      minItems: 1,
       items: {
         type: 'object',
-        required: ['heading', 'content'],
+        required: ['name', 'tasks'],
         properties: {
-          heading: { type: 'string' },
-          content: { type: 'string' },
+          name: { type: 'string', minLength: 2 },
+          goal: { type: 'string' },
+          tasks: {
+            type: 'array',
+            minItems: 1,
+            items: {
+              type: 'object',
+              required: ['title', 'owner', 'dueDay', 'successCriteria'],
+              properties: {
+                title: { type: 'string', minLength: 5 },
+                owner: { type: 'string', minLength: 2 },
+                dueDay: { type: 'string', minLength: 1 },
+                dependencies: { type: 'array', items: { type: 'string' } },
+                successCriteria: { type: 'string', minLength: 5 },
+              },
+            },
+          },
         },
       },
     },
-    entities: {
-      type: 'object',
-      properties: {
-        people: { type: 'array', items: { type: 'string' } },
-        organisations: { type: 'array', items: { type: 'string' } },
-        topics: { type: 'array', items: { type: 'string' } },
+    totalTasks: { type: 'integer', minimum: 1 },
+    agentTasksAssigned: { type: 'array', items: { type: 'string' } },
+    exportFormat: {
+      type: 'string',
+      enum: ['notion', 'trello', 'linear', 'asana', 'markdown', 'none'],
+    },
+    risks: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['description'],
+        properties: {
+          description: { type: 'string', minLength: 5 },
+          mitigation: { type: 'string' },
+          severity: { type: 'string', enum: ['low', 'medium', 'high'] },
+        },
       },
     },
-    sentiment: { type: 'string', enum: ['positive', 'neutral', 'negative', 'mixed'] },
-    wordCount: { type: 'integer', minimum: 0 },
-    confidence: { type: 'number', minimum: 0, maximum: 1 },
+    assumptions: { type: 'array', items: { type: 'string' } },
   },
 };
 
@@ -484,41 +506,26 @@ export const ECHO_SOCIAL_CONTENT = {
 };
 
 /**
- * PIXEL — pixel.designBrief
- * Visual and design direction output.
+ * PIXEL — pixel.assetManifest
+ * Visual asset output with generated URLs, briefs, and iteration metadata.
  */
-export const PIXEL_DESIGN_BRIEF = {
+export const PIXEL_ASSET_MANIFEST = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  $id: 'pixel.designBrief',
+  $id: 'pixel.assetManifest',
   type: 'object',
-  required: ['agent', 'assetType', 'objective', 'visualDirection'],
+  required: ['agent', 'objective', 'assetsGenerated', 'assetUrls', 'briefs', 'iterationsUsed'],
   additionalProperties: true,
   properties: {
     agent: { type: 'string', const: 'pixel' },
+    objective: { type: 'string', minLength: 10 },
     assetType: {
       type: 'string',
-      enum: ['logo', 'banner', 'social_graphic', 'illustration', 'infographic', 'ui_mockup', 'presentation', 'other'],
+      enum: ['logo', 'banner', 'social_graphic', 'illustration', 'infographic', 'ui_mockup', 'hero_image', 'presentation', 'other'],
     },
-    objective: { type: 'string', minLength: 10 },
-    visualDirection: {
-      type: 'object',
-      properties: {
-        style: { type: 'string' },
-        palette: { type: 'array', items: { type: 'string' } },
-        typography: { type: 'string' },
-        mood: { type: 'array', items: { type: 'string' } },
-        references: { type: 'array', items: { type: 'string' } },
-      },
-    },
-    dimensions: {
-      type: 'object',
-      properties: {
-        width: { type: 'integer' },
-        height: { type: 'integer' },
-        unit: { type: 'string', enum: ['px', 'pt', 'mm', 'cm', 'in'] },
-      },
-    },
-    deliverables: { type: 'array', items: { type: 'string' } },
+    assetsGenerated: { type: 'integer', minimum: 0 },
+    assetUrls: { type: 'array', items: { type: 'string', minLength: 5 } },
+    briefs: { type: 'array', items: { type: 'string', minLength: 5 } },
+    iterationsUsed: { type: 'integer', minimum: 0 },
     generatedImagePrompts: { type: 'array', items: { type: 'string' } },
     brandAligned: { type: 'boolean' },
     notes: { type: 'string' },
@@ -773,12 +780,12 @@ export const AGENT_OUTPUT_SCHEMAS = {
   'herald.sequence': HERALD_SEQUENCE,
   'lore.sourceDigest': LORE_SOURCE_DIGEST,
   'forge.contentBrief': FORGE_CONTENT_BRIEF,
-  'atlas.contentSummary': ATLAS_CONTENT_SUMMARY,
-  'atlas.planOutline': ATLAS_CONTENT_SUMMARY,
+  'atlas.contentSummary': ATLAS_PLAN_OUTLINE,
+  'atlas.planOutline': ATLAS_PLAN_OUTLINE,
   'echo.socialContent': ECHO_SOCIAL_CONTENT,
   'echo.socialPlan': ECHO_SOCIAL_CONTENT,
-  'pixel.designBrief': PIXEL_DESIGN_BRIEF,
-  'pixel.assetManifest': PIXEL_DESIGN_BRIEF,
+  'pixel.designBrief': PIXEL_ASSET_MANIFEST,
+  'pixel.assetManifest': PIXEL_ASSET_MANIFEST,
   'oracle.auditReport': ORACLE_AUDIT_REPORT,
   'oracle.seoAudit': ORACLE_AUDIT_REPORT,
   'wren.supportResponse': WREN_SUPPORT_RESPONSE,

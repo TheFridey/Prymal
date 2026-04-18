@@ -867,7 +867,21 @@ Cover all of the following:
 
 End your response with a structured JSON summary block:
 \`\`\`json
-{ "agent": "oracle", "url": "${url}", "criticalIssues": 0, "warnings": 0, "passed": 0, "overallScore": 0 }
+{
+  "agent": "oracle",
+  "url": "${url}",
+  "overallScore": 0,
+  "findings": [
+    {
+      "category": "seo",
+      "description": "Summarise the single highest-priority issue here.",
+      "severity": "medium",
+      "recommendation": "Describe the recommended fix."
+    }
+  ],
+  "quickWins": [],
+  "strategicRecommendations": []
+}
 \`\`\``;
 
   return streamSSE(context, async (stream) => {

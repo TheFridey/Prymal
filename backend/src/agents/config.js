@@ -38,7 +38,15 @@ Cross-agent behaviour:
 - When trends reveal content opportunities, offer to pass insights to FORGE or ORACLE
 - Always output a structured JSON block at the end of analysis for NEXUS workflows:
   \`\`\`json
-  { "agent": "cipher", "summary": "...", "keyMetrics": {}, "anomalies": [], "recommendations": [] }
+  {
+    "agent": "cipher",
+    "summary": "Revenue growth slowed while acquisition costs climbed faster than conversions.",
+    "keyMetrics": { "conversionRate": "3.4%", "cac": "£142" },
+    "anomalies": [
+      { "description": "Paid spend increased while demo bookings stayed flat.", "severity": "medium", "metric": "demoBookings" }
+    ],
+    "recommendations": ["Review channel efficiency before increasing paid spend further."]
+  }
   \`\`\`
 
 Knowledge base: You have access to the organisation's LORE knowledge base. Use it to contextualise data against known business information (e.g. pricing, product names, seasonal events).`,
@@ -83,7 +91,23 @@ Cross-agent behaviour:
 
 NEXUS output format:
 \`\`\`json
-{ "agent": "herald", "emailsSent": 0, "sequenceCreated": true, "nextAction": "..." }
+{
+  "agent": "herald",
+  "sequenceName": "Warm lead reactivation",
+  "targetAudience": "Trial users who went quiet after a demo",
+  "totalEmails": 1,
+  "emails": [
+    {
+      "emailNumber": 1,
+      "sendDay": 0,
+      "subject": "A quick idea for restarting momentum at {{company}}",
+      "body": "Hi {{first_name}},\\n\\nI noticed things went quiet after the demo, so I pulled together one practical next step you can use this week to unblock progress.\\n\\nIf helpful, I can send a short plan tailored to {{company}} and the outcome you care about most.",
+      "cta": "Reply \\\"Plan\\\" and I’ll send the tailored outline.",
+      "tone": "Direct, consultative"
+    }
+  ],
+  "notes": "Add proof points and personalisation before sending."
+}
 \`\`\``,
   },
 
@@ -167,7 +191,15 @@ Cross-agent behaviour:
 
 NEXUS output format:
 \`\`\`json
-{ "agent": "forge", "wordCount": 0, "format": "markdown", "seoOptimised": false, "contentTitle": "..." }
+{
+  "agent": "forge",
+  "contentType": "landing_page",
+  "headline": "Turn operational chaos into coordinated AI execution",
+  "body": "Prymal helps teams move from scattered requests to structured execution with specialist AI agents, grounded context, and outputs that are ready to use. Every section should sharpen the commercial message, reduce ambiguity, and move the reader toward one clear next step.",
+  "cta": "Book a demo",
+  "seoKeywords": ["ai agents for operations", "multi-agent business system"],
+  "brandAlignment": "strong"
+}
 \`\`\``,
   },
 
@@ -207,7 +239,35 @@ Briefing questions (ask before planning if not provided):
 
 NEXUS output format:
 \`\`\`json
-{ "agent": "atlas", "phases": 0, "totalTasks": 0, "agentTasksAssigned": [], "exportFormat": "notion" }
+{
+  "agent": "atlas",
+  "objective": "Launch the new outbound campaign with clear owners, deadlines, and sign-off points.",
+  "phases": [
+    {
+      "name": "Discovery",
+      "goal": "Confirm the offer, ICP, and proof points before drafting begins.",
+      "tasks": [
+        {
+          "title": "Collect the final offer and ICP inputs",
+          "owner": "human",
+          "dueDay": "Day 1",
+          "dependencies": [],
+          "successCriteria": "Offer, audience, and proof inputs are approved."
+        }
+      ]
+    }
+  ],
+  "totalTasks": 1,
+  "agentTasksAssigned": ["herald"],
+  "exportFormat": "notion",
+  "risks": [
+    {
+      "description": "Offer positioning is not approved before drafting begins.",
+      "mitigation": "Lock sign-off before HERALD writes the sequence.",
+      "severity": "medium"
+    }
+  ]
+}
 \`\`\``,
   },
 
@@ -254,8 +314,22 @@ Cross-agent behaviour:
 
 NEXUS output format:
 \`\`\`json
-  { "agent": "echo", "postsCreated": 0, "platforms": [], "scheduledCount": 0, "imagesBriefed": 0 }
-  \`\`\``,
+{
+  "agent": "echo",
+  "platform": "linkedin",
+  "campaignName": "Launch week credibility posts",
+  "posts": [
+    {
+      "content": "The biggest mistake teams make with AI is treating it like a toy instead of an operating layer.\\n\\nWe built Prymal to change that.",
+      "platform": "linkedin",
+      "hashtags": ["#AI", "#Operations"],
+      "mediaPrompt": "Cinematic product visual showing specialist agents coordinating real work.",
+      "tone": "Sharp"
+    }
+  ],
+  "brandVoiceScore": 8.7
+}
+\`\`\``,
   },
 
   pixel: {
@@ -292,7 +366,16 @@ Cross-agent behaviour:
 
 NEXUS output format:
 \`\`\`json
-{ "agent": "pixel", "assetsGenerated": 0, "assetUrls": [], "briefs": [], "iterationsUsed": 0 }
+{
+  "agent": "pixel",
+  "objective": "Create launch visuals that make Prymal feel cinematic, premium, and immediately recognisable.",
+  "assetType": "hero_image",
+  "assetsGenerated": 1,
+  "assetUrls": ["https://example.com/assets/prymal-launch-hero.webp"],
+  "briefs": ["21:9 hero visual with the Prymal character leading a team of specialist agents through a command deck."],
+  "iterationsUsed": 1,
+  "brandAligned": true
+}
 \`\`\``,
   },
 
@@ -335,7 +418,21 @@ Cross-agent behaviour:
 
 NEXUS output format:
 \`\`\`json
-{ "agent": "oracle", "urlsAudited": 0, "criticalIssues": 0, "keywordsIdentified": 0, "briefsGenerated": 0 }
+{
+  "agent": "oracle",
+  "url": "https://prymal.io",
+  "overallScore": 7.8,
+  "findings": [
+    {
+      "category": "seo",
+      "description": "The page title can target the core commercial keyword more directly.",
+      "severity": "medium",
+      "recommendation": "Lead the title with the primary service phrase and keep the brand second."
+    }
+  ],
+  "quickWins": ["Tighten the title tag around the main commercial keyword."],
+  "strategicRecommendations": ["Build supporting pages around the highest-intent service terms."]
+}
 \`\`\``,
   },
 
@@ -380,7 +477,17 @@ Cross-agent behaviour:
 
 NEXUS output format:
 \`\`\`json
-{ "agent": "vance", "leadsScored": 0, "proposalsDrafted": 0, "highValueLeads": [], "nextFollowUp": null }
+{
+  "agent": "vance",
+  "companyName": "Acme Labs",
+  "qualificationScore": 7.5,
+  "stage": "qualified",
+  "nextAction": "Send a tailored proposal focused on workflow automation outcomes.",
+  "suggestedNextAction": "Book a 30-minute discovery call with the decision-maker this week.",
+  "confidence": 0.72,
+  "need": "Reduce manual ops load across customer onboarding.",
+  "timeline": "Within the next 30 days"
+}
 \`\`\``,
   },
 
@@ -425,7 +532,14 @@ Cross-agent behaviour:
 
 NEXUS output format:
 \`\`\`json
-{ "agent": "wren", "ticketsHandled": 0, "sentimentBreakdown": {}, "escalated": 0, "faqsGenerated": 0 }
+{
+  "agent": "wren",
+  "intent": "technical_issue",
+  "sentiment": "frustrated",
+  "response": "Thanks for flagging this. I’ve checked the likely causes and the fastest next step is to reconnect the integration, refresh the workspace, and confirm whether the issue persists. If it does, I’ll escalate it with the context attached.",
+  "escalate": false,
+  "suggestedActions": ["Reconnect the integration", "Refresh the workspace and retry the action"]
+}
 \`\`\``,
   },
 
@@ -475,7 +589,21 @@ Cross-agent behaviour:
 
 NEXUS output format:
 \`\`\`json
-{ "agent": "ledger", "reportType": "p&l", "period": "", "keyMetrics": {}, "riskFlags": [] }
+{
+  "agent": "ledger",
+  "period": "2026-Q2",
+  "headline": "Revenue held up, but margin pressure is creeping in through rising acquisition costs.",
+  "commentary": "Revenue is stable and cash remains controlled, but paid acquisition is becoming less efficient. The next decision should focus on protecting margin before scaling spend further.",
+  "totals": {
+    "revenue": 120000,
+    "costs": 78000,
+    "grossMargin": 42000
+  },
+  "forecasts": [
+    { "metric": "revenue", "period": "2026-Q3", "value": 128000, "confidence": "medium" }
+  ],
+  "confidenceNotes": ["Forecast assumes current close rates remain stable over the next quarter."]
+}
 \`\`\``,
   },
 
@@ -517,7 +645,27 @@ Technical constraints to communicate to users:
 
 NEXUS output format:
 \`\`\`json
-{ "agent": "nexus", "workflowId": "", "nodesCount": 0, "estimatedRunTime": "...", "nextScheduledRun": null }
+{
+  "agent": "nexus",
+  "workflowName": "Lead nurture recovery flow",
+  "objective": "Re-engage warm leads who stopped responding after the first touchpoint.",
+  "nodeGraph": {
+    "nodes": [
+      { "id": "n1", "agentId": "herald", "label": "Initial follow-up" }
+    ],
+    "edges": []
+  },
+  "steps": [
+    {
+      "stepId": "step-1",
+      "agentId": "herald",
+      "task": "Send a tailored follow-up email to inactive warm leads.",
+      "outputTo": ["step-2"],
+      "estimatedDuration": "Same day"
+    }
+  ],
+  "executionAssumptions": ["CRM stage data is available for the selected leads."]
+}
 \`\`\``,
   },
 
@@ -567,7 +715,18 @@ Cross-agent behaviour:
 
 NEXUS output format:
 \`\`\`json
-{ "agent": "scout", "sourcesChecked": 0, "competitorsAnalysed": 0, "trendsIdentified": [], "reportDate": "" }
+{
+  "agent": "scout",
+  "topic": "AI operating systems for service businesses",
+  "summary": "The market is crowded with generic AI assistants, but there is still room for a premium multi-agent platform with stronger workflow orchestration and output validation.",
+  "keyFindings": ["Most competitors lead with simplicity rather than agent specialisation."],
+  "opportunities": ["Own the premium orchestration position for service operators."],
+  "sources": [
+    { "title": "Competitor pricing page", "url": "https://example.com/pricing", "relevanceScore": 0.88 }
+  ],
+  "confidence": 0.74,
+  "researchDepth": "moderate"
+}
 \`\`\``,
   },
 
@@ -663,19 +822,19 @@ Verdict rules:
 Output format (always JSON):
 \`\`\`json
 {
-  "verdict": "pass|repair|hold",
+  "verdict": "pass",
   "riskScore": 0.0,
-  "reviewedAgentId": "...",
+  "reviewedAgentId": "sage",
   "checks": {
-    "accuracy": { "pass": true, "notes": "" },
-    "compliance": { "pass": true, "notes": "" },
-    "schemaValidity": { "pass": true, "notes": "" },
-    "citationConfidence": { "pass": true, "notes": "" }
+    "accuracy": { "pass": true, "notes": "Grounded by cited workspace context." },
+    "compliance": { "pass": true, "notes": "No policy issues detected." },
+    "schemaValidity": { "pass": true, "notes": "The structured output passed validation." },
+    "citationConfidence": { "pass": true, "notes": "The evidence trail supports the key claims." }
   },
   "repairedOutput": null,
   "repairNotes": null,
   "holdReason": null,
-  "suggestedNextAction": null
+  "suggestedNextAction": "Output can be shared with its evidence trail."
 }
 \`\`\`
 

@@ -45,7 +45,7 @@ export const AGENT_CONTRACTS = {
     enforcement: {
       toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
       schemaRepairAttempts: 2,
-      schemaRepairPrompt: 'The output did not match the cipher.scorecard schema. Reformat as valid JSON with executiveSummary, findings[], and recommendedActions[] fields.',
+      schemaRepairPrompt: 'The output did not match cipher.scorecard. Reformat as valid JSON with summary, keyMetrics, anomalies[], and recommendations[] fields.',
       hallucinationRiskThreshold: 0.6,
     },
     traceMetadata: {
@@ -83,7 +83,7 @@ export const AGENT_CONTRACTS = {
     enforcement: {
       toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
       schemaRepairAttempts: 1,
-      schemaRepairPrompt: 'The output did not match herald.sequence schema. Reformat with subject, body, and ctaText fields.',
+      schemaRepairPrompt: 'The output did not match herald.sequence. Reformat with sequenceName, emails[], and any supporting notes fields.',
       hallucinationRiskThreshold: 0.7,
     },
     traceMetadata: {
@@ -120,7 +120,7 @@ export const AGENT_CONTRACTS = {
     enforcement: {
       toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
       schemaRepairAttempts: 2,
-      schemaRepairPrompt: 'The output must include explicit source citations. Reformat as lore.sourceDigest with answer, sources[], contradictions[], and knowledgeGaps[] fields.',
+      schemaRepairPrompt: 'The output must match lore.sourceDigest with chunksRetrieved, sources[], gapsIdentified[], contradictionsFound[], knowledgeGapDetected, and confidence fields.',
       hallucinationRiskThreshold: 0.4,
       citationRequiredOnEveryFactualClaim: true,
     },
@@ -257,7 +257,7 @@ export const AGENT_CONTRACTS = {
     enforcement: {
       toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
       schemaRepairAttempts: 2,
-      schemaRepairPrompt: 'Reformat as oracle.seoAudit with issues[], opportunities[], and priorityScore fields.',
+      schemaRepairPrompt: 'Reformat as oracle.seoAudit with url, overallScore, findings[], quickWins[], and strategicRecommendations[] fields.',
       hallucinationRiskThreshold: 0.5,
     },
     traceMetadata: {
@@ -369,7 +369,7 @@ export const AGENT_CONTRACTS = {
     enforcement: {
       toolViolationAction: TOOL_VIOLATION_ACTIONS.HOLD,
       schemaRepairAttempts: 2,
-      schemaRepairPrompt: 'Reformat as nexus.workflowState with currentStep, completedSteps[], pendingSteps[], blockers[], and nextAction fields.',
+      schemaRepairPrompt: 'Reformat as nexus.workflowState with workflowName, nodeGraph, steps[], and executionAssumptions[] fields.',
       hallucinationRiskThreshold: 0.5,
       requiresExplicitStepConfirmation: true,
     },
@@ -408,7 +408,7 @@ export const AGENT_CONTRACTS = {
     enforcement: {
       toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
       schemaRepairAttempts: 2,
-      schemaRepairPrompt: 'Reformat as scout.marketScan with summary, competitors[], opportunities[], threats[], and confidenceLevel fields.',
+      schemaRepairPrompt: 'Reformat as scout.marketScan with topic, summary, sources[], keyFindings[], opportunities[], risks[], and confidence fields.',
       hallucinationRiskThreshold: 0.5,
     },
     traceMetadata: {
@@ -496,7 +496,7 @@ export const AGENT_CONTRACTS = {
       // SENTINEL always blocks on tool violations — it must not be circumvented
       toolViolationAction: TOOL_VIOLATION_ACTIONS.HOLD,
       schemaRepairAttempts: 3,
-      schemaRepairPrompt: 'Reformat as sentinel.reviewVerdict with verdict (pass|repair|hold|fail), riskScore (0-1), issues[], repairedOutput (if verdict=repair), and rationale fields.',
+      schemaRepairPrompt: 'Reformat as sentinel.reviewVerdict with verdict (pass|repair|hold), riskScore, reviewedAgentId, checks, repairedOutput, repairNotes, holdReason, and suggestedNextAction fields.',
       hallucinationRiskThreshold: 0.3,
       // Sentinel must emit structured verdicts — no free-form fallback
       requiresStructuredOutput: true,
