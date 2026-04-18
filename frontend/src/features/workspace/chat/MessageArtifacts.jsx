@@ -44,6 +44,7 @@ function ArtifactChip({ label, tone = 'default' }) {
 }
 
 function formatScore(value) {
+  if (value == null || value === '') return null;
   const score = Number(value);
   if (!Number.isFinite(score)) return null;
   return score <= 1 ? `${Math.round(score * 100)}%` : score.toFixed(2);
@@ -270,24 +271,37 @@ export function SourceCard({ source }) {
   const origin = API_BASE_URL.replace(/\/api$/, '');
   const screenshotUrl = source.screenshotUrl ? new URL(source.screenshotUrl, origin).toString() : null;
   const citation = source.citation ?? {};
+  const semantic = formatScore(source.similarity);
+  const lexical = formatScore(source.lexicalScore);
   const freshness = formatScore(source.freshnessScore ?? citation.freshnessScore);
   const authority = formatScore(source.authorityScore ?? citation.authorityScore);
   const confidence = source.confidenceLabel ?? citation.confidenceLabel ?? source.trustLabel ?? citation.trustLabel ?? null;
   const rankScore = formatScore(source.finalScore ?? source.rankingScore);
   const contradictionSignals = Array.isArray(source.contradictionSignals) ? source.contradictionSignals : [];
   const versionLineage = source.versionLineage ?? null;
-  const lexical = formatScore(source.lexicalScore);
-  const canExpand = Boolean(
-    lexical
+  const hasRankingSignals = Boolean(
+    semantic
+    || lexical
     || freshness
     || authority
     || rankScore
+  );
+  const hasTrustDetails = Boolean(
+    confidence
+    || source.staleWarning
+    || source.retrievalMode
+    || source.mode
+    || source.sourceType
+    || citation.sourceType
+  );
+  const canExpand = Boolean(
+    hasRankingSignals
     || contradictionSignals.length > 0
     || versionLineage
-    || source.staleWarning
-    || source.summary
-    || source.snippet,
+    || hasTrustDetails,
   );
+  const detailToggleLabel = hasRankingSignals ? 'Why this source won' : 'Source details';
+  const detailHideLabel = hasRankingSignals ? 'Hide ranking details' : 'Hide source details';
 
   return (
     <div className="workspace-studio__source-card">
@@ -333,56 +347,78 @@ export function SourceCard({ source }) {
           className="workspace-studio__source-toggle"
           onClick={() => setExpanded((value) => !value)}
         >
-          {expanded ? 'Hide ranking details' : 'Why this source won'}
+          {expanded ? detailHideLabel : detailToggleLabel}
         </button>
       ) : null}
       {expanded ? (
         <div className="workspace-studio__source-detail-grid">
-          <div className="workspace-studio__source-detail-card">
-            <div className="workspace-studio__source-detail-title">Ranking signal mix</div>
-            <div className="workspace-studio__source-list">
-              <div className="workspace-studio__source-detail-row">
-                <span>Semantic match</span>
-                <strong>{formatScore(source.similarity) ?? 'n/a'}</strong>
-              </div>
-              <div className="workspace-studio__source-detail-row">
-                <span>Lexical lift</span>
-                <strong>{lexical ?? 'n/a'}</strong>
-              </div>
-              <div className="workspace-studio__source-detail-row">
-                <span>Freshness lift</span>
-                <strong>{freshness ?? 'n/a'}</strong>
-              </div>
-              <div className="workspace-studio__source-detail-row">
-                <span>Authority lift</span>
-                <strong>{authority ?? 'n/a'}</strong>
-              </div>
-              <div className="workspace-studio__source-detail-row">
-                <span>Final rank</span>
-                <strong>{rankScore ?? 'n/a'}</strong>
+          {hasRankingSignals ? (
+            <div className="workspace-studio__source-detail-card">
+              <div className="workspace-studio__source-detail-title">Ranking signal mix</div>
+              <div className="workspace-studio__source-list">
+                {semantic ? (
+                  <div className="workspace-studio__source-detail-row">
+                    <span>Semantic match</span>
+                    <strong>{semantic}</strong>
+                  </div>
+                ) : null}
+                {lexical ? (
+                  <div className="workspace-studio__source-detail-row">
+                    <span>Lexical lift</span>
+                    <strong>{lexical}</strong>
+                  </div>
+                ) : null}
+                {freshness ? (
+                  <div className="workspace-studio__source-detail-row">
+                    <span>Freshness lift</span>
+                    <strong>{freshness}</strong>
+                  </div>
+                ) : null}
+                {authority ? (
+                  <div className="workspace-studio__source-detail-row">
+                    <span>Authority lift</span>
+                    <strong>{authority}</strong>
+                  </div>
+                ) : null}
+                {rankScore ? (
+                  <div className="workspace-studio__source-detail-row">
+                    <span>Final rank</span>
+                    <strong>{rankScore}</strong>
+                  </div>
+                ) : null}
               </div>
             </div>
-          </div>
+          ) : null}
 
           <div className="workspace-studio__source-detail-card">
-            <div className="workspace-studio__source-detail-title">Trust interpretation</div>
+            <div className="workspace-studio__source-detail-title">{hasRankingSignals ? 'Trust interpretation' : 'Source details'}</div>
             <div className="workspace-studio__source-list">
-              <div className="workspace-studio__source-detail-row">
-                <span>Confidence</span>
-                <strong>{describeConfidence(confidence)}</strong>
-              </div>
-              <div className="workspace-studio__source-detail-row">
-                <span>Freshness posture</span>
-                <strong>{source.staleWarning ? 'Stale warning attached' : 'No stale warning'}</strong>
-              </div>
+              {confidence ? (
+                <div className="workspace-studio__source-detail-row">
+                  <span>Confidence</span>
+                  <strong>{describeConfidence(confidence)}</strong>
+                </div>
+              ) : null}
+              {(hasRankingSignals || source.staleWarning) ? (
+                <div className="workspace-studio__source-detail-row">
+                  <span>Freshness posture</span>
+                  <strong>{source.staleWarning ? 'Stale warning attached' : 'No stale warning'}</strong>
+                </div>
+              ) : null}
               <div className="workspace-studio__source-detail-row">
                 <span>Retrieval mode</span>
-                <strong>{humanizeSignal(source.retrievalMode ?? source.mode ?? 'semantic')}</strong>
+                <strong>{humanizeSignal(source.retrievalMode ?? source.mode ?? (hasRankingSignals ? 'semantic' : 'direct'))}</strong>
               </div>
               <div className="workspace-studio__source-detail-row">
                 <span>Source type</span>
                 <strong>{humanizeSignal(source.sourceType ?? citation.sourceType ?? 'source')}</strong>
               </div>
+              {!hasRankingSignals ? (
+                <div className="workspace-studio__source-detail-row">
+                  <span>Selection method</span>
+                  <strong>{source.fetchedVia ? `Live web ${humanizeSignal(source.fetchedVia)}` : 'Direct source retrieval'}</strong>
+                </div>
+              ) : null}
             </div>
           </div>
 

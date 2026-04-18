@@ -9,6 +9,9 @@ const {
   computeAuthorityScore,
   computeContradictionSignals,
   computeFreshnessScore,
+  normalizeEmbeddingResponseEntries,
+  normalizeExecuteRows,
+  rankLoreRows,
 } = await import('./rag.js');
 
 test('computeFreshnessScore prefers recently verified documents', () => {
@@ -85,4 +88,53 @@ test('computeContradictionSignals surfaces numeric conflicts and newer versions'
     signals.map((signal) => signal.type),
     ['numeric_conflict'],
   );
+});
+
+test('normalizeExecuteRows accepts both drizzle execute result shapes', () => {
+  assert.deepEqual(
+    normalizeExecuteRows({ rows: [{ id: 'row_a' }] }),
+    [{ id: 'row_a' }],
+  );
+  assert.deepEqual(
+    normalizeExecuteRows([{ id: 'row_b' }]),
+    [{ id: 'row_b' }],
+  );
+  assert.deepEqual(normalizeExecuteRows(undefined), []);
+});
+
+test('normalizeEmbeddingResponseEntries handles SDK and array responses', () => {
+  assert.deepEqual(
+    normalizeEmbeddingResponseEntries({ data: [{ index: 0, embedding: [0.1, 0.2] }] }),
+    [{ index: 0, embedding: [0.1, 0.2] }],
+  );
+  assert.deepEqual(
+    normalizeEmbeddingResponseEntries([{ index: 1, embedding: [0.3, 0.4] }]),
+    [{ index: 1, embedding: [0.3, 0.4] }],
+  );
+  assert.deepEqual(normalizeEmbeddingResponseEntries({ data: null }), []);
+});
+
+test('rankLoreRows labels lexical-only matches as fallback retrieval', () => {
+  const rows = rankLoreRows(
+    [
+      {
+        id: 'chunk_1',
+        documentId: 'doc_1',
+        content: 'Prymal business plans focus on launch, scale, and agent reliability.',
+        chunkIndex: 0,
+        metadata: {},
+        documentTitle: 'Prymal Strategy',
+        sourceType: 'manual',
+        sourceUrl: null,
+        documentVersion: 1,
+        documentUpdatedAt: new Date().toISOString(),
+        similarity: 0,
+      },
+    ],
+    ['business', 'plans', 'launch'],
+    1,
+  );
+
+  assert.equal(rows[0].retrievalMode, 'lexical_fallback');
+  assert.equal(rows[0].confidenceLabel, 'low');
 });

@@ -228,15 +228,16 @@ function AppErrorFallback() {
   );
 }
 
-function ProtectedOnly({ children }) {
+export function ProtectedOnly({ children }) {
   const { isLoaded, isSignedIn, getToken } = useAuth();
 
-  useEffect(() => {
-    configureApi({
-      getToken,
-      getOrgId: () => useAppStore.getState().org?.id ?? null,
-    });
-  }, [getToken]);
+  // Bind Clerk auth before any protected child query can fire. Doing this in
+  // an effect creates a race where the first /auth/me request can go out
+  // unauthenticated on cold load and incorrectly show a 401 until retry.
+  configureApi({
+    getToken,
+    getOrgId: () => useAppStore.getState().org?.id ?? null,
+  });
 
   if (!isLoaded || typeof isSignedIn === 'undefined') {
     return <LoadingPanel label="Checking session..." />;

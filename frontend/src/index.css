@@ -3704,6 +3704,8 @@ textarea {
 }
 
 .workspace-studio__agent-hero {
+  position: relative;
+  z-index: 1;
   flex-shrink: 0;
   padding: 14px;
   border-radius: 24px;
@@ -3856,8 +3858,10 @@ textarea {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
-  overflow: auto;
-  padding-bottom: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 4px 2px;
+  margin: 0 -4px -2px;
   scroll-snap-type: x proximity;
   overscroll-behavior-x: contain;
   cursor: grab;
@@ -3865,6 +3869,10 @@ textarea {
 }
 
 .workspace-studio__agent-strip-shell {
+  position: relative;
+  z-index: 4;
+  isolation: isolate;
+  overflow: visible;
   flex-shrink: 0;
   padding: 10px;
   border-radius: 28px;
@@ -3875,6 +3883,7 @@ textarea {
 }
 
 .workspace-studio__agent-pill {
+  --agent-tooltip-shift: 0px;
   position: relative;
   display: inline-grid;
   place-items: center;
@@ -3889,7 +3898,8 @@ textarea {
     radial-gradient(circle at 50% 26%, color-mix(in srgb, var(--studio-accent) 10%, transparent), transparent 60%),
     color-mix(in srgb, var(--panel) 92%, transparent);
   cursor: pointer;
-  overflow: hidden;
+  overflow: visible;
+  z-index: 0;
   transition: transform 180ms ease, border-color 180ms ease, color 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
@@ -3899,6 +3909,7 @@ textarea {
   border-color: color-mix(in srgb, var(--studio-accent) 28%, var(--line));
   box-shadow: 0 14px 30px color-mix(in srgb, var(--studio-accent) 16%, transparent);
   transform: translateY(-1px);
+  z-index: 3;
 }
 
 .workspace-studio__agent-pill.is-recent {
@@ -3938,23 +3949,21 @@ textarea {
 
 .workspace-studio__agent-tooltip {
   position: absolute;
-  left: 50%;
-  bottom: calc(100% + 10px);
-  transform: translateX(-50%) translateY(4px);
+  transform: translateX(calc(-50% + var(--agent-tooltip-shift, 0px))) translateY(-100%);
   display: grid;
-  gap: 4px;
-  min-width: 150px;
-  padding: 10px 12px;
+  gap: 5px;
+  min-width: 208px;
+  max-width: 264px;
+  padding: 11px 13px 12px;
   border-radius: 16px;
   border: 1px solid color-mix(in srgb, var(--studio-accent) 18%, var(--line));
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent),
     var(--panel-strong);
   box-shadow: 0 18px 34px rgba(8, 13, 24, 0.16);
-  opacity: 0;
   pointer-events: none;
-  transition: opacity 160ms ease, transform 160ms ease;
-  z-index: 5;
+  text-align: center;
+  z-index: 8;
 }
 
 .workspace-studio__agent-tooltip strong,
@@ -3965,18 +3974,14 @@ textarea {
 .workspace-studio__agent-tooltip strong {
   color: var(--text-strong);
   font-size: 0.82rem;
+  line-height: 1.25;
 }
 
 .workspace-studio__agent-tooltip span {
   color: var(--muted);
   font-size: 0.74rem;
   line-height: 1.4;
-}
-
-.workspace-studio__agent-pill:hover .workspace-studio__agent-tooltip,
-.workspace-studio__agent-pill:focus-visible .workspace-studio__agent-tooltip {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  text-wrap: pretty;
 }
 
 .workspace-studio__history {

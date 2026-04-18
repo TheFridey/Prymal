@@ -70,9 +70,10 @@ router.post('/text', requireOrg, loreIngestRateLimit, zValidator('json', uploadT
     sourceType: payload.sourceType,
     sourceUrl: payload.sourceUrl ?? null,
   });
-  const contradictions = await checkForContradictions({
+  const contradictions = await runContradictionCheckSafely({
     orgId: org.orgId,
     newContent: payload.content,
+    sourceLabel: 'Text ingest',
   });
 
   const [document] = await db
@@ -130,9 +131,10 @@ router.post('/upload', requireOrg, loreIngestRateLimit, async (context) => {
     sourceType: parsed.sourceType,
     sourceUrl: parsed.metadata?.sourceUrl ?? null,
   });
-  const contradictions = await checkForContradictions({
+  const contradictions = await runContradictionCheckSafely({
     orgId: org.orgId,
     newContent: parsed.text,
+    sourceLabel: 'File upload',
   });
 
   const [document] = await db
@@ -205,9 +207,10 @@ router.post('/crawl', requireOrg, loreIngestRateLimit, zValidator('json', crawlS
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
-  const contradictions = await checkForContradictions({
+  const contradictions = await runContradictionCheckSafely({
     orgId: org.orgId,
     newContent: normalized,
+    sourceLabel: 'URL crawl',
   });
 
   const [document] = await db
@@ -377,4 +380,17 @@ async function markSupersededVersion(previousDocument, latestVersion) {
       updatedAt: new Date(),
     })
     .where(eq(loreDocuments.id, previousDocument.id));
+}
+
+async function runContradictionCheckSafely({ orgId, newContent, documentId, sourceLabel }) {
+  try {
+    return await checkForContradictions({ orgId, newContent, documentId });
+  } catch (error) {
+    if (error?.status || error?.code === 'LORE_EMBEDDINGS_NOT_CONFIGURED') {
+      throw error;
+    }
+
+    console.warn(`[LORE] ${sourceLabel} contradiction pre-check skipped:`, error.message);
+    return [];
+  }
 }

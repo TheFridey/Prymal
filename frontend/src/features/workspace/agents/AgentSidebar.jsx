@@ -1,9 +1,10 @@
-// ─────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 // features/workspace/agents/AgentSidebar.jsx
 // Sidebar panel: agent hero, horizontal agent strip, conversation history.
 // All state is owned by WorkspaceStudio; this component is presentational.
-// ─────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 
+import { useLayoutEffect, useRef, useState } from 'react';
 import { AgentAvatar, Button } from '../../../components/ui';
 import { formatDateTime } from '../../../lib/utils';
 import { EditIcon, PinIcon, TrashIcon } from '../chat/icons';
@@ -47,6 +48,52 @@ export default function AgentSidebar({
   onSetEditTitle,
   onOpenSettings,
 }) {
+  const stripShellRef = useRef(null);
+  const tooltipRef = useRef(null);
+  const [activeTooltip, setActiveTooltip] = useState(null);
+
+  const showAgentTooltip = (event, agent) => {
+    const pill = event.currentTarget;
+    const stripShell = stripShellRef.current;
+
+    if (!stripShell) {
+      return;
+    }
+
+    const shellRect = stripShell.getBoundingClientRect();
+    const pillRect = pill.getBoundingClientRect();
+
+    setActiveTooltip({
+      agent,
+      anchorLeft: (pillRect.left - shellRect.left) + (pillRect.width / 2),
+      anchorTop: pillRect.top - shellRect.top - 12,
+    });
+  };
+
+  const hideAgentTooltip = () => {
+    setActiveTooltip(null);
+  };
+
+  useLayoutEffect(() => {
+    if (!activeTooltip || !tooltipRef.current || !stripShellRef.current) {
+      return;
+    }
+
+    const shellRect = stripShellRef.current.getBoundingClientRect();
+    const tooltipRect = tooltipRef.current.getBoundingClientRect();
+    const shellPadding = 14;
+    const tooltipLeft = shellRect.left + activeTooltip.anchorLeft - (tooltipRect.width / 2);
+    const tooltipRight = shellRect.left + activeTooltip.anchorLeft + (tooltipRect.width / 2);
+
+    let shift = 0;
+    if (tooltipLeft < shellRect.left + shellPadding) {
+      shift = (shellRect.left + shellPadding) - tooltipLeft;
+    } else if (tooltipRight > shellRect.right - shellPadding) {
+      shift = (shellRect.right - shellPadding) - tooltipRight;
+    }
+    tooltipRef.current.style.setProperty('--agent-tooltip-shift', `${shift}px`);
+  }, [activeTooltip?.agent?.id, activeTooltip?.anchorLeft]);
+
   return (
     <MotionPanel className="workspace-studio__sidebar">
       <div className="workspace-studio__agent-hero">
@@ -74,7 +121,7 @@ export default function AgentSidebar({
         </div>
       </div>
 
-      <div className="workspace-studio__agent-strip-shell">
+      <div ref={stripShellRef} className="workspace-studio__agent-strip-shell">
         <div
           ref={agentStripRef}
           className="workspace-studio__agent-strip"
@@ -92,20 +139,35 @@ export default function AgentSidebar({
               type="button"
               className={`workspace-studio__agent-pill${agent.id === activeAgent.id ? ' is-active' : ''}${recentAgentIds.has(agent.id) && agent.id !== activeAgent.id ? ' is-recent' : ''}`}
               onClick={() => onSelectAgent(agent.id, agentStripDragRef)}
-              aria-label={agent.name}
-              title={`${agent.name} · ${agent.title}`}
+              onMouseEnter={(event) => showAgentTooltip(event, agent)}
+              onMouseLeave={hideAgentTooltip}
+              onFocus={(event) => showAgentTooltip(event, agent)}
+              onBlur={hideAgentTooltip}
+              aria-label={`${agent.name}: ${agent.description ?? agent.title}`}
+              aria-describedby={activeTooltip?.agent.id === agent.id ? 'agent-strip-tooltip' : undefined}
             >
               <AgentAvatar agent={agent} size={42} active={agent.id === activeAgent.id} />
               <span className="workspace-studio__agent-pill-glow" aria-hidden="true" />
               <span className="workspace-studio__agent-pill-ring" aria-hidden="true" />
-              <span className="workspace-studio__agent-tooltip" role="tooltip">
-                <strong>{agent.name}</strong>
-                <span>{agent.title}</span>
-                <span>{agent.animal || 'Agent'}</span>
-              </span>
             </button>
           ))}
         </div>
+        {activeTooltip ? (
+          <div
+            id="agent-strip-tooltip"
+            ref={tooltipRef}
+            className="workspace-studio__agent-tooltip"
+            role="tooltip"
+            style={{
+              left: `${activeTooltip.anchorLeft}px`,
+              top: `${activeTooltip.anchorTop}px`,
+              '--agent-tooltip-shift': '0px',
+            }}
+          >
+            <strong>{activeTooltip.agent.name}</strong>
+            <span>{activeTooltip.agent.description ?? activeTooltip.agent.title}</span>
+          </div>
+        ) : null}
       </div>
 
       <div className="workspace-studio__history">

@@ -8,6 +8,32 @@ const APPROX_CHUNK_TOKENS = 450;
 const CHUNK_OVERLAP_TOKENS = 80;
 const SIMILARITY_THRESHOLD = 0.72;
 const EMBEDDING_BATCH_SIZE = 64;
+const RETRIEVAL_STOP_WORDS = new Set([
+  'about',
+  'after',
+  'again',
+  'because',
+  'before',
+  'being',
+  'between',
+  'could',
+  'explain',
+  'from',
+  'into',
+  'know',
+  'looking',
+  'should',
+  'sort',
+  'their',
+  'there',
+  'these',
+  'things',
+  'what',
+  'where',
+  'which',
+  'while',
+  'would',
+]);
 
 function getClient() {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -89,12 +115,56 @@ export async function ingestDocument({ documentId, orgId, content, metadata = {}
   }
 }
 
-export async function ragSearch({ orgId, query, limit = 5 }) {
+export async function ragSearch({ orgId, query, limit = 5, includeWeakMatches = false }) {
   if (!query?.trim()) {
     return [];
   }
 
-  const [queryEmbedding] = await embedBatch([query]);
+  const queryKeywords = extractKeywords(query);
+  let rows = [];
+  let semanticError = null;
+
+  try {
+    const [queryEmbedding] = await embedBatch([query]);
+    rows = await fetchSemanticLoreRows({
+      orgId,
+      queryEmbedding,
+      limit,
+      minimumSimilarity: Math.max(SIMILARITY_THRESHOLD - 0.12, 0.5),
+    });
+
+    if (rows.length === 0 && includeWeakMatches) {
+      rows = await fetchSemanticLoreRows({
+        orgId,
+        queryEmbedding,
+        limit,
+        minimumSimilarity: null,
+      });
+    }
+  } catch (error) {
+    semanticError = error;
+  }
+
+  if (rows.length === 0 && includeWeakMatches) {
+    rows = await fetchLexicalFallbackRows({
+      orgId,
+      queryKeywords,
+      limit,
+    });
+  }
+
+  if (rows.length === 0 && semanticError) {
+    throw semanticError;
+  }
+
+  return rankLoreRows(rows, queryKeywords, limit);
+}
+
+async function fetchSemanticLoreRows({ orgId, queryEmbedding, limit, minimumSimilarity = null }) {
+  const similarityExpression = sql`1 - (lc.embedding <=> ${JSON.stringify(queryEmbedding)}::vector)`;
+  const minimumSimilarityClause = minimumSimilarity == null
+    ? sql``
+    : sql`AND ${similarityExpression} >= ${minimumSimilarity}`;
   const result = await db.execute(sql`
     SELECT
       lc.id,
@@ -107,18 +177,62 @@ export async function ragSearch({ orgId, query, limit = 5 }) {
       ld.source_url AS "sourceUrl",
       ld.version AS "documentVersion",
       ld.updated_at AS "documentUpdatedAt",
-      1 - (lc.embedding <=> ${JSON.stringify(queryEmbedding)}::vector) AS similarity
+      ${similarityExpression} AS similarity
     FROM lore_chunks lc
     INNER JOIN lore_documents ld ON ld.id = lc.document_id
     WHERE lc.org_id = ${orgId}
       AND ld.status = 'indexed'
-      AND 1 - (lc.embedding <=> ${JSON.stringify(queryEmbedding)}::vector) >= ${Math.max(SIMILARITY_THRESHOLD - 0.12, 0.5)}
+      ${minimumSimilarityClause}
     ORDER BY similarity DESC
-    LIMIT ${Math.max(limit * 4, limit)}
+    LIMIT ${Math.max(limit * 6, limit)}
   `);
 
-  const queryKeywords = extractKeywords(query);
-  const rankedRows = result.rows.map((row) => {
+  return normalizeExecuteRows(result);
+}
+
+async function fetchLexicalFallbackRows({ orgId, queryKeywords, limit }) {
+  if (queryKeywords.length === 0) {
+    return [];
+  }
+
+  const keywordClauses = queryKeywords.flatMap((keyword) => {
+    const pattern = `%${keyword.toLowerCase()}%`;
+    return [
+      sql`lower(lc.content) LIKE ${pattern}`,
+      sql`lower(ld.title) LIKE ${pattern}`,
+    ];
+  });
+  const lexicalClause = keywordClauses.length > 0
+    ? sql`AND (${sql.join(keywordClauses, sql` OR `)})`
+    : sql``;
+  const result = await db.execute(sql`
+    SELECT
+      lc.id,
+      lc.document_id AS "documentId",
+      lc.content,
+      lc.chunk_index AS "chunkIndex",
+      lc.metadata,
+      ld.title AS "documentTitle",
+      ld.source_type AS "sourceType",
+      ld.source_url AS "sourceUrl",
+      ld.version AS "documentVersion",
+      ld.updated_at AS "documentUpdatedAt",
+      0::double precision AS similarity
+    FROM lore_chunks lc
+    INNER JOIN lore_documents ld ON ld.id = lc.document_id
+    WHERE lc.org_id = ${orgId}
+      AND ld.status = 'indexed'
+      AND lc.chunk_index < 3
+      ${lexicalClause}
+    ORDER BY ld.updated_at DESC, lc.chunk_index ASC
+    LIMIT ${Math.max(limit * 8, 12)}
+  `);
+
+  return normalizeExecuteRows(result);
+}
+
+export function rankLoreRows(rows, queryKeywords, limit = rows.length) {
+  const rankedRows = rows.map((row) => {
     const similarity = Number(row.similarity);
     const lexicalScore = computeLexicalScore(row.content, queryKeywords);
     const freshnessScore = computeFreshnessScore(row.documentUpdatedAt, row.metadata);
@@ -141,7 +255,14 @@ export async function ragSearch({ orgId, query, limit = 5 }) {
       freshnessScore: Number(freshnessScore.toFixed(4)),
       authorityScore: Number(authorityScore.toFixed(4)),
       rankingScore: Number(rankingScore.toFixed(4)),
-      retrievalMode: lexicalScore > 0 ? 'hybrid' : 'semantic',
+      retrievalMode:
+        similarity > 0
+          ? lexicalScore > 0
+            ? 'hybrid'
+            : 'semantic'
+          : lexicalScore > 0
+            ? 'lexical_fallback'
+            : 'recency_fallback',
       versionLineage: buildVersionLineage(row),
       citation: {
         title: row.documentTitle,
@@ -298,10 +419,42 @@ async function embedBatch(texts) {
       input: batch,
     });
 
-    embeddings.push(...response.data.sort((left, right) => left.index - right.index).map((entry) => entry.embedding));
+    const entries = normalizeEmbeddingResponseEntries(response);
+    const sortedEntries = [...entries].sort((left, right) => left.index - right.index);
+    const batchEmbeddings = sortedEntries.map((entry) => entry?.embedding);
+
+    if (batchEmbeddings.length !== batch.length || batchEmbeddings.some((embedding) => !Array.isArray(embedding))) {
+      throw new Error('Unexpected embeddings response shape from OpenAI.');
+    }
+
+    embeddings.push(...batchEmbeddings);
   }
 
   return embeddings;
+}
+
+export function normalizeExecuteRows(result) {
+  if (Array.isArray(result?.rows)) {
+    return result.rows;
+  }
+
+  if (Array.isArray(result)) {
+    return result;
+  }
+
+  return [];
+}
+
+export function normalizeEmbeddingResponseEntries(response) {
+  if (Array.isArray(response?.data)) {
+    return response.data;
+  }
+
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  return [];
 }
 
 async function markDocument(documentId, values) {
@@ -437,7 +590,7 @@ function extractKeywords(query) {
     .toLowerCase()
     .split(/[^a-z0-9]+/i)
     .map((part) => part.trim())
-    .filter((part) => part.length >= 4)
+    .filter((part) => part.length >= 4 && !RETRIEVAL_STOP_WORDS.has(part))
     .slice(0, 8);
 }
 

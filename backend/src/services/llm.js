@@ -1014,6 +1014,7 @@ async function buildSystemPrompt({
         orgId,
         query: userMessage,
         limit: MAX_LORE_CHUNKS,
+        includeWeakMatches: true,
       });
 
       if (loreChunks.length > 0) {
