@@ -519,7 +519,38 @@ export const AGENT_LIBRARY = [
   },
 ];
 
-export const FEATURED_AGENT_IDS = ['cipher', 'forge', 'atlas', 'lore', 'nexus', 'sage'];
+/** Visual hierarchy for marketing, dashboard, and workspace agent chrome (order = priority). */
+export const AGENT_UI_LAYERS = {
+  core: ['nexus', 'atlas', 'lore'],
+  intelligence: ['cipher', 'oracle', 'sage'],
+  execution: ['forge', 'herald', 'echo', 'pixel'],
+  specialist: ['vance', 'wren', 'ledger', 'scout'],
+};
+
+const AGENT_UI_SORT_INDEX = Object.fromEntries(
+  Object.values(AGENT_UI_LAYERS)
+    .flat()
+    .map((id, index) => [id, index]),
+);
+
+export function sortAgentsByUiHierarchy(a, b) {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  const ka = AGENT_UI_SORT_INDEX[a.id] ?? 950;
+  const kb = AGENT_UI_SORT_INDEX[b.id] ?? 950;
+  if (ka !== kb) return ka - kb;
+  return String(a.name ?? a.id).localeCompare(String(b.name ?? b.id));
+}
+
+export function getAgentUiLayerId(agentId) {
+  for (const [layer, ids] of Object.entries(AGENT_UI_LAYERS)) {
+    if (ids.includes(agentId)) return layer;
+  }
+  return null;
+}
+
+export const FEATURED_AGENT_IDS = ['nexus', 'atlas', 'lore', 'cipher', 'oracle', 'sage'];
 
 export const AGENT_GROUPS = [
   {
@@ -590,6 +621,7 @@ export const BILLING_INTERVALS = [
     periodLabel: 'billed monthly',
     multiplier: 1,
     discountLabel: null,
+    caption: 'Pay as you go',
   },
   {
     id: 'quarterly',
@@ -597,6 +629,7 @@ export const BILLING_INTERVALS = [
     periodLabel: 'billed quarterly',
     multiplier: 3,
     discountLabel: 'Save 12%',
+    caption: '12% off vs list',
   },
   {
     id: 'yearly',
@@ -604,6 +637,7 @@ export const BILLING_INTERVALS = [
     periodLabel: 'billed yearly',
     multiplier: 12,
     discountLabel: 'Save 24%',
+    caption: '24% off vs list',
   },
 ];
 
@@ -611,7 +645,7 @@ export const PLAN_LIBRARY = [
   {
     id: 'solo',
     name: 'Solo',
-    monthlyPrice: 39,
+    monthlyPrice: 49.99,
     credits: 500,
     seats: 1,
     description: 'Built for a single operator who wants the full Prymal roster with stronger throughput and live knowledge support.',
@@ -620,7 +654,7 @@ export const PLAN_LIBRARY = [
   {
     id: 'pro',
     name: 'Pro',
-    monthlyPrice: 79,
+    monthlyPrice: 99,
     credits: 2000,
     seats: 1,
     description: 'Unlocks the full 14-agent roster with deeper workflow control for a power user.',
@@ -630,19 +664,26 @@ export const PLAN_LIBRARY = [
   {
     id: 'teams',
     name: 'Teams',
-    monthlyPrice: 119,
+    monthlyPrice: 179,
     credits: 6000,
     seats: 5,
-    description: 'A collaborative workspace for small teams that need shared context, seats, and execution capacity.',
-    features: ['All 14 specialist agents', '5 included seats', '6,000 monthly credits', 'Shared org memory'],
+    additionalSeatPrice: 25,
+    description:
+      '£179/mo covers five seats on one workspace. Add teammates at £25/mo per seat when you need more capacity without jumping a tier.',
+    features: [
+      'All 14 specialist agents',
+      '5 seats included · £25/mo per additional seat',
+      '6,000 monthly credits',
+      'Shared org memory',
+    ],
   },
   {
     id: 'agency',
     name: 'Agency',
-    monthlyPrice: 149,
+    monthlyPrice: 249,
     credits: 10000,
     seats: 25,
-    description: 'Adds API-key access and the headroom to run Prymal across multiple client or internal teams.',
+    description: '£249/mo for agencies that need API keys, high throughput, and room to run Prymal across multiple clients or internal teams.',
     features: ['All 14 specialist agents', '25-seat workspace', '10,000 monthly credits', 'API keys'],
   },
 ];
@@ -913,30 +954,41 @@ export function getRecommendedAgentsForWorkspaceProfile(profile = {}) {
     .filter(Boolean);
 }
 
+function formatPlanGbp(amount) {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 export function getPlanPrice(plan, intervalId = 'monthly') {
   const interval = BILLING_INTERVALS.find((entry) => entry.id === intervalId) ?? BILLING_INTERVALS[0];
   const monthlyPrice = plan?.monthlyPrice ?? 0;
-  const rawPrice = monthlyPrice * interval.multiplier;
+  const listPeriodTotal = monthlyPrice * interval.multiplier;
   const discountedPrice =
     interval.id === 'quarterly'
-      ? rawPrice * 0.88
+      ? listPeriodTotal * 0.88
       : interval.id === 'yearly'
-        ? rawPrice * 0.76
-        : rawPrice;
-  const formatter = new Intl.NumberFormat('en-GB', {
-    style: 'currency',
-    currency: 'GBP',
-    maximumFractionDigits: 0,
-  });
+        ? listPeriodTotal * 0.76
+        : listPeriodTotal;
   const monthlyEquivalentAmount = discountedPrice / interval.multiplier;
+  const hasPeriodDiscount = interval.id !== 'monthly';
+  const savingsAmount = hasPeriodDiscount ? listPeriodTotal - discountedPrice : 0;
 
   return {
     amount: discountedPrice,
-    display: formatter.format(discountedPrice),
+    display: formatPlanGbp(discountedPrice),
     suffix: interval.periodLabel,
     monthlyEquivalentAmount,
-    monthlyEquivalent: `${formatter.format(monthlyEquivalentAmount)}/mo`,
+    monthlyEquivalent: `${formatPlanGbp(monthlyEquivalentAmount)}/mo`,
     discountLabel: interval.discountLabel,
     interval,
+    listPeriodTotal,
+    listPeriodDisplay: formatPlanGbp(listPeriodTotal),
+    hasPeriodDiscount,
+    monthlyListDisplay: formatPlanGbp(monthlyPrice),
+    savingsDisplay: savingsAmount > 0 ? formatPlanGbp(savingsAmount) : null,
   };
 }

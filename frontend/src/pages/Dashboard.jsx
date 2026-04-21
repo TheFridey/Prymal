@@ -1,13 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { AgentAvatar, Button, EmptyState, PageShell } from '../components/ui';
 import { MotionSection, usePrymalReducedMotion } from '../components/motion';
-import { getAgentMeta, getRecommendedAgentsForWorkspaceProfile, getWorkspacePlanMeta } from '../lib/constants';
+import {
+  AGENT_UI_LAYERS,
+  getAgentMeta,
+  getAgentUiLayerId,
+  getRecommendedAgentsForWorkspaceProfile,
+  getWorkspacePlanMeta,
+  sortAgentsByUiHierarchy,
+} from '../lib/constants';
 import { api } from '../lib/api';
 import '../styles/app-rebuild.css';
 
 const FIRST_WIN_LIBRARY = {
+  nexus: {
+    summary: 'Sketch an orchestration that chains the right specialists with clear handoffs.',
+    message: 'Help me design a simple workflow: pull context from LORE, draft with FORGE, then quality-check before send.',
+  },
   cipher: {
     summary: 'Analyse a set of numbers, spot anomalies, and explain what changed.',
     message: 'Review this week\'s key business metrics and tell me what changed, what matters, and what I should do next.',
@@ -62,6 +73,48 @@ function timeAgo(dateString) {
   if (days < 7) return `${days}d ago`;
   const weeks = Math.floor(days / 7);
   return `${weeks}w ago`;
+}
+
+function DashWorkflowPlate({ workflows, highlightAgentId }) {
+  const wf = workflows.find((w) => w.isActive) ?? workflows[0];
+  if (!wf?.nodes?.length) {
+    return (
+      <div className="pm-dash__flow-plate pm-dash__flow-plate--empty">
+        <div>
+          <div className="pm-dash__flow-empty-title">Active workflow</div>
+          <p className="pm-dash__flow-empty-copy">Configure a graph in NEXUS to see agents light up here as the system runs.</p>
+        </div>
+        <Link to="/app/workflows" className="pm-dash__flow-empty-cta">Open NEXUS →</Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pm-dash__flow-plate">
+      <div className="pm-dash__flow-head">
+        <div>
+          <div className="pm-dash__flow-eyebrow">Live graph</div>
+          <div className="pm-dash__flow-title">{wf.name}</div>
+        </div>
+        <Link to="/app/workflows" className="pm-dash__card-link">Inspect →</Link>
+      </div>
+      <div className="pm-dash__flow-track" aria-label="Workflow nodes">
+        {wf.nodes.map((node, i) => {
+          const meta = getAgentMeta(node.agentId);
+          const layer = getAgentUiLayerId(node.agentId) ?? 'other';
+          const hot = Boolean(highlightAgentId && node.agentId === highlightAgentId);
+          return (
+            <div key={node.id ?? `${wf.id}-${i}`} className="pm-dash__flow-node-wrap">
+              {i > 0 ? <span className="pm-dash__flow-edge" aria-hidden="true" /> : null}
+              <div className={`pm-dash__flow-node pm-dash__flow-node--${layer}${hot ? ' is-hot' : ''}`}>
+                <AgentAvatar agent={meta} size={40} active={hot} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function mergeUniqueAgents(agentLists, limit = 6) {
@@ -127,6 +180,52 @@ export default function Dashboard() {
 
   const missionAgents = conversationCount === 0 ? recommendedAgents : topAgents.slice(0, 3);
 
+  const [commandDraft, setCommandDraft] = useState('');
+  const [specialistsOpen, setSpecialistsOpen] = useState(false);
+
+  const unlockedSorted = useMemo(
+    () => (agents ?? []).filter((a) => !a.locked).sort(sortAgentsByUiHierarchy),
+    [agents],
+  );
+
+  const coreLaneAgents = useMemo(
+    () => AGENT_UI_LAYERS.core.map((id) => getAgentMeta(id)).filter(Boolean),
+    [],
+  );
+
+  const secondaryAgents = useMemo(
+    () => unlockedSorted.filter((a) => !AGENT_UI_LAYERS.core.includes(a.id)),
+    [unlockedSorted],
+  );
+
+  const specialistAgents = useMemo(
+    () => secondaryAgents.filter((a) => AGENT_UI_LAYERS.specialist.includes(a.id)),
+    [secondaryAgents],
+  );
+
+  const nonSpecialistSecondary = useMemo(
+    () => secondaryAgents.filter((a) => !AGENT_UI_LAYERS.specialist.includes(a.id)),
+    [secondaryAgents],
+  );
+
+  const atlasThreads = useMemo(
+    () => recentConversations.filter((c) => c.agentId === 'atlas').slice(0, 4),
+    [recentConversations],
+  );
+
+  const handleNexusSubmit = useCallback(
+    (event) => {
+      event.preventDefault();
+      const text = commandDraft.trim();
+      if (text) {
+        navigate(`/app/agents/nexus?new=1&draft=${encodeURIComponent(text)}`);
+        return;
+      }
+      navigate('/app/workflows');
+    },
+    [commandDraft, navigate],
+  );
+
   const heroPrimaryAction = latestConversation
     ? () => navigate(`/app/agents/${latestConversation.agentId}?cid=${latestConversation.id}`)
     : () => navigate(`/app/agents/${recommendedFirstAgentId}`);
@@ -137,11 +236,11 @@ export default function Dashboard() {
     <PageShell width="1260px">
       <div className="pm-dash">
 
-        {/* ── Hero ── */}
+        {/* ── Command deck + workflow plate ── */}
         <section className="pm-dash__hero">
           <div className="pm-dash__hero-ambient" aria-hidden="true" />
-          <div className="pm-dash__hero-content">
-            <MotionSection delay={0.04} reveal={{ y: 20, blur: 8 }}>
+          <div className="pm-dash__hero-content pm-dash__hero-content--stacked">
+            <MotionSection delay={0.04} reveal={{ y: 16, blur: 8 }} className="pm-dash__identity-block">
               <div className="pm-dash__badge">
                 <span className="pm-dash__badge-dot" />
                 {planMeta?.name ?? currentPlan} plan · {conversationCount > 0 ? `${conversationCount} conversation${conversationCount === 1 ? '' : 's'}` : 'ready for first output'}
@@ -155,8 +254,8 @@ export default function Dashboard() {
 
               <p className="pm-dash__sub">
                 {conversationCount === 0
-                  ? 'Start with one agent, one real task, and one useful output. Prymal is strongest when the first move feels immediate and grounded.'
-                  : 'Resume conversations, push workflows forward, and steer the workspace from one operating surface.'}
+                  ? 'NEXUS orchestrates, ATLAS sequences work, LORE grounds context — everything else slots in as depth.'
+                  : 'Command from NEXUS, track delivery in ATLAS, and watch the active graph highlight where attention is flowing.'}
               </p>
 
               <div className="pm-dash__actions">
@@ -164,10 +263,10 @@ export default function Dashboard() {
                   {heroPrimaryLabel} →
                 </button>
                 <button type="button" className="pm-btn pm-btn--ghost" onClick={() => navigate('/app/workflows')}>
-                  Open workflows
+                  Open NEXUS
                 </button>
                 <button type="button" className="pm-btn pm-btn--ghost" onClick={() => navigate('/app/lore')}>
-                  Knowledge base
+                  LORE
                 </button>
               </div>
 
@@ -186,7 +285,72 @@ export default function Dashboard() {
               </div>
             </MotionSection>
 
-            <MotionSection className="pm-dash__posture" delay={0.12} reveal={{ x: 20, y: 0, blur: 8 }}>
+            <div className="pm-dash__command-deck">
+              <MotionSection delay={0.08} reveal={{ y: 18, blur: 8 }} className="pm-dash__nexus-panel">
+                <div className="pm-dash__nexus-panel-head">
+                  <span className="pm-dash__nexus-kicker">NEXUS</span>
+                  <span className="pm-dash__nexus-caption">Primary command surface</span>
+                </div>
+                <form className="pm-dash__nexus-form" onSubmit={handleNexusSubmit}>
+                  <label className="pm-dash__nexus-label" htmlFor="dash-nexus-command">
+                    Describe the outcome or workflow move
+                  </label>
+                  <div className="pm-dash__nexus-field">
+                    <input
+                      id="dash-nexus-command"
+                      className="pm-dash__nexus-input"
+                      value={commandDraft}
+                      onChange={(e) => setCommandDraft(e.target.value)}
+                      placeholder="e.g. Weekly client report with metrics, narrative, and send-ready email…"
+                      autoComplete="off"
+                    />
+                    <button type="submit" className="pm-dash__nexus-submit">
+                      Run
+                    </button>
+                  </div>
+                  <div className="pm-dash__nexus-meta">
+                    <span>Empty submit opens the graph editor</span>
+                    <button type="button" className="pm-dash__nexus-linkish" onClick={() => navigate('/app/agents/nexus?new=1')}>
+                      New NEXUS thread
+                    </button>
+                  </div>
+                </form>
+              </MotionSection>
+
+              <MotionSection delay={0.1} reveal={{ y: 18, blur: 8 }} className="pm-dash__atlas-panel">
+                <div className="pm-dash__atlas-head">
+                  <div>
+                    <span className="pm-dash__atlas-kicker">ATLAS</span>
+                    <span className="pm-dash__atlas-caption">Task lane</span>
+                  </div>
+                  <Link to="/app/agents/atlas" className="pm-dash__card-link">Open →</Link>
+                </div>
+                {atlasThreads.length === 0 ? (
+                  <p className="pm-dash__atlas-empty">No ATLAS threads yet. Open ATLAS to turn ambiguity into milestones and owners.</p>
+                ) : (
+                  <ul className="pm-dash__atlas-list">
+                    {atlasThreads.map((conversation) => (
+                      <li key={conversation.id}>
+                        <button
+                          type="button"
+                          className="pm-dash__atlas-row"
+                          onClick={() => navigate(`/app/agents/atlas?cid=${conversation.id}`)}
+                        >
+                          <span className="pm-dash__atlas-title">{conversation.title ?? 'Planning thread'}</span>
+                          <span className="pm-dash__atlas-time">{timeAgo(conversation.lastActiveAt)}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </MotionSection>
+            </div>
+
+            <MotionSection delay={0.12} reveal={{ y: 20, blur: 8 }} className="pm-dash__flow-section">
+              <DashWorkflowPlate workflows={workflows} highlightAgentId={latestConversation?.agentId} />
+            </MotionSection>
+
+            <MotionSection className="pm-dash__posture pm-dash__posture--wide" delay={0.14} reveal={{ y: 14, blur: 6 }}>
               <div className="pm-dash__posture-card">
                 <strong>Workspace posture</strong>
                 <span>
@@ -317,29 +481,90 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Agent roster */}
-          <div className="pm-dash__card" style={{ '--card-accent': '#b8d7ff' }}>
+          {/* Agent roster — hierarchy */}
+          <div className="pm-dash__card pm-dash__card--full" style={{ '--card-accent': '#b8d7ff' }}>
             <div className="pm-dash__card-header">
               <div>
-                <div className="pm-dash__card-eyebrow">Agent roster</div>
-                <h2 className="pm-dash__card-title">Jump into the right specialist.</h2>
+                <div className="pm-dash__card-eyebrow">Agent access</div>
+                <h2 className="pm-dash__card-title">Core agents stay surfaced; depth stays one gesture away.</h2>
               </div>
             </div>
-            <div className="pm-dash__agent-grid">
-              {topAgents.map((agent) => (
-                <button
-                  key={agent.id}
-                  type="button"
-                  className={`pm-dash__agent-btn${agent.id === recommendedFirstAgentId ? ' pm-dash__agent-btn--featured' : ''}`}
-                  onClick={() => navigate(`/app/agents/${agent.id}`)}
-                >
-                  <AgentAvatar agent={agent} size={44} active={agent.id === recommendedFirstAgentId} />
-                  <div>
-                    <div className="pm-dash__agent-name">{agent.name}</div>
-                    <div className="pm-dash__agent-title">{agent.title}</div>
+            <div className="pm-dash__agent-system">
+              <div className="pm-dash__agent-system-label">Core</div>
+              <div className="pm-dash__agent-core-row">
+                {coreLaneAgents.map((agent) => (
+                  <button
+                    key={agent.id}
+                    type="button"
+                    className={`pm-dash__agent-core${agent.id === 'nexus' ? ' pm-dash__agent-core--nexus' : ''}`}
+                    style={{ '--agent-color': agent.color }}
+                    onClick={() => navigate(`/app/agents/${agent.id}`)}
+                  >
+                    <span className="pm-dash__agent-core-glow" aria-hidden="true" />
+                    <AgentAvatar agent={agent} size={agent.id === 'nexus' ? 56 : 48} active={agent.id === 'nexus'} />
+                    <div>
+                      <div className="pm-dash__agent-core-name">{agent.name}</div>
+                      <div className="pm-dash__agent-core-title">{agent.title}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {nonSpecialistSecondary.length > 0 ? (
+                <>
+                  <div className="pm-dash__agent-system-label">Intelligence & execution</div>
+                  <div className="pm-dash__agent-secondary-grid">
+                    {nonSpecialistSecondary.map((agent) => (
+                      <button
+                        key={agent.id}
+                        type="button"
+                        className={`pm-dash__agent-chip${agent.id === recommendedFirstAgentId ? ' pm-dash__agent-chip--hot' : ''}`}
+                        style={{ '--agent-color': agent.color }}
+                        onClick={() => navigate(`/app/agents/${agent.id}`)}
+                      >
+                        <AgentAvatar agent={agent} size={36} active={agent.id === recommendedFirstAgentId} />
+                        <div>
+                          <div className="pm-dash__agent-chip-name">{agent.name}</div>
+                          <div className="pm-dash__agent-chip-title">{agent.title}</div>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                </button>
-              ))}
+                </>
+              ) : null}
+
+              {specialistAgents.length > 0 ? (
+                <div className="pm-dash__agent-special-wrap">
+                  <button
+                    type="button"
+                    className="pm-dash__agent-special-toggle"
+                    onClick={() => setSpecialistsOpen((o) => !o)}
+                    aria-expanded={specialistsOpen}
+                  >
+                    <span className="pm-dash__agent-system-label" style={{ margin: 0 }}>Specialists</span>
+                    <span className="pm-dash__agent-special-chevron">{specialistsOpen ? '▾' : '▸'}</span>
+                  </button>
+                  {specialistsOpen ? (
+                    <div className="pm-dash__agent-special-grid">
+                      {specialistAgents.map((agent) => (
+                        <button
+                          key={agent.id}
+                          type="button"
+                          className="pm-dash__agent-chip pm-dash__agent-chip--small"
+                          style={{ '--agent-color': agent.color }}
+                          onClick={() => navigate(`/app/agents/${agent.id}`)}
+                        >
+                          <AgentAvatar agent={agent} size={32} />
+                          <div>
+                            <div className="pm-dash__agent-chip-name">{agent.name}</div>
+                            <div className="pm-dash__agent-chip-title">{agent.title}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
 

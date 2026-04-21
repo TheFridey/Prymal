@@ -15,7 +15,7 @@ const smbAgents = ['wren', 'herald', 'oracle', 'cipher', 'ledger']
 const heroMetrics = [
   { value: '15', label: 'specialist agents in one workspace' },
   { value: '50', label: 'free credits to test the first win' },
-  { value: 'GBP 39/mo', label: 'starting point for a live AI team' },
+  { value: 'GBP 49.99/mo', label: 'starting point for a live AI team' },
 ];
 
 const businessPressurePoints = [
@@ -179,7 +179,7 @@ export default function ForSmallBusiness() {
   return (
     <div className="marketing-page prymal-marketing pm-page">
       <PageMeta
-        title="Prymal for Small Business | 15 AI agents from GBP 39/month"
+        title="Prymal for Small Business | 15 AI agents from GBP 49.99/month"
         description="Support, follow-ups, reporting, and website review handled by specialist AI agents. Built for owner-led businesses and lean teams."
         canonicalPath="/for-small-business"
       />

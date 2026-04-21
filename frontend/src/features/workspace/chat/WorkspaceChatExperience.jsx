@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../../lib/api';
-import { mergeAgentState } from '../../../lib/constants';
+import { mergeAgentState, sortAgentsByUiHierarchy } from '../../../lib/constants';
 import { InlineNotice } from '../../../components/ui';
 import { useAppStore } from '../../../stores/useAppStore';
 import { useQuery } from '@tanstack/react-query';
@@ -62,7 +62,10 @@ export default function WorkspaceChatExperience({
     () => mergeAgentState(agentsQuery.data?.agents ?? fallbackAgents ?? []),
     [agentsQuery.data?.agents, fallbackAgents],
   );
-  const unlockedAgents = useMemo(() => agents.filter((a) => !a.locked), [agents]);
+  const unlockedAgents = useMemo(
+    () => agents.filter((a) => !a.locked).sort(sortAgentsByUiHierarchy),
+    [agents],
+  );
 
   useEffect(() => {
     if (initialAgentId) setActiveAgentId(initialAgentId);
