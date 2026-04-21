@@ -8,6 +8,7 @@ import {
   FORM_LABEL_STYLE,
   MUTED_COPY_STYLE,
 } from '../../design-system/surfaces';
+import { MotionCard, MotionList, MotionListItem, MotionPresence, MotionSection } from '../../components/motion';
 import { SeatMetric } from './referrals/ReferralsTab';
 
 const chipStyle = {
@@ -88,7 +89,8 @@ const providerGuidance = [
 export function AccountSettingsTab({ user, viewer, signOut }) {
   return (
     <div style={{ display: 'grid', gap: '14px' }}>
-      <SurfaceCard title="Profile" accent="#00FFD1">
+      <MotionSection once={true} delay={0.06} reveal={{ y: 10, blur: 3 }}>
+        <SurfaceCard title="Profile" accent="#00FFD1">
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div
             style={{
@@ -115,23 +117,28 @@ export function AccountSettingsTab({ user, viewer, signOut }) {
             <div style={{ color: 'var(--muted-2)', marginTop: '4px' }}>Role: {viewer?.user?.role ?? 'member'}</div>
           </div>
         </div>
-      </SurfaceCard>
+        </SurfaceCard>
+      </MotionSection>
 
-      <SurfaceCard title="Workspace posture" accent="#BDB4FE">
+      <MotionSection once={true} delay={0.06} reveal={{ y: 10, blur: 3 }}>
+        <SurfaceCard title="Workspace posture" accent="#BDB4FE">
         <div style={{ color: 'var(--muted)', lineHeight: 1.8 }}>
           Prymal keeps organisation-level context shared across the workspace, while conversations remain user-private by
           default. Team collaboration, seat access, and sensitive actions are now controlled through server-side roles.
         </div>
-      </SurfaceCard>
+        </SurfaceCard>
+      </MotionSection>
 
-      <SurfaceCard title="Session" accent="#EF4444">
+      <MotionSection once={true} delay={0.06} reveal={{ y: 10, blur: 3 }}>
+        <SurfaceCard title="Session" accent="#EF4444">
         <div style={{ color: 'var(--muted)', lineHeight: 1.8, marginBottom: '12px' }}>
           Clerk handles authentication, while Prymal handles org membership, seat entitlements, and runtime permissions.
         </div>
         <Button tone="danger" onClick={() => signOut({ redirectUrl: '/' })}>
           Sign out
         </Button>
-      </SurfaceCard>
+        </SurfaceCard>
+      </MotionSection>
     </div>
   );
 }
@@ -183,13 +190,15 @@ export function BillingSettingsTab({
       </SurfaceCard>
 
       <SurfaceCard title="Usage by agent" accent="#00FFD1">
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+        <MotionSection once={true} reveal={{ y: 10, blur: 4 }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
           {[7, 30, 90].map((days) => (
             <Button key={days} tone={usageDays === days ? 'accent' : 'ghost'} onClick={() => setUsageDays(days)}>
               {days === 7 ? 'Last 7 days' : days === 30 ? 'Last 30 days' : 'Last 90 days'}
             </Button>
           ))}
-        </div>
+          </div>
+        </MotionSection>
         {usageBreakdownQuery.isLoading ? (
           <div style={{ display: 'grid', gap: '8px' }}>
             {[0, 1, 2].map((index) => (
@@ -200,12 +209,13 @@ export function BillingSettingsTab({
           <div style={{ color: 'var(--muted)', lineHeight: 1.8 }}>No agent activity in this period.</div>
         ) : (
           <>
-            <div style={{ display: 'grid', gap: '8px' }}>
+            <MotionList staggerChildren={0.035} style={{ display: 'grid', gap: '8px' }}>
               {(usageBreakdownQuery.data.breakdown ?? []).map((row) => {
                 const agentMeta = AGENT_LIBRARY.find((agent) => agent.id === row.agentId);
                 const color = agentMeta?.color ?? '#00FFD1';
                 return (
-                  <div key={row.agentId} style={{ display: 'grid', gridTemplateColumns: '16px 1fr auto auto', gap: '10px', alignItems: 'center' }}>
+                  <MotionListItem key={row.agentId} reveal={{ y: 8, blur: 3 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '16px 1fr auto auto', gap: '10px', alignItems: 'center' }}>
                     <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, display: 'block' }} />
                     <div>
                       <div style={{ fontSize: '13px', marginBottom: '4px', color: 'var(--text-strong)' }}>
@@ -219,10 +229,11 @@ export function BillingSettingsTab({
                       </div>
                     </div>
                     <div style={{ fontSize: '13px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>${Number(row.estimatedCostUsd).toFixed(2)}</div>
-                  </div>
+                    </div>
+                  </MotionListItem>
                 );
               })}
-            </div>
+            </MotionList>
             <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--line)', color: 'var(--muted)', fontSize: '13px' }}>
               Total: {usageBreakdownQuery.data.totalRuns} run{usageBreakdownQuery.data.totalRuns !== 1 ? 's' : ''} | ${Number(usageBreakdownQuery.data.totalCostUsd).toFixed(2)}
             </div>
@@ -248,9 +259,11 @@ export function BillingSettingsTab({
         </div>
       </SurfaceCard>
 
-      <div style={{ display: 'grid', gap: '10px' }}>
+      <MotionList staggerChildren={0.055} style={{ display: 'grid', gap: '10px' }}>
         {PLAN_LIBRARY.map((plan) => (
-          <SurfaceCard key={plan.id} accent={plan.recommended ? '#00FFD1' : 'var(--line)'}>
+          <MotionListItem key={plan.id}>
+            <MotionCard hover={false}>
+              <SurfaceCard accent={plan.recommended ? '#00FFD1' : 'var(--line)'}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
               <div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '6px' }}>
@@ -292,9 +305,11 @@ export function BillingSettingsTab({
                 ) : null}
               </div>
             </div>
-          </SurfaceCard>
+              </SurfaceCard>
+            </MotionCard>
+          </MotionListItem>
         ))}
-      </div>
+      </MotionList>
     </div>
   );
 }
@@ -327,6 +342,7 @@ export function TeamSettingsTab({
   return (
     <div style={{ display: 'grid', gap: '14px' }}>
       <SurfaceCard title="Seat usage" accent="#00FFD1">
+        <MotionSection once={true} reveal={{ y: 12, blur: 4 }}>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <SeatMetric label="Seats included" value={seatSummary?.seatLimit ?? currentPlanMeta.seats ?? 1} />
           <SeatMetric label="Active members" value={seatSummary?.members ?? 0} />
@@ -346,7 +362,8 @@ export function TeamSettingsTab({
                 {(seatSummary?.availableSeats ?? 1) <= 0 ? 'Add seats' : 'Need more seats?'}
               </Button>
             ) : (
-              <div style={{ display: 'grid', gap: '12px', padding: '16px', borderRadius: '14px', border: '1px solid var(--line)', background: 'var(--panel-soft)' }}>
+              <MotionPresence initial={false}>
+                <div style={{ display: 'grid', gap: '12px', padding: '16px', borderRadius: '14px', border: '1px solid var(--line)', background: 'var(--panel-soft)' }}>
                 <div style={{ fontWeight: 600 }}>Add seats to your plan</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <button
@@ -391,10 +408,12 @@ export function TeamSettingsTab({
                     Cancel
                   </button>
                 </div>
-              </div>
+                </div>
+              </MotionPresence>
             )}
           </div>
         ) : null}
+        </MotionSection>
       </SurfaceCard>
 
       <SurfaceCard title="Invite teammates" accent="#BDB4FE">
@@ -426,9 +445,10 @@ export function TeamSettingsTab({
       </SurfaceCard>
 
       <SurfaceCard title="Members" accent="#00FFD1">
-        <div style={{ display: 'grid', gap: '10px' }}>
+        <MotionList staggerChildren={0.055} style={{ display: 'grid', gap: '10px' }}>
           {(teamQuery.data?.members ?? []).map((member) => (
-            <div key={member.id} style={rowStyle}>
+            <MotionListItem key={member.id}>
+              <div style={rowStyle}>
               <div>
                 <div style={{ fontSize: '15px', marginBottom: '4px' }}>
                   {member.firstName || member.lastName
@@ -462,9 +482,10 @@ export function TeamSettingsTab({
                   </>
                 ) : null}
               </div>
-            </div>
+              </div>
+            </MotionListItem>
           ))}
-        </div>
+        </MotionList>
       </SurfaceCard>
 
       {viewer?.user?.role === 'owner' ? (
@@ -565,10 +586,11 @@ export function ApiKeysSettingsTab({
             Create API key
           </Button>
         </div>
-        {freshToken ? (
-          <div style={{ marginTop: '14px' }}>
-            <SectionLabel>Copy now</SectionLabel>
-            <div
+        <MotionPresence initial={false}>
+          {freshToken ? (
+            <MotionListItem reveal={{ scale: 0.97, blur: 4 }} style={{ marginTop: '14px' }}>
+              <SectionLabel>Copy now</SectionLabel>
+              <div
               style={{
                 padding: '14px',
                 borderRadius: '14px',
@@ -577,20 +599,22 @@ export function ApiKeysSettingsTab({
                 color: 'var(--text-strong)',
                 overflowX: 'auto',
               }}
-            >
-              {freshToken}
-            </div>
-          </div>
-        ) : null}
+              >
+                {freshToken}
+              </div>
+            </MotionListItem>
+          ) : null}
+        </MotionPresence>
       </SurfaceCard>
 
       <SurfaceCard title="Issued keys" accent="#4CC9F0">
-        <div style={{ display: 'grid', gap: '10px' }}>
+        <MotionList staggerChildren={0.055} style={{ display: 'grid', gap: '10px' }}>
           {(apiKeysQuery.data?.apiKeys ?? []).length === 0 ? (
             <div style={{ color: 'var(--muted)', lineHeight: 1.8 }}>No API keys issued for this organisation yet.</div>
           ) : (
             apiKeysQuery.data.apiKeys.map((entry) => (
-              <div key={entry.id} style={rowStyle}>
+              <MotionListItem key={entry.id}>
+                <div style={rowStyle}>
                 <div>
                   <div style={{ fontSize: '15px', marginBottom: '4px' }}>{entry.name}</div>
                   <div style={{ color: 'var(--muted)', lineHeight: 1.8 }}>
@@ -606,10 +630,11 @@ export function ApiKeysSettingsTab({
                     <StatusPill color="#98A2B3">Revoked</StatusPill>
                   )}
                 </div>
-              </div>
+                </div>
+              </MotionListItem>
             ))
           )}
-        </div>
+        </MotionList>
       </SurfaceCard>
     </div>
   );

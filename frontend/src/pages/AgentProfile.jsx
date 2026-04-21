@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { AGENT_LIBRARY, INTEGRATION_LIBRARY, POWERUP_LIBRARY, getAgentMeta } from '../lib/constants';
@@ -6,6 +7,8 @@ import { PageMeta } from '../components/PublicPageChrome';
 import { usePrymalReducedMotion } from '../components/motion';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import '../styles/landing-rebuild.css';
+
+const CinematicHeroScene = lazy(() => import('../features/marketing/CinematicHeroScene'));
 
 export default function AgentProfile() {
   const { agentId } = useParams();
@@ -106,6 +109,15 @@ export default function AgentProfile() {
                 ))}
               </div>
             </section>
+
+            <div className="agent-profile__hero-scene" aria-hidden="true">
+              <Suspense fallback={<div style={{ height: '240px' }} />}>
+                <CinematicHeroScene
+                  agentColor={agent?.color ?? '#68F5D0'}
+                  reducedMotion={reducedMotion}
+                />
+              </Suspense>
+            </div>
 
             {agent.characterStory?.length ? (
               <section className="agent-profile-story feature-panel">

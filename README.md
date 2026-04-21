@@ -243,7 +243,7 @@ Credits are now enforced before expensive agent and workflow execution paths.
 - Memory now supports richer runtime scopes: `org`, `user`, `agent_private`, `restricted`, `workflow_run`, and `temporary_session`, with provenance and expiry metadata preserved per record.
 - The current model policy layer supports these policy classes:
   - `fast_chat` - Anthropic fast -> OpenAI router (`gpt-5.4-mini`) -> Gemini Flash
-  - `premium_reasoning` - Anthropic premium or OpenAI premium (`gpt-5.4`)
+  - `premium_reasoning` - Anthropic premium (`claude-opus-4-7`) or OpenAI premium (`gpt-5.4`)
   - `grounded_research` - OpenAI premium (`gpt-5.4`) -> Anthropic -> Gemini Pro
   - `structured_extraction` - OpenAI router (`gpt-5.4-mini`) -> Gemini Flash -> Anthropic
   - `workflow_automation` - OpenAI router (`gpt-5.4-mini`) or Anthropic specialist

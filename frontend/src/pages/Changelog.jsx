@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Button, PageHeader, PageShell, Reveal, SurfaceCard } from '../components/ui';
-import { usePrymalReducedMotion } from '../components/motion';
+import { PageShell } from '../components/ui';
+import { MotionSection, MotionTimelineItem, usePrymalReducedMotion } from '../components/motion';
 import { PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import '../styles/landing-rebuild.css';
@@ -199,9 +199,13 @@ export default function Changelog() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gap: '16px' }}>
-              {CHANGELOG.map((entry, index) => (
-                <Reveal key={entry.version} delay={index * 40}>
+            <MotionSection reveal={{ y: 20, blur: 8 }}>
+              <div style={{ display: 'grid', gap: '16px' }}>
+              {CHANGELOG.map((entry) => (
+                <MotionTimelineItem
+                  key={entry.version}
+                  accent={TAG_COLORS[entry.tag] ?? '#00FFD1'}
+                >
                   <div className="pm-changelog-entry">
                     <div className="pm-changelog-entry__header">
                       <span className="pm-changelog-entry__title">{entry.title}</span>
@@ -222,9 +226,10 @@ export default function Changelog() {
                       ))}
                     </ul>
                   </div>
-                </Reveal>
+                </MotionTimelineItem>
               ))}
-            </div>
+              </div>
+            </MotionSection>
           </div>
         </PageShell>
 

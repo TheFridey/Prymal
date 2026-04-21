@@ -52,6 +52,18 @@ const MAX_CONTEXT_TOKENS = 160_000;
 const MAX_RESPONSE_TOKENS = 8192;
 const MAX_LORE_CHUNKS = 4;
 
+function applyAnthropicMaxTokensHeadroom(maxTokens) {
+  if (!Number.isFinite(maxTokens)) {
+    return maxTokens;
+  }
+
+  if (maxTokens >= 64000) {
+    return maxTokens;
+  }
+
+  return Math.ceil((maxTokens * 1.35) / 1000) * 1000;
+}
+
 function resolvePolicyOverrideFromAiControls({ policyOverride, taskType, mode, aiControls }) {
   if (policyOverride || taskType || mode !== 'chat') {
     return policyOverride;
@@ -711,18 +723,21 @@ async function* streamAnthropicResponse({ plan, agent, systemPrompt, messages, u
 
   const useThinking = agent?.useExtendedThinking === true && ANTHROPIC_MODELS.opus === plan.model;
   const thinkingBudget = agent?.thinkingBudgetTokens ?? 8000;
+  const thinkingEffort = thinkingBudget < 4000 ? 'medium' : 'high';
   // max_tokens must exceed the thinking budget; bump if needed
   const effectiveMaxTokens = useThinking ? Math.max(maxTokens, thinkingBudget + 1000) : maxTokens;
+  const anthropicMaxTokens = applyAnthropicMaxTokensHeadroom(effectiveMaxTokens);
 
   const streamParams = {
     model: plan.model,
-    max_tokens: effectiveMaxTokens,
+    max_tokens: anthropicMaxTokens,
     system: systemPrompt.text,
     messages: [...messages, { role: 'user', content: buildAnthropicUserContent(userMessage, attachments) }],
   };
 
   if (useThinking) {
-    streamParams.thinking = { type: 'enabled', budget_tokens: thinkingBudget };
+    streamParams.thinking = { type: 'adaptive' };
+    streamParams.output_config = { effort: thinkingEffort };
   }
 
   const stream = client.messages.stream(streamParams);
@@ -871,13 +886,20 @@ async function runAnthropicResponse({ plan, agent, systemPrompt, messages, userM
   const client = getAnthropicClient();
   const useThinking = agent?.useExtendedThinking === true && ANTHROPIC_MODELS.opus === plan.model;
   const thinkingBudget = agent?.thinkingBudgetTokens ?? 8000;
+  const thinkingEffort = thinkingBudget < 4000 ? 'medium' : 'high';
   const effectiveMaxTokens = useThinking ? Math.max(maxTokens, thinkingBudget + 1000) : maxTokens;
+  const anthropicMaxTokens = applyAnthropicMaxTokensHeadroom(effectiveMaxTokens);
   const response = await client.messages.create({
     model: plan.model,
-    max_tokens: effectiveMaxTokens,
+    max_tokens: anthropicMaxTokens,
     system: systemPrompt.text,
     messages: [...messages, { role: 'user', content: buildAnthropicUserContent(userMessage, attachments) }],
-    ...(useThinking ? { thinking: { type: 'enabled', budget_tokens: thinkingBudget } } : {}),
+    ...(useThinking
+      ? {
+          thinking: { type: 'adaptive' },
+          output_config: { effort: thinkingEffort },
+        }
+      : {}),
   });
 
   const text = response.content

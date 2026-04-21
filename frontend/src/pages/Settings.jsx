@@ -5,6 +5,7 @@ import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { getWorkspacePlanMeta } from '../lib/constants';
 import { getErrorMessage } from '../lib/utils';
+import { MotionPage, MotionSection } from '../components/motion';
 import { Button, PageHeader, PageShell, SurfaceCard } from '../components/ui';
 import { useAppStore } from '../stores/useAppStore';
 import { SETTINGS_TABS } from '../features/settings/constants';
@@ -277,107 +278,113 @@ export default function Settings() {
   );
 
   return (
-    <PageShell>
-      <PageHeader
-        eyebrow="Settings"
-        title="Workspace, billing, and operating controls"
-        description="Prymal now treats billing, team access, API keys, and workspace context as real SaaS surfaces, not placeholder panels."
-        accent="#00FFD1"
-      />
+    <MotionPage>
+      <PageShell>
+        <PageHeader
+          eyebrow="Settings"
+          title="Workspace, billing, and operating controls"
+          description="Prymal now treats billing, team access, API keys, and workspace context as real SaaS surfaces, not placeholder panels."
+          accent="#00FFD1"
+        />
 
-      <SurfaceCard accent="#00FFD1" style={{ marginBottom: '14px' }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {SETTINGS_TABS.map((tab) => (
-            <Button
-              key={tab}
-              tone={activeTab === tab ? 'accent' : 'ghost'}
-              onClick={() => setActiveTab(tab)}
-              data-testid={`settings-tab-${tab.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-            >
-              {tab}
-            </Button>
-          ))}
-        </div>
-      </SurfaceCard>
+        <MotionSection once={true} delay={0.04} reveal={{ y: 12, blur: 4 }}>
+          <SurfaceCard accent="#00FFD1" style={{ marginBottom: '14px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {SETTINGS_TABS.map((tab) => (
+                <Button
+                  key={tab}
+                  tone={activeTab === tab ? 'accent' : 'ghost'}
+                  onClick={() => setActiveTab(tab)}
+                  data-testid={`settings-tab-${tab.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                >
+                  {tab}
+                </Button>
+              ))}
+            </div>
+          </SurfaceCard>
+        </MotionSection>
 
-      {activeTab === 'Account' ? <AccountSettingsTab viewer={viewer} user={user} signOut={signOut} /> : null}
-      {activeTab === 'Billing' ? (
-        <BillingSettingsTab
-          billingQuery={billingQuery}
-          checkoutMutation={checkoutMutation}
-          portalMutation={portalMutation}
-          usageBreakdownQuery={usageBreakdownQuery}
-          currentPlan={currentPlan}
-          currentPlanMeta={currentPlanMeta}
-          creditPercent={creditPercent}
-          seatSummary={seatSummary}
-          billingInterval={billingInterval}
-          setBillingInterval={setBillingInterval}
-          usageDays={usageDays}
-          setUsageDays={setUsageDays}
-        />
-      ) : null}
-      {activeTab === 'Team' ? (
-        <TeamSettingsTab
-          viewer={viewer}
-          teamQuery={teamQuery}
-          currentPlan={currentPlan}
-          currentPlanMeta={currentPlanMeta}
-          seatSummary={seatSummary}
-          canManageTeam={canManageTeam}
-          ownerCandidates={ownerCandidates}
-          inviteEmail={inviteEmail}
-          setInviteEmail={setInviteEmail}
-          inviteRole={inviteRole}
-          setInviteRole={setInviteRole}
-          ownerTargetId={ownerTargetId}
-          setOwnerTargetId={setOwnerTargetId}
-          seatAddonOpen={seatAddonOpen}
-          setSeatAddonOpen={setSeatAddonOpen}
-          seatAddonQty={seatAddonQty}
-          setSeatAddonQty={setSeatAddonQty}
-          seatAddonMutation={seatAddonMutation}
-          inviteMutation={inviteMutation}
-          resendInviteMutation={resendInviteMutation}
-          revokeInviteMutation={revokeInviteMutation}
-          updateMemberRoleMutation={updateMemberRoleMutation}
-          removeMemberMutation={removeMemberMutation}
-        />
-      ) : null}
-      {activeTab === 'API Keys' ? (
-        <ApiKeysSettingsTab
-          apiKeysQuery={apiKeysQuery}
-          createKeyMutation={createKeyMutation}
-          revokeKeyMutation={revokeKeyMutation}
-          canCreateApiKey={canCreateApiKey}
-          keyName={keyName}
-          setKeyName={setKeyName}
-          expiresInDays={expiresInDays}
-          setExpiresInDays={setExpiresInDays}
-          freshToken={freshToken}
-        />
-      ) : null}
-      {activeTab === 'Organisation' ? (
-        <OrganisationSettingsTab
-          orgRows={orgRows}
-          viewer={viewer}
-          controlsQuery={orgModelControlsQuery}
-          updateMutation={updateOrgModelControlsMutation}
-        />
-      ) : null}
-      {activeTab === 'Referrals' ? <ReferralsTab query={referralQuery} /> : null}
-      {activeTab === 'Memory' ? (
-        <MemorySettingsTab
-          memoryQuery={memoryQuery}
-          filteredMemory={filteredMemory}
-          memoryAgentFilter={memoryAgentFilter}
-          setMemoryAgentFilter={setMemoryAgentFilter}
-          memorySortKey={memorySortKey}
-          setMemorySortKey={setMemorySortKey}
-          memoryAgentOptions={memoryAgentOptions}
-          deleteMemoryMutation={deleteMemoryMutation}
-        />
-      ) : null}
-    </PageShell>
+        <MotionSection key={activeTab} once={true} delay={0.08} reveal={{ y: 14, blur: 5 }}>
+          {activeTab === 'Account' ? <AccountSettingsTab viewer={viewer} user={user} signOut={signOut} /> : null}
+          {activeTab === 'Billing' ? (
+            <BillingSettingsTab
+              billingQuery={billingQuery}
+              checkoutMutation={checkoutMutation}
+              portalMutation={portalMutation}
+              usageBreakdownQuery={usageBreakdownQuery}
+              currentPlan={currentPlan}
+              currentPlanMeta={currentPlanMeta}
+              creditPercent={creditPercent}
+              seatSummary={seatSummary}
+              billingInterval={billingInterval}
+              setBillingInterval={setBillingInterval}
+              usageDays={usageDays}
+              setUsageDays={setUsageDays}
+            />
+          ) : null}
+          {activeTab === 'Team' ? (
+            <TeamSettingsTab
+              viewer={viewer}
+              teamQuery={teamQuery}
+              currentPlan={currentPlan}
+              currentPlanMeta={currentPlanMeta}
+              seatSummary={seatSummary}
+              canManageTeam={canManageTeam}
+              ownerCandidates={ownerCandidates}
+              inviteEmail={inviteEmail}
+              setInviteEmail={setInviteEmail}
+              inviteRole={inviteRole}
+              setInviteRole={setInviteRole}
+              ownerTargetId={ownerTargetId}
+              setOwnerTargetId={setOwnerTargetId}
+              seatAddonOpen={seatAddonOpen}
+              setSeatAddonOpen={setSeatAddonOpen}
+              seatAddonQty={seatAddonQty}
+              setSeatAddonQty={setSeatAddonQty}
+              seatAddonMutation={seatAddonMutation}
+              inviteMutation={inviteMutation}
+              resendInviteMutation={resendInviteMutation}
+              revokeInviteMutation={revokeInviteMutation}
+              updateMemberRoleMutation={updateMemberRoleMutation}
+              removeMemberMutation={removeMemberMutation}
+            />
+          ) : null}
+          {activeTab === 'API Keys' ? (
+            <ApiKeysSettingsTab
+              apiKeysQuery={apiKeysQuery}
+              createKeyMutation={createKeyMutation}
+              revokeKeyMutation={revokeKeyMutation}
+              canCreateApiKey={canCreateApiKey}
+              keyName={keyName}
+              setKeyName={setKeyName}
+              expiresInDays={expiresInDays}
+              setExpiresInDays={setExpiresInDays}
+              freshToken={freshToken}
+            />
+          ) : null}
+          {activeTab === 'Organisation' ? (
+            <OrganisationSettingsTab
+              orgRows={orgRows}
+              viewer={viewer}
+              controlsQuery={orgModelControlsQuery}
+              updateMutation={updateOrgModelControlsMutation}
+            />
+          ) : null}
+          {activeTab === 'Referrals' ? <ReferralsTab query={referralQuery} /> : null}
+          {activeTab === 'Memory' ? (
+            <MemorySettingsTab
+              memoryQuery={memoryQuery}
+              filteredMemory={filteredMemory}
+              memoryAgentFilter={memoryAgentFilter}
+              setMemoryAgentFilter={setMemoryAgentFilter}
+              memorySortKey={memorySortKey}
+              setMemorySortKey={setMemorySortKey}
+              memoryAgentOptions={memoryAgentOptions}
+              deleteMemoryMutation={deleteMemoryMutation}
+            />
+          ) : null}
+        </MotionSection>
+      </PageShell>
+    </MotionPage>
   );
 }

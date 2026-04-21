@@ -298,6 +298,30 @@ export default function Landing() {
             scrollTrigger: { trigger: '.pm-agents-parade', start: 'top 70%', toggleActions: 'play none none none' },
           },
         );
+
+        // Hero stat counter — counts up to 15 on scroll into view
+        const countEl = document.querySelector('.prymal-hero-stat--count');
+        if (countEl) {
+          const obj = { val: 0 };
+          gsap.fromTo(obj,
+            { val: 0 },
+            {
+              val: 15,
+              duration: 1.6,
+              ease: 'power2.out',
+              snap: { val: 1 },
+              onUpdate() {
+                if (countEl) countEl.textContent = Math.round(obj.val);
+              },
+              scrollTrigger: {
+                trigger: countEl,
+                start: 'top 82%',
+                toggleActions: 'play none none none',
+                once: true,
+              },
+            }
+          );
+        }
       }, scopeRef);
     })();
 
@@ -358,7 +382,7 @@ export default function Landing() {
               <div className="pm-hero__intro">
                 <div className="pm-hero__badge">
                   <span className="pm-hero__badge-dot" />
-                  15 Specialist AI Agents · Now Live
+                  <span className="prymal-hero-stat--count">15</span> Specialist AI Agents · Now Live
                 </div>
 
                 <h1 className="pm-hero__headline">

@@ -6233,3 +6233,12 @@ html[data-prymal-motion='force'] .prymal-usecase-hero .prymal-cinematic-stage__h
   filter: blur(24px);
   animation: ambientOrbit 18s ease-in-out infinite;
 }
+
+.agent-profile__hero-scene {
+  position: relative;
+  height: 240px;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: var(--space-6, 24px);
+  box-shadow: var(--shadow-premium);
+}
