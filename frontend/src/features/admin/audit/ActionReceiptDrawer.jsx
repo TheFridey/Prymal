@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { InlineNotice, LoadingPanel } from '../../../components/ui';
+import { createExplainabilityChipStyle, createExplainabilityCardStyle } from '../../../design-system/primitives';
 import { formatDateTime } from '../../../lib/utils';
 import { humanize } from '../utils';
 import { AdminDetailDrawer, DetailBlock, JsonBlock, diffReceipt } from '../runtime/shared';
@@ -27,7 +28,7 @@ export function ActionReceiptDrawer({ receiptQuery, onClose }) {
       {receipt ? (
         <div className="staff-admin__drawer-stack">
           <MotionSection reveal={{ y: 14, blur: 6 }}>
-          <section className="staff-admin__drawer-section" style={{ background: 'var(--panel-soft)', borderRadius: '12px', padding: '14px 16px' }}>
+          <section className="staff-admin__drawer-section" style={createExplainabilityCardStyle('#4CC9F0')}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
               <div>
                 <div className="staff-admin__surface-label">Immutable log reference</div>
@@ -44,14 +45,17 @@ export function ActionReceiptDrawer({ receiptQuery, onClose }) {
               </button>
             </div>
             <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '999px', background: 'var(--line)', color: 'var(--muted)' }}>
+              <span style={createExplainabilityChipStyle({ accent: 'var(--muted)', subtle: true })}>
                 {humanize(receipt.actorStaffRole)}
               </span>
-              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '999px', background: 'var(--line)', color: 'var(--muted)' }}>
+              <span style={createExplainabilityChipStyle({ accent: 'var(--muted)', subtle: true })}>
                 {receipt.permission ?? 'staff'}
               </span>
-              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+              <span style={createExplainabilityChipStyle({ accent: '#ef4444', subtle: true })}>
                 {humanize(receipt.action)}
+              </span>
+              <span style={createExplainabilityChipStyle({ accent: '#4CC9F0', subtle: true })}>
+                {changes.length} changed field{changes.length === 1 ? '' : 's'}
               </span>
             </div>
           </section>

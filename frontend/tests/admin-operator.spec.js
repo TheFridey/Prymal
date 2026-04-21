@@ -1,37 +1,52 @@
 import { test, expect } from '@playwright/test';
-import { signInAsStaff, skipIfNoStaffCredentials } from './helpers/auth';
+import { authStatePath, getCredentials, signInWith, skipIfMissingCredentials } from './helpers/auth';
 
-test.describe('Admin operator flows', () => {
-  test.beforeEach(() => skipIfNoStaffCredentials(test));
+test.describe('Admin operator regressions', () => {
+  test('staff sign-in lands in the admin console', async ({ page }) => {
+    skipIfMissingCredentials(test, ['staff']);
 
-  test('admin shell loads for staff users', async ({ page }) => {
-    await signInAsStaff(page);
-    await page.goto('/app/admin');
-    await expect(page).not.toHaveURL(/\/login/);
-    await expect(page.getByText(/Overview|Control plane|Staff admin/i).first()).toBeVisible({ timeout: 10_000 });
+    await signInWith(page, {
+      ...getCredentials('staff'),
+      destination: '/app/admin',
+    });
+
+    await expect(page).toHaveURL(/\/app\/admin/);
+    await expect(page.getByText(/staff admin|overview|control plane/i).first()).toBeVisible();
+  });
+});
+
+test.describe('Runtime drilldown and held-output visibility', () => {
+  test.use({ storageState: authStatePath('staff') });
+  test.describe.configure({ mode: 'serial' });
+
+  test.beforeEach(() => {
+    skipIfMissingCredentials(test, ['staff']);
   });
 
-  test('trace center renders and opens a trace detail drawer when data exists', async ({ page }) => {
-    await signInAsStaff(page);
+  test('trace center drilldown exposes execution, retrieval, and memory context', async ({ page }) => {
     await page.goto('/app/admin');
     await page.getByRole('button', { name: /^Traces$/i }).click();
-    await expect(page.getByText(/Trace center/i).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/trace center/i).first()).toBeVisible();
 
-    const inspectButton = page.getByRole('button', { name: /Inspect|Open trace/i }).first();
-    if (await inspectButton.isVisible().catch(() => false)) {
-      await inspectButton.click();
-      await expect(page.getByText(/Trace detail/i).first()).toBeVisible({ timeout: 10_000 });
-    }
+    const inspectButton = page.getByRole('button', { name: /^Inspect$/i }).first();
+    await expect(inspectButton).toBeVisible({ timeout: 15_000 });
+    await inspectButton.click();
+
+    await expect(page.getByText(/trace detail/i).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/execution summary|retrieval diagnostics|runtime touches/i).first()).toBeVisible();
   });
 
-  test('scorecards and model policy tabs expose governance analytics', async ({ page }) => {
-    await signInAsStaff(page);
+  test('held traces surface SENTINEL reasoning clearly', async ({ page }) => {
     await page.goto('/app/admin');
+    await page.getByRole('button', { name: /^Traces$/i }).click();
+    await expect(page.getByText(/trace center/i).first()).toBeVisible();
 
-    await page.getByRole('button', { name: /^Scorecards$/i }).click();
-    await expect(page.getByText(/Agent enforcement scorecards|Governance summary/i).first()).toBeVisible({ timeout: 10_000 });
+    await page.getByLabel(/outcome/i).selectOption('held');
+    const inspectButton = page.getByRole('button', { name: /^Inspect$/i }).first();
+    await expect(inspectButton).toBeVisible({ timeout: 15_000 });
+    await inspectButton.click();
 
-    await page.getByRole('button', { name: /^Model Policy$/i }).click();
-    await expect(page.getByText(/Active provider lanes|Provider posture|Gemini/i).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/sentinel hold|sentinel review|held/i).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/repair and fallback loop|safety and repair/i).first()).toBeVisible();
   });
 });

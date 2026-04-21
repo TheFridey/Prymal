@@ -9,6 +9,7 @@
     "start:bun": "bun src/index.js",
     "test": "node --test src",
     "test:ci": "node --test src",
+    "env:validate": "node scripts/validate-env.mjs --scope backend --mode production",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",

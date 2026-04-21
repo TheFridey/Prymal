@@ -95,3 +95,34 @@ export function diffReceipt(before = {}, after = {}) {
       after: after?.[key] ?? null,
     }));
 }
+
+export function AdminPaginationControls({
+  page = 1,
+  pageSize = 0,
+  itemCount = 0,
+  hasNextPage = false,
+  onPrevious,
+  onNext,
+  label = 'results',
+}) {
+  const pageLabel = itemCount > 0
+    ? `Page ${page} · ${itemCount} ${label}`
+    : `Page ${page} · no ${label}`;
+
+  return (
+    <div className="staff-admin__pagination">
+      <span className="staff-admin__pagination-label">{pageLabel}</span>
+      <div className="staff-admin__pagination-actions">
+        <Button tone="ghost" onClick={onPrevious} disabled={page <= 1}>
+          Previous
+        </Button>
+        <span className="staff-admin__pagination-meta">
+          {pageSize > 0 ? `${pageSize} per page` : 'Paged'}
+        </span>
+        <Button tone="ghost" onClick={onNext} disabled={!hasNextPage}>
+          Next
+        </Button>
+      </div>
+    </div>
+  );
+}

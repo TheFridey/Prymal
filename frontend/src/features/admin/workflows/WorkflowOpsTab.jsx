@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Button,
   InlineNotice,
@@ -10,6 +10,7 @@ import { formatDateTime, formatNumber, truncate } from '../../../lib/utils';
 import { humanize } from '../utils';
 import {
   AdminDetailDrawer,
+  AdminPaginationControls,
   DetailBlock,
   TIMELINE_KIND_ACCENT,
   TIMELINE_KIND_OPTIONS,
@@ -25,6 +26,10 @@ export function WorkflowOpsTab({
   organisations = [],
   workflowDays,
   workflowFailureClass,
+  searchValue = '',
+  onSearchChange,
+  pagination,
+  onPageChange,
   onWorkflowDaysChange,
   onWorkflowFailureClassChange,
   onSelectOrg,
@@ -39,10 +44,27 @@ export function WorkflowOpsTab({
   const timeline = timelineKind === 'all'
     ? rawTimeline
     : rawTimeline.filter((entry) => entry.kind === timelineKind);
+  const filteredRuns = useMemo(() => {
+    const needle = searchValue.trim().toLowerCase();
+    if (!needle) {
+      return failedRuns;
+    }
+
+    return failedRuns.filter((run) => [
+      run.id,
+      run.workflowId,
+      run.orgId,
+      run.failureClass,
+      run.executionMode,
+      run.errorLog,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(needle)));
+  }, [failedRuns, searchValue]);
 
   return (
     <div className="staff-admin__ops-grid">
-      <div className="staff-admin__runtime-filter-grid">
+      <div className="staff-admin__runtime-filter-grid staff-admin__runtime-filter-grid--sticky">
         <label className="staff-admin__field">
           <span className="staff-admin__field-label">Failure window</span>
           <select
@@ -69,14 +91,22 @@ export function WorkflowOpsTab({
             className="staff-admin__select"
             value={selectedOrg?.id ?? 'all'}
             onChange={(event) => onSelectOrg(event.target.value)}
-          >
-            <option value="all">Pick a workspace</option>
-            {organisations.map((organisation) => (
-              <option key={organisation.id} value={organisation.id}>
-                {organisation.name}
-              </option>
-            ))}
-          </select>
+            >
+              <option value="all">Pick a workspace</option>
+              {organisations.map((organisation) => (
+                <option key={organisation.id} value={organisation.id}>
+                  {organisation.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        <label className="staff-admin__field">
+          <span className="staff-admin__field-label">Search</span>
+          <TextInput
+            value={searchValue}
+            onChange={(event) => onSearchChange?.(event.target.value)}
+            placeholder="run id, workflow, org, failure..."
+          />
         </label>
       </div>
 
@@ -98,11 +128,11 @@ export function WorkflowOpsTab({
 
           {failedRunsQuery.isLoading && !failedRunsQuery.data ? (
             <LoadingPanel label="Loading workflow failures..." />
-          ) : failedRuns.length === 0 ? (
+          ) : filteredRuns.length === 0 ? (
             <div className="staff-admin__empty">No failed runs matched the current filters.</div>
           ) : (
             <MotionList className="staff-admin__queue-list">
-              {failedRuns.map((run) => (
+              {filteredRuns.map((run) => (
                 <MotionListItem key={run.id} className="staff-admin__queue-item" reveal={{ y: 12, blur: 4 }}>
                   <div className="staff-admin__queue-head">
                     <strong>{truncate(run.workflowId, 18)}</strong>
@@ -122,6 +152,16 @@ export function WorkflowOpsTab({
               ))}
             </MotionList>
           )}
+
+          <AdminPaginationControls
+            page={pagination?.page}
+            pageSize={pagination?.pageSize}
+            itemCount={filteredRuns.length}
+            hasNextPage={pagination?.hasNextPage}
+            onPrevious={() => onPageChange?.('previous')}
+            onNext={() => onPageChange?.('next')}
+            label="failed runs"
+          />
         </section>
 
         <section className="staff-admin__surface">
@@ -320,6 +360,7 @@ export function WorkflowRunDrawer({
                 tone="accent"
                 disabled={isReplaying || !reasonCode.trim() || reason.trim().length < 4}
                 onClick={() => onReplay(run.id, { reasonCode, reason })}
+                data-testid="admin-workflow-replay"
               >
                 {isReplaying ? 'Replaying...' : 'Replay workflow run'}
               </Button>
@@ -366,7 +407,7 @@ export function WorkflowRunDrawer({
                     <p>{receipt.reasonCode} | {formatDateTime(receipt.createdAt)}</p>
                     <small>{receipt.reason ?? 'No reason attached.'}</small>
                     <div className="staff-admin__queue-actions">
-                      <Button tone="ghost" onClick={() => onOpenReceipt(receipt.id)}>
+                      <Button tone="ghost" onClick={() => onOpenReceipt(receipt.id)} data-testid={`admin-action-receipt-${receipt.id}`}>
                         View receipt
                       </Button>
                     </div>

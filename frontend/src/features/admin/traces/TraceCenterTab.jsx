@@ -3,13 +3,17 @@ import { Button, InlineNotice, LoadingPanel, TextInput } from '../../../componen
 import { formatDateTime, formatNumber, truncate } from '../../../lib/utils';
 import { AGENT_ID_OPTIONS } from '../constants';
 import { humanize } from '../utils';
-import { AdminDetailDrawer, DetailBlock, JsonBlock, formatRate } from '../runtime/shared';
+import { AdminDetailDrawer, AdminPaginationControls, DetailBlock, JsonBlock, formatRate } from '../runtime/shared';
 import { MotionList, MotionListItem, MotionSection } from '../../../components/motion';
 
 export function TraceCenterTab({
   query,
   organisations = [],
   filters,
+  searchValue = '',
+  onSearchChange,
+  pagination,
+  onPageChange,
   onFilterChange,
   onSelectTrace,
   onSelectWorkflowRun,
@@ -21,22 +25,44 @@ export function TraceCenterTab({
   const traces = query.data?.traces ?? [];
   const failureBreakdown = query.data?.failureBreakdown ?? [];
   const policySummary = query.data?.policySummary ?? [];
+  const filteredTraces = useMemo(() => {
+    const needle = searchValue.trim().toLowerCase();
+    if (!needle) {
+      return traces;
+    }
+
+    return traces.filter((trace) => [
+      trace.id,
+      trace.agentId,
+      trace.provider,
+      trace.model,
+      trace.policyClass,
+      trace.policyKey,
+      trace.failureClass,
+      trace.route,
+      trace.routeReason,
+      trace.requestId,
+      trace.outcomeStatus,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(needle)));
+  }, [searchValue, traces]);
 
   return (
     <div className="staff-admin__ops-grid">
       <MotionSection reveal={{ y: 18, blur: 6 }}>
       <section className="staff-admin__surface staff-admin__surface--full">
-        <div className="staff-admin__surface-head">
+        <div className="staff-admin__surface-head staff-admin__surface-head--sticky">
           <div>
             <div className="staff-admin__surface-label">Runtime observability</div>
             <h2>Trace center</h2>
           </div>
           <div className="staff-admin__surface-meta">
-            {formatNumber(query.data?.count ?? 0)} traces in window
+            {formatNumber(query.data?.count ?? 0)} traces in window | Shift+T to return here
           </div>
         </div>
 
-        <div className="staff-admin__runtime-filter-grid">
+        <div className="staff-admin__runtime-filter-grid staff-admin__runtime-filter-grid--sticky">
           <label className="staff-admin__field">
             <span className="staff-admin__field-label">Days</span>
             <select
@@ -100,6 +126,14 @@ export function TraceCenterTab({
               placeholder="rate_limit, timeout, provider..."
             />
           </label>
+          <label className="staff-admin__field">
+            <span className="staff-admin__field-label">Search</span>
+            <TextInput
+              value={searchValue}
+              onChange={(event) => onSearchChange?.(event.target.value)}
+              placeholder="trace id, provider, model, request..."
+            />
+          </label>
         </div>
 
         {query.error ? (
@@ -157,14 +191,14 @@ export function TraceCenterTab({
               </tr>
             </thead>
             <tbody>
-              {traces.length === 0 ? (
+              {filteredTraces.length === 0 ? (
                 <tr>
                   <td colSpan={9}>
-                    <div className="staff-admin__empty">No traces matched the current filters.</div>
+                    <div className="staff-admin__empty">No traces matched the current filters or search.</div>
                   </td>
                 </tr>
               ) : (
-                traces.map((trace) => (
+                filteredTraces.map((trace) => (
                   <tr key={trace.id}>
                     <td>{formatDateTime(trace.createdAt)}</td>
                     <td>
@@ -198,7 +232,7 @@ export function TraceCenterTab({
                       )}
                     </td>
                     <td>
-                      <Button tone="ghost" onClick={() => onSelectTrace(trace.id)}>
+                      <Button tone="ghost" onClick={() => onSelectTrace(trace.id)} data-testid={`trace-inspect-${trace.id}`}>
                         Inspect
                       </Button>
                     </td>
@@ -208,6 +242,16 @@ export function TraceCenterTab({
             </tbody>
           </table>
         </div>
+
+        <AdminPaginationControls
+          page={pagination?.page}
+          pageSize={pagination?.pageSize}
+          itemCount={filteredTraces.length}
+          hasNextPage={pagination?.hasNextPage}
+          onPrevious={() => onPageChange?.('previous')}
+          onNext={() => onPageChange?.('next')}
+          label="trace rows"
+        />
       </section>
       </MotionSection>
     </div>
@@ -593,27 +637,47 @@ function TraceDetailContent({ detail, onOpenWorkflowRun, onOpenReceipt }) {
                   <strong>{source.documentTitle ?? source.title ?? 'Source'}</strong>
                   <span>{source.confidenceLabel ?? source.citation?.trustLabel ?? source.sourceType ?? 'source'}</span>
                 </div>
-                <p>
-                  Similarity {formatMetricPct(source.similarity)}
-                  {' | '}
-                  Rank {formatMetricPct(source.finalScore)}
-                  {' | '}
-                  Freshness {formatMetricPct(source.freshnessScore)}
-                  {' | '}
-                  Authority {formatMetricPct(source.authorityScore)}
-                </p>
                 <div className="staff-admin__chip-row">
+                  {source.confidenceLabel ? <span className="staff-admin__chip">Confidence {source.confidenceLabel}</span> : null}
                   {source.retrievalMode ? <span className="staff-admin__chip">{humanize(source.retrievalMode)}</span> : null}
+                  {source.sourceType ? <span className="staff-admin__chip">{humanize(source.sourceType)}</span> : null}
                   {source.lexicalScore != null ? <span className="staff-admin__chip">Lexical {formatMetricPct(source.lexicalScore)}</span> : null}
                   {source.versionLineage?.latestVersion ? <span className="staff-admin__chip">Latest v{source.versionLineage.latestVersion}</span> : null}
                   {source.versionLineage?.isSuperseded ? <span className="staff-admin__chip">Superseded</span> : null}
+                  {source.omittedChunkCount ? <span className="staff-admin__chip">{source.omittedChunkCount} omitted chunk{source.omittedChunkCount === 1 ? '' : 's'}</span> : null}
                 </div>
-                <small>
-                  {source.staleWarning ?? 'No stale warning.'}
-                  {(source.contradictionSignals ?? []).length > 0
-                    ? ` | Contradictions: ${source.contradictionSignals.map((signal) => humanize(signal.type)).join(', ')}`
-                    : ''}
-                </small>
+                <div className="staff-admin__trace-summary-grid">
+                  <article className="staff-admin__trace-summary-card">
+                    <div className="staff-admin__surface-label">Ranking reasons</div>
+                    <div className="staff-admin__runtime-stat-list">
+                      <TraceSummaryRow label="Semantic match" value={formatMetricPct(source.similarity)} />
+                      <TraceSummaryRow label="Final rank" value={formatMetricPct(source.finalScore)} />
+                      <TraceSummaryRow label="Freshness contribution" value={formatMetricPct(source.freshnessScore)} />
+                      <TraceSummaryRow label="Authority contribution" value={formatMetricPct(source.authorityScore)} />
+                      <TraceSummaryRow label="Contradiction score" value={String((source.contradictionSignals ?? []).length)} />
+                    </div>
+                  </article>
+                  <article className="staff-admin__trace-summary-card">
+                    <div className="staff-admin__surface-label">Lineage and freshness</div>
+                    <div className="staff-admin__runtime-stat-list">
+                      <TraceSummaryRow label="Freshness posture" value={source.staleWarning ? 'Aging / stale' : 'Current'} />
+                      <TraceSummaryRow label="Version chain" value={source.versionLineage?.versionChainId ? String(source.versionLineage.versionChainId).slice(0, 12) : 'n/a'} />
+                      <TraceSummaryRow label="Latest version" value={source.versionLineage?.latestVersion ? `v${source.versionLineage.latestVersion}` : 'n/a'} />
+                      <TraceSummaryRow label="Superseded" value={source.versionLineage?.isSuperseded ? 'Yes' : 'No'} />
+                    </div>
+                  </article>
+                </div>
+                <small>{source.staleWarning ?? 'No stale warning.'}</small>
+                {(source.contradictionSignals ?? []).length > 0 ? (
+                  <div className="staff-admin__runtime-stat-list">
+                    {(source.contradictionSignals ?? []).slice(0, 3).map((signal, signalIndex) => (
+                      <div key={`${signal.type ?? 'contradiction'}-${signalIndex}`} className="staff-admin__runtime-stat-row">
+                        <span>{humanize(signal.type ?? 'conflict')}</span>
+                        <strong>{truncate(signal.excerpt ?? signal.existingDocumentTitle ?? 'Signal attached.', 72)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
                 {source.summary ? <small>{source.summary}</small> : null}
               </article>
             ))}
@@ -667,6 +731,32 @@ function TraceDetailContent({ detail, onOpenWorkflowRun, onOpenReceipt }) {
       </section>
 
       <section className="staff-admin__drawer-section">
+        <div className="staff-admin__surface-label">Memory operations</div>
+        {trace.memoryReadIds.length === 0 && trace.memoryWriteKeys.length === 0 ? (
+          <div className="staff-admin__empty">No memory reads or writes were recorded for this trace.</div>
+        ) : (
+          <div className="staff-admin__trace-summary-grid">
+            <article className="staff-admin__trace-summary-card">
+              <div className="staff-admin__surface-label">Reads</div>
+              <div className="staff-admin__chip-row">
+                {trace.memoryReadIds.length > 0
+                  ? trace.memoryReadIds.map((memoryId) => <span key={memoryId} className="staff-admin__chip">Read {truncate(memoryId, 14)}</span>)
+                  : <span className="staff-admin__chip">No reads</span>}
+              </div>
+            </article>
+            <article className="staff-admin__trace-summary-card">
+              <div className="staff-admin__surface-label">Writes</div>
+              <div className="staff-admin__chip-row">
+                {trace.memoryWriteKeys.length > 0
+                  ? trace.memoryWriteKeys.map((memoryKey) => <span key={memoryKey} className="staff-admin__chip">{truncate(memoryKey, 20)}</span>)
+                  : <span className="staff-admin__chip">No writes</span>}
+              </div>
+            </article>
+          </div>
+        )}
+      </section>
+
+      <section className="staff-admin__drawer-section">
         <div className="staff-admin__surface-label">Runtime touches</div>
         <div className="staff-admin__chip-row">
           {trace.toolsUsed.length > 0 ? trace.toolsUsed.map((tool) => (
@@ -675,12 +765,7 @@ function TraceDetailContent({ detail, onOpenWorkflowRun, onOpenReceipt }) {
           {trace.loreDocumentIds.length > 0 ? trace.loreDocumentIds.map((documentId) => (
             <span key={documentId} className="staff-admin__chip">Doc {truncate(documentId, 10)}</span>
           )) : null}
-          {trace.memoryReadIds.length > 0 ? trace.memoryReadIds.map((memoryId) => (
-            <span key={memoryId} className="staff-admin__chip">Read {truncate(memoryId, 10)}</span>
-          )) : null}
-          {trace.memoryWriteKeys.length > 0 ? trace.memoryWriteKeys.map((memoryKey) => (
-            <span key={memoryKey} className="staff-admin__chip">{truncate(memoryKey, 20)}</span>
-          )) : null}
+          {trace.attachmentCount > 0 ? <span className="staff-admin__chip">{trace.attachmentCount} attachment{trace.attachmentCount === 1 ? '' : 's'}</span> : null}
         </div>
       </section>
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../../../lib/api';
+import { createExplainabilityChipStyle } from '../../../design-system/primitives';
 
 const SCHEMA_BADGE_STYLES = {
   pass: { bg: 'rgba(24,199,160,0.12)', color: '#18c7a0', label: 'Schema validated' },
@@ -14,7 +15,7 @@ const SENTINEL_STYLES = {
   HOLD: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444', label: 'SENTINEL held for review' },
 };
 
-function ArtifactChip({ label, tone = 'default' }) {
+function ArtifactChip({ label, tone = 'default', title }) {
   const toneStyle = tone === 'warning'
     ? { background: 'rgba(245,158,11,0.12)', color: '#f59e0b', borderColor: '#f59e0b44' }
     : tone === 'danger'
@@ -25,16 +26,15 @@ function ArtifactChip({ label, tone = 'default' }) {
 
   return (
     <span
+      title={title}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
         gap: '4px',
-        padding: '3px 8px',
-        borderRadius: '999px',
+        ...createExplainabilityChipStyle({ accent: toneStyle.color }),
         border: `1px solid ${toneStyle.borderColor}`,
         background: toneStyle.background,
         color: toneStyle.color,
-        fontSize: '11px',
         lineHeight: 1.2,
       }}
     >
@@ -326,13 +326,13 @@ export function SourceCard({ source }) {
         ) : null}
       </div>
       <div className="workspace-studio__source-badges">
-        {confidence ? <ArtifactChip label={`Confidence ${confidence}`} tone={confidence.toLowerCase() === 'high' ? 'success' : 'default'} /> : null}
-        {freshness ? <ArtifactChip label={`Freshness ${freshness}`} /> : null}
-        {authority ? <ArtifactChip label={`Authority ${authority}`} /> : null}
-        {rankScore ? <ArtifactChip label={`Rank ${rankScore}`} /> : null}
-        {versionLineage?.latestVersion ? <ArtifactChip label={`Latest v${versionLineage.latestVersion}`} /> : null}
-        {versionLineage?.isSuperseded ? <ArtifactChip label="Superseded" tone="warning" /> : null}
-        {contradictionSignals.length > 0 ? <ArtifactChip label={`${contradictionSignals.length} contradiction${contradictionSignals.length === 1 ? '' : 's'}`} tone="warning" /> : null}
+        {confidence ? <ArtifactChip label={`Confidence ${confidence}`} tone={confidence.toLowerCase() === 'high' ? 'success' : 'default'} title="Model confidence label for this source" /> : null}
+        {freshness ? <ArtifactChip label={`Freshness ${freshness}`} title="Freshness score contribution" /> : null}
+        {authority ? <ArtifactChip label={`Authority ${authority}`} title="Authority score contribution" /> : null}
+        {rankScore ? <ArtifactChip label={`Rank ${rankScore}`} title="Final retrieval rank" /> : null}
+        {versionLineage?.latestVersion ? <ArtifactChip label={`Latest v${versionLineage.latestVersion}`} title="Latest known document version" /> : null}
+        {versionLineage?.isSuperseded ? <ArtifactChip label="Superseded" tone="warning" title="A newer document version exists" /> : null}
+        {contradictionSignals.length > 0 ? <ArtifactChip label={`${contradictionSignals.length} contradiction${contradictionSignals.length === 1 ? '' : 's'}`} tone="warning" title="This source conflicts with another indexed document" /> : null}
       </div>
       {source.staleWarning ? (
         <div className="workspace-studio__source-error" style={{ color: '#f59e0b', borderColor: '#f59e0b33', background: 'rgba(245,158,11,0.08)' }}>

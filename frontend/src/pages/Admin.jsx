@@ -46,6 +46,9 @@ import { EmailQueueTab, WaitlistTab, PowerUpsTab } from '../features/admin/tabs/
 import { GrowthTab } from '../features/admin/tabs/growth';
 import { AdminCommandPalette } from '../features/admin/AdminCommandPalette';
 
+const TRACE_PAGE_SIZE = 40;
+const WORKFLOW_PAGE_SIZE = 24;
+
 export default function Admin() {
   const { viewer } = useOutletContext();
   const isStaff = Boolean(viewer?.staff?.isStaff);
@@ -69,8 +72,12 @@ export default function Admin() {
   const [traceAgentFilter, setTraceAgentFilter] = useState('all');
   const [traceOrgFilter, setTraceOrgFilter] = useState('all');
   const [traceFailureFilter, setTraceFailureFilter] = useState('');
+  const [traceSearch, setTraceSearch] = useState('');
+  const [traceOffset, setTraceOffset] = useState(0);
   const [workflowDays, setWorkflowDays] = useState('30');
   const [workflowFailureClass, setWorkflowFailureClass] = useState('');
+  const [workflowSearch, setWorkflowSearch] = useState('');
+  const [workflowOffset, setWorkflowOffset] = useState(0);
   const [evalDays, setEvalDays] = useState('30');
   const [modelCompDays, setModelCompDays] = useState('30');
   const [modelCompPolicy, setModelCompPolicy] = useState('all');
@@ -174,7 +181,8 @@ export default function Admin() {
   const tracesQueryString = useMemo(() => {
     const params = new URLSearchParams({
       days: traceDays,
-      limit: '120',
+      limit: String(TRACE_PAGE_SIZE),
+      offset: String(traceOffset),
     });
 
     if (traceOutcomeStatus !== 'all') params.set('outcomeStatus', traceOutcomeStatus);
@@ -183,7 +191,7 @@ export default function Admin() {
     if (traceFailureFilter.trim()) params.set('failureClass', traceFailureFilter.trim());
 
     return params.toString();
-  }, [traceAgentFilter, traceDays, traceFailureFilter, traceOrgFilter, traceOutcomeStatus]);
+  }, [traceAgentFilter, traceDays, traceFailureFilter, traceOffset, traceOrgFilter, traceOutcomeStatus]);
 
   const tracesQuery = useQuery({
     queryKey: ['staff-admin-traces', tracesQueryString],
@@ -208,11 +216,12 @@ export default function Admin() {
   });
 
   const failedWorkflowRunsQuery = useQuery({
-    queryKey: ['staff-admin-failed-workflow-runs', workflowDays, workflowFailureClass],
+    queryKey: ['staff-admin-failed-workflow-runs', workflowDays, workflowFailureClass, workflowOffset],
     queryFn: () => {
       const params = new URLSearchParams({
         days: workflowDays,
-        limit: '80',
+        limit: String(WORKFLOW_PAGE_SIZE),
+        offset: String(workflowOffset),
       });
       if (workflowFailureClass.trim()) params.set('failureClass', workflowFailureClass.trim());
       return api.get(`/admin/failed-workflow-runs?${params.toString()}`);
@@ -579,9 +588,37 @@ export default function Admin() {
 
   useEffect(() => {
     function handleKeyDown(event) {
+      const tagName = event.target?.tagName?.toLowerCase?.();
+      const isEditable = tagName === 'input' || tagName === 'textarea' || tagName === 'select' || event.target?.isContentEditable;
+
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
         event.preventDefault();
         setPaletteOpen((current) => !current);
+        return;
+      }
+
+      if (isEditable) {
+        return;
+      }
+
+      if (event.shiftKey && event.key.toLowerCase() === 't') {
+        event.preventDefault();
+        startTransition(() => setActiveTab('traces'));
+      }
+
+      if (event.shiftKey && event.key.toLowerCase() === 'w') {
+        event.preventDefault();
+        startTransition(() => setActiveTab('workflow-ops'));
+      }
+
+      if (event.shiftKey && event.key.toLowerCase() === 'b') {
+        event.preventDefault();
+        startTransition(() => setActiveTab('billing'));
+      }
+
+      if (event.shiftKey && event.key.toLowerCase() === 'o') {
+        event.preventDefault();
+        startTransition(() => setActiveTab('overview'));
       }
     }
     window.addEventListener('keydown', handleKeyDown);
@@ -636,6 +673,7 @@ export default function Admin() {
               type="button"
               className={`staff-admin__tab${activeTab === tab.id ? ' is-active' : ''}`}
               onClick={() => startTransition(() => setActiveTab(tab.id))}
+              data-testid={`admin-tab-${tab.id}`}
             >
               {tab.label}
             </button>
@@ -853,8 +891,22 @@ export default function Admin() {
               orgId: traceOrgFilter,
               failureClass: traceFailureFilter,
             }}
+            searchValue={traceSearch}
+            onSearchChange={(value) => startTransition(() => setTraceSearch(value))}
+            pagination={{
+              page: Math.floor(traceOffset / TRACE_PAGE_SIZE) + 1,
+              pageSize: TRACE_PAGE_SIZE,
+              itemCount: tracesQuery.data?.traces?.length ?? 0,
+              hasNextPage: (tracesQuery.data?.traces?.length ?? 0) === TRACE_PAGE_SIZE,
+            }}
+            onPageChange={(direction) =>
+              startTransition(() =>
+                setTraceOffset((current) => Math.max(current + (direction === 'next' ? TRACE_PAGE_SIZE : -TRACE_PAGE_SIZE), 0))
+              )
+            }
             onFilterChange={(key, value) => {
               const nextValue = value ?? '';
+              startTransition(() => setTraceOffset(0));
               if (key === 'days') startTransition(() => setTraceDays(nextValue));
               if (key === 'outcomeStatus') startTransition(() => setTraceOutcomeStatus(nextValue));
               if (key === 'agentId') startTransition(() => setTraceAgentFilter(nextValue));
@@ -883,8 +935,27 @@ export default function Admin() {
             organisations={data.organisations}
             workflowDays={workflowDays}
             workflowFailureClass={workflowFailureClass}
-            onWorkflowDaysChange={(value) => startTransition(() => setWorkflowDays(value))}
-            onWorkflowFailureClassChange={(value) => startTransition(() => setWorkflowFailureClass(value))}
+            searchValue={workflowSearch}
+            onSearchChange={(value) => startTransition(() => setWorkflowSearch(value))}
+            pagination={{
+              page: Math.floor(workflowOffset / WORKFLOW_PAGE_SIZE) + 1,
+              pageSize: WORKFLOW_PAGE_SIZE,
+              itemCount: failedWorkflowRunsQuery.data?.runs?.length ?? 0,
+              hasNextPage: (failedWorkflowRunsQuery.data?.runs?.length ?? 0) === WORKFLOW_PAGE_SIZE,
+            }}
+            onPageChange={(direction) =>
+              startTransition(() =>
+                setWorkflowOffset((current) => Math.max(current + (direction === 'next' ? WORKFLOW_PAGE_SIZE : -WORKFLOW_PAGE_SIZE), 0))
+              )
+            }
+            onWorkflowDaysChange={(value) => startTransition(() => {
+              setWorkflowOffset(0);
+              setWorkflowDays(value);
+            })}
+            onWorkflowFailureClassChange={(value) => startTransition(() => {
+              setWorkflowOffset(0);
+              setWorkflowFailureClass(value);
+            })}
             onSelectOrg={(orgId) => startTransition(() => setSelectedTimelineOrgId(orgId === 'all' ? null : orgId))}
             onSelectRun={(run) => {
               setSelectedTimelineOrgId(run.orgId);

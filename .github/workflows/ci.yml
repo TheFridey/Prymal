@@ -99,7 +99,7 @@ jobs:
           VITE_API_URL: ${{ env.VITE_API_URL }}
 
   e2e-authenticated:
-    name: E2E authenticated smoke
+    name: E2E authenticated regression
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -112,16 +112,38 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npx playwright install chromium --with-deps
-      - run: npm run test:e2e -- tests/workspace-smoke.spec.js tests/settings-smoke.spec.js tests/app-core.spec.js tests/admin-operator.spec.js
+      - run: node ../backend/scripts/validate-env.mjs --scope playwright --mode staging
         env:
-          CI: true
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
-          VITE_API_URL: ${{ env.VITE_API_URL }}
+          PLAYWRIGHT_AUTH_REQUIRED: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
+          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
           PLAYWRIGHT_TEST_USER_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_USER_EMAIL || '' }}
           PLAYWRIGHT_TEST_USER_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_USER_PASSWORD || '' }}
           PLAYWRIGHT_TEST_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_STAFF_EMAIL || '' }}
           PLAYWRIGHT_TEST_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_STAFF_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_INVITEE_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_INVITEE_EMAIL || '' }}
+          PLAYWRIGHT_TEST_INVITEE_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_INVITEE_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_ONBOARDING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_ONBOARDING_EMAIL || '' }}
+          PLAYWRIGHT_TEST_ONBOARDING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_ONBOARDING_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_BILLING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_BILLING_EMAIL || '' }}
+          PLAYWRIGHT_TEST_BILLING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_BILLING_PASSWORD || '' }}
+      - run: npx playwright install chromium --with-deps
+      - run: npm run test:e2e -- tests/authenticated-regression.spec.js tests/onboarding-regression.spec.js tests/invite-membership.spec.js tests/billing-portal.spec.js tests/admin-operator.spec.js
+        env:
+          CI: true
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_API_URL: ${{ env.VITE_API_URL }}
+          PLAYWRIGHT_AUTH_REQUIRED: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
+          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
+          PLAYWRIGHT_TEST_USER_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_USER_EMAIL || '' }}
+          PLAYWRIGHT_TEST_USER_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_USER_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_STAFF_EMAIL || '' }}
+          PLAYWRIGHT_TEST_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_STAFF_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_INVITEE_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_INVITEE_EMAIL || '' }}
+          PLAYWRIGHT_TEST_INVITEE_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_INVITEE_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_ONBOARDING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_ONBOARDING_EMAIL || '' }}
+          PLAYWRIGHT_TEST_ONBOARDING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_ONBOARDING_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_BILLING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_BILLING_EMAIL || '' }}
+          PLAYWRIGHT_TEST_BILLING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_BILLING_PASSWORD || '' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

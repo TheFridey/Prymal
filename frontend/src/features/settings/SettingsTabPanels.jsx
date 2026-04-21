@@ -159,7 +159,12 @@ export function BillingSettingsTab({
             <div style={{ color: 'var(--muted)' }}>{currentPlanMeta.description}</div>
           </div>
           {currentPlan !== 'free' ? (
-            <Button tone="ghost" onClick={() => portalMutation.mutate()} disabled={portalMutation.isPending || !billingQuery.data?.canManageBilling}>
+            <Button
+              tone="ghost"
+              onClick={() => portalMutation.mutate()}
+              disabled={portalMutation.isPending || !billingQuery.data?.canManageBilling}
+              data-testid="billing-open-portal"
+            >
               Open billing portal
             </Button>
           ) : null}
@@ -280,6 +285,7 @@ export function BillingSettingsTab({
                     tone="accent"
                     onClick={() => checkoutMutation.mutate({ plan: plan.id, interval: billingInterval })}
                     disabled={checkoutMutation.isPending || !billingQuery.data?.canManageBilling}
+                    data-testid={`billing-upgrade-${plan.id}`}
                   >
                     Upgrade
                   </Button>
@@ -398,8 +404,13 @@ export function TeamSettingsTab({
             : 'Only owners and admins can send invites or manage seats.'}
         </InlineNotice>
         <div style={{ display: 'grid', gap: '10px', marginTop: '14px' }}>
-          <TextInput value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="teammate@company.com" />
-          <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value)} style={selectStyle}>
+          <TextInput
+            value={inviteEmail}
+            onChange={(event) => setInviteEmail(event.target.value)}
+            placeholder="teammate@company.com"
+            data-testid="team-invite-email"
+          />
+          <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value)} style={selectStyle} data-testid="team-invite-role">
             <option value="member">Member</option>
             <option value="admin">Admin</option>
           </select>
@@ -407,6 +418,7 @@ export function TeamSettingsTab({
             tone="accent"
             disabled={!canManageTeam || !inviteEmail.trim() || inviteMutation.isPending}
             onClick={() => inviteMutation.mutate({ email: inviteEmail.trim(), role: inviteRole })}
+            data-testid="team-invite-submit"
           >
             Send invite
           </Button>

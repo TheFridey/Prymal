@@ -129,6 +129,22 @@ export default function Workflows() {
     },
   });
 
+  const replayMutation = useMutation({
+    mutationFn: (runId) => api.post(`/workflows/runs/${runId}/replay`),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['workflows'] }),
+        queryClient.invalidateQueries({ queryKey: ['workflow-runs', selectedWorkflowId] }),
+        queryClient.invalidateQueries({ queryKey: ['workflow-run-detail', selectedRunId] }),
+        queryClient.invalidateQueries({ queryKey: ['billing-stats'] }),
+      ]);
+      notify({ type: 'success', title: 'Replay queued', message: 'The selected run was replayed from the workflow monitor.' });
+    },
+    onError: (error) => {
+      notify({ type: 'error', title: 'Replay failed', message: getErrorMessage(error) });
+    },
+  });
+
   const workflows = workflowsQuery.data?.workflows ?? [];
   const stats = useMemo(
     () => [
@@ -187,6 +203,7 @@ export default function Workflows() {
               {workflows.map((workflow) => (
                 <div
                   key={workflow.id}
+                  data-testid={`workflow-card-${workflow.id}`}
                   style={{
                     padding: '16px',
                     borderRadius: '16px',
@@ -221,8 +238,8 @@ export default function Workflows() {
                     })}
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <Button tone="ghost" onClick={() => setSelectedWorkflowId(workflow.id)}>Inspect</Button>
-                    <Button tone="accent" onClick={() => runMutation.mutate(workflow.id)} disabled={runMutation.isPending}>Run</Button>
+                    <Button tone="ghost" onClick={() => setSelectedWorkflowId(workflow.id)} data-testid={`workflow-inspect-${workflow.id}`}>Inspect</Button>
+                    <Button tone="accent" onClick={() => runMutation.mutate(workflow.id)} disabled={runMutation.isPending} data-testid={`workflow-run-${workflow.id}`}>Run</Button>
                     <Button tone="ghost" onClick={() => toggleMutation.mutate(workflow.id)} disabled={toggleMutation.isPending}>
                       {workflow.isActive ? 'Pause' : 'Activate'}
                     </Button>
@@ -241,7 +258,12 @@ export default function Workflows() {
                 <div key={template.name} style={panelStyle}>
                   <div style={{ fontSize: '15px', marginBottom: '6px' }}>{template.name}</div>
                   <div style={{ color: 'var(--muted)', lineHeight: 1.7, marginBottom: '10px' }}>{template.description}</div>
-                  <Button tone="ghost" onClick={() => createMutation.mutate(template)} disabled={createMutation.isPending}>
+                  <Button
+                    tone="ghost"
+                    onClick={() => createMutation.mutate(template)}
+                    disabled={createMutation.isPending}
+                    data-testid={`workflow-template-${template.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                  >
                     Use template
                   </Button>
                 </div>
@@ -293,6 +315,7 @@ export default function Workflows() {
                           key={run.id}
                           type="button"
                           onClick={() => setSelectedRunId(run.id)}
+                          data-testid={`workflow-run-row-${run.id}`}
                           style={{
                             ...panelStyle,
                             cursor: 'pointer',
@@ -318,10 +341,18 @@ export default function Workflows() {
                   <>
                     <div>
                       <SectionLabel>Execution summary</SectionLabel>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px', alignItems: 'center' }}>
                         <StatusPill color={RUN_STATUS_COLORS[runDetail.status] ?? '#98A2B3'}>{runDetail.status}</StatusPill>
                         <StatusPill color="#4CC9F0">{formatNumber(runDetail.creditsUsed ?? 0)} credits</StatusPill>
                         <StatusPill color="#BDB4FE">{nodeOutputs.length} node outputs</StatusPill>
+                        <Button
+                          tone="ghost"
+                          onClick={() => replayMutation.mutate(runDetail.id)}
+                          disabled={replayMutation.isPending}
+                          data-testid="workflow-replay-run"
+                        >
+                          {replayMutation.isPending ? 'Replaying...' : 'Replay run'}
+                        </Button>
                       </div>
                       {runDetail.errorLog ? (
                         <InlineNotice tone="warning">{runDetail.errorLog}</InlineNotice>

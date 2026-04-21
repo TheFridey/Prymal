@@ -187,7 +187,13 @@ export default function Onboarding() {
               {!inviteToken ? (
                 <label style={{ display: 'grid', gap: '8px' }}>
                   <span className="pm-onboarding__summary-title">Organisation name</span>
-                  <TextInput value={orgName} onChange={(event) => setOrgName(event.target.value)} placeholder="Prymal Labs" maxLength={80} />
+                  <TextInput
+                    value={orgName}
+                    onChange={(event) => setOrgName(event.target.value)}
+                    placeholder="Prymal Labs"
+                    maxLength={80}
+                    data-testid="onboarding-org-name"
+                  />
                 </label>
               ) : null}
 
@@ -209,7 +215,7 @@ export default function Onboarding() {
               </div>
 
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <button className="pm-btn pm-btn--primary" disabled={!canContinueStepOne} onClick={() => setStep(2)} type="button">
+                <button className="pm-btn pm-btn--primary" disabled={!canContinueStepOne} onClick={() => setStep(2)} type="button" data-testid="onboarding-next">
                   Continue to first win →
                 </button>
               </div>
@@ -276,6 +282,7 @@ export default function Onboarding() {
                   className="pm-btn pm-btn--primary"
                   disabled={onboardMutation.isPending}
                   type="button"
+                  data-testid="onboarding-submit"
                   onClick={() =>
                     onboardMutation.mutate({
                       orgName: orgName.trim() || undefined,

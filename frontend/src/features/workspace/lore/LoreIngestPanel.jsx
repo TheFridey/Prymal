@@ -37,10 +37,10 @@ export function LoreIngestPanel({
   return (
     <SurfaceCard title="Add knowledge" subtitle="Files, URLs, or pasted text" accent="#00FFD1">
       <div className="workspace-knowledge-panel__ingest-tabs">
-        <Button tone={ingestMode === 'url' ? 'accent' : 'ghost'} onClick={() => onIngestModeChange('url')}>
+        <Button tone={ingestMode === 'url' ? 'accent' : 'ghost'} onClick={() => onIngestModeChange('url')} data-testid="lore-mode-url">
           URL
         </Button>
-        <Button tone={ingestMode === 'text' ? 'accent' : 'ghost'} onClick={() => onIngestModeChange('text')}>
+        <Button tone={ingestMode === 'text' ? 'accent' : 'ghost'} onClick={() => onIngestModeChange('text')} data-testid="lore-mode-text">
           Pasted text
         </Button>
       </div>
@@ -52,6 +52,7 @@ export function LoreIngestPanel({
             value={ingestDraft.title}
             onChange={(event) => onIngestDraftChange({ title: event.target.value })}
             placeholder={ingestMode === 'url' ? 'Optional document title' : 'Document title'}
+            data-testid="lore-title"
           />
         </label>
 
@@ -63,6 +64,7 @@ export function LoreIngestPanel({
               value={ingestDraft.url}
               onChange={(event) => onIngestDraftChange({ url: event.target.value })}
               placeholder="https://example.com/knowledge-page"
+              data-testid="lore-url"
             />
           </label>
         ) : (
@@ -73,6 +75,7 @@ export function LoreIngestPanel({
               value={ingestDraft.content}
               onChange={(event) => onIngestDraftChange({ content: event.target.value })}
               placeholder="Paste support docs, positioning notes, pricing guidance, SOPs, or other useful org knowledge..."
+              data-testid="lore-content"
             />
           </label>
         )}
@@ -86,6 +89,7 @@ export function LoreIngestPanel({
         <Button
           type="submit"
           tone="accent"
+          data-testid="lore-ingest-submit"
           disabled={
             ingestTextMutation.isPending ||
             ingestUrlMutation.isPending ||
@@ -101,7 +105,7 @@ export function LoreIngestPanel({
       <MotionPresence initial={false}>
         {contradictionNotice && visibleContradictions.length > 0 ? (
         <MotionSection key="contradiction-notice" reveal={{ y: 12, blur: 6 }}>
-        <InlineNotice tone="warning">
+        <InlineNotice tone="warning" data-testid="lore-contradiction-notice">
           <div style={{ display: 'grid', gap: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'start' }}>
               <div>
@@ -151,6 +155,7 @@ export function LoreIngestPanel({
         type="file"
         accept={acceptedUploads}
         multiple
+        data-testid="lore-file-input"
         style={{ display: 'none' }}
         onChange={(event) => {
           void handleFiles(event.target.files);
@@ -180,7 +185,7 @@ export function LoreIngestPanel({
           <strong>Drop files here</strong>
           <p>PDF, DOCX, MD, TXT, and CSV files are parsed and queued for indexing.</p>
         </div>
-        <Button tone="ghost" onClick={() => fileInputRef.current?.click()}>
+        <Button tone="ghost" onClick={() => fileInputRef.current?.click()} data-testid="lore-file-trigger">
           Choose files
         </Button>
       </div>

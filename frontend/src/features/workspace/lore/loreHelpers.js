@@ -76,3 +76,29 @@ export function humanizeContradictionType(value) {
       return 'Potential conflict';
   }
 }
+
+export function describeFreshness(score, staleWarning) {
+  if (staleWarning) {
+    return 'Aging or stale source';
+  }
+
+  const numeric = Number(score ?? 0);
+  if (numeric >= 0.85) return 'Fresh source';
+  if (numeric >= 0.6) return 'Acceptably current';
+  return 'Needs freshness review';
+}
+
+export function describeAuthority(score, trustLabel) {
+  const numeric = Number(score ?? 0);
+  if (numeric >= 0.85) return `${trustLabel ?? 'High'} authority`;
+  if (numeric >= 0.6) return `${trustLabel ?? 'Moderate'} authority`;
+  return 'Low authority signal';
+}
+
+export function describeConfidence(label) {
+  if (!label) return 'Confidence not classified';
+  if (/high/i.test(label)) return 'High confidence result';
+  if (/medium/i.test(label)) return 'Moderate confidence result';
+  if (/low|ungrounded/i.test(label)) return 'Low confidence or review-needed result';
+  return String(label);
+}

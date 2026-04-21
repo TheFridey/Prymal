@@ -288,7 +288,12 @@ export default function Settings() {
       <SurfaceCard accent="#00FFD1" style={{ marginBottom: '14px' }}>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {SETTINGS_TABS.map((tab) => (
-            <Button key={tab} tone={activeTab === tab ? 'accent' : 'ghost'} onClick={() => setActiveTab(tab)}>
+            <Button
+              key={tab}
+              tone={activeTab === tab ? 'accent' : 'ghost'}
+              onClick={() => setActiveTab(tab)}
+              data-testid={`settings-tab-${tab.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+            >
               {tab}
             </Button>
           ))}

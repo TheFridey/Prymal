@@ -1,7 +1,11 @@
 import { InlineNotice, StatusPill, SurfaceCard, TextInput } from '../../../components/ui';
 import { getErrorMessage } from '../../../lib/utils';
+import { createExplainabilityChipStyle, createSignalMeterStyle } from '../../../design-system/primitives';
 import {
   buildExcerpt,
+  describeAuthority,
+  describeConfidence,
+  describeFreshness,
   formatAge,
   formatPercent,
   formatSimilarity,
@@ -12,10 +16,11 @@ import { MotionList, MotionListItem } from '../../../components/motion';
 function TrustBar({ score }) {
   const pct = Math.round(Math.max(Math.min(Number(score ?? 0), 1), 0) * 100);
   const color = pct >= 90 ? '#18c7a0' : pct >= 75 ? '#4CC9F0' : pct >= 60 ? '#F59E0B' : '#EF4444';
+  const meter = createSignalMeterStyle(color);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
-      <div style={{ flex: 1, height: '3px', borderRadius: '2px', background: 'var(--line)', overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: '2px', transition: 'width 0.4s ease' }} />
+      <div style={meter.track}>
+        <div style={meter.fill(pct)} />
       </div>
       <span style={{ fontSize: '10px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>{pct}%</span>
     </div>
@@ -81,9 +86,13 @@ export function LoreSearchPanel({
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <h3>{result.documentTitle}</h3>
                       <p style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <MetricChip color={trustMeta.color}>{trustMeta.label}</MetricChip>
-                        <MetricChip color={isHybrid ? '#8b5cf6' : '#94A3B8'}>{isHybrid ? 'hybrid' : 'semantic'}</MetricChip>
-                        <MetricChip color="#4CC9F0">{result.confidenceLabel ?? 'medium'} confidence</MetricChip>
+                        <MetricChip color={trustMeta.color} title={`Trust lane: ${trustMeta.label}`}>{trustMeta.label}</MetricChip>
+                        <MetricChip color={isHybrid ? '#8b5cf6' : '#94A3B8'} title={isHybrid ? 'Hybrid semantic + lexical retrieval' : 'Semantic retrieval'}>
+                          {isHybrid ? 'hybrid' : 'semantic'}
+                        </MetricChip>
+                        <MetricChip color="#4CC9F0" title={describeConfidence(result.confidenceLabel ?? 'medium')}>
+                          {result.confidenceLabel ?? 'medium'} confidence
+                        </MetricChip>
                         <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
                           {result.citation?.sourceType ?? result.sourceType ?? 'source'}
                           {result.citation?.chunkIndex != null ? ` | chunk ${result.citation.chunkIndex + 1}` : ''}
@@ -107,13 +116,17 @@ export function LoreSearchPanel({
                   <p className="workspace-knowledge-panel__result-excerpt">{buildExcerpt(result.content)}</p>
 
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-                    <MetricChip color="#4CC9F0">Authority {formatPercent(result.authorityScore)}</MetricChip>
-                    <MetricChip color="#18c7a0">Freshness {formatPercent(result.freshnessScore)}</MetricChip>
+                    <MetricChip color="#4CC9F0" title={describeAuthority(result.authorityScore, trustMeta.label)}>
+                      Authority {formatPercent(result.authorityScore)}
+                    </MetricChip>
+                    <MetricChip color="#18c7a0" title={describeFreshness(result.freshnessScore, result.staleWarning)}>
+                      Freshness {formatPercent(result.freshnessScore)}
+                    </MetricChip>
                     {result.versionLineage?.isSuperseded ? (
-                      <MetricChip color="#F59E0B">Superseded</MetricChip>
+                      <MetricChip color="#F59E0B" title="A newer document version exists in this chain">Superseded</MetricChip>
                     ) : null}
                     {(result.contradictionSignals ?? []).length > 0 ? (
-                      <MetricChip color="#EF4444">
+                      <MetricChip color="#EF4444" title="This source conflicts with another indexed document">
                         {result.contradictionSignals.length} contradiction{result.contradictionSignals.length === 1 ? '' : 's'}
                       </MetricChip>
                     ) : null}
@@ -170,16 +183,12 @@ export function LoreSearchPanel({
   );
 }
 
-function MetricChip({ children, color }) {
+function MetricChip({ children, color, title }) {
   return (
     <span
+      title={title}
       style={{
-        fontSize: '10px',
-        fontWeight: 600,
-        padding: '1px 6px',
-        borderRadius: '999px',
-        background: `${color}22`,
-        color,
+        ...createExplainabilityChipStyle({ accent: color, subtle: true }),
       }}
     >
       {children}

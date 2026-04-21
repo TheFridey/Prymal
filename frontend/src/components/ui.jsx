@@ -442,6 +442,7 @@ export function InlineNotice({
   message,
   className = '',
   style,
+  ...props
 }) {
   const resolvedTone = variant === 'error'
     ? 'danger'
@@ -453,6 +454,7 @@ export function InlineNotice({
 
   return (
     <motion.div
+      {...props}
       className={`inline-notice${className ? ` ${className}` : ''}`}
       style={{ ...palette, ...style }}
       initial={{ opacity: 0, y: 10 }}
