@@ -93,14 +93,14 @@ test('assertCreditsAvailable does not throw when credits remain', () => {
   assert.doesNotThrow(() => assertCreditsAvailable(context, 1));
 });
 
-test('assertCreditsAvailable throws 402 with CREDITS_EXHAUSTED when at zero', () => {
+test('assertCreditsAvailable throws 402 with EXECUTION_CREDITS_EXHAUSTED when at zero', () => {
   const context = { credits: { remaining: 0 } };
   try {
     assertCreditsAvailable(context, 1);
     assert.fail('expected an error to be thrown');
   } catch (error) {
     assert.equal(error.status, 402);
-    assert.equal(error.code, 'CREDITS_EXHAUSTED');
+    assert.equal(error.code, 'EXECUTION_CREDITS_EXHAUSTED');
     assert.equal(error.upgrade, true);
   }
 });
@@ -112,6 +112,6 @@ test('assertCreditsAvailable throws when cost exceeds remaining', () => {
     assert.fail('expected an error to be thrown');
   } catch (error) {
     assert.equal(error.status, 402);
-    assert.equal(error.code, 'CREDITS_EXHAUSTED');
+    assert.equal(error.code, 'EXECUTION_CREDITS_EXHAUSTED');
   }
 });

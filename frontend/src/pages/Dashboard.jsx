@@ -232,9 +232,50 @@ export default function Dashboard() {
 
   const heroPrimaryLabel = latestConversation ? 'Resume latest conversation' : `Open ${recommendedAgents[0]?.name ?? 'Prymal'}`;
 
+  const executionBalance = viewer?.credits?.execution;
+  const videoBalance = viewer?.credits?.video;
+  const executionPct = Math.min(Number(executionBalance?.percentUsed ?? 0), 100);
+  const videoPct = Math.min(Number(videoBalance?.percentUsed ?? 0), 100);
+
   return (
     <PageShell width="1260px">
       <div className="pm-dash">
+
+        {executionBalance || videoBalance ? (
+          <MotionSection delay={0.02} reveal={{ y: 12, blur: 6 }}>
+            <div
+              className="pm-dash__posture-card"
+              style={{ display: 'grid', gap: '14px', marginBottom: '4px' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <strong style={{ fontSize: '15px' }}>Credit usage this cycle</strong>
+                <Link to="/app/settings?tab=Billing" className="pm-dash__card-link">
+                  Billing &amp; limits →
+                </Link>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Execution credits</div>
+                  <div style={{ height: 10, borderRadius: 999, background: '#131C2B', overflow: 'hidden' }}>
+                    <div style={{ width: `${executionPct}%`, height: '100%', background: '#00FFD1' }} />
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '6px' }}>
+                    {executionPct.toFixed(0)}% used · {executionBalance?.available ?? 0} remaining
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Video credits</div>
+                  <div style={{ height: 10, borderRadius: 999, background: '#131C2B', overflow: 'hidden' }}>
+                    <div style={{ width: `${videoPct}%`, height: '100%', background: '#BDB4FE' }} />
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '6px' }}>
+                    {videoPct.toFixed(0)}% used · {videoBalance?.available ?? 0} remaining
+                  </div>
+                </div>
+              </div>
+            </div>
+          </MotionSection>
+        ) : null}
 
         {/* ── Command deck + workflow plate ── */}
         <section className="pm-dash__hero">

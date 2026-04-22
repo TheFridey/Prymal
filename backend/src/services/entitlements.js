@@ -1,46 +1,16 @@
-import { sql } from 'drizzle-orm';
-import { db } from '../db/index.js';
-import { organisations } from '../db/schema.js';
+import {
+  applyCreditAdjustment,
+  getBillingSnapshotForOrg,
+  setSubscriptionPlan,
+} from './billing-engine.js';
+import {
+  BILLING_PLANS,
+  canAccessAgent,
+  getBillingPlan,
+  getPlanConfig,
+} from './billing-catalog.js';
 
-const CORE_FREE_AGENTS = ['cipher', 'herald', 'forge', 'wren'];
-const SOLO_AGENTS = [...CORE_FREE_AGENTS, 'lore'];
-
-export const PLAN_CONFIG = {
-  free: {
-    label: 'Offer Access',
-    monthlyCreditLimit: 50,
-    seatLimit: 1,
-    accessibleAgents: CORE_FREE_AGENTS,
-  },
-  solo: {
-    label: 'Solo',
-    monthlyCreditLimit: 500,
-    seatLimit: 1,
-    accessibleAgents: SOLO_AGENTS,
-  },
-  pro: {
-    label: 'Pro',
-    monthlyCreditLimit: 2000,
-    seatLimit: 1,
-    accessibleAgents: 'all',
-  },
-  teams: {
-    label: 'Teams',
-    monthlyCreditLimit: 6000,
-    seatLimit: 5,
-    accessibleAgents: 'all',
-  },
-  agency: {
-    label: 'Agency',
-    monthlyCreditLimit: 10000,
-    seatLimit: 25,
-    accessibleAgents: 'all',
-  },
-};
-
-export function getPlanConfig(plan = 'free') {
-  return PLAN_CONFIG[plan] ?? PLAN_CONFIG.free;
-}
+export { BILLING_PLANS as PLAN_CONFIG, canAccessAgent, getPlanConfig };
 
 export function getPlanCreditLimit(plan = 'free') {
   return getPlanConfig(plan).monthlyCreditLimit;
@@ -50,13 +20,13 @@ export function getPlanSeatLimit(plan = 'free') {
   return getPlanConfig(plan).seatLimit;
 }
 
-export function canAccessAgent(plan, agentId) {
-  const accessibleAgents = getPlanConfig(plan).accessibleAgents;
-  return accessibleAgents === 'all' || accessibleAgents.includes(agentId);
-}
-
 export function hasRemainingCredits(context, requiredCredits = 1) {
-  return (context?.credits?.remaining ?? 0) >= requiredCredits;
+  const available = context?.credits?.execution?.available
+    ?? context?.credits?.remaining
+    ?? context?.credits?.available
+    ?? 0;
+
+  return available >= requiredCredits;
 }
 
 export function assertCreditsAvailable(context, requiredCredits = 1) {
@@ -64,46 +34,58 @@ export function assertCreditsAvailable(context, requiredCredits = 1) {
     return;
   }
 
-  const error = new Error('Monthly credit limit reached. Upgrade or wait for the next billing reset.');
+  const error = new Error('Execution credits exhausted. Purchase an execution pack or upgrade to continue.');
   error.status = 402;
-  error.code = 'CREDITS_EXHAUSTED';
+  error.code = 'EXECUTION_CREDITS_EXHAUSTED';
   error.upgrade = true;
   throw error;
 }
 
-export async function consumeCredits(orgId, credits) {
+export async function consumeCredits(orgId, credits, metadata = {}) {
   if (!credits || credits <= 0) {
     return;
   }
 
-  await db
-    .update(organisations)
-    .set({
-      creditsUsed: sql`${organisations.creditsUsed} + ${credits}`,
-    })
-    .where(sql`${organisations.id} = ${orgId}`);
+  await applyCreditAdjustment({
+    orgId,
+    creditType: 'execution',
+    delta: -Math.abs(credits),
+    source: 'burn',
+    entryType: 'legacy_commit',
+    metadata,
+  });
 }
 
 export async function applyPlanToOrganisation(orgId, plan) {
-  const config = getPlanConfig(plan);
-
-  await db
-    .update(organisations)
-    .set({
-      plan,
-      monthlyCreditLimit: config.monthlyCreditLimit,
-      seatLimit: config.seatLimit,
-    })
-    .where(sql`${organisations.id} = ${orgId}`);
+  return setSubscriptionPlan({
+    orgId,
+    planId: plan,
+  });
 }
 
-export function creditsRemaining(organisation) {
-  const limit = organisation?.monthlyCreditLimit ?? getPlanCreditLimit(organisation?.plan);
-  const used = organisation?.creditsUsed ?? 0;
+export function creditsRemaining(organisationOrSnapshot) {
+  if (organisationOrSnapshot?.execution) {
+    return {
+      limit: organisationOrSnapshot.execution.available + organisationOrSnapshot.execution.committedThisCycle,
+      used: organisationOrSnapshot.execution.committedThisCycle,
+      remaining: organisationOrSnapshot.execution.available,
+      execution: organisationOrSnapshot.execution,
+      video: organisationOrSnapshot.video ?? null,
+    };
+  }
+
+  const plan = getBillingPlan(organisationOrSnapshot?.plan);
+  const limit = organisationOrSnapshot?.monthlyCreditLimit ?? plan.includedExecutionCredits;
+  const used = organisationOrSnapshot?.creditsUsed ?? 0;
 
   return {
     limit,
     used,
     remaining: Math.max(limit - used, 0),
   };
+}
+
+export async function getOrgCreditContext(orgId) {
+  const snapshot = await getBillingSnapshotForOrg(orgId);
+  return creditsRemaining(snapshot.credits);
 }

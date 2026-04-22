@@ -119,6 +119,16 @@ export default function Settings() {
     },
   });
 
+  const creditPackCheckoutMutation = useMutation({
+    mutationFn: (payload) => api.post('/billing/packs/checkout', payload),
+    onSuccess: (result) => {
+      window.location.href = result.url;
+    },
+    onError: (error) => {
+      notify({ type: 'error', title: 'Top-up failed', message: getErrorMessage(error) });
+    },
+  });
+
   const createKeyMutation = useMutation({
     mutationFn: (payload) => api.post('/auth/api-keys', payload),
     onSuccess: async (result) => {
@@ -224,11 +234,24 @@ export default function Settings() {
   });
 
   useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && SETTINGS_TABS.includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (searchParams.get('billing') === 'success') {
       notify({ type: 'success', title: 'Billing updated', message: 'Stripe checkout completed successfully.' });
     }
     if (searchParams.get('billing') === 'cancelled') {
       notify({ type: 'info', title: 'Billing cancelled', message: 'The checkout session was cancelled.' });
+    }
+    if (searchParams.get('billing') === 'pack_success') {
+      notify({ type: 'success', title: 'Credits added', message: 'Your top-up completed successfully.' });
+    }
+    if (searchParams.get('billing') === 'pack_cancelled') {
+      notify({ type: 'info', title: 'Top-up cancelled', message: 'The credit pack checkout was cancelled.' });
     }
   }, [notify, searchParams]);
 
@@ -311,6 +334,7 @@ export default function Settings() {
               billingQuery={billingQuery}
               checkoutMutation={checkoutMutation}
               portalMutation={portalMutation}
+              creditPackCheckoutMutation={creditPackCheckoutMutation}
               usageBreakdownQuery={usageBreakdownQuery}
               currentPlan={currentPlan}
               currentPlanMeta={currentPlanMeta}

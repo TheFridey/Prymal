@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 import { getAgent } from '../agents/config.js';
+import { getAgentEnforcement, getAgentTraceFields } from '../agents/contracts.js';
 import { buildRuntimeContractSummary, getRuntimeAgentContract } from '../agents/runtime.js';
 import { evaluateAgentOutput } from './evals.js';
 import { streamAgentResponse } from './llm.js';
@@ -160,6 +161,14 @@ export async function* runAgentChat({
     const sentinelVerdict = sentinelReview?.verdict ?? 'skipped';
     const outcomeStatus = sentinelVerdict === 'HOLD' ? 'held' : 'succeeded';
 
+    const enforcementSummary = buildEnforcementSummary({
+      agentId,
+      contract,
+      doneEvent: lastDoneEvent,
+      evaluation,
+      sentinelReview,
+    });
+
     // Persist the execution trace (always — even for held responses).
     await recordLLMExecutionTrace({
       orgId,
@@ -191,6 +200,8 @@ export async function* runAgentChat({
         sources: lastDoneEvent?.sources ?? [],
         evaluation,
         sentinelReview,
+        enforcementSummary,
+        geminiGrounding: lastDoneEvent?.geminiGrounding ?? null,
         contract: buildRuntimeContractSummary(agentId),
         policyClass: lastDoneEvent?.selectionDetails?.policyClass ?? lastDoneEvent?.policyKey ?? null,
         fallbackModel: lastDoneEvent?.selectionDetails?.fallbackModelUsed ?? null,
@@ -207,6 +218,9 @@ export async function* runAgentChat({
         message: 'This response has been held for quality review by SENTINEL.',
         sentinelConcerns: sentinelReview.concerns ?? [],
         sentinelRepairActions: sentinelReview.repair_actions ?? [],
+        sentinelHoldReason: sentinelReview.hold_reason ?? null,
+        sentinelRiskScore: sentinelReview.riskScore ?? null,
+        enforcementSummary,
         conversationId,
         agentId,
       };
@@ -236,6 +250,8 @@ export async function* runAgentChat({
       evaluation,
       schemaValidation: lastDoneEvent?.schemaValidation ?? null,
       sentinelReview,
+      enforcementSummary,
+      geminiGrounding: lastDoneEvent?.geminiGrounding ?? null,
       sentinelRepaired: sentinelVerdict === 'REPAIR',
       sentinelRepairSummary: sentinelVerdict === 'REPAIR'
         ? (sentinelReview?.repair_actions?.join('; ') ?? null)
@@ -306,6 +322,122 @@ function gateExtendedThinking(agent, orgPlan) {
   }
 
   return allowed;
+}
+
+/**
+ * Build a flat, queryable enforcement summary for the trace metadata.
+ * Maps the raw schema/tool/sentinel/eval signals into the contract-defined
+ * trace field names so analytics dashboards can pivot per-agent without
+ * touching nested structures.
+ */
+function buildEnforcementSummary({ agentId, contract, doneEvent, evaluation, sentinelReview }) {
+  const enforcement = getAgentEnforcement(agentId) ?? {};
+  const traceFields = getAgentTraceFields(agentId) ?? {};
+
+  const schemaValidation = doneEvent?.schemaValidation ?? null;
+  const schemaRepair = doneEvent?.selectionDetails?.schemaRepair ?? null;
+  const toolValidation = doneEvent?.selectionDetails?.toolValidation ?? null;
+  const toolViolations = Array.isArray(toolValidation?.violations) ? toolValidation.violations : [];
+
+  const schemaVerdict = schemaValidation?.verdict ?? 'skipped';
+  const schemaRepairAttempts = Number(schemaRepair?.attempts ?? 0) || 0;
+  const schemaRepairStage = schemaRepair?.stage ?? null;
+
+  const hallucinationRiskLevel = evaluation?.hallucinationRisk ?? 'unknown';
+  const hallucinationThreshold = enforcement.hallucinationRiskThreshold ?? null;
+  const citationRate = evaluation?.citationRate ?? null;
+  const citationCount = evaluation?.citationCount ?? (doneEvent?.sources?.length ?? 0);
+
+  const sentinelVerdict = sentinelReview?.verdict ?? 'skipped';
+  const sentinelRiskScore = sentinelReview?.riskScore ?? null;
+  const sentinelHoldReason = sentinelReview?.hold_reason ?? null;
+  const sentinelConcernCount = Array.isArray(sentinelReview?.concerns) ? sentinelReview.concerns.length : 0;
+  const sentinelRepairActionCount = Array.isArray(sentinelReview?.repair_actions)
+    ? sentinelReview.repair_actions.length
+    : 0;
+  const contradictionCount = Array.isArray(schemaValidation?.parsed?.contradictionsFound)
+    ? schemaValidation.parsed.contradictionsFound.length
+    : 0;
+
+  const retrievalDecision = doneEvent?.selectionDetails?.retrievalDecision ?? null;
+  const memorySummary = doneEvent?.selectionDetails?.memorySummary ?? null;
+
+  const summary = {
+    strictRuntime: Boolean(contract?.strictRuntime),
+    schemaEnforced: Boolean(contract?.schemaEnforced),
+    schemaVerdict,
+    schemaRepairAttempts,
+    schemaRepairStage,
+    schemaErrors: Array.isArray(schemaValidation?.errors)
+      ? schemaValidation.errors.slice(0, 5)
+      : [],
+    schemaRepairNotes: schemaValidation?.repairNotes ?? null,
+    semanticBlocks: Array.isArray(schemaValidation?.semantic?.blocks)
+      ? schemaValidation.semantic.blocks.slice(0, 5)
+      : [],
+    semanticWarnings: Array.isArray(schemaValidation?.semantic?.warnings)
+      ? schemaValidation.semantic.warnings.slice(0, 5)
+      : [],
+    toolViolationCount: toolViolations.length,
+    toolViolationTypes: [...new Set(toolViolations.map((v) => v?.type).filter(Boolean))],
+    toolViolationAction: enforcement.toolViolationAction ?? null,
+    toolUsePass: evaluation?.toolUsePass !== false,
+    disallowedToolsUsed: evaluation?.disallowedToolsUsed ?? [],
+    hallucinationRiskLevel,
+    hallucinationRiskThreshold: hallucinationThreshold,
+    hallucinationOverThreshold:
+      typeof hallucinationThreshold === 'number' && hallucinationRiskLevel === 'high',
+    citationRate,
+    citationCount,
+    citationRequired: Boolean(enforcement.citationRequiredOnEveryFactualClaim),
+    groundedness: evaluation?.groundedness ?? 'unknown',
+    sentinelVerdict,
+    sentinelRiskScore,
+    sentinelHoldReason,
+    sentinelConcernCount,
+    sentinelRepairActionCount,
+    contradictionCount,
+    fallbackUsed: Boolean(doneEvent?.fallbackUsed),
+    retrieval: retrievalDecision,
+    memory: memorySummary,
+  };
+
+  // Mirror the per-agent contract-defined trace fields so analytics can pivot
+  // per-agent (e.g. cipher_repair_loops, sage_hallucination_risk).
+  const fieldMap = {};
+  if (traceFields.schemaViolationField) {
+    fieldMap[traceFields.schemaViolationField] = schemaVerdict === 'failed' ? 1 : 0;
+  }
+  if (traceFields.toolPolicyViolationField) {
+    fieldMap[traceFields.toolPolicyViolationField] = toolViolations.length;
+  }
+  if (traceFields.repairLoopCountField) {
+    fieldMap[traceFields.repairLoopCountField] = schemaRepairAttempts;
+  }
+  if (traceFields.hallucinationRiskField) {
+    fieldMap[traceFields.hallucinationRiskField] = hallucinationRiskLevel;
+  }
+  if (traceFields.citationRateField) {
+    fieldMap[traceFields.citationRateField] = citationRate;
+  }
+  if (traceFields.contradictionCountField) {
+    fieldMap[traceFields.contradictionCountField] = contradictionCount;
+  }
+  if (traceFields.verdictField) {
+    fieldMap[traceFields.verdictField] = sentinelVerdict;
+  }
+  if (traceFields.riskScoreField) {
+    fieldMap[traceFields.riskScoreField] = sentinelRiskScore;
+  }
+  if (traceFields.stepConfirmationField && Array.isArray(schemaValidation?.parsed?.steps)) {
+    fieldMap[traceFields.stepConfirmationField] = schemaValidation.parsed.steps.length;
+  }
+
+  if (Object.keys(fieldMap).length > 0) {
+    summary.agentFields = fieldMap;
+  }
+
+  return summary;
 }
 
 function formatUserFacingAgentError(error) {

@@ -24,6 +24,7 @@ import { createRateLimiter } from './middleware/rateLimit.js';
 import { requestContext } from './middleware/request-context.js';
 import { securityHeaders } from './middleware/security-headers.js';
 import { readGeneratedImageAsset } from './services/image-generation.js';
+import { readGeneratedVideoAsset } from './services/video-generation.js';
 import { readWebAsset } from './services/web-research.js';
 
 if (process.env.SENTRY_DSN) {
@@ -123,6 +124,19 @@ app.get('/generated-assets/:fileName', async (context) => {
     const contentType =
       ext === 'png' ? 'image/png' : ext === 'jpeg' || ext === 'jpg' ? 'image/jpeg' : 'image/webp';
     context.header('Content-Type', contentType);
+    context.header('Cache-Control', 'public, max-age=3600');
+    return context.body(buffer);
+  } catch {
+    return context.json({ error: 'Asset not found' }, 404);
+  }
+});
+
+app.get('/generated-video-assets/:fileName', async (context) => {
+  const { fileName } = context.req.param();
+
+  try {
+    const buffer = await readGeneratedVideoAsset(fileName);
+    context.header('Content-Type', 'video/mp4');
     context.header('Cache-Control', 'public, max-age=3600');
     return context.body(buffer);
   } catch {

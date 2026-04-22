@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, InlineNotice, SectionLabel, StatusPill, SurfaceCard, TextInput } from '../../components/ui';
-import { AGENT_LIBRARY, BILLING_INTERVALS, PLAN_LIBRARY, getPlanPrice } from '../../lib/constants';
+import {
+  AGENT_LIBRARY,
+  BILLING_INTERVALS,
+  PLAN_ENTITLEMENTS,
+  PLAN_LIBRARY,
+  getNextPlanId,
+  getPlanPrice,
+} from '../../lib/constants';
 import { formatDate, formatDateTime, getErrorMessage } from '../../lib/utils';
 import {
   createGlassPanelStyle,
@@ -147,6 +154,7 @@ export function BillingSettingsTab({
   billingQuery,
   checkoutMutation,
   portalMutation,
+  creditPackCheckoutMutation,
   usageBreakdownQuery,
   currentPlan,
   currentPlanMeta,
@@ -157,6 +165,41 @@ export function BillingSettingsTab({
   usageDays,
   setUsageDays,
 }) {
+  const executionCredits = billingQuery.data?.executionCredits ?? billingQuery.data?.credits?.execution ?? null;
+  const videoCredits = billingQuery.data?.videoCredits ?? billingQuery.data?.credits?.video ?? null;
+  const creditPacks = billingQuery.data?.catalog?.packs ?? [];
+  const executionPercent = executionCredits?.percentUsed ?? creditPercent;
+  const videoPercent = videoCredits?.percentUsed ?? 0;
+  const resetLabel = billingQuery.data?.resetsAt ? formatDate(billingQuery.data.resetsAt) : 'Pending';
+  const nextPlanId = getNextPlanId(currentPlan);
+  const nextPlanName = nextPlanId ? PLAN_LIBRARY.find((p) => p.id === nextPlanId)?.name ?? nextPlanId : null;
+  const canUpgradePlan = Boolean(nextPlanId && billingQuery.data?.canManageBilling);
+  const thresholdCards = [
+    {
+      key: 'execution',
+      label: 'Execution credits',
+      data: executionCredits,
+      accent: '#00FFD1',
+    },
+    {
+      key: 'video',
+      label: 'Video credits',
+      data: videoCredits,
+      accent: '#BDB4FE',
+    },
+  ];
+  const showExecutionWarning = executionCredits?.threshold?.surface === 'banner';
+  const showVideoWarning = videoCredits?.threshold?.surface === 'banner';
+  const executionBlocked = executionCredits?.threshold?.surface === 'blocked';
+  const videoBlocked = videoCredits?.threshold?.surface === 'blocked';
+  const packGroups = useMemo(() => ({
+    execution: creditPacks.filter((pack) => pack.creditType === 'execution'),
+    video: creditPacks.filter((pack) => pack.creditType === 'video'),
+  }), [creditPacks]);
+  const usageElevated =
+    showExecutionWarning || showVideoWarning || executionPercent >= 80 || videoPercent >= 80;
+  const showHeavyUsageRow = Boolean(billingQuery.data?.canManageBilling && usageElevated);
+
   return (
     <div style={{ display: 'grid', gap: '14px' }}>
       <SurfaceCard title="Current usage" accent="#00FFD1">
@@ -177,15 +220,121 @@ export function BillingSettingsTab({
           ) : null}
         </div>
         <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '6px' }}>
-          {billingQuery.data?.creditsUsed ?? 0} / {billingQuery.data?.creditLimit ?? currentPlanMeta.credits} credits used
+          Reset cycle: {resetLabel}
         </div>
-        <div style={{ height: '10px', borderRadius: '999px', background: '#131C2B', overflow: 'hidden', marginBottom: '10px' }}>
-          <div style={{ width: `${creditPercent}%`, height: '100%', background: '#00FFD1' }} />
+        {(showExecutionWarning || showVideoWarning) ? (
+          <InlineNotice tone="warning" style={{ marginBottom: '12px' }}>
+            {showExecutionWarning && showVideoWarning
+              ? 'Execution and video usage are both above 80%. Upgrading your plan is usually the best next step; credit packs are there if you only need a short boost.'
+              : showVideoWarning
+                ? 'Video usage is above 80%. Consider upgrading for a higher monthly video allowance, or add a small video pack.'
+                : 'Execution usage is above 80%. Consider upgrading for more included credits, or add a pack if you need capacity before your cycle resets.'}
+          </InlineNotice>
+        ) : null}
+        {(executionBlocked || videoBlocked) ? (
+          <InlineNotice tone="danger" style={{ marginBottom: '12px' }}>
+            {executionBlocked && videoBlocked
+              ? 'Execution and video credits are both exhausted.'
+              : executionBlocked
+                ? 'Execution credits are exhausted for this cycle.'
+                : 'Video credits are exhausted for this cycle.'}
+          </InlineNotice>
+        ) : null}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+          {thresholdCards.map((card) => {
+            const available = card.data?.available ?? 0;
+            const committed = card.data?.committedThisCycle ?? 0;
+            const reserved = card.data?.reserved ?? 0;
+            const percent = card.key === 'execution' ? executionPercent : videoPercent;
+            return (
+              <div key={card.key} style={{ padding: '14px 16px', borderRadius: '18px', border: '1px solid var(--line)', background: 'var(--panel-soft)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text-strong)' }}>{card.label}</div>
+                  {card.data?.threshold?.surface && card.data.threshold.surface !== 'none' ? (
+                    <StatusPill color={card.accent}>{card.data.threshold.label}</StatusPill>
+                  ) : null}
+                </div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '6px' }}>
+                  {available} remaining | {committed} used | {reserved} reserved
+                </div>
+                <div style={{ height: '10px', borderRadius: '999px', background: '#131C2B', overflow: 'hidden', marginBottom: '8px' }}>
+                  <div style={{ width: `${Math.min(percent, 100)}%`, height: '100%', background: card.accent }} />
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', color: 'var(--muted)', fontSize: '12px' }}>
+                  <span>Included: {card.data?.includedAvailable ?? 0}</span>
+                  <span>Top-ups: {card.data?.purchasedAvailable ?? 0}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
+        {showHeavyUsageRow ? (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+            {canUpgradePlan && nextPlanId ? (
+              <Button
+                tone="accent"
+                onClick={() => checkoutMutation.mutate({ plan: nextPlanId, interval: billingInterval })}
+                disabled={checkoutMutation.isPending || creditPackCheckoutMutation?.isPending}
+              >
+                {`Upgrade to ${nextPlanName}`}
+              </Button>
+            ) : null}
+            <Button
+              tone={canUpgradePlan && nextPlanId ? 'ghost' : 'accent'}
+              onClick={() =>
+                creditPackCheckoutMutation.mutate(
+                  videoPercent >= executionPercent && videoPercent >= 80
+                    ? { creditType: 'video', packId: 'video_30' }
+                    : { creditType: 'execution', packId: 'exec_300' },
+                )
+              }
+              disabled={creditPackCheckoutMutation?.isPending || checkoutMutation.isPending}
+            >
+              Buy credits
+            </Button>
+          </div>
+        ) : null}
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', color: 'var(--muted)' }}>
           <span>{seatSummary ? `${seatSummary.members} active seats` : `${currentPlanMeta.seats ?? 1} seat`}</span>
           <span>{seatSummary ? `${seatSummary.pendingInvites} pending invites` : 'No pending invites data'}</span>
           <span>{billingQuery.data?.workflowRuns ?? 0} workflow runs</span>
+        </div>
+      </SurfaceCard>
+
+      <SurfaceCard title="Credit packs" accent="#BDB4FE">
+        <p style={{ color: 'var(--muted)', lineHeight: 1.7, marginBottom: '14px', fontSize: '13px' }}>
+          Top-ups are for short bursts or end-of-cycle gaps. If usage keeps landing here, upgrading your plan is usually better
+          value than buying packs repeatedly.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+          {[
+            { key: 'execution', title: 'Execution top-ups', accent: '#00FFD1', packs: packGroups.execution },
+            { key: 'video', title: 'Video top-ups', accent: '#BDB4FE', packs: packGroups.video },
+          ].map((group) => (
+            <div key={group.key} style={{ padding: '16px', borderRadius: '18px', border: '1px solid var(--line)', background: 'var(--panel-soft)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ fontSize: '16px', color: 'var(--text-strong)' }}>{group.title}</div>
+                <StatusPill color={group.accent}>{group.packs.length} packs</StatusPill>
+              </div>
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {group.packs.map((pack) => (
+                  <div key={pack.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', padding: '12px 14px', borderRadius: '14px', border: '1px solid var(--line)', background: 'rgba(255,255,255,0.02)' }}>
+                    <div>
+                      <div style={{ color: 'var(--text-strong)', marginBottom: '4px' }}>{pack.label}</div>
+                      <div style={{ color: 'var(--muted)', fontSize: '12px' }}>£{Number(pack.amountGbp).toFixed(Number(pack.amountGbp) % 1 === 0 ? 0 : 2)}</div>
+                    </div>
+                    <Button
+                      tone="ghost"
+                      onClick={() => creditPackCheckoutMutation.mutate({ creditType: pack.creditType, packId: pack.id })}
+                      disabled={creditPackCheckoutMutation?.isPending || !billingQuery.data?.canManageBilling}
+                    >
+                      Buy
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </SurfaceCard>
 
@@ -274,7 +423,14 @@ export function BillingSettingsTab({
                 <div style={{ color: 'var(--muted)', lineHeight: 1.8, marginBottom: '8px' }}>{plan.description}</div>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
                   <span style={chipStyle}>{plan.seats} seat{plan.seats > 1 ? 's' : ''}</span>
-                  <span style={chipStyle}>{plan.credits.toLocaleString()} monthly credits</span>
+                  <span style={chipStyle}>{plan.credits.toLocaleString()} execution credits / mo</span>
+                  {PLAN_ENTITLEMENTS[plan.id]?.monthlyVideoCredits > 0 ? (
+                    <span style={chipStyle}>
+                      {PLAN_ENTITLEMENTS[plan.id].monthlyVideoCredits} video credits / mo
+                    </span>
+                  ) : (
+                    <span style={chipStyle}>Video via upgrade</span>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   {plan.features.map((feature) => (

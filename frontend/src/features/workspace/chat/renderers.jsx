@@ -6,11 +6,15 @@ import { AgentAvatar } from '../../../components/ui';
 import { motion, MotionList, MotionListItem, MotionPresence, MotionSection, usePrymalReducedMotion } from '../../../components/motion';
 import {
   GeneratedImageCard,
+  GeneratedVideoCard,
   SchemaValidationBadge,
   SentinelReviewBadge,
   SourceCard,
+  TrustGrammarPanel,
 } from './MessageArtifacts';
 import { buildMessagePresentation } from './messagePresentation';
+import { getAgentHandoffs } from '../../../lib/agentHandoffs';
+import { getAgentMeta } from '../../../lib/constants';
 
 function CipherScorecard({ data }) {
   const { summary, keyMetrics, anomalies, recommendations, confidence, dataQuality } = data ?? {};
@@ -524,13 +528,16 @@ function ResearchTrace({ sources }) {
   );
 }
 
-export function StudioMessage({ message, agent, streaming = false, streamingTask = null }) {
+export function StudioMessage({ message, agent, streaming = false, streamingTask = null, onHandoff = null }) {
   const reducedMotion = usePrymalReducedMotion();
   const isUser = message.role === 'user';
   const sources = message.metadata?.sources ?? [];
   const generatedImages = message.metadata?.generatedImages ?? [];
+  const generatedVideos = message.metadata?.generatedVideos ?? [];
   const schemaValidation = message.schemaValidation ?? message.metadata?.schemaValidation ?? null;
   const sentinelReview = message.sentinelReview ?? message.metadata?.sentinelReview ?? null;
+  const enforcementSummary = message.enforcementSummary ?? message.metadata?.enforcementSummary ?? null;
+  const geminiGrounding = message.geminiGrounding ?? message.metadata?.geminiGrounding ?? null;
   const showThinkingState = streaming && !message.content.trim();
 
   // Normalize mixed markdown, embedded payloads, and tool traces once the response is complete.
@@ -593,12 +600,29 @@ export function StudioMessage({ message, agent, streaming = false, streamingTask
             </MotionSection>
           ) : null}
         </MotionPresence>
+        <MotionPresence initial={false}>
+          {!isUser && !streaming && (enforcementSummary || geminiGrounding) ? (
+            <MotionSection key="trust-grammar" delay={0.2} reveal={{ y: 0, blur: 0 }}>
+              <TrustGrammarPanel enforcementSummary={enforcementSummary} geminiGrounding={geminiGrounding} />
+            </MotionSection>
+          ) : null}
+        </MotionPresence>
         {generatedImages.length > 0 ? (
           <div className="workspace-studio__generated-row">
             {generatedImages.map((image, index) => (
               <GeneratedImageCard
                 key={`${image.url ?? image.fileName ?? 'generated'}-${index}`}
                 image={image}
+              />
+            ))}
+          </div>
+        ) : null}
+        {generatedVideos.length > 0 ? (
+          <div className="workspace-studio__generated-row">
+            {generatedVideos.map((video, index) => (
+              <GeneratedVideoCard
+                key={`${video.url ?? video.fileName ?? 'generated-video'}-${index}`}
+                video={video}
               />
             ))}
           </div>
@@ -620,8 +644,100 @@ export function StudioMessage({ message, agent, streaming = false, streamingTask
         ) : null}
         {isHeraldDraft ? <HeraldEmailSend content={message.content} /> : null}
         {isAtlasSummary ? <AtlasNotionExport content={message.content} /> : null}
+        {!isUser && !streaming && onHandoff ? (
+          <HandoffSuggestions
+            sourceAgentId={agent?.id}
+            messageContent={message.content}
+            onHandoff={onHandoff}
+          />
+        ) : null}
       </div>
     </motion.div>
+  );
+}
+
+function HandoffSuggestions({ sourceAgentId, messageContent, onHandoff }) {
+  const [dismissed, setDismissed] = useState(false);
+  const handoffs = getAgentHandoffs(sourceAgentId);
+
+  if (dismissed || handoffs.length === 0) {
+    return null;
+  }
+
+  const trimmed = String(messageContent ?? '').slice(0, 600);
+  const seedDraft = trimmed
+    ? `Continuing from a ${(sourceAgentId ?? 'previous agent').toUpperCase()} reply:\n\n"${trimmed}${messageContent.length > 600 ? '…' : ''}"\n\nPlease take this further.`
+    : '';
+
+  return (
+    <div
+      style={{
+        marginTop: '12px',
+        padding: '10px 12px',
+        borderRadius: '12px',
+        border: '1px dashed rgba(91,107,134,0.28)',
+        background: 'rgba(91,107,134,0.04)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
+        <div
+          style={{
+            fontSize: '10px',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'var(--muted)',
+          }}
+        >
+          Continue with another specialist
+        </div>
+        <button
+          type="button"
+          onClick={() => setDismissed(true)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--muted)',
+            fontSize: '11px',
+            cursor: 'pointer',
+            padding: '0 2px',
+          }}
+          aria-label="Dismiss handoff suggestions"
+        >
+          Dismiss
+        </button>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+        {handoffs.slice(0, 3).map((handoff) => {
+          const target = getAgentMeta(handoff.to);
+          if (!target) return null;
+          return (
+            <button
+              key={handoff.to}
+              type="button"
+              onClick={() => onHandoff(handoff.to, seedDraft)}
+              title={`When ${handoff.when}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 10px',
+                borderRadius: '999px',
+                border: `1px solid ${target.color}44`,
+                background: `${target.color}10`,
+                color: target.color,
+                fontSize: '11px',
+                cursor: 'pointer',
+                lineHeight: 1.2,
+              }}
+            >
+              <span style={{ fontWeight: 600 }}>{target.name}</span>
+              <span style={{ color: 'var(--muted)', fontWeight: 400 }}>·</span>
+              <span style={{ color: 'var(--text)' }}>{handoff.label.replace(`Send to ${target.name} `, '').replace(`Send to ${target.name}`, target.name)}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -806,6 +922,19 @@ function createTaskProfile({ agent, streamingTask, content }) {
         'Reading the prompt and visual constraints',
         'Composing the scene, style, and framing',
         'Rendering the final image file',
+      ],
+    };
+  }
+
+  if (streamingTask?.kind === 'video') {
+    return {
+      label: `${agentName} is rendering the video`,
+      summary: 'Queuing the render, waiting for Veo to finish, and preparing the final clip.',
+      metaLabel: 'Rendering video',
+      steps: [
+        'Validating duration, resolution, and credit limits',
+        'Rendering the clip in the media queue',
+        'Packaging the finished video back into the chat',
       ],
     };
   }

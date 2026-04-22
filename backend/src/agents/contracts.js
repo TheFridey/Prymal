@@ -175,12 +175,25 @@ export const AGENT_CONTRACTS = {
       readScopes: ['org', 'user', 'workflow_run'],
       writeScopes: ['org', 'workflow_run'],
       sensitiveWrites: false,
+      enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
     modelPolicy: {
       defaultPolicy: 'workflow_automation',
       preferredLane: 'anthropic_balanced',
     },
     evalCriteria: ['task_clarity', 'dependency_mapping', 'instruction_following'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'Reformat as atlas.planOutline with objective, phases[], dependencies[], milestones[], and risks[] fields.',
+      hallucinationRiskThreshold: 0.6,
+    },
+    traceMetadata: {
+      schemaViolationField: 'atlas_schema_failures',
+      toolPolicyViolationField: 'atlas_tool_violations',
+      repairLoopCountField: 'atlas_repair_loops',
+      hallucinationRiskField: 'atlas_hallucination_risk',
+    },
   },
   echo: {
     purpose: 'Adapt content into platform-native social output and editorial cadence.',
@@ -284,6 +297,7 @@ export const AGENT_CONTRACTS = {
       readScopes: ['org', 'user', 'restricted', 'agent_private'],
       writeScopes: ['org', 'user', 'restricted', 'agent_private'],
       sensitiveWrites: true,
+      enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
     modelPolicy: {
       defaultPolicy: 'premium_reasoning',
@@ -291,6 +305,18 @@ export const AGENT_CONTRACTS = {
       preferredLane: 'openai_premium',
     },
     evalCriteria: ['commercial_relevance', 'qualification_logic', 'instruction_following'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'Reformat as vance.dealSummary with dealName, stage, qualification[], nextSteps[], risks[], and confidence fields.',
+      hallucinationRiskThreshold: 0.55,
+    },
+    traceMetadata: {
+      schemaViolationField: 'vance_schema_failures',
+      toolPolicyViolationField: 'vance_tool_violations',
+      repairLoopCountField: 'vance_repair_loops',
+      hallucinationRiskField: 'vance_hallucination_risk',
+    },
   },
   wren: {
     purpose: 'Handle support communication clearly and reduce customer friction.',
@@ -309,6 +335,7 @@ export const AGENT_CONTRACTS = {
       readScopes: ['org', 'user', 'restricted', 'temporary_session'],
       writeScopes: ['user', 'restricted', 'temporary_session'],
       sensitiveWrites: true,
+      enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
     modelPolicy: {
       defaultPolicy: 'fast_chat',
@@ -316,6 +343,18 @@ export const AGENT_CONTRACTS = {
       preferredLane: 'anthropic_balanced',
     },
     evalCriteria: ['empathy', 'policy_alignment', 'resolution_clarity'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'Reformat as wren.supportResolution with issue, response, nextSteps[], escalationNeeded, and policyReferences[] fields.',
+      hallucinationRiskThreshold: 0.5,
+    },
+    traceMetadata: {
+      schemaViolationField: 'wren_schema_failures',
+      toolPolicyViolationField: 'wren_tool_violations',
+      repairLoopCountField: 'wren_repair_loops',
+      hallucinationRiskField: 'wren_hallucination_risk',
+    },
   },
   ledger: {
     purpose: 'Explain financial performance and package decision-ready reporting.',
@@ -334,6 +373,7 @@ export const AGENT_CONTRACTS = {
       readScopes: ['org', 'user', 'restricted', 'workflow_run'],
       writeScopes: ['org', 'restricted', 'workflow_run'],
       sensitiveWrites: true,
+      enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
     modelPolicy: {
       defaultPolicy: 'premium_reasoning',
@@ -341,6 +381,20 @@ export const AGENT_CONTRACTS = {
       preferredLane: 'openai_premium',
     },
     evalCriteria: ['accuracy', 'groundedness', 'structured_output'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'Reformat as ledger.financeSummary with period, summary, keyFigures[], variances[], assumptions[], and confidence fields.',
+      hallucinationRiskThreshold: 0.4,
+      citationRequiredOnEveryFactualClaim: true,
+    },
+    traceMetadata: {
+      schemaViolationField: 'ledger_schema_failures',
+      toolPolicyViolationField: 'ledger_tool_violations',
+      repairLoopCountField: 'ledger_repair_loops',
+      hallucinationRiskField: 'ledger_hallucination_risk',
+      citationRateField: 'ledger_citation_rate',
+    },
   },
   nexus: {
     purpose: 'Reason across the system and orchestrate repeatable workflow execution.',
@@ -513,7 +567,7 @@ export const AGENT_CONTRACTS = {
     sentinelConfig: {
       enabled: true,
       eligiblePlans: ['pro', 'teams', 'agency'],
-      reviewableAgents: ['cipher', 'ledger', 'nexus', 'vance', 'herald', 'forge', 'sage'],
+      reviewableAgents: ['cipher', 'ledger', 'nexus', 'vance', 'herald', 'forge', 'sage', 'wren', 'oracle', 'scout', 'atlas', 'lore'],
       humanReviewThreshold: 0.8,
       repairOnSchemaFailure: true,
       // Auto-fail these agents' outputs at this risk threshold (no repair attempt)

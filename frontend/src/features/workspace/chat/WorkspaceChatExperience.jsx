@@ -216,6 +216,20 @@ export default function WorkspaceChatExperience({
     if (routeMode) navigate(`/app/agents/${activeAgent.id}?new=1`);
   }
 
+  function handleHandoff(targetAgentId, seedDraft = '') {
+    if (!targetAgentId) return;
+    const target = unlockedAgents.find((entry) => entry.id === targetAgentId);
+    if (!target) return;
+    setActiveAgentId(targetAgentId);
+    conv.resetConversationState(targetAgentId);
+    chat.resetSendState();
+    voice.resetInterim();
+    setDraft(seedDraft);
+    setAutoScrollEnabled(true);
+    if (routeMode) navigate(`/app/agents/${targetAgentId}?new=1`);
+    requestAnimationFrame(() => composerRef.current?.focus());
+  }
+
   function clearCurrentConversation() {
     if (!activeAgent) return;
     conv.resetConversationState(activeAgent.id);
@@ -402,6 +416,7 @@ export default function WorkspaceChatExperience({
               onSetAuditUrl={chat.setAuditUrl}
               onOracleAudit={chat.handleOracleAudit}
               onRequestReview={chat.handleRequestReview}
+              onHandoff={handleHandoff}
             />
             <MessageInput
               activeAgent={activeAgent}

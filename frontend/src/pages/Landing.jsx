@@ -5,9 +5,7 @@ import { Link } from 'react-router-dom';
 import {
   AGENT_LIBRARY,
   AGENT_UI_LAYERS,
-  BILLING_INTERVALS,
   PLAN_LIBRARY,
-  getPlanPrice,
   getWorkspacePlanMeta,
   sortAgentsByUiHierarchy,
 } from '../lib/constants';
@@ -87,77 +85,6 @@ const SPECIALIST_SHOWCASE_AGENTS = AGENT_UI_LAYERS.specialist
   .filter(Boolean);
 const BENTO_AGENTS = [...AGENT_LIBRARY.filter((a) => a.id !== 'sentinel')].sort(sortAgentsByUiHierarchy);
 
-/** Visual accent per tier (card border / glow). Prices unchanged — display only. */
-const PLAN_CARD_ACCENT = {
-  solo: '#5bc0eb',
-  pro: '#c77dff',
-  teams: '#40d7c3',
-  agency: '#ffb86b',
-};
-
-/** Capability ladder framing — execution depth, not SKU lists. */
-const PRICING_TIER_UX = {
-  solo: {
-    mode: 'Personal operator',
-    tier: 1,
-    capabilityLine:
-      'One seat, full roster: run Prymal as your private control surface—retrieval, specialists, and QA on work that has to land.',
-    throughputLine: (credits) =>
-      `${Number(credits).toLocaleString('en-GB')} monthly credits · focused throughput to prove repeatable wins on live briefs.`,
-    ctaSignedOut: 'Start in operator mode',
-    ctaSignedIn: 'Select Solo in billing',
-  },
-  pro: {
-    mode: 'Primary execution',
-    tier: 2,
-    capabilityLine:
-      'Where Prymal becomes a coordinated engine: chain agents in NEXUS, deepen runs, and use Power-Ups when throughput is the job.',
-    throughputLine: (credits) =>
-      `${Number(credits).toLocaleString('en-GB')} monthly credits · serious day-to-day execution volume for operators who live in the product.`,
-    ctaSignedOut: 'Unlock full execution',
-    ctaSignedIn: 'Upgrade to Pro execution',
-    anchor: true,
-  },
-  teams: {
-    mode: 'Organisational intelligence',
-    tier: 3,
-    capabilityLine:
-      'Shared workspace memory, seats, and credits mapped to how teams actually ship—parallel threads without fragmenting truth.',
-    throughputLine: (credits) =>
-      `${Number(credits).toLocaleString('en-GB')} monthly credits · pooled execution headroom for concurrent lanes and handoffs.`,
-    ctaSignedOut: 'Enable team-scale ops',
-    ctaSignedIn: 'Configure Teams billing',
-  },
-  agency: {
-    mode: 'System deployment',
-    tier: 4,
-    capabilityLine:
-      'API keys, high seat count, and runway for agencies wiring Prymal into client systems, billing, and always-on workflows.',
-    throughputLine: (credits) =>
-      `${Number(credits).toLocaleString('en-GB')} monthly credits · capacity shaped for multi-client throughput and automation load.`,
-    ctaSignedOut: 'Deploy at agency depth',
-    ctaSignedIn: 'Open Agency billing',
-  },
-};
-
-/** Prymal vs generic “AI assistant” products — ticks/crosses; `other: true` where mainstream tools commonly ship it. */
-const PRICING_VS_OTHERS_ROWS = [
-  { label: 'Multi-agent workflows with explicit steps, gates, and structured handoffs (NEXUS)', prymal: true, other: false },
-  { label: '14 specialist agents with defined roles, outputs, and commercial contracts—not one generic model', prymal: true, other: false },
-  { label: 'Durable workspace corpus with retrieval grounding and provenance (LORE)', prymal: true, other: false },
-  { label: 'Pre-delivery QA: policy, schema, and risk checks before outputs ship (SENTINEL)', prymal: true, other: false },
-  { label: 'Credits map to throughput: parallel lanes, depth, and voice—not “one reply at a time” pricing', prymal: true, other: false },
-  { label: 'Shared organisation memory, seats, pooled credits, and billing in one workspace', prymal: true, other: false },
-  { label: 'First-class automation posture (webhooks, pipeline-friendly controls)', prymal: true, other: false },
-  { label: 'API keys and programmatic access for always-on / multi-tenant deployments', prymal: 'partial', other: false, note: 'Agency plan' },
-  { label: 'Natural-language prompting for ad-hoc drafting, analysis, and Q&A', prymal: true, other: true },
-  { label: 'Fast access to frontier models without operating your own inference stack', prymal: true, other: true },
-  { label: 'Single-thread “chat with documents” in a session (upload-and-ask)', prymal: true, other: true },
-  { label: 'Built as a control plane for delivery and ops—not only conversation', prymal: true, other: false },
-  { label: 'Explicit specialist orchestration instead of one model improvising every job', prymal: true, other: false },
-  { label: 'Operating posture for agencies: high seat counts, client separation, and deployment runway', prymal: true, other: false },
-];
-
 const EXECUTION_STEPS = [
   { agent: 'lore', label: 'Context loaded', detail: 'LORE retrieves relevant knowledge from your workspace.', color: '#C77DFF' },
   { agent: 'cipher', label: 'Data analysed', detail: 'CIPHER processes the numbers and finds the signal.', color: '#33c7ff' },
@@ -168,7 +95,6 @@ const EXECUTION_STEPS = [
 export default function Landing() {
   const reducedMotion = usePrymalReducedMotion();
   const { isSignedIn } = useAuth();
-  const [billingInterval, setBillingInterval] = useState(BILLING_INTERVALS[0]?.id ?? 'monthly');
   const [email, setEmail] = useState('');
   const [waitlistResult, setWaitlistResult] = useState(null);
   const [specialistsOpen, setSpecialistsOpen] = useState(false);
@@ -179,8 +105,6 @@ export default function Landing() {
   const loreEntryHref = isSignedIn ? '/app/lore' : '/agents/lore';
 
   const freePlan = getWorkspacePlanMeta('free');
-  const activeBillingInterval =
-    BILLING_INTERVALS.find((interval) => interval.id === billingInterval) ?? BILLING_INTERVALS[0];
 
   const waitlistMutation = useMutation({
     mutationFn: async (nextEmail) => api.post('/waitlist', { email: nextEmail, source: 'landing_page' }),
@@ -450,7 +374,7 @@ export default function Landing() {
               <div className="pm-hero__ctas">
                 <SignedOut>
                   <Link to={nexusEntryHref} className="pm-btn pm-btn--primary">Start with Prymal</Link>
-                  <a href="#pricing" className="pm-btn pm-btn--ghost">See plans</a>
+                  <Link to="/pricing" className="pm-btn pm-btn--ghost">See plans</Link>
                 </SignedOut>
                 <SignedIn>
                   <Link to={nexusEntryHref} className="pm-btn pm-btn--primary">Start with Prymal</Link>
@@ -662,238 +586,32 @@ export default function Landing() {
               </div>
             </section>
 
-            {/* ── Pricing: capability ladder ── */}
-            <MotionSection id="pricing" className="pm-pricing-section pm-pricing-ladder" delay={0.06} reveal={{ y: 24, blur: 10 }}>
-              <header className="pm-pricing-ladder__framing">
-                <div className="pm-hero__badge pm-pricing-ladder__eyebrow" style={{ animationDelay: '0.5s' }}>
-                  <span className="pm-hero__badge-dot" />
-                  Execution tiers · same agent system
-                </div>
-                <h2 className="pm-pricing-ladder__title">Scale operational power, not chat seats.</h2>
-                <p className="pm-pricing-ladder__lede">
-                  Prymal is a coordinated multi-agent execution layer: workflows hand off between specialists, LORE keeps outputs
-                  grounded, and your tier defines throughput, seats, and deployment depth—not which “AI” you unlock.
-                </p>
-                <div className="pm-pricing-ladder__pillars" aria-label="What Prymal optimises for">
-                  <div className="pm-pricing-ladder__pillar">
-                    <span className="pm-pricing-ladder__pillar-k">Orchestration</span>
-                    <span className="pm-pricing-ladder__pillar-v">NEXUS graphs, gates, and specialist sequencing</span>
-                  </div>
-                  <div className="pm-pricing-ladder__pillar">
-                    <span className="pm-pricing-ladder__pillar-k">Throughput</span>
-                    <span className="pm-pricing-ladder__pillar-v">Credits as concurrent execution capacity</span>
-                  </div>
-                  <div className="pm-pricing-ladder__pillar">
-                    <span className="pm-pricing-ladder__pillar-k">Deployment</span>
-                    <span className="pm-pricing-ladder__pillar-v">Solo → team → API-grade agency posture</span>
-                  </div>
-                </div>
-              </header>
-
-              <div className="pm-pricing-ladder__orbit" aria-hidden="true">
-                <div className="pm-pricing-ladder__orbit-line" />
-                <div className="pm-pricing-ladder__orbit-nodes">
-                  {PLAN_LIBRARY.map((plan, i) => (
-                    <div key={plan.id} className="pm-pricing-ladder__orbit-node">
-                      <span
-                        className="pm-pricing-ladder__orbit-dot"
-                        style={{ '--orbit-accent': PLAN_CARD_ACCENT[plan.id] ?? '#c77dff' }}
-                      />
-                      {i < PLAN_LIBRARY.length - 1 ? <span className="pm-pricing-ladder__orbit-seg" /> : null}
-                    </div>
-                  ))}
-                </div>
+            {/* ── Pricing teaser → full page ── */}
+            <MotionSection id="pricing" className="pm-pricing-section" delay={0.06} reveal={{ y: 24, blur: 10 }}>
+              <div className="pm-hero__badge" style={{ marginBottom: 14 }}>
+                <span className="pm-hero__badge-dot" />
+                Pricing
               </div>
-
-              <div className="prymal-pricing__toggle-scroll">
-                <div className="prymal-pricing__toggle" role="tablist" aria-label="Billing period">
-                  {BILLING_INTERVALS.map((interval) => (
-                    <button
-                      key={interval.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={interval.id === billingInterval}
-                      className={`prymal-pricing__toggle-button${interval.id === billingInterval ? ' is-active' : ''}`}
-                      onClick={() => setBillingInterval(interval.id)}
-                    >
-                      <span>{interval.label}</span>
-                      {interval.caption ? <small>{interval.caption}</small> : null}
-                    </button>
-                  ))}
-                </div>
+              <h2 className="pm-pricing-ladder__title">Simple plans for serious work</h2>
+              <p className="pm-pricing-ladder__lede" style={{ maxWidth: 560 }}>
+                Execution credits for AI tasks and agents, plus video credits when you need clips. Pro is the best balance for most
+                teams — see every tier, limits, and FAQs on the dedicated pricing page.
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 20 }}>
+                <Link to="/pricing" className="button button--accent">
+                  View pricing
+                </Link>
+                <SignedOut>
+                  <Link to="/signup" className="button button--ghost">
+                    Start now
+                  </Link>
+                </SignedOut>
+                <SignedIn>
+                  <Link to="/app/settings?tab=Billing" className="button button--ghost">
+                    Billing
+                  </Link>
+                </SignedIn>
               </div>
-
-              <div className="pm-pricing-ladder__grid pm-pricing-ladder__grid--snap">
-                {PLAN_LIBRARY.map((plan) => {
-                  const price = getPlanPrice(plan, activeBillingInterval.id);
-                  const ux = PRICING_TIER_UX[plan.id];
-                  const accent = PLAN_CARD_ACCENT[plan.id] ?? '#c77dff';
-                  const isAnchor = Boolean(ux?.anchor);
-                  return (
-                    <div
-                      key={plan.id}
-                      className={`pm-pricing__card pm-pricing__card--ladder pm-pricing__card--${plan.id}${isAnchor ? ' pm-pricing__card--anchor' : ''}`}
-                      style={{ '--card-color': accent }}
-                    >
-                      {isAnchor ? (
-                        <div className="pm-pricing-ladder__anchor-ribbon" aria-hidden="true">
-                          Primary execution tier
-                        </div>
-                      ) : null}
-                      <div className="pm-pricing__card-inner">
-                        <div className="pm-pricing-ladder__flow-bg" aria-hidden="true" />
-                        <div className="pm-pricing-ladder__card-head">
-                          <div className="pm-pricing-ladder__tier-row">
-                            <span className="pm-pricing-ladder__mode">{ux.mode}</span>
-                            <span className="pm-pricing-ladder__tier-index">Tier {ux.tier} / 4</span>
-                          </div>
-                          <div className="pm-pricing-ladder__meter" role="img" aria-label={`Execution depth ${ux.tier} of four`}>
-                            {[1, 2, 3, 4].map((step) => (
-                              <span key={step} className={`pm-pricing-ladder__meter-bar${step <= ux.tier ? ' is-lit' : ''}`} />
-                            ))}
-                          </div>
-                          <h3 className="pm-pricing-ladder__plan-name">{plan.name}</h3>
-                          <p className="pm-pricing-ladder__capability">{ux.capabilityLine}</p>
-                        </div>
-
-                        <div className="pm-pricing-ladder__price-wrap prymal-pricing__top">
-                          {price.hasPeriodDiscount ? (
-                            <div className="prymal-pricing__price-block">
-                              <div className="prymal-pricing__period-row">
-                                <span className="prymal-pricing__list-total" aria-label={`List price before discount ${price.listPeriodDisplay}`}>
-                                  {price.listPeriodDisplay}
-                                </span>
-                                <strong className="prymal-pricing__discounted-total">
-                                  {price.display}
-                                  <small className="prymal-pricing__suffix-inline"> / {price.suffix}</small>
-                                </strong>
-                              </div>
-                              <div className="prymal-pricing__monthly-row">
-                                <span className="prymal-pricing__list-monthly" aria-label={`Published monthly list ${price.monthlyListDisplay} per month`}>
-                                  {price.monthlyListDisplay}
-                                  <span className="prymal-pricing__per-mo">/mo</span>
-                                </span>
-                                <span className="prymal-pricing__monthly-arrow" aria-hidden="true">→</span>
-                                <span className="prymal-pricing__effective-monthly">{price.monthlyEquivalent}</span>
-                                <span className="prymal-pricing__equiv-label">effective</span>
-                              </div>
-                              {price.savingsDisplay ? (
-                                <div className="prymal-pricing__save-row">
-                                  <span className="prymal-pricing__save-pill">
-                                    Save {price.savingsDisplay}
-                                    {price.discountLabel ? ` · ${price.discountLabel}` : ''}
-                                  </span>
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : (
-                            <strong className="pm-pricing-ladder__price-primary">
-                              {price.display}
-                              <small> / {price.suffix}</small>
-                            </strong>
-                          )}
-                          <p className="pm-pricing-ladder__throughput">{ux.throughputLine(plan.credits)}</p>
-                          <p className="pm-pricing-ladder__fineprint">{plan.description}</p>
-                        </div>
-
-                        <div className="pm-pricing-ladder__includes">
-                          <span className="pm-pricing-ladder__includes-label">Infrastructure included</span>
-                          <div className="prymal-pricing__features pm-pricing-ladder__features">
-                            {plan.features.map((feature) => (
-                              <span key={feature}>{feature}</span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="prymal-pricing__cta pm-pricing-ladder__cta">
-                          <SignedOut>
-                            <Link
-                              to="/signup"
-                              className={`button button--${isAnchor || plan.id === 'agency' ? 'accent' : 'ghost'} button--block pm-pricing-ladder__cta-btn`}
-                            >
-                              {ux.ctaSignedOut}
-                            </Link>
-                          </SignedOut>
-                          <SignedIn>
-                            <Link
-                              to="/app/settings?tab=Billing"
-                              className={`button button--${isAnchor || plan.id === 'agency' ? 'accent' : 'ghost'} button--block pm-pricing-ladder__cta-btn`}
-                            >
-                              {ux.ctaSignedIn}
-                            </Link>
-                          </SignedIn>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <section className="pm-pricing-compare" aria-labelledby="pricing-compare-heading">
-                <h3 id="pricing-compare-heading" className="pm-pricing-compare__title">
-                  Prymal vs other AI platforms
-                </h3>
-                <p className="pm-pricing-compare__lede">
-                  Not a competitor call-out—a capability map. Typical assistant products optimise for a single chat thread;
-                  Prymal optimises for coordinated execution, shared truth, and how work actually ships.
-                </p>
-                <div className="pm-pricing-compare__scroll">
-                  <div className="pm-pricing-compare__table" role="table" aria-label="Capability comparison">
-                    <div role="row" className="pm-pricing-compare__row pm-pricing-compare__row--head">
-                      <div role="columnheader" className="pm-pricing-compare__cell pm-pricing-compare__cell--dim">
-                        Capability
-                      </div>
-                      <div role="columnheader" className="pm-pricing-compare__cell pm-pricing-compare__cell--brand">
-                        Prymal
-                      </div>
-                      <div role="columnheader" className="pm-pricing-compare__cell pm-pricing-compare__cell--other">
-                        Other AI platforms
-                      </div>
-                    </div>
-                    {PRICING_VS_OTHERS_ROWS.map((row) => (
-                      <div role="row" key={row.label} className="pm-pricing-compare__row">
-                        <div role="cell" className="pm-pricing-compare__cell pm-pricing-compare__cell--dim">
-                          {row.label}
-                          {row.note ? (
-                            <span className="pm-pricing-compare__note"> ({row.note})</span>
-                          ) : null}
-                        </div>
-                        <div role="cell" className="pm-pricing-compare__cell pm-pricing-compare__cell--tick">
-                          {row.prymal === true ? (
-                            <span className="pm-pricing-compare__mark pm-pricing-compare__mark--yes" title="Included">
-                              <span aria-hidden="true">✓</span>
-                              <span className="pm-pricing-compare__sr">Yes</span>
-                            </span>
-                          ) : row.prymal === 'partial' ? (
-                            <span className="pm-pricing-compare__mark pm-pricing-compare__mark--partial" title="Included on Agency tier">
-                              <span aria-hidden="true">◆</span>
-                              <span className="pm-pricing-compare__sr">Agency tier</span>
-                            </span>
-                          ) : (
-                            <span className="pm-pricing-compare__mark pm-pricing-compare__mark--no" title="Not included">
-                              <span aria-hidden="true">✕</span>
-                              <span className="pm-pricing-compare__sr">No</span>
-                            </span>
-                          )}
-                        </div>
-                        <div role="cell" className="pm-pricing-compare__cell pm-pricing-compare__cell--cross">
-                          {row.other ? (
-                            <span className="pm-pricing-compare__mark pm-pricing-compare__mark--yes" title="Often included">
-                              <span aria-hidden="true">✓</span>
-                              <span className="pm-pricing-compare__sr">Yes</span>
-                            </span>
-                          ) : (
-                            <span className="pm-pricing-compare__mark pm-pricing-compare__mark--no" title="Not typical for assistant-style products">
-                              <span aria-hidden="true">✕</span>
-                              <span className="pm-pricing-compare__sr">No</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
             </MotionSection>
 
             {/* ── Waitlist ── */}

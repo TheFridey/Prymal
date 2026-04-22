@@ -6,7 +6,14 @@ import { z } from 'zod';
 import { db } from '../db/index.js';
 import { powerups as powerupsTable } from '../db/schema.js';
 import { requireOrg } from '../middleware/auth.js';
-import { assertCreditsAvailable, canAccessAgent, consumeCredits } from '../services/entitlements.js';
+import { canAccessAgent } from '../services/entitlements.js';
+import {
+  commitExecutionUsage,
+  releaseExecutionUsage,
+  reserveExecutionCredits,
+} from '../services/billing-engine.js';
+import { applyReservationThrottle } from '../services/billing-throttle.js';
+import { estimateModelCostUsd } from '../services/llm-observability.js';
 import { streamAgentResponse } from '../services/llm.js';
 
 const router = new Hono();
@@ -75,12 +82,26 @@ router.post('/run', requireOrg, zValidator('json', runSchema), async (context) =
     return context.json({ error: 'This Power-Up requires a higher plan.', upgrade: true }, 403);
   }
 
-  assertCreditsAvailable(org, 1);
-
   const prompt = fillTemplate(powerUp.prompt, inputs);
+  const reservation = await reserveExecutionCredits({
+    orgId: org.orgId,
+    userId: org.userId,
+    agentId,
+    requestId: null,
+    baseCredits: 1,
+    estimatedContextTokens: Math.ceil(prompt.length / 4),
+    agentCount: 1,
+    metadata: {
+      route: '/powerups/run',
+      slug,
+    },
+  });
 
   return streamSSE(context, async (stream) => {
+    let creditsCommitted = false;
     try {
+      await applyReservationThrottle(reservation);
+
       const generator = streamAgentResponse({
         agentId,
         orgId: org.orgId,
@@ -99,17 +120,47 @@ router.post('/run', requireOrg, zValidator('json', runSchema), async (context) =
         }
 
         if (event.type === 'done') {
-          await consumeCredits(org.orgId, Math.max(Math.ceil((event.totalTokens ?? 0) / 1000), 1));
+          await commitExecutionUsage({
+            usageEventId: reservation.usageEvent.id,
+            provider: event.provider ?? null,
+            model: event.model ?? null,
+            promptTokens: event.inputTokens ?? null,
+            completionTokens: event.outputTokens ?? null,
+            totalTokens: event.totalTokens ?? null,
+            estimatedCostUsd: estimateModelCostUsd({
+              provider: event.provider,
+              model: event.model,
+              promptTokens: event.inputTokens ?? 0,
+              completionTokens: event.outputTokens ?? 0,
+            }),
+            metadata: {
+              slug,
+              route: '/powerups/run',
+            },
+          });
+          creditsCommitted = true;
           await stream.writeSSE({
             data: JSON.stringify({
               type: 'done',
               tokensUsed: event.totalTokens,
+              creditsUsed: reservation.burn.creditsUsed,
               sources: event.sources,
             }),
           });
         }
       }
     } catch (error) {
+      if (!creditsCommitted) {
+        await releaseExecutionUsage({
+          usageEventId: reservation.usageEvent.id,
+          reason: error.message,
+          metadata: {
+            slug,
+            route: '/powerups/run',
+          },
+        }).catch((releaseError) => console.error('[POWERUPS] Failed to release execution reservation:', releaseError.message));
+      }
+
       await stream.writeSSE({
         data: JSON.stringify({
           type: 'error',

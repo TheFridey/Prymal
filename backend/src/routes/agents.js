@@ -5,15 +5,27 @@ import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
 import { AGENT_IDS, getAgent } from '../agents/config.js';
 import { db } from '../db/index.js';
-import { agentMemory, auditLogs, conversations, messages } from '../db/schema.js';
+import { agentMemory, auditLogs, conversations, messages, videoGenerationEvents } from '../db/schema.js';
 import { requireOrg } from '../middleware/auth.js';
 import { planAwareRateLimit } from '../middleware/rateLimit.js';
-import { assertCreditsAvailable, canAccessAgent, consumeCredits } from '../services/entitlements.js';
+import { canAccessAgent } from '../services/entitlements.js';
+import {
+  commitExecutionUsage,
+  releaseExecutionUsage,
+  reserveExecutionCredits,
+  reserveVideoCredits,
+} from '../services/billing-engine.js';
+import { applyReservationThrottle } from '../services/billing-throttle.js';
 import { generateImageAsset } from '../services/image-generation.js';
+import { enqueueVideoGenerationJob } from '../services/video-generation.js';
 import { getAccessToken } from './integrations.js';
-import { streamAgentResponse } from '../services/llm.js';
+import { estimateTokens, streamAgentResponse } from '../services/llm.js';
 import { evaluateAgentOutput } from '../services/evals.js';
-import { classifyLLMFailure, recordLLMExecutionTrace } from '../services/llm-observability.js';
+import {
+  classifyLLMFailure,
+  estimateModelCostUsd,
+  recordLLMExecutionTrace,
+} from '../services/llm-observability.js';
 import { deleteMemory, extractMemoryFromTurn } from '../services/memory.js';
 import { hasUsableOpenAIKey } from '../services/model-policy.js';
 import { createRealtimeSessionToken, OPENAI_REALTIME_MODEL } from '../services/openai-realtime.js';
@@ -57,6 +69,15 @@ const imageGenerationSchema = z.object({
   quality: z.enum(['low', 'medium', 'high', 'auto']).optional().default('medium'),
   outputFormat: z.enum(['png', 'webp', 'jpeg']).optional().default('webp'),
   background: z.enum(['transparent', 'opaque', 'auto']).optional().default('auto'),
+});
+
+const videoGenerationSchema = z.object({
+  agentId: z.enum(AGENT_IDS),
+  prompt: z.string().trim().min(1).max(4000),
+  conversationId: z.string().uuid().optional(),
+  durationSeconds: z.union([z.literal(4), z.literal(6), z.literal(8)]).default(4),
+  resolution: z.enum(['720p', '1080p']).default('720p'),
+  aspectRatio: z.enum(['16:9', '9:16']).default('16:9'),
 });
 
 const realtimeTokenSchema = z.object({
@@ -201,8 +222,6 @@ router.post('/chat', requireOrg, planAwareRateLimit({
     );
   }
 
-  assertCreditsAvailable(org, 1);
-
   let conversation = null;
 
   if (payload.conversationId) {
@@ -244,6 +263,31 @@ router.post('/chat', requireOrg, planAwareRateLimit({
     limit: 40,
   });
 
+  const attachments = payload.attachments ?? [];
+  const estimatedContextTokens = estimateTokens(
+    [
+      payload.message,
+      ...history.map((entry) => entry.content),
+      payload.preferences?.customInstructions ?? '',
+      ...attachments.map((attachment) => attachment.name ?? ''),
+    ].join('\n'),
+  );
+  const executionReservation = await reserveExecutionCredits({
+    orgId: org.orgId,
+    userId: org.userId,
+    conversationId: conversation.id,
+    agentId: payload.agentId,
+    requestId: context.get('requestId') ?? null,
+    baseCredits: 1,
+    estimatedContextTokens,
+    agentCount: 1,
+    metadata: {
+      route: '/agents/chat',
+      attachmentCount: attachments.length,
+      useLore: payload.useLore,
+    },
+  });
+
   await db.insert(messages).values({
     conversationId: conversation.id,
     role: 'user',
@@ -252,7 +296,7 @@ router.post('/chat', requireOrg, planAwareRateLimit({
 
   return streamSSE(context, async (stream) => {
     const startedAt = Date.now();
-    const attachments = payload.attachments ?? [];
+    let creditsCommitted = false;
     const safeErrorMessage = (error) => {
       const message = String(error?.message ?? '').trim();
       return message || 'Generation failed.';
@@ -284,18 +328,33 @@ router.post('/chat', requireOrg, planAwareRateLimit({
     });
 
     try {
+      await applyReservationThrottle(executionReservation);
+
       for await (const event of runner) {
         if (event.type === 'chunk') {
           await stream.writeSSE({ data: JSON.stringify({ type: 'chunk', text: event.text }) });
         } else if (event.type === 'done') {
-          // Base LLM credits + extra per attachment type
-          const attachmentCredits = attachments.reduce((sum, a) => {
-            if (a.mediaType.startsWith('image/')) return sum + 2;
-            if (a.mediaType === 'application/pdf') return sum + 3;
-            return sum;
-          }, 0);
-          const creditsUsed = Math.max(Math.ceil((event.tokensUsed ?? 0) / 1000), 1) + attachmentCredits;
-          await consumeCredits(org.orgId, creditsUsed);
+          const creditsUsed = executionReservation.burn.creditsUsed;
+          const estimatedCostUsd = estimateModelCostUsd({
+            provider: event.provider,
+            model: event.model,
+            promptTokens: event.inputTokens ?? 0,
+            completionTokens: event.outputTokens ?? 0,
+          });
+          await commitExecutionUsage({
+            usageEventId: executionReservation.usageEvent.id,
+            provider: event.provider ?? null,
+            model: event.model ?? null,
+            promptTokens: event.inputTokens ?? null,
+            completionTokens: event.outputTokens ?? null,
+            totalTokens: event.tokensUsed ?? null,
+            estimatedCostUsd,
+            metadata: {
+              route: '/agents/chat',
+              usedLore: payload.useLore,
+            },
+          });
+          creditsCommitted = true;
 
           const [savedMessage] = await db
             .insert(messages)
@@ -317,6 +376,8 @@ router.post('/chat', requireOrg, planAwareRateLimit({
                 sources: event.sources ?? [],
                 schemaValidation: event.schemaValidation ?? null,
                 sentinelReview: event.sentinelReview ?? null,
+                enforcementSummary: event.enforcementSummary ?? null,
+                geminiGrounding: event.geminiGrounding ?? null,
               },
             })
             .returning();
@@ -392,11 +453,24 @@ router.post('/chat', requireOrg, planAwareRateLimit({
               fallbackModel: event.selectionDetails?.fallbackModelUsed ?? null,
               schemaValidation: event.schemaValidation ?? null,
               sentinelReview: event.sentinelReview ?? null,
+              enforcementSummary: event.enforcementSummary ?? null,
+              geminiGrounding: event.geminiGrounding ?? null,
               escalated: escalationResult.triggered,
               escalationReason: escalationResult.triggerReason ?? null,
             }),
           });
         } else if (event.type === 'hold') {
+          if (!creditsCommitted) {
+            await commitExecutionUsage({
+              usageEventId: executionReservation.usageEvent.id,
+              metadata: {
+                route: '/agents/chat',
+                heldBySentinel: true,
+              },
+            });
+            creditsCommitted = true;
+          }
+
           const [heldMessage] = await db
             .insert(messages)
             .values({
@@ -408,6 +482,9 @@ router.post('/chat', requireOrg, planAwareRateLimit({
                 held: true,
                 sentinelConcerns: event.sentinelConcerns ?? [],
                 sentinelRepairActions: event.sentinelRepairActions ?? [],
+                sentinelHoldReason: event.sentinelHoldReason ?? null,
+                sentinelRiskScore: event.sentinelRiskScore ?? null,
+                enforcementSummary: event.enforcementSummary ?? null,
               },
             })
             .returning();
@@ -430,9 +507,23 @@ router.post('/chat', requireOrg, planAwareRateLimit({
               message: event.message,
               sentinelConcerns: event.sentinelConcerns ?? [],
               sentinelRepairActions: event.sentinelRepairActions ?? [],
+              sentinelHoldReason: event.sentinelHoldReason ?? null,
+              sentinelRiskScore: event.sentinelRiskScore ?? null,
+              enforcementSummary: event.enforcementSummary ?? null,
             }),
           });
         } else if (event.type === 'error') {
+          if (!creditsCommitted) {
+            await releaseExecutionUsage({
+              usageEventId: executionReservation.usageEvent.id,
+              reason: event.message || 'Agent execution failed before completion.',
+              metadata: {
+                route: '/agents/chat',
+                code: event.code || 'CHAT_FAILED',
+              },
+            });
+          }
+
           await stream.writeSSE({
             data: JSON.stringify({
               type: 'error',
@@ -445,6 +536,19 @@ router.post('/chat', requireOrg, planAwareRateLimit({
         }
       }
     } catch (error) {
+      if (!creditsCommitted) {
+        await releaseExecutionUsage({
+          usageEventId: executionReservation.usageEvent.id,
+          reason: safeErrorMessage(error),
+          metadata: {
+            route: '/agents/chat',
+            code: error?.code || 'CHAT_STREAM_FAILED',
+          },
+        }).catch((releaseError) => {
+          console.error('[BILLING] Failed to release execution reservation:', releaseError.message);
+        });
+      }
+
       await stream.writeSSE({
         data: JSON.stringify({
           type: 'error',
@@ -473,7 +577,6 @@ router.post('/generate-image', requireOrg, zValidator('json', imageGenerationSch
   }
 
   const creditsRequired = getImageCreditCost(payload.quality);
-  assertCreditsAvailable(org, creditsRequired);
 
   let conversation = null;
 
@@ -510,9 +613,227 @@ router.post('/generate-image', requireOrg, zValidator('json', imageGenerationSch
       .returning();
   }
 
+  const imageReservation = await reserveExecutionCredits({
+    orgId: org.orgId,
+    userId: org.userId,
+    conversationId: conversation.id,
+    agentId: payload.agentId,
+    requestId: context.get('requestId') ?? null,
+    baseCredits: creditsRequired,
+    estimatedContextTokens: estimateTokens(payload.prompt),
+    agentCount: 1,
+    metadata: {
+      route: '/agents/generate-image',
+      size: payload.size,
+      quality: payload.quality,
+    },
+  });
+
   const agent = getAgent(payload.agentId);
   const userContent = `/image ${payload.prompt}`;
+  const startedAt = Date.now();
+  let creditsCommitted = false;
 
+  try {
+    const [userMessage] = await db
+      .insert(messages)
+      .values({
+        conversationId: conversation.id,
+        role: 'user',
+        content: userContent,
+        metadata: {
+          tool: 'image-generation',
+          size: payload.size,
+          quality: payload.quality,
+        },
+      })
+      .returning();
+
+    await applyReservationThrottle(imageReservation);
+
+    const generatedImage = await generateImageAsset({
+      prompt: payload.prompt,
+      agent,
+      size: payload.size,
+      quality: payload.quality,
+      outputFormat: payload.outputFormat,
+      background: payload.background,
+    });
+
+    await commitExecutionUsage({
+      usageEventId: imageReservation.usageEvent.id,
+      provider: 'openai',
+      model: generatedImage.model ?? null,
+      metadata: {
+        route: '/agents/generate-image',
+        size: payload.size,
+        quality: payload.quality,
+      },
+    });
+    creditsCommitted = true;
+
+    const assistantContent = buildImageMessage(agent.name, generatedImage.revisedPrompt ?? payload.prompt);
+    const [assistantMessage] = await db
+      .insert(messages)
+      .values({
+        conversationId: conversation.id,
+        role: 'assistant',
+        content: assistantContent,
+        processingMs: Date.now() - startedAt,
+        metadata: {
+          provider: 'openai',
+          route: 'openai-image',
+          routeReason: 'Used the OpenAI image generation pipeline for a direct visual asset request.',
+          model: generatedImage.model,
+          generatedImages: [generatedImage],
+        },
+      })
+      .returning();
+
+    await db
+      .update(conversations)
+      .set({
+        title: conversation.title || buildConversationTitle(userContent),
+        lastActiveAt: new Date(),
+        messageCount: (conversation.messageCount ?? 0) + 2,
+        totalTokens: conversation.totalTokens ?? 0,
+      })
+      .where(eq(conversations.id, conversation.id));
+
+    await Promise.all([
+      recordProductEvent({
+        orgId: org.orgId,
+        userId: org.userId,
+        eventName: 'image.generated',
+        metadata: {
+          agentId: payload.agentId,
+          conversationId: conversation.id,
+          creditsUsed: imageReservation.burn.creditsUsed,
+          model: generatedImage.model,
+          size: generatedImage.size,
+          quality: generatedImage.quality,
+        },
+      }),
+      recordProductEvent({
+        orgId: org.orgId,
+        userId: org.userId,
+        eventName: 'activation.useful_output',
+        metadata: {
+          agentId: payload.agentId,
+          conversationId: conversation.id,
+          outputType: 'generated_image',
+        },
+      }),
+    ]);
+
+    return context.json({
+      conversationId: conversation.id,
+      userMessageId: userMessage.id,
+      message: {
+        id: assistantMessage.id,
+        role: 'assistant',
+        content: assistantContent,
+        metadata: {
+          provider: 'openai',
+          route: 'openai-image',
+          routeReason: 'Used the OpenAI image generation pipeline for a direct visual asset request.',
+          model: generatedImage.model,
+          generatedImages: [generatedImage],
+        },
+        processingMs: Date.now() - startedAt,
+      },
+      image: generatedImage,
+      creditsUsed: imageReservation.burn.creditsUsed,
+    });
+  } catch (error) {
+    if (!creditsCommitted) {
+      await releaseExecutionUsage({
+        usageEventId: imageReservation.usageEvent.id,
+        reason: error.message,
+        metadata: {
+          route: '/agents/generate-image',
+          agentId: payload.agentId,
+        },
+      }).catch((releaseError) => {
+        console.error('[BILLING] Failed to release image reservation:', releaseError.message);
+      });
+    }
+
+    return context.json(
+      {
+        error: error.message || 'Image generation failed.',
+        code: error.code ?? 'IMAGE_GENERATION_FAILED',
+        upgrade: Boolean(error.upgrade),
+      },
+      error.status ?? 500,
+    );
+  }
+});
+
+router.post('/generate-video', requireOrg, zValidator('json', videoGenerationSchema), async (context) => {
+  const org = context.get('org');
+  const payload = context.req.valid('json');
+
+  if (!canAccessAgent(org.orgPlan, payload.agentId)) {
+    return context.json(
+      {
+        error: 'This agent is not available on your current plan.',
+        upgrade: true,
+      },
+      403,
+    );
+  }
+
+  let conversation = null;
+
+  if (payload.conversationId) {
+    conversation = await db.query.conversations.findFirst({
+      where: and(
+        eq(conversations.id, payload.conversationId),
+        eq(conversations.orgId, org.orgId),
+        eq(conversations.userId, org.userId),
+      ),
+    });
+
+    if (!conversation) {
+      return context.json({ error: 'Conversation not found' }, 404);
+    }
+
+    const mismatchResponse = buildConversationAgentMismatchResponse({
+      conversation,
+      requestedAgentId: payload.agentId,
+    });
+
+    if (mismatchResponse) {
+      return context.json(mismatchResponse.body, mismatchResponse.status);
+    }
+  } else {
+    [conversation] = await db
+      .insert(conversations)
+      .values({
+        orgId: org.orgId,
+        userId: org.userId,
+        agentId: payload.agentId,
+        lastActiveAt: new Date(),
+      })
+      .returning();
+  }
+
+  const reservation = await reserveVideoCredits({
+    orgId: org.orgId,
+    userId: org.userId,
+    conversationId: conversation.id,
+    prompt: payload.prompt,
+    durationSeconds: payload.durationSeconds,
+    resolution: payload.resolution,
+    aspectRatio: payload.aspectRatio,
+    metadata: {
+      route: '/agents/generate-video',
+      agentId: payload.agentId,
+    },
+  });
+
+  const userContent = `/video ${payload.prompt}`;
   const [userMessage] = await db
     .insert(messages)
     .values({
@@ -520,39 +841,11 @@ router.post('/generate-image', requireOrg, zValidator('json', imageGenerationSch
       role: 'user',
       content: userContent,
       metadata: {
-        tool: 'image-generation',
-        size: payload.size,
-        quality: payload.quality,
-      },
-    })
-    .returning();
-
-  const startedAt = Date.now();
-  const generatedImage = await generateImageAsset({
-    prompt: payload.prompt,
-    agent,
-    size: payload.size,
-    quality: payload.quality,
-    outputFormat: payload.outputFormat,
-    background: payload.background,
-  });
-
-  await consumeCredits(org.orgId, creditsRequired);
-
-  const assistantContent = buildImageMessage(agent.name, generatedImage.revisedPrompt ?? payload.prompt);
-  const [assistantMessage] = await db
-    .insert(messages)
-    .values({
-      conversationId: conversation.id,
-      role: 'assistant',
-      content: assistantContent,
-      processingMs: Date.now() - startedAt,
-      metadata: {
-        provider: 'openai',
-        route: 'openai-image',
-        routeReason: 'Used the OpenAI image generation pipeline for a direct visual asset request.',
-        model: generatedImage.model,
-        generatedImages: [generatedImage],
+        tool: 'video-generation',
+        durationSeconds: payload.durationSeconds,
+        resolution: payload.resolution,
+        aspectRatio: payload.aspectRatio,
+        videoJobId: reservation.job.id,
       },
     })
     .returning();
@@ -562,55 +855,69 @@ router.post('/generate-image', requireOrg, zValidator('json', imageGenerationSch
     .set({
       title: conversation.title || buildConversationTitle(userContent),
       lastActiveAt: new Date(),
-      messageCount: (conversation.messageCount ?? 0) + 2,
-      totalTokens: conversation.totalTokens ?? 0,
+      messageCount: (conversation.messageCount ?? 0) + 1,
     })
     .where(eq(conversations.id, conversation.id));
 
-  await Promise.all([
-    recordProductEvent({
-      orgId: org.orgId,
-      userId: org.userId,
-      eventName: 'image.generated',
-      metadata: {
-        agentId: payload.agentId,
-        conversationId: conversation.id,
-        creditsUsed: creditsRequired,
-        model: generatedImage.model,
-        size: generatedImage.size,
-        quality: generatedImage.quality,
-      },
-    }),
-    recordProductEvent({
-      orgId: org.orgId,
-      userId: org.userId,
-      eventName: 'activation.useful_output',
-      metadata: {
-        agentId: payload.agentId,
-        conversationId: conversation.id,
-        outputType: 'generated_image',
-      },
-    }),
-  ]);
+  await enqueueVideoGenerationJob(reservation.job.id);
 
   return context.json({
     conversationId: conversation.id,
     userMessageId: userMessage.id,
-    message: {
-      id: assistantMessage.id,
-      role: 'assistant',
-      content: assistantContent,
-      metadata: {
-        provider: 'openai',
-        route: 'openai-image',
-        routeReason: 'Used the OpenAI image generation pipeline for a direct visual asset request.',
-        model: generatedImage.model,
-        generatedImages: [generatedImage],
-      },
-      processingMs: Date.now() - startedAt,
+    jobId: reservation.job.id,
+    creditsUsed: reservation.burn.creditsUsed,
+    pollAfterMs: Math.max(reservation.costGuard?.throttleDelayMs ?? 0, 4_000),
+    threshold: reservation.threshold,
+  });
+});
+
+router.get('/video-jobs/:jobId', requireOrg, async (context) => {
+  const org = context.get('org');
+  const { jobId } = context.req.param();
+  const job = await db.query.videoGenerationEvents.findFirst({
+    where: and(
+      eq(videoGenerationEvents.id, jobId),
+      eq(videoGenerationEvents.orgId, org.orgId),
+    ),
+  });
+
+  if (!job) {
+    return context.json({ error: 'Video job not found.' }, 404);
+  }
+
+  const assistantMessage = job.messageId
+    ? await db.query.messages.findFirst({
+        where: eq(messages.id, job.messageId),
+      })
+    : null;
+
+  return context.json({
+    job: {
+      id: job.id,
+      status: job.status,
+      prompt: job.prompt,
+      durationSeconds: job.durationSeconds,
+      resolution: job.resolution,
+      aspectRatio: job.aspectRatio,
+      retryCount: job.retryCount,
+      maxRetries: job.maxRetries,
+      failureCode: job.failureCode,
+      failureMessage: job.failureMessage,
+      outputUrl: job.outputUrl,
+      createdAt: job.createdAt,
+      completedAt: job.completedAt,
+      creditsRequested: job.creditsRequested,
+      creditsCommitted: job.creditsCommitted,
     },
-    image: generatedImage,
-    creditsUsed: creditsRequired,
+    message: assistantMessage
+      ? {
+          id: assistantMessage.id,
+          role: assistantMessage.role,
+          content: assistantMessage.content,
+          metadata: assistantMessage.metadata,
+          processingMs: assistantMessage.processingMs ?? null,
+        }
+      : null,
   });
 });
 
@@ -851,8 +1158,6 @@ router.post('/oracle/audit', requireOrg, zValidator('json', urlAuditSchema), asy
   const org = context.get('org');
   const { url } = context.req.valid('json');
 
-  assertCreditsAvailable(org, 2);
-
   const auditPrompt = `Please perform a full technical SEO and content audit of this URL: ${url}
 
 Cover all of the following:
@@ -884,12 +1189,28 @@ End your response with a structured JSON summary block:
 }
 \`\`\``;
 
+  const auditReservation = await reserveExecutionCredits({
+    orgId: org.orgId,
+    userId: org.userId,
+    agentId: 'oracle',
+    requestId: context.get('requestId') ?? null,
+    baseCredits: 1,
+    estimatedContextTokens: estimateTokens(auditPrompt),
+    agentCount: 1,
+    metadata: {
+      route: '/agents/oracle/audit',
+      url,
+    },
+  });
+
   return streamSSE(context, async (stream) => {
-    let assistantText = '';
     let lastDoneEvent = null;
     const startedAt = Date.now();
+    let creditsCommitted = false;
 
     try {
+      await applyReservationThrottle(auditReservation);
+
       const generator = streamAgentResponse({
         agentId: 'oracle',
         orgId: org.orgId,
@@ -905,7 +1226,6 @@ End your response with a structured JSON summary block:
 
       for await (const event of generator) {
         if (event.type === 'text') {
-          assistantText += event.chunk;
           await stream.writeSSE({ data: JSON.stringify({ type: 'chunk', text: event.chunk }) });
         }
 
@@ -914,18 +1234,50 @@ End your response with a structured JSON summary block:
         }
       }
 
-      const creditsUsed = Math.max(Math.ceil((lastDoneEvent?.totalTokens ?? 0) / 1000), 2);
-      await consumeCredits(org.orgId, creditsUsed);
+      await commitExecutionUsage({
+        usageEventId: auditReservation.usageEvent.id,
+        provider: lastDoneEvent?.provider ?? null,
+        model: lastDoneEvent?.model ?? null,
+        promptTokens: lastDoneEvent?.inputTokens ?? null,
+        completionTokens: lastDoneEvent?.outputTokens ?? null,
+        totalTokens: lastDoneEvent?.totalTokens ?? lastDoneEvent?.tokensUsed ?? null,
+        estimatedCostUsd: estimateModelCostUsd({
+          provider: lastDoneEvent?.provider ?? null,
+          model: lastDoneEvent?.model ?? null,
+          promptTokens: lastDoneEvent?.inputTokens ?? 0,
+          completionTokens: lastDoneEvent?.outputTokens ?? 0,
+        }),
+        metadata: {
+          route: '/agents/oracle/audit',
+          url,
+          responseLength: 'long',
+        },
+      });
+      creditsCommitted = true;
 
       await stream.writeSSE({
         data: JSON.stringify({
           type: 'done',
           url,
-          tokensUsed: lastDoneEvent?.totalTokens ?? 0,
+          tokensUsed: lastDoneEvent?.totalTokens ?? lastDoneEvent?.tokensUsed ?? 0,
+          creditsUsed: auditReservation.burn.creditsUsed,
           processingMs: Date.now() - startedAt,
         }),
       });
     } catch (error) {
+      if (!creditsCommitted) {
+        await releaseExecutionUsage({
+          usageEventId: auditReservation.usageEvent.id,
+          reason: error.message,
+          metadata: {
+            route: '/agents/oracle/audit',
+            url,
+          },
+        }).catch((releaseError) => {
+          console.error('[BILLING] Failed to release oracle audit reservation:', releaseError.message);
+        });
+      }
+
       await stream.writeSSE({ data: JSON.stringify({ type: 'error', error: error.message }) });
     }
   });

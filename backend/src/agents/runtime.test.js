@@ -47,7 +47,29 @@ test('cipher contract keeps workflow memory out of read scope', () => {
   assert.equal(contract.memoryWriteScopes.includes('workflow_run'), false);
 });
 
-test('isStrictRuntimeAgent only flags the high-value contract set', () => {
-  assert.equal(isStrictRuntimeAgent('cipher'), true);
-  assert.equal(isStrictRuntimeAgent('atlas'), false);
+test('isStrictRuntimeAgent flags the expanded high-value contract set', () => {
+  // Original strict agents (kept)
+  for (const agentId of ['cipher', 'ledger', 'nexus', 'vance', 'herald', 'forge', 'sentinel']) {
+    assert.equal(isStrictRuntimeAgent(agentId), true, `${agentId} should be strict`);
+  }
+  // Newly added in WS1 — research / advisory agents that now require strict enforcement
+  for (const agentId of ['wren', 'oracle', 'scout', 'sage', 'atlas']) {
+    assert.equal(isStrictRuntimeAgent(agentId), true, `${agentId} should be strict after WS1`);
+  }
+  // Conversational / creative agents stay non-strict
+  for (const agentId of ['echo', 'pixel', 'lore']) {
+    assert.equal(isStrictRuntimeAgent(agentId), false, `${agentId} should remain non-strict`);
+  }
+});
+
+test('atlas runtime contract enforces strict runtime + structured output policy', () => {
+  const summary = buildRuntimeContractSummary('atlas');
+  assert.equal(summary.strictRuntime, true, 'atlas should report strict runtime after WS1');
+});
+
+test('validateContractToolUsage on strict agents rejects non-allowlisted tools', () => {
+  // sage was loosened pre-WS1 but is now strict — confirm tool policy is enforced.
+  const result = validateContractToolUsage('sage', ['email_send']);
+  assert.equal(result.valid, false);
+  assert.ok(result.violations.length > 0);
 });

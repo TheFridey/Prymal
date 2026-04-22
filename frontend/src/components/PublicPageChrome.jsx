@@ -105,7 +105,9 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
           </Link>
           <a className="marketing-link" href="/#agents">Agents</a>
           <a className="marketing-link" href="/#stack">Execution</a>
-          <a className="marketing-link" href="/#pricing">Pricing</a>
+          <Link className={`marketing-link${pathname === '/pricing' ? ' is-active' : ''}`} to="/pricing">
+            Pricing
+          </Link>
           <div className="dropdown" onMouseEnter={() => setAgentsOpen(true)} onMouseLeave={() => setAgentsOpen(false)}>
             <button type="button" className="marketing-link prymal-nav__trigger">
               Explore agents
@@ -155,7 +157,7 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
           <Link className="menu-link" to="/for-small-business" onClick={closeMenu}>For small business</Link>
           <a className="menu-link" href="/#agents" onClick={closeMenu}>Agents</a>
           <a className="menu-link" href="/#stack" onClick={closeMenu}>Execution</a>
-          <a className="menu-link" href="/#pricing" onClick={closeMenu}>Pricing</a>
+          <Link className="menu-link" to="/pricing" onClick={closeMenu}>Pricing</Link>
           <div className="slide-menu__section prymal-slide-menu__agents">
             {AGENT_LIBRARY.slice(0, 5).map((agent) => (
               <Link key={agent.id} className="menu-link" to={`/agents/${agent.id}`} onClick={closeMenu}>
@@ -189,7 +191,7 @@ export function PublicPageFooter({ sourcePrefix = '', onSignupClick = () => {} }
           <span className="prymal-footer__label">Use cases</span>
           <Link to="/for-agencies">For agencies</Link>
           <Link to="/for-small-business">For small business</Link>
-          <a href="/#pricing">Pricing</a>
+          <Link to="/pricing">Pricing</Link>
         </div>
         <div className="prymal-footer__column">
           <span className="prymal-footer__label">Product</span>

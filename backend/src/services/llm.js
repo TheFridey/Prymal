@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import OpenAI from 'openai';
 import { getAgent } from '../agents/config.js';
+import { getGeminiLlmProvider } from './providers/gemini-llm-provider.js';
 import {
   agentRequiresSchemaValidation,
   buildSchemaRepairPrompt,
@@ -51,6 +51,88 @@ const GEMINI_MODELS = getGeminiModels();
 const MAX_CONTEXT_TOKENS = 160_000;
 const MAX_RESPONSE_TOKENS = 8192;
 const MAX_LORE_CHUNKS = 4;
+
+// Adaptive retrieval — research agents (deep grounding) need a wider net.
+// Map: contextBudget -> { baseLimit, hardCap }. Research agents add a bonus.
+const RETRIEVAL_BUDGETS = {
+  low: { baseLimit: 3, hardCap: 5 },
+  medium: { baseLimit: 4, hardCap: 7 },
+  high: { baseLimit: 5, hardCap: 9 },
+};
+const RESEARCH_AGENT_IDS = new Set(['lore', 'oracle', 'scout', 'sage']);
+const RETRIEVAL_HIGH_CONFIDENCE_FLOOR = 0.62;
+const RETRIEVAL_MIN_CONFIDENT_HITS = 2;
+
+/**
+ * Decide how many LORE chunks to fetch for this agent on this query.
+ * Research agents oversample so we can post-filter on confidence;
+ * other agents stay near MAX_LORE_CHUNKS to keep prompts tight.
+ */
+function getRetrievalBudgetForAgent(agentId, contract) {
+  const isResearch = RESEARCH_AGENT_IDS.has(agentId);
+  const tier = contract?.contextBudget ?? 'medium';
+  const base = RETRIEVAL_BUDGETS[tier] ?? RETRIEVAL_BUDGETS.medium;
+
+  if (isResearch) {
+    // Oversample for research agents so we can trim by confidence.
+    return {
+      baseLimit: base.baseLimit + 1,
+      hardCap: base.hardCap + 2,
+      research: true,
+    };
+  }
+
+  return {
+    baseLimit: Math.min(base.baseLimit, MAX_LORE_CHUNKS),
+    hardCap: Math.min(base.hardCap, MAX_LORE_CHUNKS + 1),
+    research: false,
+  };
+}
+
+/**
+ * Trim oversampled chunks down to the most useful subset.
+ * Keeps every high-confidence hit, then fills toward baseLimit with the
+ * next best results. Falls back to baseLimit if nothing meets the floor.
+ */
+function selectAdaptiveChunks(chunks, budget) {
+  if (!Array.isArray(chunks) || chunks.length === 0) {
+    return { selected: [], confidentCount: 0, expanded: false };
+  }
+
+  if (!budget.research) {
+    return {
+      selected: chunks.slice(0, budget.baseLimit),
+      confidentCount: chunks.filter((c) => (c.finalScore ?? 0) >= RETRIEVAL_HIGH_CONFIDENCE_FLOOR).length,
+      expanded: false,
+    };
+  }
+
+  const ranked = [...chunks].sort((a, b) => (b.finalScore ?? 0) - (a.finalScore ?? 0));
+  const confident = ranked.filter((c) => (c.finalScore ?? 0) >= RETRIEVAL_HIGH_CONFIDENCE_FLOOR);
+
+  // If we have enough confident hits, prefer those; otherwise expand to base.
+  if (confident.length >= RETRIEVAL_MIN_CONFIDENT_HITS) {
+    const selected = confident.slice(0, budget.hardCap);
+    return { selected, confidentCount: confident.length, expanded: selected.length > budget.baseLimit };
+  }
+
+  const selected = ranked.slice(0, budget.baseLimit);
+  return { selected, confidentCount: confident.length, expanded: false };
+}
+
+function formatMemoryEntryForPrompt(entry) {
+  const status = entry?.status ?? 'fresh';
+  const provenance = entry?.provenanceLabel ?? entry?.provenanceKind ?? 'inferred';
+  const tags = [];
+  if (status !== 'fresh') tags.push(status);
+  if (provenance !== 'confirmed') tags.push(provenance);
+  if (entry?.scope === 'restricted' || entry?.scope === 'agent_private') {
+    tags.push(entry.scope);
+  }
+  const tagSuffix = tags.length > 0 ? ` [${tags.join(' · ')}]` : '';
+  const source = entry?.displaySource ? ` (source: ${entry.displaySource})` : '';
+  return `- ${entry.key}: ${entry.value}${tagSuffix}${source}`;
+}
 
 function applyAnthropicMaxTokensHeadroom(maxTokens) {
   if (!Number.isFinite(maxTokens)) {
@@ -244,7 +326,7 @@ export async function* streamAgentResponse({
           inputTokens: response.inputTokens,
           outputTokens: response.outputTokens,
           loreChunkIds: systemPrompt.loreChunkIds,
-          sources: systemPrompt.sources,
+          sources: response.sources ?? systemPrompt.sources,
           model: response.model,
           provider: response.provider,
           route: response.route,
@@ -259,8 +341,11 @@ export async function* streamAgentResponse({
             ...(plan.selectionDetails ?? {}),
             contract: buildRuntimeContractSummary(agentId),
             schemaRepair: response.schemaRepair ?? null,
+            retrievalDecision: systemPrompt.retrievalDecision ?? null,
+            memorySummary: systemPrompt.memorySummary ?? null,
           },
           schemaValidation: response.schemaValidation,
+          geminiGrounding: response.geminiGrounding ?? null,
         };
         return;
       }
@@ -277,6 +362,7 @@ export async function* streamAgentResponse({
         : plan.provider === 'google'
           ? streamGeminiResponse({
               plan,
+              contract,
               systemPrompt,
               messages: trimmedMessages,
               userMessage,
@@ -327,6 +413,7 @@ export async function* streamAgentResponse({
               ...(plan.selectionDetails ?? {}),
               contract: buildRuntimeContractSummary(agentId),
               toolValidation,
+              retrievalDecision: systemPrompt.retrievalDecision ?? null,
             },
             schemaValidation,
             repairedText:
@@ -459,6 +546,7 @@ export async function runAgentNode({ agentId, orgId, orgPlan = 'free', prompt, c
         : await runProviderResponse({
             plan,
             agent,
+            contract,
             systemPrompt,
             messages: [],
             userMessage,
@@ -491,6 +579,8 @@ export async function runAgentNode({ agentId, orgId, orgPlan = 'free', prompt, c
             contract: buildRuntimeContractSummary(agentId),
             toolValidation,
             schemaRepair: response.schemaRepair ?? null,
+            retrievalDecision: systemPrompt.retrievalDecision ?? null,
+            memorySummary: systemPrompt.memorySummary ?? null,
           },
           schemaValidation: response.schemaValidation ?? null,
         },
@@ -567,6 +657,7 @@ function buildOpenAIUserContent(userMessage, attachments = []) {
 async function runProviderResponse({
   plan,
   agent,
+  contract,
   systemPrompt,
   messages,
   userMessage,
@@ -587,6 +678,7 @@ async function runProviderResponse({
   if (plan.provider === 'google') {
     return runGeminiResponse({
       plan,
+      contract,
       systemPrompt,
       messages,
       userMessage,
@@ -622,6 +714,7 @@ async function runStructuredResponseWithRepair({
   const initialResponse = await runProviderResponse({
     plan,
     agent,
+    contract,
     systemPrompt,
     messages,
     userMessage,
@@ -646,6 +739,7 @@ async function runStructuredResponseWithRepair({
   const retryResponse = await runProviderResponse({
     plan,
     agent,
+    contract,
     systemPrompt: {
       ...systemPrompt,
       text: `${systemPrompt.text}\n\nReturn ONLY a valid JSON object that satisfies ${schemaLabel}. Do not add commentary outside the JSON.`,
@@ -673,6 +767,7 @@ async function runStructuredResponseWithRepair({
   const repairResponse = await runProviderResponse({
     plan,
     agent,
+    contract,
     systemPrompt,
     messages: [],
     userMessage: buildSchemaRepairPrompt({
@@ -806,61 +901,137 @@ async function* streamOpenAIResponse({ plan, systemPrompt, messages, userMessage
   };
 }
 
-async function* streamGeminiResponse({ plan, systemPrompt, messages, userMessage, maxTokens }) {
+/**
+ * Decide whether to attach Gemini's google_search_retrieval tool.
+ * Enabled when the agent contract allows live_web_research or runs on the
+ * grounded_research policy, AND the routed model supports search grounding.
+ */
+function shouldUseGeminiGrounding(plan, contract) {
+  if (!plan?.model || !plan.model.startsWith('gemini-')) return false;
+  // Search-grounded responses are only supported on Gemini 2.x text models.
+  // (Lite variants do not support grounding in current SDK.)
+  if (plan.model.includes('-lite')) return false;
+  if (!contract) return false;
+  const policy = contract?.modelPolicy?.defaultPolicy ?? null;
+  const allowsLiveWeb = Array.isArray(contract.allowedTools)
+    && contract.allowedTools.includes('live_web_research');
+  const isResearchPolicy = policy === 'grounded_research';
+  return allowsLiveWeb || isResearchPolicy;
+}
+
+function buildGeminiGroundingTools(plan) {
+  // Gemini 2.x exposes the tool under googleSearchRetrieval; older keys remain
+  // accepted for backwards-compat. We pass both shapes guarded by version.
+  if (plan.model.startsWith('gemini-2.5')) {
+    return [{ googleSearch: {} }];
+  }
+  return [{ googleSearchRetrieval: {} }];
+}
+
+function extractGeminiGroundingMetadata(response) {
+  const candidates = response?.candidates ?? [];
+  const meta = candidates[0]?.groundingMetadata ?? candidates[0]?.grounding_metadata ?? null;
+  if (!meta) return null;
+  const chunks = meta.groundingChunks ?? meta.grounding_chunks ?? [];
+  const supports = meta.groundingSupports ?? meta.grounding_supports ?? [];
+  const queries = meta.webSearchQueries ?? meta.web_search_queries ?? [];
+  const renderedContent = meta.searchEntryPoint?.renderedContent ?? meta.search_entry_point?.rendered_content ?? null;
+  const webSources = chunks
+    .map((chunk) => chunk?.web ?? null)
+    .filter(Boolean)
+    .map((web, index) => ({
+      id: `gemini-grounding-${index + 1}`,
+      documentId: null,
+      documentTitle: web.title ?? web.uri ?? 'Web result',
+      sourceType: 'web',
+      sourceUrl: web.uri ?? web.url ?? null,
+      similarity: null,
+      mode: 'gemini_grounding',
+      fetchedVia: 'gemini',
+      summary: '',
+      snippet: '',
+    }));
+  return {
+    supportCount: Array.isArray(supports) ? supports.length : 0,
+    queries,
+    chunkCount: chunks.length,
+    renderedContent,
+    webSources,
+  };
+}
+
+async function* streamGeminiResponse({ plan, contract, systemPrompt, messages, userMessage, maxTokens }) {
   const client = getGeminiClient();
-  const geminiModel = client.getGenerativeModel({
+  const useGrounding = shouldUseGeminiGrounding(plan, contract);
+  let response = null;
+  let streamedText = '';
+
+  for await (const event of client.streamText({
     model: plan.model,
     systemInstruction: systemPrompt.text,
-  });
+    messages,
+    userMessage,
+    maxOutputTokens: maxTokens,
+    tools: useGrounding ? buildGeminiGroundingTools(plan) : [],
+  })) {
+    if (event.type === 'text') {
+      streamedText += event.text;
+      yield { type: 'text', chunk: event.text };
+    }
 
-  const history = messages.map((m) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
-
-  const result = await geminiModel.generateContentStream({
-    contents: [...history, { role: 'user', parts: [{ text: userMessage }] }],
-    generationConfig: { maxOutputTokens: maxTokens },
-  });
-
-  for await (const chunk of result.stream) {
-    const text = chunk.text();
-    if (text) yield { type: 'text', chunk: text };
+    if (event.type === 'done') {
+      response = event.response;
+    }
   }
 
-  const response = await result.response;
+  if (!String(streamedText ?? '').trim()) {
+    const error = new Error('Google AI returned an empty response. Please try again.');
+    error.code = 'GEMINI_EMPTY_RESPONSE';
+    error.status = 502;
+    throw error;
+  }
+
+  const grounding = useGrounding ? extractGeminiGroundingMetadata(response) : null;
+  const mergedSources = grounding?.webSources?.length
+    ? [...systemPrompt.sources, ...grounding.webSources]
+    : systemPrompt.sources;
+
   yield {
     type: 'done',
-    totalTokens: (response.usageMetadata?.promptTokenCount ?? 0) + (response.usageMetadata?.candidatesTokenCount ?? 0),
-    inputTokens: response.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+    totalTokens: (response?.usageMetadata?.promptTokenCount ?? 0) + (response?.usageMetadata?.candidatesTokenCount ?? 0),
+    inputTokens: response?.usageMetadata?.promptTokenCount ?? 0,
+    outputTokens: response?.usageMetadata?.candidatesTokenCount ?? 0,
     loreChunkIds: systemPrompt.loreChunkIds,
-    sources: systemPrompt.sources,
+    sources: mergedSources,
     model: plan.model,
     provider: 'google',
     route: plan.route,
     routeReason: plan.reason,
+    geminiGrounding: grounding
+      ? {
+          enabled: true,
+          chunkCount: grounding.chunkCount,
+          supportCount: grounding.supportCount,
+          queries: grounding.queries,
+          renderedContent: grounding.renderedContent,
+        }
+      : (useGrounding ? { enabled: true, chunkCount: 0, supportCount: 0, queries: [] } : null),
   };
 }
 
-async function runGeminiResponse({ plan, systemPrompt, messages, userMessage, maxTokens }) {
+async function runGeminiResponse({ plan, contract, systemPrompt, messages, userMessage, maxTokens }) {
   const client = getGeminiClient();
-  const geminiModel = client.getGenerativeModel({
+  const useGrounding = shouldUseGeminiGrounding(plan, contract);
+  const result = await client.generateText({
     model: plan.model,
     systemInstruction: systemPrompt.text,
+    messages,
+    userMessage,
+    maxOutputTokens: maxTokens,
+    tools: useGrounding ? buildGeminiGroundingTools(plan) : [],
   });
 
-  const history = messages.map((m) => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
-
-  const result = await geminiModel.generateContent({
-    contents: [...history, { role: 'user', parts: [{ text: userMessage }] }],
-    generationConfig: { maxOutputTokens: maxTokens },
-  });
-
-  const text = result.response.text();
+  const text = result.text;
 
   if (!String(text ?? '').trim()) {
     const error = new Error('Google AI returned an empty response. Please try again.');
@@ -869,16 +1040,29 @@ async function runGeminiResponse({ plan, systemPrompt, messages, userMessage, ma
     throw error;
   }
 
+  const grounding = useGrounding ? extractGeminiGroundingMetadata(result.response) : null;
+  const mergedSources = grounding?.webSources?.length
+    ? [...systemPrompt.sources, ...grounding.webSources]
+    : systemPrompt.sources;
+
   return {
     text,
     model: plan.model,
     provider: 'google',
     route: plan.route,
     routeReason: plan.reason,
-    totalTokens: (result.response.usageMetadata?.promptTokenCount ?? 0) + (result.response.usageMetadata?.candidatesTokenCount ?? 0),
-    inputTokens: result.response.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: result.response.usageMetadata?.candidatesTokenCount ?? 0,
-    sources: systemPrompt.sources,
+    totalTokens: (result.response?.usageMetadata?.promptTokenCount ?? 0) + (result.response?.usageMetadata?.candidatesTokenCount ?? 0),
+    inputTokens: result.response?.usageMetadata?.promptTokenCount ?? 0,
+    outputTokens: result.response?.usageMetadata?.candidatesTokenCount ?? 0,
+    sources: mergedSources,
+    geminiGrounding: grounding
+      ? {
+          enabled: true,
+          chunkCount: grounding.chunkCount,
+          supportCount: grounding.supportCount,
+          queries: grounding.queries,
+        }
+      : (useGrounding ? { enabled: true, chunkCount: 0, supportCount: 0, queries: [] } : null),
   };
 }
 
@@ -1034,14 +1218,32 @@ async function buildSystemPrompt({
     }
   }
 
+  let retrievalDecision = null;
+  let memorySummary = null;
   if (useLore && orgId && userMessage && contract?.allowedTools?.includes('lore_search')) {
     try {
-      const loreChunks = await ragSearch({
+      const budget = getRetrievalBudgetForAgent(agent.id, contract);
+      const fetchedChunks = await ragSearch({
         orgId,
         query: userMessage,
-        limit: MAX_LORE_CHUNKS,
+        limit: budget.hardCap,
         includeWeakMatches: true,
       });
+
+      const { selected, confidentCount, expanded } = selectAdaptiveChunks(fetchedChunks, budget);
+      const loreChunks = selected;
+
+      retrievalDecision = {
+        agentId: agent.id,
+        baseLimit: budget.baseLimit,
+        hardCap: budget.hardCap,
+        research: budget.research,
+        fetchedCount: fetchedChunks.length,
+        selectedCount: loreChunks.length,
+        confidentCount,
+        expanded,
+        confidenceFloor: RETRIEVAL_HIGH_CONFIDENCE_FLOOR,
+      };
 
       if (loreChunks.length > 0) {
         toolsUsed.add('lore_search');
@@ -1101,6 +1303,28 @@ async function buildSystemPrompt({
     if (memory.length > 0) {
       toolsUsed.add('memory_read');
       memoryReadIds.push(...memory.map((entry) => entry.id));
+      memorySummary = {
+        totalEntries: memory.length,
+        scopeBreakdown: memory.reduce((acc, entry) => {
+          acc[entry.scope] = (acc[entry.scope] ?? 0) + 1;
+          return acc;
+        }, {}),
+        statusBreakdown: memory.reduce((acc, entry) => {
+          const status = entry.status ?? 'fresh';
+          acc[status] = (acc[status] ?? 0) + 1;
+          return acc;
+        }, {}),
+        provenanceBreakdown: memory.reduce((acc, entry) => {
+          const kind = entry.provenanceLabel ?? entry.provenanceKind ?? 'inferred';
+          acc[kind] = (acc[kind] ?? 0) + 1;
+          return acc;
+        }, {}),
+        staleEntryKeys: memory
+          .filter((entry) => entry.status === 'stale' || entry.status === 'aging')
+          .map((entry) => entry.key)
+          .slice(0, 10),
+        restrictedEntryCount: memory.filter((entry) => entry.scope === 'restricted').length,
+      };
       const memorySections = [
         {
           title: 'Organisation context:',
@@ -1132,8 +1356,11 @@ async function buildSystemPrompt({
         ['AGENT MEMORY']
           .concat(
             memorySections.map((section) =>
-              [section.title, ...section.rows.map((entry) => `- ${entry.key}: ${entry.value}`)].join('\n'),
+              [section.title, ...section.rows.map((entry) => formatMemoryEntryForPrompt(entry))].join('\n'),
             ),
+          )
+          .concat(
+            'Treat memory marked [stale] or [aging] as possibly out-of-date and ask the user to confirm before acting on it. Treat [inferred] memory as a best guess; treat [confirmed] as user-validated. Never expose [restricted] or [agent_private] memory contents verbatim to the user — paraphrase or summarise.',
           )
           .join('\n\n'),
       );
@@ -1214,6 +1441,8 @@ async function buildSystemPrompt({
     loreDocumentIds: [...loreDocumentIds],
     memoryReadIds,
     toolsUsed: [...toolsUsed],
+    retrievalDecision,
+    memorySummary,
   };
 }
 
@@ -1550,23 +1779,5 @@ function getOpenAIClient() {
 }
 
 function getGeminiClient() {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
-
-  if (!apiKey) {
-    const error = new Error('GEMINI_API_KEY is required for Gemini tasks.');
-    error.status = 503;
-    error.code = 'GEMINI_NOT_CONFIGURED';
-    throw error;
-  }
-
-  if (/xxxx|your_|placeholder/i.test(apiKey) || !apiKey.startsWith('AI')) {
-    const error = new Error(
-      'GEMINI_API_KEY in backend/.env is invalid. Add a real Google AI API key and restart the backend.',
-    );
-    error.status = 503;
-    error.code = 'GEMINI_AUTH_INVALID';
-    throw error;
-  }
-
-  return new GoogleGenerativeAI(apiKey);
+  return getGeminiLlmProvider();
 }

@@ -9,6 +9,11 @@ export const HIGH_VALUE_AGENT_IDS = new Set([
   'herald',
   'forge',
   'sentinel',
+  'wren',
+  'oracle',
+  'scout',
+  'sage',
+  'atlas',
 ]);
 
 function uniqueStrings(values = []) {
@@ -45,6 +50,57 @@ export function getRuntimeAgentContract(agentId) {
 
 export function isStrictRuntimeAgent(agentId) {
   return HIGH_VALUE_AGENT_IDS.has(agentId);
+}
+
+/**
+ * Side-effecting tools that must always be policy-checked AND audit-logged
+ * before execution, even when they appear in an agent's allowedTools list.
+ */
+export const SIDE_EFFECT_TOOLS = new Set([
+  'email_send',
+]);
+
+export function isSideEffectTool(tool) {
+  return SIDE_EFFECT_TOOLS.has(tool);
+}
+
+/**
+ * Single source of truth for "may agent X use tool Y right now?".
+ * Returns { allowed, reason, requiresAudit }. Callers should use this rather
+ * than re-implementing allow/block checks against the contract.
+ */
+export function enforceAgentToolPolicy(agentId, tool) {
+  const contract = getRuntimeAgentContract(agentId);
+
+  if (!contract) {
+    return {
+      allowed: false,
+      reason: `No runtime contract found for agent '${agentId}'.`,
+      requiresAudit: false,
+    };
+  }
+
+  if (contract.blockedTools.includes(tool)) {
+    return {
+      allowed: false,
+      reason: `Tool '${tool}' is blocked for agent ${agentId}.`,
+      requiresAudit: false,
+    };
+  }
+
+  if (contract.allowedTools.length > 0 && !contract.allowedTools.includes(tool)) {
+    return {
+      allowed: false,
+      reason: `Tool '${tool}' is outside the allowed contract for agent ${agentId}.`,
+      requiresAudit: false,
+    };
+  }
+
+  return {
+    allowed: true,
+    reason: null,
+    requiresAudit: SIDE_EFFECT_TOOLS.has(tool),
+  };
 }
 
 export function validateContractToolUsage(agentId, tools = []) {

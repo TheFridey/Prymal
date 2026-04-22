@@ -6,7 +6,7 @@ import { db } from '../db/index.js';
 import { organisations, workflowRuns, workflows, workflowWebhooks } from '../db/schema.js';
 import { requireOrg, requireRole } from '../middleware/auth.js';
 import { planAwareRateLimit } from '../middleware/rateLimit.js';
-import { assertCreditsAvailable, creditsRemaining } from '../services/entitlements.js';
+import { creditsRemaining } from '../services/entitlements.js';
 import { dispatchWorkflowRun, hasTriggerDevConfig, registerCron, unregisterCron } from '../queue/trigger.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
 import { validateWorkflowDefinition } from '../services/workflow-engine.js';
@@ -410,7 +410,14 @@ router.post('/:id/run', requireOrg, planAwareRateLimit({
     return context.json({ error: 'Workflow not found.' }, 404);
   }
 
-  assertCreditsAvailable(org, 1);
+  const executionAvailable = org.credits?.execution?.available ?? 0;
+  if (executionAvailable <= 0) {
+    return context.json({
+      error: 'Execution credits exhausted. Purchase an execution pack or upgrade to continue.',
+      code: 'EXECUTION_CREDITS_EXHAUSTED',
+      upgrade: true,
+    }, 402);
+  }
 
   if (idempotencyKey) {
     const existingRun = await db.query.workflowRuns.findFirst({

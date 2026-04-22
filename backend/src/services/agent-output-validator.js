@@ -482,6 +482,213 @@ function buildRepairNotes(errors = []) {
   return `Auto-repaired structured output: ${notes.join('; ')}.`;
 }
 
+// ─── Semantic validation ──────────────────────────────────────────
+// Beyond schema-shape correctness, these checks catch outputs that pass
+// the JSON contract but are semantically degenerate (boilerplate, empty
+// arrays where content was expected, contradictions, missing caveats on
+// low-confidence claims). Returns { warnings, blocks }.
+//   - warnings: noteworthy issues that should surface in trace metadata
+//   - blocks:   problems severe enough to demote the verdict to 'failed'
+
+const SEMANTIC_VALIDATORS = {
+  cipher: validateCipherSemantics,
+  ledger: validateLedgerSemantics,
+  nexus: validateNexusSemantics,
+  vance: validateVanceSemantics,
+  herald: validateHeraldSemantics,
+};
+
+function isLikelyBoilerplate(text) {
+  if (typeof text !== 'string') return false;
+  const trimmed = text.trim().toLowerCase();
+  if (trimmed.length < 12) return true;
+  return /(more (data|context|information) needed|tbd|to be (determined|decided)|n\/a|placeholder|insufficient (data|context))/.test(trimmed);
+}
+
+function validateCipherSemantics(parsed) {
+  const warnings = [];
+  const blocks = [];
+
+  const metricsCount = parsed.keyMetrics ? Object.keys(parsed.keyMetrics).length : 0;
+  if (metricsCount === 0) {
+    blocks.push('cipher.keyMetrics is empty — analysis must surface at least one metric.');
+  }
+
+  if (!Array.isArray(parsed.recommendations) || parsed.recommendations.length === 0) {
+    blocks.push('cipher.recommendations is empty — every scorecard must include at least one action.');
+  }
+
+  if (Array.isArray(parsed.recommendations) && parsed.recommendations.every(isLikelyBoilerplate)) {
+    blocks.push('cipher.recommendations are all boilerplate — replace with concrete actions.');
+  }
+
+  const anomalies = Array.isArray(parsed.anomalies) ? parsed.anomalies : [];
+  for (const anomaly of anomalies) {
+    if (!anomaly?.metric && (anomaly?.severity === 'high' || anomaly?.severity === 'medium')) {
+      warnings.push(`cipher anomaly "${(anomaly?.description ?? '').slice(0, 60)}" is ${anomaly.severity} severity but has no metric reference.`);
+    }
+  }
+
+  if (typeof parsed.confidence === 'number' && parsed.confidence < 0.5 && (!parsed.dataQuality || parsed.dataQuality === 'high')) {
+    warnings.push('cipher confidence is low but dataQuality is not flagged — reconcile or downgrade dataQuality.');
+  }
+
+  return { warnings, blocks };
+}
+
+function validateLedgerSemantics(parsed) {
+  const warnings = [];
+  const blocks = [];
+
+  const totals = parsed.totals ?? {};
+  const margin = totals.grossMargin;
+  const revenue = totals.revenue;
+  const costs = totals.costs;
+
+  if (typeof revenue === 'number' && typeof costs === 'number' && typeof margin === 'number') {
+    const expected = revenue - costs;
+    if (Math.abs(expected - margin) > Math.max(1, Math.abs(expected) * 0.05)) {
+      blocks.push(`ledger.totals.grossMargin (${margin}) does not match revenue - costs (${expected}).`);
+    }
+  }
+
+  const forecasts = Array.isArray(parsed.forecasts) ? parsed.forecasts : [];
+  if (forecasts.length === 0) {
+    blocks.push('ledger.forecasts is empty — finance summaries must include at least one forecast.');
+  }
+
+  const lowConfForecast = forecasts.find((f) => f?.confidence === 'low');
+  if (lowConfForecast && (!Array.isArray(parsed.confidenceNotes) || parsed.confidenceNotes.length === 0)) {
+    blocks.push('ledger has low-confidence forecast but no confidenceNotes — add caveats explaining the uncertainty.');
+  }
+
+  const flags = Array.isArray(parsed.flags) ? parsed.flags : [];
+  for (const flag of flags) {
+    if (flag?.severity === 'high' && isLikelyBoilerplate(flag.description)) {
+      warnings.push(`ledger high-severity flag is boilerplate: "${(flag.description ?? '').slice(0, 60)}".`);
+    }
+  }
+
+  return { warnings, blocks };
+}
+
+function validateNexusSemantics(parsed) {
+  const warnings = [];
+  const blocks = [];
+
+  const steps = Array.isArray(parsed.steps) ? parsed.steps : [];
+  if (steps.length === 0) {
+    blocks.push('nexus.steps is empty — workflow must declare at least one step.');
+  }
+
+  const stepIds = new Set(steps.map((s) => s?.stepId).filter(Boolean));
+  if (stepIds.size !== steps.length) {
+    blocks.push('nexus.steps has duplicate stepId values — every step must have a unique id.');
+  }
+
+  const nodeIds = new Set((parsed.nodeGraph?.nodes ?? []).map((n) => n?.id).filter(Boolean));
+  const edges = parsed.nodeGraph?.edges ?? [];
+  for (const edge of edges) {
+    if (edge?.from && !nodeIds.has(edge.from)) {
+      blocks.push(`nexus.nodeGraph.edge references unknown node "from: ${edge.from}".`);
+    }
+    if (edge?.to && !nodeIds.has(edge.to)) {
+      blocks.push(`nexus.nodeGraph.edge references unknown node "to: ${edge.to}".`);
+    }
+  }
+
+  const failureModes = Array.isArray(parsed.failureModes) ? parsed.failureModes : [];
+  for (const mode of failureModes) {
+    if (isLikelyBoilerplate(mode?.mitigation)) {
+      warnings.push(`nexus failureMode mitigation is boilerplate: "${(mode?.scenario ?? '').slice(0, 60)}".`);
+    }
+  }
+
+  return { warnings, blocks };
+}
+
+function validateVanceSemantics(parsed) {
+  const warnings = [];
+  const blocks = [];
+
+  if (typeof parsed.qualificationScore === 'number' && parsed.qualificationScore >= 7
+      && (parsed.stage === 'prospect' || parsed.stage === 'nurture')) {
+    blocks.push(`vance qualificationScore is ${parsed.qualificationScore} but stage is "${parsed.stage}" — promote to qualified or higher, or lower the score.`);
+  }
+
+  if (typeof parsed.qualificationScore === 'number' && parsed.qualificationScore <= 3
+      && (parsed.stage === 'proposal' || parsed.stage === 'negotiation' || parsed.stage === 'closed_won')) {
+    blocks.push(`vance qualificationScore is ${parsed.qualificationScore} but stage is "${parsed.stage}" — these are inconsistent.`);
+  }
+
+  if (parsed.budget?.confirmed === true && typeof parsed.budget?.estimatedValue !== 'number') {
+    warnings.push('vance.budget marked confirmed but estimatedValue is missing.');
+  }
+
+  if (isLikelyBoilerplate(parsed.nextAction) || isLikelyBoilerplate(parsed.suggestedNextAction)) {
+    blocks.push('vance.nextAction or suggestedNextAction is boilerplate — be specific about the next step.');
+  }
+
+  return { warnings, blocks };
+}
+
+function validateHeraldSemantics(parsed) {
+  const warnings = [];
+  const blocks = [];
+
+  const emails = Array.isArray(parsed.emails) ? parsed.emails : [];
+  if (emails.length === 0) {
+    blocks.push('herald.emails is empty — sequence must include at least one email.');
+  }
+
+  const sendDays = emails.map((e) => e?.sendDay).filter((d) => typeof d === 'number');
+  for (let i = 1; i < sendDays.length; i += 1) {
+    if (sendDays[i] < sendDays[i - 1]) {
+      blocks.push(`herald.emails sendDay sequence is out of order (email ${i + 1} sends before email ${i}).`);
+      break;
+    }
+  }
+
+  const subjectsLower = new Set();
+  for (const email of emails) {
+    if (typeof email?.subject === 'string') {
+      const key = email.subject.trim().toLowerCase();
+      if (subjectsLower.has(key)) {
+        warnings.push(`herald sequence has duplicate subject lines: "${email.subject}".`);
+      }
+      subjectsLower.add(key);
+    }
+    if (typeof email?.subject === 'string' && typeof email?.body === 'string'
+        && email.subject.trim().toLowerCase() === email.body.trim().toLowerCase()) {
+      blocks.push(`herald email ${email.emailNumber ?? '?'} has identical subject and body.`);
+    }
+    if (isLikelyBoilerplate(email?.cta)) {
+      warnings.push(`herald email ${email?.emailNumber ?? '?'} CTA looks generic: "${email?.cta ?? ''}".`);
+    }
+  }
+
+  if (typeof parsed.totalEmails === 'number' && parsed.totalEmails !== emails.length) {
+    warnings.push(`herald.totalEmails (${parsed.totalEmails}) does not match emails.length (${emails.length}).`);
+  }
+
+  return { warnings, blocks };
+}
+
+export function runSemanticValidators(agentId, parsed) {
+  const validator = SEMANTIC_VALIDATORS[agentId];
+  if (!validator || !parsed || typeof parsed !== 'object') {
+    return { warnings: [], blocks: [] };
+  }
+  try {
+    return validator(parsed);
+  } catch (error) {
+    return {
+      warnings: [`Semantic validator threw: ${error.message}`],
+      blocks: [],
+    };
+  }
+}
+
 // ─── Main export ──────────────────────────────────────────────────
 
 /**
@@ -547,7 +754,12 @@ export function validateAgentOutput(agentId, responseText) {
   // 2. Validate
   const { valid, errors } = validateAgainstSchema(parsed, schema);
   if (valid) {
-    return { verdict: 'pass', parsed, errors: [], repairNotes: null };
+    return finalizeWithSemantics(agentId, {
+      verdict: 'pass',
+      parsed,
+      errors: [],
+      repairNotes: null,
+    });
   }
 
   // 3. Repair attempt — only structural/missing-field repairs
@@ -555,19 +767,56 @@ export function validateAgentOutput(agentId, responseText) {
   const { valid: repairedValid, errors: repairedErrors } = validateAgainstSchema(repaired, schema);
 
   if (repairedValid) {
-    return {
+    return finalizeWithSemantics(agentId, {
       verdict: 'repaired',
       parsed: repaired,
       errors,
       repairNotes: buildRepairNotes(errors),
-    };
+    });
   }
 
-  return {
+  return finalizeWithSemantics(agentId, {
     verdict: 'failed',
     parsed,
     errors: repairedErrors,
     repairNotes: `Repair attempted but ${repairedErrors.length} error(s) remain.`,
+  });
+}
+
+function finalizeWithSemantics(agentId, result) {
+  if (!result.parsed) {
+    return result;
+  }
+
+  const { warnings, blocks } = runSemanticValidators(agentId, result.parsed);
+
+  if (warnings.length === 0 && blocks.length === 0) {
+    return result;
+  }
+
+  const semanticErrors = [...blocks, ...warnings.map((w) => `[warning] ${w}`)];
+  const combinedErrors = [...(result.errors ?? []), ...semanticErrors];
+
+  if (blocks.length > 0) {
+    const repairNotes = result.repairNotes
+      ? `${result.repairNotes} Semantic check failed: ${blocks.length} block${blocks.length === 1 ? '' : 's'}.`
+      : `Semantic check failed: ${blocks.join(' ')}`;
+    return {
+      ...result,
+      verdict: 'failed',
+      errors: combinedErrors,
+      repairNotes,
+      semantic: { warnings, blocks },
+    };
+  }
+
+  return {
+    ...result,
+    errors: combinedErrors,
+    repairNotes: result.repairNotes
+      ? `${result.repairNotes} Semantic warnings: ${warnings.length}.`
+      : `Semantic warnings: ${warnings.join(' ')}`,
+    semantic: { warnings, blocks: [] },
   };
 }
 

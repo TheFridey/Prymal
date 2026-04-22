@@ -392,6 +392,12 @@ function TraceDetailContent({ detail, onOpenWorkflowRun, onOpenReceipt }) {
   const schemaVerdict = trace.schemaValidation?.verdict ?? 'skipped';
   const sentinelVerdict = trace.sentinelReview?.verdict ?? 'skipped';
   const fallbackDepth = routing.fallbackDepth ?? 0;
+  const enforcement = trace.enforcementSummary ?? null;
+  const semanticBlocks = trace.schemaValidation?.semantic?.blocks ?? enforcement?.semanticBlocks ?? [];
+  const semanticWarnings = trace.schemaValidation?.semantic?.warnings ?? enforcement?.semanticWarnings ?? [];
+  const retrievalDecision = enforcement?.retrieval ?? routing.retrievalDecision ?? null;
+  const memorySummary = enforcement?.memory ?? routing.memorySummary ?? null;
+  const geminiGrounding = trace.geminiGrounding ?? null;
   const runtimeSignals = [
     `${formatNumber(retrievalSources.length)} source${retrievalSources.length === 1 ? '' : 's'}`,
     `${formatNumber(trace.toolsUsed.length)} tool${trace.toolsUsed.length === 1 ? '' : 's'}`,
@@ -405,7 +411,9 @@ function TraceDetailContent({ detail, onOpenWorkflowRun, onOpenReceipt }) {
     || trace.failureClass
     || trace.errorMessage
     || trace.sentinelReview?.hold_reason
-    || (trace.sentinelReview?.repair_actions ?? []).length > 0,
+    || (trace.sentinelReview?.repair_actions ?? []).length > 0
+    || semanticBlocks.length > 0
+    || semanticWarnings.length > 0,
   );
   const failureReason = trace.errorMessage ?? trace.sentinelReview?.hold_reason ?? trace.routeReason ?? null;
   const linkedContext = [
@@ -576,6 +584,26 @@ function TraceDetailContent({ detail, onOpenWorkflowRun, onOpenReceipt }) {
                 </small>
               </MotionListItem>
             ) : null}
+            {semanticBlocks.length > 0 || semanticWarnings.length > 0 ? (
+              <MotionListItem reveal={{ y: 10, blur: 4 }} className="staff-admin__queue-item">
+                <div className="staff-admin__queue-head">
+                  <strong>Semantic checks</strong>
+                  <span>{semanticBlocks.length} block{semanticBlocks.length === 1 ? '' : 's'} | {semanticWarnings.length} warning{semanticWarnings.length === 1 ? '' : 's'}</span>
+                </div>
+                {semanticBlocks.length > 0 ? (
+                  <p style={{ color: '#ef4444' }}>
+                    {semanticBlocks.slice(0, 3).join(' | ')}
+                  </p>
+                ) : null}
+                {semanticWarnings.length > 0 ? (
+                  <small style={{ color: '#f59e0b' }}>
+                    {semanticWarnings.slice(0, 3).join(' | ')}
+                  </small>
+                ) : (
+                  <small>{semanticBlocks.length > 0 ? 'No softer warnings recorded.' : 'No semantic warnings attached.'}</small>
+                )}
+              </MotionListItem>
+            ) : null}
             {trace.failureClass || trace.errorMessage ? (
               <MotionListItem reveal={{ y: 10, blur: 4 }} className="staff-admin__queue-item">
                 <div className="staff-admin__queue-head">
@@ -624,6 +652,176 @@ function TraceDetailContent({ detail, onOpenWorkflowRun, onOpenReceipt }) {
           <div className="staff-admin__empty">No eval record was attached to this trace.</div>
         )}
       </section>
+
+      {enforcement ? (
+        <section className="staff-admin__drawer-section">
+          <div className="staff-admin__surface-label">Trust enforcement</div>
+          <div className="staff-admin__chip-row">
+            {enforcement.strictRuntime ? <span className="staff-admin__chip">Strict runtime</span> : null}
+            {enforcement.schemaEnforced ? <span className="staff-admin__chip">Schema enforced</span> : null}
+            {enforcement.citationRequired ? <span className="staff-admin__chip">Citations required</span> : null}
+            {enforcement.toolViolationCount > 0 ? (
+              <span className="staff-admin__chip" style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+                {enforcement.toolViolationCount} tool violation{enforcement.toolViolationCount === 1 ? '' : 's'}
+              </span>
+            ) : null}
+            {enforcement.hallucinationOverThreshold ? (
+              <span className="staff-admin__chip" style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+                Hallucination risk over threshold
+              </span>
+            ) : null}
+            {enforcement.contradictionCount > 0 ? (
+              <span className="staff-admin__chip" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
+                {enforcement.contradictionCount} contradiction{enforcement.contradictionCount === 1 ? '' : 's'}
+              </span>
+            ) : null}
+            {(enforcement.disallowedToolsUsed ?? []).map((tool) => (
+              <span key={`disallowed-${tool}`} className="staff-admin__chip" style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
+                Disallowed: {tool}
+              </span>
+            ))}
+            {(enforcement.toolViolationTypes ?? []).map((violationType) => (
+              <span key={`vtype-${violationType}`} className="staff-admin__chip">
+                {humanize(violationType)}
+              </span>
+            ))}
+          </div>
+          <div className="staff-admin__drawer-grid">
+            <DetailBlock label="Hallucination risk">{humanize(enforcement.hallucinationRiskLevel ?? 'unknown')}</DetailBlock>
+            <DetailBlock label="Citation rate">{enforcement.citationRate != null ? formatRate(enforcement.citationRate) : 'n/a'}</DetailBlock>
+            <DetailBlock label="Citation count">{formatNumber(enforcement.citationCount ?? 0)}</DetailBlock>
+            <DetailBlock label="Groundedness">{humanize(enforcement.groundedness ?? 'unknown')}</DetailBlock>
+            <DetailBlock label="SENTINEL risk score">{enforcement.sentinelRiskScore != null ? Number(enforcement.sentinelRiskScore).toFixed(2) : 'n/a'}</DetailBlock>
+            <DetailBlock label="Tool violation action">{enforcement.toolViolationAction ? humanize(enforcement.toolViolationAction) : 'none'}</DetailBlock>
+          </div>
+          {enforcement.agentFields ? (
+            <>
+              <div className="staff-admin__surface-label" style={{ marginTop: '12px' }}>Agent-specific trace fields</div>
+              <div className="staff-admin__chip-row">
+                {Object.entries(enforcement.agentFields).map(([key, value]) => (
+                  <span key={key} className="staff-admin__chip">{humanize(key)}: {String(value)}</span>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </section>
+      ) : null}
+
+      {retrievalDecision ? (
+        <section className="staff-admin__drawer-section">
+          <div className="staff-admin__surface-label">Retrieval budget</div>
+          <div className="staff-admin__chip-row">
+            {retrievalDecision.expanded ? (
+              <span className="staff-admin__chip" style={{ background: 'rgba(91,107,134,0.16)' }}>Adaptive expansion</span>
+            ) : (
+              <span className="staff-admin__chip">Standard budget</span>
+            )}
+            {retrievalDecision.confidenceFloor != null ? (
+              <span className="staff-admin__chip">Confidence floor {formatMetricPct(retrievalDecision.confidenceFloor)}</span>
+            ) : null}
+            {retrievalDecision.policyClass ? <span className="staff-admin__chip">{humanize(retrievalDecision.policyClass)}</span> : null}
+          </div>
+          <div className="staff-admin__trace-summary-grid">
+            <article className="staff-admin__trace-summary-card">
+              <div className="staff-admin__surface-label">Budget</div>
+              <div className="staff-admin__runtime-stat-list">
+                <TraceSummaryRow label="Base limit" value={String(retrievalDecision.baseLimit ?? 'n/a')} />
+                <TraceSummaryRow label="Hard cap" value={String(retrievalDecision.hardCap ?? 'n/a')} />
+                <TraceSummaryRow label="Oversample factor" value={retrievalDecision.oversampleFactor ?? 'n/a'} />
+              </div>
+            </article>
+            <article className="staff-admin__trace-summary-card">
+              <div className="staff-admin__surface-label">Selection</div>
+              <div className="staff-admin__runtime-stat-list">
+                <TraceSummaryRow label="Fetched" value={String(retrievalDecision.fetched ?? 'n/a')} />
+                <TraceSummaryRow label="Selected" value={String(retrievalDecision.selected ?? 'n/a')} />
+                <TraceSummaryRow label="Confident" value={String(retrievalDecision.confident ?? 'n/a')} />
+                <TraceSummaryRow label="Trimmed" value={String(retrievalDecision.trimmed ?? 0)} />
+              </div>
+            </article>
+          </div>
+          {retrievalDecision.reason ? (
+            <small>{retrievalDecision.reason}</small>
+          ) : null}
+        </section>
+      ) : null}
+
+      {memorySummary ? (
+        <section className="staff-admin__drawer-section">
+          <div className="staff-admin__surface-label">Memory provenance</div>
+          <div className="staff-admin__chip-row">
+            <span className="staff-admin__chip">{memorySummary.totalReads ?? 0} read{memorySummary.totalReads === 1 ? '' : 's'}</span>
+            {(memorySummary.scopes ?? []).map((scope) => (
+              <span key={`scope-${scope}`} className="staff-admin__chip">{humanize(scope)}</span>
+            ))}
+            {memorySummary.restrictedReadCount > 0 ? (
+              <span className="staff-admin__chip" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
+                {memorySummary.restrictedReadCount} restricted
+              </span>
+            ) : null}
+            {memorySummary.staleReadCount > 0 ? (
+              <span className="staff-admin__chip" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
+                {memorySummary.staleReadCount} stale
+              </span>
+            ) : null}
+          </div>
+          <div className="staff-admin__trace-summary-grid">
+            {memorySummary.statusBreakdown ? (
+              <article className="staff-admin__trace-summary-card">
+                <div className="staff-admin__surface-label">Status</div>
+                <div className="staff-admin__runtime-stat-list">
+                  {Object.entries(memorySummary.statusBreakdown).map(([status, count]) => (
+                    <TraceSummaryRow key={status} label={humanize(status)} value={String(count)} />
+                  ))}
+                </div>
+              </article>
+            ) : null}
+            {memorySummary.provenanceBreakdown ? (
+              <article className="staff-admin__trace-summary-card">
+                <div className="staff-admin__surface-label">Provenance</div>
+                <div className="staff-admin__runtime-stat-list">
+                  {Object.entries(memorySummary.provenanceBreakdown).map(([provenance, count]) => (
+                    <TraceSummaryRow key={provenance} label={humanize(provenance)} value={String(count)} />
+                  ))}
+                </div>
+              </article>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {geminiGrounding ? (
+        <section className="staff-admin__drawer-section">
+          <div className="staff-admin__surface-label">Live grounding</div>
+          <div className="staff-admin__chip-row">
+            <span className="staff-admin__chip">{geminiGrounding.provider ?? 'google'}</span>
+            {geminiGrounding.tool ? <span className="staff-admin__chip">{geminiGrounding.tool}</span> : null}
+            {geminiGrounding.fallback ? (
+              <span className="staff-admin__chip" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>Fallback path</span>
+            ) : null}
+          </div>
+          <div className="staff-admin__trace-summary-grid">
+            <article className="staff-admin__trace-summary-card">
+              <div className="staff-admin__surface-label">Coverage</div>
+              <div className="staff-admin__runtime-stat-list">
+                <TraceSummaryRow label="Chunks" value={String(geminiGrounding.chunkCount ?? (geminiGrounding.chunks?.length ?? 0))} />
+                <TraceSummaryRow label="Citations" value={String(geminiGrounding.supportCount ?? (geminiGrounding.supports?.length ?? 0))} />
+                <TraceSummaryRow label="Queries issued" value={String(geminiGrounding.queryCount ?? (geminiGrounding.queries?.length ?? 0))} />
+              </div>
+            </article>
+            {(geminiGrounding.queries ?? []).length > 0 ? (
+              <article className="staff-admin__trace-summary-card">
+                <div className="staff-admin__surface-label">Queries</div>
+                <div className="staff-admin__chip-row">
+                  {geminiGrounding.queries.slice(0, 6).map((query, queryIndex) => (
+                    <span key={`gq-${queryIndex}`} className="staff-admin__chip">{truncate(query, 32)}</span>
+                  ))}
+                </div>
+              </article>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       <section className="staff-admin__drawer-section">
         <div className="staff-admin__surface-label">Retrieval diagnostics</div>

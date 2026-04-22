@@ -3,10 +3,25 @@ import { Hono } from 'hono';
 import Stripe from 'stripe';
 import { z } from 'zod';
 import { db } from '../db/index.js';
-import { conversations, creditAdjustments, loreDocuments, organisations, workflowRuns } from '../db/schema.js';
+import {
+  conversations,
+  creditAdjustments,
+  loreDocuments,
+  organisations,
+  subscriptions,
+  workflowRuns,
+} from '../db/schema.js';
 import { hasConfiguredStripe, hasConfiguredStripeWebhook } from '../env.js';
 import { requireOrg, requireRole } from '../middleware/auth.js';
-import { applyPlanToOrganisation, getPlanConfig } from '../services/entitlements.js';
+import {
+  completeCreditPurchase,
+  createPendingCreditPurchase,
+  getBillingCatalog,
+  getBillingSnapshotForOrg,
+  getPackCheckoutConfig,
+  setSubscriptionPlan,
+} from '../services/billing-engine.js';
+import { getPlanConfig } from '../services/entitlements.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
 import { getSeatSnapshot } from '../services/team.js';
 
@@ -34,6 +49,11 @@ const PRICE_IDS = {
     yearly: process.env.STRIPE_PRICE_AGENCY_YEARLY,
   },
 };
+
+const creditPackCheckoutSchema = z.object({
+  creditType: z.enum(['execution', 'video']),
+  packId: z.string().trim().min(1).max(64),
+});
 
 function getStripe() {
   if (!hasConfiguredStripe()) {
@@ -104,6 +124,76 @@ router.post('/checkout', requireOrg, requireRole('owner', 'admin'), async (conte
     userId: org.userId,
     eventName: 'billing.checkout_started',
     metadata: { plan, interval },
+  });
+
+  return context.json({ url: session.url });
+});
+
+router.post('/packs/checkout', requireOrg, requireRole('owner', 'admin'), async (context) => {
+  const stripe = getStripe();
+  const org = context.get('org');
+  const parsed = creditPackCheckoutSchema.safeParse(await context.req.json());
+
+  if (!parsed.success) {
+    return context.json({ error: 'Invalid credit pack checkout payload.', details: parsed.error.flatten() }, 400);
+  }
+
+  const { creditType, packId } = parsed.data;
+  const { pack, priceId } = await getPackCheckoutConfig(creditType, packId);
+  const organisation = await db.query.organisations.findFirst({
+    where: eq(organisations.id, org.orgId),
+  });
+
+  let customerId = organisation?.stripeCustomerId;
+
+  if (!customerId) {
+    const customer = await stripe.customers.create({
+      name: org.orgName,
+      metadata: { orgId: org.orgId },
+    });
+    customerId = customer.id;
+
+    await db
+      .update(organisations)
+      .set({ stripeCustomerId: customerId })
+      .where(eq(organisations.id, org.orgId));
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    mode: 'payment',
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${process.env.FRONTEND_URL}/app/settings?billing=pack_success`,
+    cancel_url: `${process.env.FRONTEND_URL}/app/settings?billing=pack_cancelled`,
+    metadata: {
+      orgId: org.orgId,
+      purchaseType: 'credit_pack',
+      creditType,
+      packId,
+    },
+  });
+
+  await createPendingCreditPurchase({
+    orgId: org.orgId,
+    creditType,
+    packId,
+    stripeCheckoutSessionId: session.id,
+    metadata: {
+      priceId,
+      label: pack.label,
+    },
+  });
+
+  await recordProductEvent({
+    orgId: org.orgId,
+    userId: org.userId,
+    eventName: 'billing.credit_pack.checkout_started',
+    metadata: {
+      creditType,
+      packId,
+      credits: pack.credits,
+      amountGbp: pack.amountGbp,
+    },
   });
 
   return context.json({ url: session.url });
@@ -200,11 +290,12 @@ router.post('/seat-addon', requireOrg, requireRole('owner', 'admin'), async (con
 
 router.get('/stats', requireOrg, async (context) => {
   const org = context.get('org');
-  const [organisation, seatSummary] = await Promise.all([
+  const [organisation, seatSummary, billingSnapshot] = await Promise.all([
     db.query.organisations.findFirst({
       where: eq(organisations.id, org.orgId),
     }),
     getSeatSnapshot(org.orgId),
+    getBillingSnapshotForOrg(org.orgId),
   ]);
 
   const [conversationTotals, workflowTotals, documentTotals] = await Promise.all([
@@ -214,17 +305,31 @@ router.get('/stats', requireOrg, async (context) => {
   ]);
 
   const planConfig = getPlanConfig(organisation?.plan);
+  const credits = billingSnapshot.credits;
+  const execution = credits.execution;
+  const video = credits.video;
 
   return context.json({
     plan: organisation?.plan ?? 'free',
-    creditsUsed: organisation?.creditsUsed ?? 0,
-    creditLimit: organisation?.monthlyCreditLimit ?? planConfig.monthlyCreditLimit,
+    creditsUsed: execution.committedThisCycle,
+    creditLimit: planConfig.monthlyCreditLimit,
     seatLimit: organisation?.seatLimit ?? planConfig.seatLimit,
     seats: seatSummary,
     canManageBilling: ['owner', 'admin'].includes(org.userRole),
     conversations: conversationTotals[0]?.count ?? 0,
     workflowRuns: workflowTotals[0]?.count ?? 0,
     loreDocuments: documentTotals[0]?.count ?? 0,
+    resetsAt: billingSnapshot.subscription.currentPeriodEnd,
+    credits,
+    catalog: getBillingCatalog(),
+    executionCredits: {
+      ...execution,
+      limit: planConfig.monthlyCreditLimit,
+    },
+    videoCredits: {
+      ...video,
+      limit: getPlanConfig(organisation?.plan).monthlyVideoCredits,
+    },
   });
 });
 
@@ -248,6 +353,31 @@ router.post('/webhook/stripe', async (context) => {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;
+
+      if (session.metadata?.purchaseType === 'credit_pack' && session.metadata?.orgId && session.metadata?.creditType && session.metadata?.packId) {
+        await completeCreditPurchase({
+          orgId: session.metadata.orgId,
+          creditType: session.metadata.creditType,
+          packId: session.metadata.packId,
+          stripeCheckoutSessionId: session.id,
+          stripePaymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : null,
+          metadata: {
+            amountTotal: session.amount_total ?? null,
+            currency: session.currency ?? 'gbp',
+          },
+        });
+
+        await recordProductEvent({
+          orgId: session.metadata.orgId,
+          eventName: 'billing.credit_pack.completed',
+          metadata: {
+            creditType: session.metadata.creditType,
+            packId: session.metadata.packId,
+            sessionId: session.id,
+          },
+        });
+        break;
+      }
 
       // Seat add-on purchase
       if (session.metadata?.seatAddon === 'true' && session.metadata?.additionalSeats && session.metadata?.orgId) {
@@ -284,12 +414,15 @@ router.post('/webhook/stripe', async (context) => {
 
       // Regular plan upgrade
       if (session.metadata?.orgId && session.metadata?.plan) {
-        await applyPlanToOrganisation(session.metadata.orgId, session.metadata.plan);
+        await setSubscriptionPlan({
+          orgId: session.metadata.orgId,
+          planId: session.metadata.plan,
+          billingInterval: session.metadata.interval ?? 'monthly',
+        });
         await db
           .update(organisations)
           .set({
             stripeSubId: String(session.subscription ?? ''),
-            creditsUsed: 0,
           })
           .where(eq(organisations.id, session.metadata.orgId));
 
@@ -330,7 +463,11 @@ router.post('/webhook/stripe', async (context) => {
       const orgId = customer.deleted ? null : customer.metadata?.orgId;
 
       if (orgId) {
-        await applyPlanToOrganisation(orgId, resolvedPlan.plan);
+        await setSubscriptionPlan({
+          orgId,
+          planId: resolvedPlan.plan,
+          billingInterval: resolvedPlan.interval ?? 'monthly',
+        });
         await recordProductEvent({
           orgId,
           eventName: 'billing.subscription_updated',
@@ -346,7 +483,11 @@ router.post('/webhook/stripe', async (context) => {
       const orgId = customer.deleted ? null : customer.metadata?.orgId;
 
       if (orgId) {
-        await applyPlanToOrganisation(orgId, 'free');
+        await setSubscriptionPlan({
+          orgId,
+          planId: 'free',
+          billingInterval: 'monthly',
+        });
         await db
           .update(organisations)
           .set({
@@ -367,12 +508,22 @@ router.post('/webhook/stripe', async (context) => {
       const orgId = customer.deleted ? null : customer.metadata?.orgId;
 
       if (orgId && invoice.billing_reason === 'subscription_cycle') {
-        await db
-          .update(organisations)
-          .set({
-            creditsUsed: 0,
-          })
-          .where(eq(organisations.id, orgId));
+        const [organisation, existingSubscription] = await Promise.all([
+          db.query.organisations.findFirst({
+            where: eq(organisations.id, orgId),
+          }),
+          db.query.subscriptions.findFirst({
+            where: eq(subscriptions.orgId, orgId),
+          }),
+        ]);
+
+        if (organisation) {
+          await setSubscriptionPlan({
+            orgId,
+            planId: organisation.plan,
+            billingInterval: existingSubscription?.billingInterval ?? 'monthly',
+          });
+        }
       }
       break;
     }

@@ -30,6 +30,7 @@ const Landing = lazy(() => import('./pages/Landing'));
 const Lore = lazy(() => import('./pages/Lore'));
 const Onboarding = lazy(() => import('./pages/Onboarding'));
 const Privacy = lazy(() => import('./pages/Privacy'));
+const Pricing = lazy(() => import('./pages/Pricing'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Workflows = lazy(() => import('./pages/Workflows'));
@@ -125,6 +126,7 @@ function AppRoutes() {
           <Route path="/terms" element={<LazyPage label="Loading terms..."><Terms /></LazyPage>} />
           <Route path="/cookies" element={<LazyPage label="Loading cookie policy..."><Cookies /></LazyPage>} />
           <Route path="/changelog" element={<LazyPage label="Loading changelog..."><Changelog /></LazyPage>} />
+          <Route path="/pricing" element={<LazyPage label="Loading pricing..."><Pricing /></LazyPage>} />
           <Route path="/agents/:agentId" element={<LazyPage label="Loading agent profile..."><AgentProfile /></LazyPage>} />
           <Route path="/login/*" element={<AuthPage mode="sign-in" />} />
           <Route path="/signup/*" element={<AuthPage mode="sign-up" />} />

@@ -88,6 +88,7 @@ export default function ChatPanel({
   onSetAuditUrl,
   onOracleAudit,
   onRequestReview,
+  onHandoff,
 }) {
   return (
     <>
@@ -149,7 +150,7 @@ export default function ChatPanel({
                     />
                   </motion.div>
                 ) : (
-                  <StudioMessage key={message.id} message={message} agent={activeAgent} />
+                  <StudioMessage key={message.id} message={message} agent={activeAgent} onHandoff={onHandoff} />
                 ),
               )}
               {isStreaming ? (

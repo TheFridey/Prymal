@@ -9,11 +9,12 @@ import { creditAdjustments, organisations } from '../../db/schema.js';
 import { hasConfiguredStripe } from '../../env.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
 import { findAdminMutationReplay, getAdminMutationMeta } from '../../services/admin-mutations.js';
+import { applyCreditAdjustment, getBillingSnapshotForOrg } from '../../services/billing-engine.js';
 import { recordAdminActionLog } from '../../services/telemetry.js';
 
 const router = new Hono();
 
-const PLAN_PRICES_USD = { free: 0, solo: 49, pro: 99, teams: 199, agency: 499 };
+const PLAN_PRICES_GBP = { free: 0, solo: 49.99, pro: 99, teams: 179, agency: 249 };
 
 const creditAdjustmentSchema = z.object({
   delta: z.number().int().min(-1_000_000).max(1_000_000).refine((value) => value !== 0, { message: 'Delta cannot be zero.' }),
@@ -34,13 +35,15 @@ router.get('/revenue', requireStaff, requireStaffPermission('admin.billing.read'
     planCounts[org.plan] = (planCounts[org.plan] ?? 0) + 1;
   }
 
-  const planDistribution = Object.entries(PLAN_PRICES_USD).map(([plan, price]) => ({
-    plan, count: planCounts[plan] ?? 0, priceUsd: price,
-    estimatedMrr: (planCounts[plan] ?? 0) * price,
+  const planDistribution = Object.entries(PLAN_PRICES_GBP).map(([plan, price]) => ({
+    plan,
+    count: planCounts[plan] ?? 0,
+    priceGbp: price,
+    estimatedMrrGbp: (planCounts[plan] ?? 0) * price,
   }));
 
-  const estimatedMrrTotal = planDistribution.reduce((sum, row) => sum + row.estimatedMrr, 0);
-  const paidCustomers = planDistribution.filter((row) => row.priceUsd > 0).reduce((sum, row) => sum + row.count, 0);
+  const estimatedMrrTotalGbp = planDistribution.reduce((sum, row) => sum + row.estimatedMrrGbp, 0);
+  const paidCustomers = planDistribution.filter((row) => row.priceGbp > 0).reduce((sum, row) => sum + row.count, 0);
 
   const stripe = getStripe();
   let stripeConfigured = false;
@@ -103,7 +106,17 @@ router.get('/revenue', requireStaff, requireStaffPermission('admin.billing.read'
     }
   }
 
-  return context.json({ estimatedMrrTotal, paidCustomers, totalOrgs: orgRows.length, planDistribution, stripeConfigured, stripeMrr, recentInvoices, monthlyRevenueSeries });
+  return context.json({
+    currency: 'GBP',
+    estimatedMrrTotalGbp,
+    paidCustomers,
+    totalOrgs: orgRows.length,
+    planDistribution,
+    stripeConfigured,
+    stripeMrrGbp: stripeMrr,
+    recentInvoices,
+    monthlyRevenueSeries,
+  });
 });
 
 router.post(
@@ -131,13 +144,26 @@ router.post(
       });
     }
 
-    const org = await db.query.organisations.findFirst({ where: eq(organisations.id, orgId) });
-    if (!org) return context.json({ error: 'Organisation not found.' }, 404);
+    const existingSnapshot = await getBillingSnapshotForOrg(orgId).catch(() => null);
+    if (!existingSnapshot?.organisation) {
+      return context.json({ error: 'Organisation not found.' }, 404);
+    }
 
-    const previousCreditsUsed = org.creditsUsed ?? 0;
-    const nextCreditsUsed = Math.max(previousCreditsUsed - payload.delta, 0);
-
-    const [updatedOrg] = await db.update(organisations).set({ creditsUsed: nextCreditsUsed, updatedAt: new Date() }).where(eq(organisations.id, orgId)).returning();
+    const previousCreditsUsed = existingSnapshot.credits.execution.committedThisCycle ?? 0;
+    const updatedSnapshot = await applyCreditAdjustment({
+      orgId,
+      creditType: 'execution',
+      delta: payload.delta,
+      source: 'admin',
+      entryType: 'adjustment',
+      metadata: {
+        reasonCode: payload.reasonCode,
+        reason: payload.reason ?? null,
+        actorUserId: staff.userId,
+      },
+    });
+    const nextCreditsUsed = updatedSnapshot.credits.execution.committedThisCycle ?? 0;
+    const updatedOrg = updatedSnapshot.organisation;
 
     const [adjustment] = await db.insert(creditAdjustments).values({
       orgId, actorUserId: staff.userId, delta: payload.delta,

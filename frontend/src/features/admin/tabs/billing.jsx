@@ -138,8 +138,9 @@ export function RevenueTab({ query }) {
   const planDistribution = d?.planDistribution ?? [];
   const monthlyRevenueSeries = d?.monthlyRevenueSeries ?? [];
   const recentInvoices = d?.recentInvoices ?? [];
-  const stripeMrr = d?.stripeMrr ?? 0;
-  const estimatedMrrTotal = d?.estimatedMrrTotal ?? 0;
+  const currency = d?.currency ?? 'GBP';
+  const stripeMrr = d?.stripeMrrGbp ?? d?.stripeMrr ?? 0;
+  const estimatedMrrTotal = d?.estimatedMrrTotalGbp ?? d?.estimatedMrrTotal ?? 0;
   const paidCustomers = d?.paidCustomers ?? 0;
   const totalOrgs = d?.totalOrgs ?? 0;
   const stripeConfigured = d?.stripeConfigured ?? false;
@@ -151,7 +152,7 @@ export function RevenueTab({ query }) {
     <div style={{ display: 'grid', gap: '20px' }}>
       <section className="staff-admin__metric-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
         {[
-          { label: mrrLabel, value: `$${formatNumber(displayMrr)}` },
+          { label: mrrLabel, value: `${currency === 'GBP' ? '£' : '$'}${formatNumber(displayMrr)}` },
           { label: 'Paid customers', value: formatNumber(paidCustomers) },
           { label: 'Total orgs', value: formatNumber(totalOrgs) },
           { label: 'Conversion rate', value: totalOrgs > 0 ? `${Math.round((paidCustomers / totalOrgs) * 100)}%` : '0%' },
@@ -180,8 +181,8 @@ export function RevenueTab({ query }) {
                 <tr key={row.plan}>
                   <td><span className="staff-admin__plan-pill">{row.plan}</span></td>
                   <td>{formatNumber(row.count)}</td>
-                  <td>{row.priceUsd > 0 ? `$${row.priceUsd}` : '—'}</td>
-                  <td>{row.estimatedMrr > 0 ? `$${formatNumber(row.estimatedMrr)}` : '—'}</td>
+                  <td>{row.priceGbp > 0 ? `£${formatNumber(row.priceGbp)}` : '—'}</td>
+                  <td>{row.estimatedMrrGbp > 0 ? `£${formatNumber(row.estimatedMrrGbp)}` : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -203,7 +204,7 @@ export function RevenueTab({ query }) {
                 {monthlyRevenueSeries.map((entry) => (
                   <tr key={entry.month}>
                     <td>{entry.month}</td>
-                    <td>${formatNumber(Math.round(entry.revenue))}</td>
+                    <td>{currency === 'GBP' ? '£' : '$'}{formatNumber(Math.round(entry.revenue))}</td>
                     <td>{entry.count}</td>
                   </tr>
                 ))}

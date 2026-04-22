@@ -4,7 +4,7 @@
 // Enforces allowedTools / disallowedTools from the agent contract.
 // ─────────────────────────────────────────────────────────────────
 
-import { getRuntimeAgentContract } from '../agents/runtime.js';
+import { enforceAgentToolPolicy, isSideEffectTool } from '../agents/runtime.js';
 import { getAgentMemory } from './memory.js';
 import { ragSearch } from './rag.js';
 import { fetchLiveWebContext } from './web-research.js';
@@ -45,20 +45,52 @@ export async function dispatchTool({
   workflowRunId = null,
   toolOverrides = {},
 }) {
-  const contract = getRuntimeAgentContract(agentId);
-
-  // Enforce disallowed tools
-  if (contract?.blockedTools?.includes(tool)) {
-    const error = `Agent ${agentId} is not permitted to use tool '${tool}'.`;
+  // Reject unknown tool names up-front so contract-allowed tools can never
+  // smuggle a typo or aliased call through the dispatcher.
+  if (!KNOWN_TOOLS.has(tool)) {
+    const error = `Tool '${tool}' is not a known tool. Allowed tools: ${[...KNOWN_TOOLS].join(', ')}.`;
     console.warn(`[TOOL-DISPATCH] ${error}`);
-    return { tool, success: false, result: null, error };
+    recordToolPolicyEvent({
+      agentId,
+      orgId,
+      tool,
+      verdict: 'rejected_unknown',
+      reason: error,
+    });
+    return { tool, success: false, result: null, error, code: 'UNKNOWN_TOOL' };
   }
 
-  // Enforce allowed tools (if contract has an allowedTools list)
-  if (contract?.allowedTools?.length && !contract.allowedTools.includes(tool)) {
-    const error = `Tool '${tool}' is not in the allowed list for agent ${agentId}.`;
-    console.warn(`[TOOL-DISPATCH] ${error}`);
-    return { tool, success: false, result: null, error };
+  const policy = enforceAgentToolPolicy(agentId, tool);
+
+  if (!policy.allowed) {
+    console.warn(`[TOOL-DISPATCH] ${policy.reason}`);
+    recordToolPolicyEvent({
+      agentId,
+      orgId,
+      tool,
+      verdict: 'blocked',
+      reason: policy.reason,
+    });
+    return {
+      tool,
+      success: false,
+      result: null,
+      error: policy.reason,
+      code: 'CONTRACT_TOOL_VIOLATION',
+    };
+  }
+
+  if (policy.requiresAudit) {
+    recordToolPolicyEvent({
+      agentId,
+      orgId,
+      userId,
+      conversationId,
+      workflowRunId,
+      tool,
+      verdict: 'side_effect_dispatched',
+      reason: `Side-effect tool '${tool}' dispatched`,
+    });
   }
 
   try {
@@ -72,11 +104,58 @@ export async function dispatchTool({
       workflowRunId,
       toolOverrides,
     });
+
+    if (policy.requiresAudit) {
+      recordToolPolicyEvent({
+        agentId,
+        orgId,
+        userId,
+        conversationId,
+        workflowRunId,
+        tool,
+        verdict: 'side_effect_completed',
+        reason: `Side-effect tool '${tool}' completed`,
+      });
+    }
+
     return { tool, success: true, result, error: null };
   } catch (err) {
     console.error(`[TOOL-DISPATCH] Tool '${tool}' failed for agent ${agentId}:`, err.message);
+    if (policy.requiresAudit) {
+      recordToolPolicyEvent({
+        agentId,
+        orgId,
+        userId,
+        conversationId,
+        workflowRunId,
+        tool,
+        verdict: 'side_effect_failed',
+        reason: err.message,
+      });
+    }
     return { tool, success: false, result: null, error: err.message };
   }
+}
+
+/**
+ * Single-line structured audit log entry for tool dispatch decisions.
+ * Designed to be parseable by log-aggregation tooling without a DB write.
+ */
+function recordToolPolicyEvent({ agentId, orgId, userId = null, conversationId = null, workflowRunId = null, tool, verdict, reason }) {
+  const payload = {
+    event: 'tool_policy',
+    verdict,
+    tool,
+    agentId,
+    orgId: orgId ?? null,
+    userId,
+    conversationId,
+    workflowRunId,
+    reason,
+    sideEffect: isSideEffectTool(tool),
+    timestamp: new Date().toISOString(),
+  };
+  console.info(`[TOOL-AUDIT] ${JSON.stringify(payload)}`);
 }
 
 /**

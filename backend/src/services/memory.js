@@ -5,6 +5,9 @@ import { agentMemory } from '../db/schema.js';
 
 const MAX_MEMORIES_PER_SCOPE = 50;
 const MEMORY_DECAY_WINDOW_DAYS = 45;
+const MEMORY_FRESH_DAYS = 14;
+const MEMORY_AGING_DAYS = 30;
+const MEMORY_STALE_DAYS = 60;
 const DEFAULT_READ_SCOPES = ['org', 'user'];
 const DEFAULT_WRITE_SCOPES = ['org', 'user'];
 const MEMORY_SCOPE_PRIORITY = {
@@ -15,6 +18,7 @@ const MEMORY_SCOPE_PRIORITY = {
   agent_private: 2,
   org: 1,
 };
+const SENSITIVE_WRITE_SCOPES = new Set(['restricted', 'org', 'workflow_run']);
 
 const scopeEq = (value) => sql`${agentMemory.scope}::text = ${value}`;
 
@@ -73,6 +77,9 @@ export async function getAgentMemory({
       .map((entry) => ({
         ...entry,
         effectiveConfidence: applyMemoryDecay(entry),
+        status: getMemoryStatus(entry),
+        provenanceLabel: getProvenanceLabel(entry),
+        displaySource: getDisplaySource(entry),
       }))
       .sort(compareMemoryPriority),
     limit,
@@ -217,6 +224,16 @@ export async function upsertMemory({
       })
       .where(eq(agentMemory.id, existing.id));
 
+    recordSensitiveMemoryWrite({
+      orgId,
+      agentId,
+      scope: normalizedScope,
+      key,
+      scopeKey: scopeIdentity.scopeKey,
+      contract,
+      action: 'update',
+    });
+
     return {
       id: existing.id,
       key,
@@ -258,6 +275,16 @@ export async function upsertMemory({
     agentId,
     scope: normalizedScope,
     scopeKey: scopeIdentity.scopeKey,
+  });
+
+  recordSensitiveMemoryWrite({
+    orgId,
+    agentId,
+    scope: normalizedScope,
+    key,
+    scopeKey: scopeIdentity.scopeKey,
+    contract,
+    action: 'create',
   });
 
   return {
@@ -655,4 +682,63 @@ function buildScopeIdentity({ scope, orgId, userId, agentId, workflowRunId, sess
 
 function shouldScopeTrackUser(scope) {
   return scope === 'user' || scope === 'restricted' || scope === 'temporary_session';
+}
+
+/**
+ * Compute a human-friendly age status for a memory entry.
+ * Returns: 'fresh' | 'aging' | 'stale' | 'expired'.
+ * Confirmed memories age more slowly than inferred ones.
+ */
+export function getMemoryStatus(entry) {
+  if (!entry) return 'expired';
+
+  if (entry.expiresAt && new Date(entry.expiresAt).getTime() <= Date.now()) {
+    return 'expired';
+  }
+
+  const referenceDate = entry.lastUsedAt ?? entry.updatedAt ?? entry.createdAt;
+  if (!referenceDate) return 'fresh';
+
+  const ageDays = Math.max((Date.now() - new Date(referenceDate).getTime()) / 86_400_000, 0);
+  const isConfirmed = (entry.provenanceKind ?? 'inferred') === 'confirmed';
+  const freshCutoff = isConfirmed ? MEMORY_FRESH_DAYS * 1.5 : MEMORY_FRESH_DAYS;
+  const agingCutoff = isConfirmed ? MEMORY_AGING_DAYS * 1.5 : MEMORY_AGING_DAYS;
+  const staleCutoff = isConfirmed ? MEMORY_STALE_DAYS * 1.5 : MEMORY_STALE_DAYS;
+
+  if (ageDays <= freshCutoff) return 'fresh';
+  if (ageDays <= agingCutoff) return 'aging';
+  if (ageDays <= staleCutoff) return 'stale';
+  return 'expired';
+}
+
+export function getProvenanceLabel(entry) {
+  const kind = entry?.provenanceKind ?? 'inferred';
+  return kind === 'confirmed' ? 'confirmed' : 'inferred';
+}
+
+export function getDisplaySource(entry) {
+  if (!entry) return null;
+  return (
+    entry.sourceRef
+    ?? entry.metadata?.lastSource
+    ?? entry.metadata?.source
+    ?? null
+  );
+}
+
+/**
+ * Emit an audit record when a sensitive memory write happens.
+ * This is non-blocking — failures are logged but do not break the write.
+ */
+function recordSensitiveMemoryWrite({ orgId, agentId, scope, key, scopeKey, contract, action }) {
+  const isSensitiveScope = SENSITIVE_WRITE_SCOPES.has(scope);
+  const isSensitivePolicy = Boolean(contract?.memoryPolicy?.sensitiveWrites);
+
+  if (!isSensitiveScope && !isSensitivePolicy) {
+    return;
+  }
+
+  console.info(
+    `[MEMORY AUDIT] org=${orgId} agent=${agentId} action=${action} scope=${scope} key=${key} scopeKey=${scopeKey}`,
+  );
 }

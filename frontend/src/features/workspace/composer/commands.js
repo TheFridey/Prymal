@@ -21,6 +21,11 @@ export function buildSlashCommands({
       run: () => focusPrompt('/image '),
     },
     {
+      name: 'video',
+      description: `Generate a short video draft with ${activeAgent.name}`,
+      run: () => focusPrompt('/video '),
+    },
+    {
       name: 'new',
       description: `Start a fresh ${activeAgent.name} chat`,
       run: startNewChat,
@@ -109,5 +114,10 @@ export function groupConversations(conversations, pinnedIds) {
 
 export function extractImagePrompt(message) {
   const match = message.match(/^\/image(?:\s+(.+))$/i);
+  return match?.[1]?.trim() || null;
+}
+
+export function extractVideoPrompt(message) {
+  const match = message.match(/^\/video(?:\s+(.+))$/i);
   return match?.[1]?.trim() || null;
 }

@@ -71,6 +71,195 @@ CREATE TABLE users (
 
 CREATE INDEX users_org_idx ON users(org_id);
 
+CREATE TABLE subscriptions (
+  id                             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id                         UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  plan                           plan NOT NULL DEFAULT 'free',
+  status                         TEXT NOT NULL DEFAULT 'active',
+  billing_interval               TEXT NOT NULL DEFAULT 'monthly',
+  current_period_start           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  current_period_end             TIMESTAMPTZ,
+  last_reset_at                  TIMESTAMPTZ,
+  execution_included_balance     INTEGER NOT NULL DEFAULT 50,
+  execution_purchased_balance    INTEGER NOT NULL DEFAULT 0,
+  execution_reserved_balance     INTEGER NOT NULL DEFAULT 0,
+  video_included_balance         INTEGER NOT NULL DEFAULT 0,
+  video_purchased_balance        INTEGER NOT NULL DEFAULT 0,
+  video_reserved_balance         INTEGER NOT NULL DEFAULT 0,
+  cumulative_revenue_gbp         REAL NOT NULL DEFAULT 0,
+  cumulative_estimated_cost_usd  REAL NOT NULL DEFAULT 0,
+  cost_guard_state               TEXT NOT NULL DEFAULT 'normal',
+  metadata                       JSONB NOT NULL DEFAULT '{}',
+  created_at                     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (org_id)
+);
+
+CREATE INDEX subscriptions_plan_idx ON subscriptions(plan);
+CREATE INDEX subscriptions_period_idx ON subscriptions(current_period_end);
+
+CREATE TABLE credit_ledger_execution (
+  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id                  UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  subscription_id         UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+  purchase_id             UUID,
+  usage_event_id          UUID,
+  source                  TEXT NOT NULL,
+  entry_type              TEXT NOT NULL DEFAULT 'adjustment',
+  delta                   INTEGER NOT NULL,
+  balance_after           INTEGER NOT NULL,
+  included_balance_after  INTEGER NOT NULL,
+  purchased_balance_after INTEGER NOT NULL,
+  reserved_balance_after  INTEGER NOT NULL DEFAULT 0,
+  metadata                JSONB NOT NULL DEFAULT '{}',
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX credit_ledger_execution_org_idx ON credit_ledger_execution(org_id);
+CREATE INDEX credit_ledger_execution_subscription_idx ON credit_ledger_execution(subscription_id);
+CREATE INDEX credit_ledger_execution_source_idx ON credit_ledger_execution(source);
+CREATE INDEX credit_ledger_execution_created_idx ON credit_ledger_execution(created_at);
+CREATE INDEX credit_ledger_execution_usage_idx ON credit_ledger_execution(usage_event_id);
+
+CREATE TABLE credit_ledger_video (
+  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id                  UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  subscription_id         UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+  purchase_id             UUID,
+  usage_event_id          UUID,
+  source                  TEXT NOT NULL,
+  entry_type              TEXT NOT NULL DEFAULT 'adjustment',
+  delta                   INTEGER NOT NULL,
+  balance_after           INTEGER NOT NULL,
+  included_balance_after  INTEGER NOT NULL,
+  purchased_balance_after INTEGER NOT NULL,
+  reserved_balance_after  INTEGER NOT NULL DEFAULT 0,
+  metadata                JSONB NOT NULL DEFAULT '{}',
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX credit_ledger_video_org_idx ON credit_ledger_video(org_id);
+CREATE INDEX credit_ledger_video_subscription_idx ON credit_ledger_video(subscription_id);
+CREATE INDEX credit_ledger_video_source_idx ON credit_ledger_video(source);
+CREATE INDEX credit_ledger_video_created_idx ON credit_ledger_video(created_at);
+CREATE INDEX credit_ledger_video_usage_idx ON credit_ledger_video(usage_event_id);
+
+CREATE TABLE execution_usage_event (
+  id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id                    UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  user_id                   TEXT REFERENCES users(id) ON DELETE SET NULL,
+  conversation_id           UUID,
+  workflow_run_id           UUID,
+  agent_id                  agent_id NOT NULL,
+  status                    TEXT NOT NULL DEFAULT 'reserved',
+  request_id                TEXT,
+  base_credits              INTEGER NOT NULL DEFAULT 1,
+  estimated_context_tokens  INTEGER NOT NULL DEFAULT 0,
+  context_multiplier        REAL NOT NULL DEFAULT 1,
+  agent_count               INTEGER NOT NULL DEFAULT 1,
+  agent_multiplier          REAL NOT NULL DEFAULT 1,
+  credits_reserved          INTEGER NOT NULL DEFAULT 0,
+  credits_committed         INTEGER NOT NULL DEFAULT 0,
+  prompt_tokens             INTEGER,
+  completion_tokens         INTEGER,
+  total_tokens              INTEGER,
+  estimated_cost_usd        REAL,
+  revenue_contribution_gbp  REAL,
+  cost_guard_triggered      BOOLEAN NOT NULL DEFAULT false,
+  heavy_usage_flagged       BOOLEAN NOT NULL DEFAULT false,
+  provider                  TEXT,
+  model                     TEXT,
+  metadata                  JSONB NOT NULL DEFAULT '{}',
+  started_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at              TIMESTAMPTZ,
+  created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX execution_usage_event_org_idx ON execution_usage_event(org_id);
+CREATE INDEX execution_usage_event_status_idx ON execution_usage_event(status);
+CREATE INDEX execution_usage_event_created_idx ON execution_usage_event(created_at);
+CREATE INDEX execution_usage_event_request_idx ON execution_usage_event(request_id);
+CREATE INDEX execution_usage_event_conversation_idx ON execution_usage_event(conversation_id);
+
+CREATE TABLE video_generation_event (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id               UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  user_id              TEXT REFERENCES users(id) ON DELETE SET NULL,
+  conversation_id      UUID,
+  message_id           UUID,
+  status               TEXT NOT NULL DEFAULT 'queued',
+  provider             TEXT NOT NULL DEFAULT 'google',
+  model                TEXT NOT NULL,
+  prompt               TEXT NOT NULL,
+  duration_seconds     INTEGER NOT NULL,
+  resolution           TEXT NOT NULL,
+  aspect_ratio         TEXT NOT NULL,
+  credits_requested    INTEGER NOT NULL DEFAULT 0,
+  credits_reserved     INTEGER NOT NULL DEFAULT 0,
+  credits_committed    INTEGER NOT NULL DEFAULT 0,
+  retry_count          INTEGER NOT NULL DEFAULT 0,
+  max_retries          INTEGER NOT NULL DEFAULT 2,
+  provider_job_id      TEXT,
+  output_url           TEXT,
+  output_file_name     TEXT,
+  failure_code         TEXT,
+  failure_message      TEXT,
+  heavy_usage_flagged  BOOLEAN NOT NULL DEFAULT false,
+  provider_metadata    JSONB NOT NULL DEFAULT '{}',
+  started_at           TIMESTAMPTZ,
+  completed_at         TIMESTAMPTZ,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX video_generation_event_org_idx ON video_generation_event(org_id);
+CREATE INDEX video_generation_event_status_idx ON video_generation_event(status);
+CREATE INDEX video_generation_event_created_idx ON video_generation_event(created_at);
+CREATE INDEX video_generation_event_provider_job_idx ON video_generation_event(provider_job_id);
+CREATE INDEX video_generation_event_conversation_idx ON video_generation_event(conversation_id);
+
+CREATE TABLE credit_purchase (
+  id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id                     UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  subscription_id            UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+  credit_type                TEXT NOT NULL,
+  pack_id                    TEXT NOT NULL,
+  credits                    INTEGER NOT NULL,
+  amount_gbp                 REAL NOT NULL,
+  currency                   TEXT NOT NULL DEFAULT 'gbp',
+  status                     TEXT NOT NULL DEFAULT 'pending',
+  stripe_checkout_session_id TEXT,
+  stripe_payment_intent_id   TEXT,
+  stripe_invoice_id          TEXT,
+  metadata                   JSONB NOT NULL DEFAULT '{}',
+  completed_at               TIMESTAMPTZ,
+  created_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (stripe_checkout_session_id)
+);
+
+CREATE INDEX credit_purchase_org_idx ON credit_purchase(org_id);
+CREATE INDEX credit_purchase_type_idx ON credit_purchase(credit_type);
+CREATE INDEX credit_purchase_status_idx ON credit_purchase(status);
+
+CREATE TABLE threshold_state (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id             UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  credit_type        TEXT NOT NULL,
+  cycle_key          TEXT NOT NULL,
+  threshold_percent  INTEGER NOT NULL DEFAULT 0,
+  last_triggered_at  TIMESTAMPTZ,
+  acknowledged_at    TIMESTAMPTZ,
+  metadata           JSONB NOT NULL DEFAULT '{}',
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (org_id, credit_type, cycle_key)
+);
+
+CREATE INDEX threshold_state_org_idx ON threshold_state(org_id);
+CREATE INDEX threshold_state_cycle_idx ON threshold_state(credit_type, cycle_key);
+
 CREATE TABLE lore_documents (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id        UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
@@ -503,6 +692,11 @@ DROP TRIGGER IF EXISTS workflow_updated_at ON workflows;
 DROP TRIGGER IF EXISTS workflow_webhooks_updated_at ON workflow_webhooks;
 DROP TRIGGER IF EXISTS api_keys_updated_at ON api_keys;
 DROP TRIGGER IF EXISTS organisation_invitations_updated_at ON organisation_invitations;
+DROP TRIGGER IF EXISTS subscriptions_updated_at ON subscriptions;
+DROP TRIGGER IF EXISTS execution_usage_event_updated_at ON execution_usage_event;
+DROP TRIGGER IF EXISTS video_generation_event_updated_at ON video_generation_event;
+DROP TRIGGER IF EXISTS credit_purchase_updated_at ON credit_purchase;
+DROP TRIGGER IF EXISTS threshold_state_updated_at ON threshold_state;
 
 CREATE TRIGGER orgs_updated_at BEFORE UPDATE ON organisations FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -513,3 +707,8 @@ CREATE TRIGGER workflow_updated_at BEFORE UPDATE ON workflows FOR EACH ROW EXECU
 CREATE TRIGGER workflow_webhooks_updated_at BEFORE UPDATE ON workflow_webhooks FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER api_keys_updated_at BEFORE UPDATE ON api_keys FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER organisation_invitations_updated_at BEFORE UPDATE ON organisation_invitations FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER subscriptions_updated_at BEFORE UPDATE ON subscriptions FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER execution_usage_event_updated_at BEFORE UPDATE ON execution_usage_event FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER video_generation_event_updated_at BEFORE UPDATE ON video_generation_event FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER credit_purchase_updated_at BEFORE UPDATE ON credit_purchase FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER threshold_state_updated_at BEFORE UPDATE ON threshold_state FOR EACH ROW EXECUTE FUNCTION update_updated_at();

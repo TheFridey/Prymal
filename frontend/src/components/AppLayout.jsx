@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { AGENT_LIBRARY, mergeAgentState } from '../lib/constants';
 import { useAppStore } from '../stores/useAppStore';
 import { BrandMark, ThemeToggle } from './ui';
+import { WorkspaceCreditAlerts } from '../features/workspace/billing/WorkspaceCreditAlerts';
 import { WorkspaceCommandPalette } from '../features/workspace/command/WorkspaceCommandPalette';
 import { MotionDrawer, MotionModal, MotionPresence, motion } from './motion';
 import '../styles/app-rebuild.css';
@@ -212,6 +213,7 @@ export default function AppLayout({ viewer }) {
         ) : null}
 
         <main className="app-main app-main--studio">
+          <WorkspaceCreditAlerts viewer={viewer} />
           <Outlet context={sharedContext} />
         </main>
 

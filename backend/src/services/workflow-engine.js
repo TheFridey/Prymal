@@ -3,11 +3,20 @@ import { z } from 'zod';
 import { AGENT_IDS } from '../agents/config.js';
 import { db } from '../db/index.js';
 import { workflowRuns, workflows } from '../db/schema.js';
-import { assertCreditsAvailable, consumeCredits } from './entitlements.js';
+import {
+  commitExecutionUsage,
+  releaseExecutionUsage,
+  reserveExecutionCredits,
+} from './billing-engine.js';
+import { applyReservationThrottle } from './billing-throttle.js';
 import { evaluateAgentOutput } from './evals.js';
-import { classifyLLMFailure, recordLLMExecutionTrace } from './llm-observability.js';
+import {
+  classifyLLMFailure,
+  estimateModelCostUsd,
+  recordLLMExecutionTrace,
+} from './llm-observability.js';
 import { deliverWorkflowWebhook } from './webhook-delivery.js';
-import { runAgentNode } from './llm.js';
+import { estimateTokens, runAgentNode } from './llm.js';
 
 const WORKFLOW_NODE_TIMEOUT_MS = Number(process.env.WORKFLOW_NODE_TIMEOUT_MS ?? 90_000);
 const WORKFLOW_RUN_TIMEOUT_MS = Number(process.env.WORKFLOW_RUN_TIMEOUT_MS ?? 15 * 60_000);
@@ -115,8 +124,6 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
   const maxAttempts = existingRun.maxAttempts ?? DEFAULT_MAX_WORKFLOW_ATTEMPTS;
   const timeoutAt = new Date(Date.now() + WORKFLOW_RUN_TIMEOUT_MS);
 
-  assertCreditsAvailable(orgContext, 1);
-
   appendRunLog(
     runLog,
     'system',
@@ -164,25 +171,76 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
       }
 
       const nodeStartedAt = Date.now();
-      const result = await runWithTimeout(
-        runAgentNode({
-          agentId: node.agentId,
-          orgId: workflow.orgId,
-          orgPlan: orgContext.orgPlan,
-          prompt: node.prompt,
-          context: {
-            ...upstreamContext,
-            __workflowRunId: runId,
-            __workflowNodeCount: sortedNodes.length,
-            __orgMetadata: orgContext.orgMetadata ?? {},
-          },
-        }),
-        WORKFLOW_NODE_TIMEOUT_MS,
-        `${node.label ?? node.id} exceeded the node timeout.`,
-      );
+      const currentReservation = await reserveExecutionCredits({
+        orgId: workflow.orgId,
+        userId: orgContext.userId ?? null,
+        workflowRunId: runId,
+        agentId: node.agentId,
+        requestId: `workflow:${runId}:${node.id}`,
+        baseCredits: 1,
+        estimatedContextTokens: estimateTokens(`${node.prompt}\n${JSON.stringify(upstreamContext)}`),
+        agentCount: Math.max(sortedNodes.length, 1),
+        metadata: {
+          route: 'workflow-engine',
+          workflowId: workflow.id,
+          nodeId: node.id,
+        },
+      });
 
-      const nodeCreditCost = Math.max(Math.ceil((result.totalTokens ?? 0) / 1000), 1);
+      let result;
+
+      try {
+        await applyReservationThrottle(currentReservation);
+
+        result = await runWithTimeout(
+          runAgentNode({
+            agentId: node.agentId,
+            orgId: workflow.orgId,
+            orgPlan: orgContext.orgPlan,
+            prompt: node.prompt,
+            context: {
+              ...upstreamContext,
+              __workflowRunId: runId,
+              __workflowNodeCount: sortedNodes.length,
+              __orgMetadata: orgContext.orgMetadata ?? {},
+            },
+          }),
+          WORKFLOW_NODE_TIMEOUT_MS,
+          `${node.label ?? node.id} exceeded the node timeout.`,
+        );
+      } catch (nodeError) {
+        await releaseExecutionUsage({
+          usageEventId: currentReservation.usageEvent.id,
+          reason: nodeError.message,
+          metadata: {
+            workflowId: workflow.id,
+            nodeId: node.id,
+          },
+        }).catch((releaseError) => console.error('[WORKFLOW] Failed to release execution reservation:', releaseError.message));
+        throw nodeError;
+      }
+
+      const nodeCreditCost = currentReservation.burn.creditsUsed;
       totalCredits += nodeCreditCost;
+
+      await commitExecutionUsage({
+        usageEventId: currentReservation.usageEvent.id,
+        provider: result.provider,
+        model: result.model,
+        promptTokens: result.inputTokens ?? null,
+        completionTokens: result.outputTokens ?? null,
+        totalTokens: result.totalTokens ?? null,
+        estimatedCostUsd: estimateModelCostUsd({
+          provider: result.provider,
+          model: result.model,
+          promptTokens: result.inputTokens ?? 0,
+          completionTokens: result.outputTokens ?? 0,
+        }),
+        metadata: {
+          workflowId: workflow.id,
+          nodeId: node.id,
+        },
+      });
 
       nodeOutputs[node.id] = {
         outputVar: node.outputVar,
@@ -274,7 +332,6 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
       activeNode = null;
     }
 
-    await consumeCredits(workflow.orgId, totalCredits);
     appendRunLog(runLog, 'system', `Workflow completed. ${totalCredits} credit${totalCredits === 1 ? '' : 's'} consumed.`);
 
     await db

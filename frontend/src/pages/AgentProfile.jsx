@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { AGENT_LIBRARY, INTEGRATION_LIBRARY, POWERUP_LIBRARY, getAgentMeta } from '../lib/constants';
+import { getAgentCapabilities, getCapabilityTone } from '../lib/agentCapabilities';
 import { AgentAvatar, BrandMark, Button, Reveal, StatusPill, ThemeToggle } from '../components/ui';
 import { PageMeta } from '../components/PublicPageChrome';
 import { usePrymalReducedMotion } from '../components/motion';
@@ -24,6 +25,7 @@ export default function AgentProfile() {
   );
   const companionAgents = AGENT_LIBRARY.filter((entry) => entry.id !== agent.id).slice(0, 4);
   const agentPowerUps = POWERUP_LIBRARY.filter((entry) => entry.agentId === agent.id);
+  const { notIdealFor, capabilities } = getAgentCapabilities(agent.id);
 
   const reducedMotion = usePrymalReducedMotion();
 
@@ -272,6 +274,46 @@ export default function AgentProfile() {
                     ))}
                   </div>
                 </div>
+                {notIdealFor.length > 0 ? (
+                  <div className="stack-list__item">
+                    <div className="detail-list__label">Not ideal for</div>
+                    <div className="mini-chip-row">
+                      {notIdealFor.map((item) => (
+                        <span
+                          key={item}
+                          className="mini-chip"
+                          style={{
+                            background: 'rgba(239,68,68,0.06)',
+                            borderColor: 'rgba(239,68,68,0.18)',
+                            color: 'var(--muted)',
+                          }}
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {capabilities.length > 0 ? (
+                  <div className="stack-list__item">
+                    <div className="detail-list__label">Capabilities</div>
+                    <div className="mini-chip-row">
+                      {capabilities.map((item) => (
+                        <span
+                          key={item}
+                          className="mini-chip"
+                          style={{
+                            background: capabilityToneStyle(item).background,
+                            borderColor: capabilityToneStyle(item).border,
+                            color: capabilityToneStyle(item).color,
+                          }}
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="stack-list__item">
                   <div className="detail-list__label">System role</div>
                   <div className="detail-list__value">
@@ -307,4 +349,25 @@ export default function AgentProfile() {
       </div>
     </div>
   );
+}
+
+function capabilityToneStyle(label) {
+  switch (getCapabilityTone(label)) {
+    case 'lore':
+      return { background: 'rgba(153,109,255,0.10)', border: 'rgba(153,109,255,0.28)', color: '#b8a0ff' };
+    case 'structure':
+      return { background: 'rgba(51,199,255,0.10)', border: 'rgba(51,199,255,0.28)', color: '#7ad7ff' };
+    case 'strict':
+      return { background: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.28)', color: '#f5b04b' };
+    case 'live':
+      return { background: 'rgba(24,199,160,0.10)', border: 'rgba(24,199,160,0.28)', color: '#3fd9b8' };
+    case 'side_effect':
+      return { background: 'rgba(255,139,95,0.10)', border: 'rgba(255,139,95,0.28)', color: '#ffa789' };
+    case 'oversight':
+      return { background: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.22)', color: '#ff7d7d' };
+    case 'voice':
+      return { background: 'rgba(255,92,152,0.10)', border: 'rgba(255,92,152,0.28)', color: '#ff8db3' };
+    default:
+      return { background: 'rgba(91,107,134,0.10)', border: 'rgba(91,107,134,0.22)', color: 'var(--muted)' };
+  }
 }

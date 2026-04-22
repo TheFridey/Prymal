@@ -235,7 +235,7 @@ export default function ForAgencies() {
               </div>
               <div className="pm-uc-hero__ctas">
                 <Link to="/signup" className="pm-btn pm-btn--primary" onClick={() => trackSignup('agencies-hero')}>Start free →</Link>
-                <a href="/#pricing" className="pm-btn pm-btn--ghost">See plans</a>
+                <a href="/pricing" className="pm-btn pm-btn--ghost">See plans</a>
               </div>
               <div className="pm-uc-hero__chips">
                 {['Client-ready drafts', 'Shared LORE memory', 'NEXUS workflow handoffs', 'Operator receipts'].map((chip) => (
@@ -419,7 +419,7 @@ export default function ForAgencies() {
                   <Link to="/signup" onClick={() => trackSignup('agencies-footer')}>
                     <Button tone="accent">Start free</Button>
                   </Link>
-                  <a href="/#pricing">
+                  <a href="/pricing">
                     <Button tone="ghost">See plans</Button>
                   </a>
                 </div>

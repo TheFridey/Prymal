@@ -9,6 +9,7 @@ const {
   createSchemaValidationError,
   extractStructuredJson,
   formatStructuredOutput,
+  runSemanticValidators,
   validateAgentOutput,
 } = await import('./agent-output-validator.js');
 
@@ -170,6 +171,102 @@ test('buildSchemaRepairPrompt includes schema id and validation failures', () =>
 
   assert.match(prompt, /Schema id: ledger\.financeSummary/);
   assert.match(prompt, /missing required field "headline"/);
+});
+
+test('runSemanticValidators flags ledger arithmetic mismatch as a block', () => {
+  const result = runSemanticValidators('ledger', {
+    totals: { revenue: 100, costs: 60, grossMargin: 50 }, // expected 40, off by 10 > 5 tolerance
+    forecasts: [{ metric: 'revenue', period: '2026-Q2', value: 120, confidence: 'high' }],
+  });
+
+  assert.equal(result.blocks.length > 0, true);
+  assert.match(result.blocks[0], /grossMargin/);
+});
+
+test('runSemanticValidators tolerates ledger rounding noise within 5 percent', () => {
+  const result = runSemanticValidators('ledger', {
+    totals: { revenue: 100000, costs: 60000, grossMargin: 40010 }, // 10 off — within 5%
+    forecasts: [{ metric: 'revenue', period: '2026-Q2', value: 120000, confidence: 'high' }],
+  });
+
+  assert.equal(result.blocks.length, 0, 'small rounding diff must not be a block');
+});
+
+test('runSemanticValidators blocks ledger when forecasts are empty', () => {
+  const result = runSemanticValidators('ledger', {
+    totals: { revenue: 100, costs: 60, grossMargin: 40 },
+    forecasts: [],
+  });
+
+  assert.ok(result.blocks.some((b) => /forecasts is empty/i.test(b)));
+});
+
+test('runSemanticValidators blocks cipher when recommendations are all boilerplate', () => {
+  const result = runSemanticValidators('cipher', {
+    keyMetrics: { revenue: 100 },
+    recommendations: ['TBD', 'more data needed', 'n/a'],
+  });
+
+  assert.ok(result.blocks.some((b) => /boilerplate/i.test(b)));
+});
+
+test('runSemanticValidators blocks vance when score and stage are inconsistent', () => {
+  const result = runSemanticValidators('vance', {
+    qualificationScore: 9,
+    stage: 'prospect',
+    nextAction: 'Send proposal with pricing tailored to their headcount.',
+  });
+
+  assert.ok(result.blocks.some((b) => /qualificationScore/.test(b)));
+});
+
+test('runSemanticValidators blocks herald when sendDays go backwards', () => {
+  const result = runSemanticValidators('herald', {
+    emails: [
+      { emailNumber: 1, sendDay: 0, subject: 'Welcome', body: 'Hello there', cta: 'Book a demo to see X' },
+      { emailNumber: 2, sendDay: 7, subject: 'Follow up', body: 'Checking in', cta: 'Reply with a time' },
+      { emailNumber: 3, sendDay: 3, subject: 'Final', body: 'Last touch', cta: 'Reply yes or no' },
+    ],
+  });
+
+  assert.ok(result.blocks.some((b) => /out of order/i.test(b)));
+});
+
+test('runSemanticValidators blocks nexus edges referencing unknown nodes', () => {
+  const result = runSemanticValidators('nexus', {
+    steps: [{ stepId: 's1' }, { stepId: 's2' }],
+    nodeGraph: {
+      nodes: [{ id: 'a' }, { id: 'b' }],
+      edges: [{ from: 'a', to: 'ghost' }],
+    },
+  });
+
+  assert.ok(result.blocks.some((b) => /ghost/.test(b)));
+});
+
+test('runSemanticValidators is a no-op for agents without a semantic validator', () => {
+  const result = runSemanticValidators('lore', { chunksRetrieved: 0 });
+
+  assert.deepEqual(result, { warnings: [], blocks: [] });
+});
+
+test('validateAgentOutput surfaces semantic blocks via the verdict path', () => {
+  const validation = validateAgentOutput(
+    'ledger',
+    JSON.stringify({
+      agent: 'ledger',
+      period: '2026-Q1',
+      headline: 'Schema-valid but arithmetic is wrong on purpose.',
+      commentary: 'This payload passes schema validation but the gross margin does not equal revenue minus costs.',
+      totals: { revenue: 100, costs: 60, grossMargin: 50 },
+      forecasts: [{ metric: 'revenue', period: '2026-Q2', value: 120, confidence: 'medium' }],
+      confidenceNotes: ['Forecast assumes flat conversion.'],
+    }),
+  );
+
+  assert.equal(validation.verdict, 'failed', 'semantic block must demote verdict to failed');
+  assert.ok(Array.isArray(validation.semantic?.blocks));
+  assert.ok(validation.semantic.blocks.some((b) => /grossMargin/.test(b)));
 });
 
 test('createSchemaValidationError preserves structured metadata', () => {

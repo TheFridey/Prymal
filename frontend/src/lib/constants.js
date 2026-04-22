@@ -648,8 +648,13 @@ export const PLAN_LIBRARY = [
     monthlyPrice: 49.99,
     credits: 500,
     seats: 1,
-    description: 'Built for a single operator who wants the full Prymal roster with stronger throughput and live knowledge support.',
-    features: ['All 14 specialist agents', '500 monthly credits', 'Billing portal', 'OAuth integrations'],
+    description: 'For individuals getting started — core operators plus LORE for grounded answers from your knowledge.',
+    features: [
+      '500 monthly execution credits',
+      'Core agents + LORE (knowledge layer)',
+      'Billing portal & OAuth integrations',
+      'Single seat',
+    ],
   },
   {
     id: 'pro',
@@ -657,8 +662,13 @@ export const PLAN_LIBRARY = [
     monthlyPrice: 99,
     credits: 2000,
     seats: 1,
-    description: 'Unlocks the full 14-agent roster with deeper workflow control for a power user.',
-    features: ['All 14 specialist agents', '2,000 monthly credits', 'Advanced workflows', 'Power-Ups'],
+    description: 'For growing businesses and creators — full specialist roster, video allowance, and room to run real workflows.',
+    features: [
+      '2,000 monthly execution credits',
+      '10 monthly video credits',
+      'Full 14-agent roster & automations',
+      'Higher concurrent runs',
+    ],
     recommended: true,
   },
   {
@@ -669,12 +679,12 @@ export const PLAN_LIBRARY = [
     seats: 5,
     additionalSeatPrice: 25,
     description:
-      '£179/mo covers five seats on one workspace. Add teammates at £25/mo per seat when you need more capacity without jumping a tier.',
+      'For teams running workflows together — pooled credits, more seats, and shared workspace memory.',
     features: [
-      'All 14 specialist agents',
-      '5 seats included · £25/mo per additional seat',
-      '6,000 monthly credits',
-      'Shared org memory',
+      '6,000 monthly execution credits',
+      '30 monthly video credits · 5 seats',
+      '£25/mo per extra seat',
+      'Full roster & team-scale concurrency',
     ],
   },
   {
@@ -683,10 +693,56 @@ export const PLAN_LIBRARY = [
     monthlyPrice: 249,
     credits: 10000,
     seats: 25,
-    description: '£249/mo for agencies that need API keys, high throughput, and room to run Prymal across multiple clients or internal teams.',
-    features: ['All 14 specialist agents', '25-seat workspace', '10,000 monthly credits', 'API keys'],
+    description: 'For high-scale operations — API keys, maximum included credits, and room for many seats.',
+    features: [
+      '10,000 monthly execution credits',
+      '60 monthly video credits · 25 seats',
+      'API keys (programmatic access)',
+      'Highest included concurrency',
+    ],
   },
 ];
+
+/**
+ * Public pricing facts — keep aligned with `backend/src/services/billing-catalog.js` (`BILLING_PLANS`).
+ */
+export const PLAN_ENTITLEMENTS = {
+  solo: {
+    monthlyVideoCredits: 0,
+    dailyVideoCap: 0,
+    concurrencyExecution: 1,
+    concurrencyVideo: 0,
+  },
+  pro: {
+    monthlyVideoCredits: 10,
+    dailyVideoCap: 10,
+    concurrencyExecution: 3,
+    concurrencyVideo: 2,
+  },
+  teams: {
+    monthlyVideoCredits: 30,
+    dailyVideoCap: 15,
+    concurrencyExecution: 8,
+    concurrencyVideo: 4,
+  },
+  agency: {
+    monthlyVideoCredits: 60,
+    dailyVideoCap: 25,
+    concurrencyExecution: 15,
+    concurrencyVideo: 6,
+  },
+};
+
+const PLAN_UPGRADE_SEQUENCE = ['free', 'solo', 'pro', 'teams', 'agency'];
+
+/** Next paid tier in order, or null if already on highest. */
+export function getNextPlanId(planId = 'free') {
+  const i = PLAN_UPGRADE_SEQUENCE.indexOf(planId);
+  if (i < 0 || i >= PLAN_UPGRADE_SEQUENCE.length - 1) {
+    return null;
+  }
+  return PLAN_UPGRADE_SEQUENCE[i + 1];
+}
 
 export const INTERNAL_PLAN_META = {
   free: {

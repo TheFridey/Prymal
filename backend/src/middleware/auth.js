@@ -2,7 +2,7 @@ import { getAuth } from '@hono/clerk-auth';
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apiKeys, organisations, users } from '../db/schema.js';
-import { consumeCredits, creditsRemaining } from '../services/entitlements.js';
+import { applyCreditAdjustment, getBillingSnapshotForOrg } from '../services/billing-engine.js';
 import { getStaffRole, hasStaffPermission, isStaffUser, listStaffPermissions } from '../services/staff.js';
 
 export async function requireOrg(context, next) {
@@ -44,6 +44,11 @@ export async function requireOrg(context, next) {
     return context.json({ error: 'Organisation not found.' }, 403);
   }
 
+  const billingSnapshot = await getBillingSnapshotForOrg(organisation.id).catch((error) => {
+    console.error('[AUTH] Billing snapshot lookup failed in requireOrg:', error?.message ?? error);
+    return null;
+  });
+
   context.set('org', {
     userId: user.id,
     userRole: user.role,
@@ -52,7 +57,31 @@ export async function requireOrg(context, next) {
     orgName: organisation.name,
     seatLimit: organisation.seatLimit,
     orgMetadata: organisation.metadata ?? {},
-    credits: creditsRemaining(organisation),
+    credits: billingSnapshot?.credits ?? {
+      remaining: Math.max((organisation.monthlyCreditLimit ?? 0) - (organisation.creditsUsed ?? 0), 0),
+      limit: organisation.monthlyCreditLimit ?? 0,
+      used: organisation.creditsUsed ?? 0,
+      execution: {
+        available: Math.max((organisation.monthlyCreditLimit ?? 0) - (organisation.creditsUsed ?? 0), 0),
+        committedThisCycle: organisation.creditsUsed ?? 0,
+        includedAvailable: Math.max((organisation.monthlyCreditLimit ?? 0) - (organisation.creditsUsed ?? 0), 0),
+        purchasedAvailable: 0,
+        reserved: 0,
+        percentUsed: organisation.monthlyCreditLimit > 0
+          ? Math.min(((organisation.creditsUsed ?? 0) / organisation.monthlyCreditLimit) * 100, 100)
+          : 0,
+        threshold: null,
+      },
+      video: {
+        available: 0,
+        committedThisCycle: 0,
+        includedAvailable: 0,
+        purchasedAvailable: 0,
+        reserved: 0,
+        percentUsed: 0,
+        threshold: null,
+      },
+    },
   });
 
   await next();
@@ -189,6 +218,8 @@ export async function requireApiKey(context, next) {
     return context.json({ error: 'Organisation not found for API key' }, 401);
   }
 
+  const billingSnapshot = await getBillingSnapshotForOrg(organisation.id).catch(() => null);
+
   await db
     .update(apiKeys)
     .set({
@@ -205,7 +236,31 @@ export async function requireApiKey(context, next) {
     apiKeyId: keyRecord.id,
     seatLimit: organisation.seatLimit,
     orgMetadata: organisation.metadata ?? {},
-    credits: creditsRemaining(organisation),
+    credits: billingSnapshot?.credits ?? {
+      remaining: Math.max((organisation.monthlyCreditLimit ?? 0) - (organisation.creditsUsed ?? 0), 0),
+      limit: organisation.monthlyCreditLimit ?? 0,
+      used: organisation.creditsUsed ?? 0,
+      execution: {
+        available: Math.max((organisation.monthlyCreditLimit ?? 0) - (organisation.creditsUsed ?? 0), 0),
+        committedThisCycle: organisation.creditsUsed ?? 0,
+        includedAvailable: Math.max((organisation.monthlyCreditLimit ?? 0) - (organisation.creditsUsed ?? 0), 0),
+        purchasedAvailable: 0,
+        reserved: 0,
+        percentUsed: organisation.monthlyCreditLimit > 0
+          ? Math.min(((organisation.creditsUsed ?? 0) / organisation.monthlyCreditLimit) * 100, 100)
+          : 0,
+        threshold: null,
+      },
+      video: {
+        available: 0,
+        committedThisCycle: 0,
+        includedAvailable: 0,
+        purchasedAvailable: 0,
+        reserved: 0,
+        percentUsed: 0,
+        threshold: null,
+      },
+    },
   });
 
   await next();
@@ -213,7 +268,16 @@ export async function requireApiKey(context, next) {
 
 export async function deductCredits(orgId, credits) {
   try {
-    await consumeCredits(orgId, credits);
+    await applyCreditAdjustment({
+      orgId,
+      creditType: 'execution',
+      delta: -Math.abs(credits),
+      source: 'burn',
+      entryType: 'legacy_commit',
+      metadata: {
+        route: 'auth.middleware',
+      },
+    });
   } catch (error) {
     console.error('[AUTH] Credit deduction failed:', error.message);
   }

@@ -3,7 +3,7 @@ import { api } from '../../../../lib/api';
 import { consumeAgentStream } from '../../../../lib/agentStream';
 import { findAgentByInvocation, stripAgentInvocationPrefix } from '../../../../lib/constants';
 import { getErrorMessage } from '../../../../lib/utils';
-import { extractImagePrompt } from '../../composer/commands';
+import { extractImagePrompt, extractVideoPrompt } from '../../composer/commands';
 import {
   getVoiceReplyCharacterLimit,
   getVoiceReplyPitch,
@@ -146,6 +146,64 @@ export function useChatSend({
     }
   }
 
+  async function handleVideoGeneration({ targetAgent, prompt }) {
+    setDraft('');
+    setStreamingText('');
+    setStreamingTask(buildStreamingTask({
+      kind: 'video',
+      targetAgent,
+      prompt,
+    }));
+    setIsStreaming(true);
+    setMessages((current) => [
+      ...current,
+      { id: `pending-user-${Date.now()}`, role: 'user', content: `/video ${prompt}` },
+    ]);
+
+    try {
+      const response = await api.post('/agents/generate-video', {
+        agentId: targetAgent.id,
+        conversationId: selectedConversationIdsRef.current[targetAgent.id] || undefined,
+        prompt,
+        durationSeconds: 4,
+        resolution: '720p',
+        aspectRatio: '16:9',
+      });
+
+      if (targetAgent.id === activeAgentRef.current?.id) {
+        afterSendUpdate(targetAgent.id, response.conversationId);
+      }
+
+      const result = await waitForVideoJob(response.jobId, response.pollAfterMs ?? 4000);
+
+      setIsStreaming(false);
+      setStreamingTask(null);
+
+      if (result.message) {
+        setMessages((current) => [...current, result.message]);
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['studio-conversations', targetAgent.id] }),
+        response.conversationId
+          ? queryClient.invalidateQueries({ queryKey: ['studio-messages', response.conversationId] })
+          : Promise.resolve(),
+        queryClient.invalidateQueries({ queryKey: ['billing-stats'] }),
+        queryClient.invalidateQueries({ queryKey: ['viewer'] }),
+      ]);
+
+      notify({
+        type: 'success',
+        title: 'Video generated',
+        message: `${targetAgent.name} finished a queued video render for this chat.`,
+      });
+    } catch (error) {
+      setIsStreaming(false);
+      setStreamingTask(null);
+      notify({ type: 'error', title: 'Video generation failed', message: getErrorMessage(error) });
+    }
+  }
+
   async function handleSend(rawInput) {
     const input = (rawInput ?? '').trim();
     const agent = activeAgentRef.current;
@@ -179,11 +237,26 @@ export function useChatSend({
     }
 
     const imagePrompt = extractImagePrompt(finalMessage);
+    const videoPrompt = extractVideoPrompt(finalMessage);
     const isFirstMessage =
       !selectedConversationIdsRef.current[targetAgent.id] && /* messages.length === 0 — caller resets state */ true;
 
     if (imagePrompt) {
       await handleImageGeneration({ targetAgent, prompt: imagePrompt });
+      return;
+    }
+
+    if (/^\/video\s*$/i.test(finalMessage)) {
+      notify({
+        type: 'error',
+        title: 'Video prompt missing',
+        message: 'Add a prompt after /video so Prymal knows what to animate.',
+      });
+      return;
+    }
+
+    if (videoPrompt) {
+      await handleVideoGeneration({ targetAgent, prompt: videoPrompt });
       return;
     }
 
@@ -260,6 +333,12 @@ export function useChatSend({
                 repairActions: event.sentinelRepairActions ?? [],
                 conversationId: event.conversationId,
                 agentId: event.agentId,
+                holdReason: event.sentinelHoldReason ?? null,
+                riskScore: event.sentinelRiskScore ?? null,
+              },
+              enforcementSummary: event.enforcementSummary ?? null,
+              metadata: {
+                enforcementSummary: event.enforcementSummary ?? null,
               },
             },
           ]);
@@ -282,10 +361,14 @@ export function useChatSend({
               tokensUsed: event.tokensUsed,
               schemaValidation: event.schemaValidation ?? null,
               sentinelReview: event.sentinelReview ?? null,
+              enforcementSummary: event.enforcementSummary ?? null,
+              geminiGrounding: event.geminiGrounding ?? null,
               metadata: {
                 sources: event.sources ?? [],
                 schemaValidation: event.schemaValidation ?? null,
                 sentinelReview: event.sentinelReview ?? null,
+                enforcementSummary: event.enforcementSummary ?? null,
+                geminiGrounding: event.geminiGrounding ?? null,
               },
             },
           ]);
@@ -521,9 +604,34 @@ export function useChatSend({
     setWrenEscalated,
     handleSend,
     handleImageGeneration,
+    handleVideoGeneration,
     handleFileAttach,
     handleOracleAudit,
     handleRequestReview,
     resetSendState,
   };
+
+  async function waitForVideoJob(jobId, pollAfterMs) {
+    let attempts = 0;
+    let delayMs = Math.max(Number(pollAfterMs) || 4000, 2500);
+
+    while (attempts < 45) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      const result = await api.get(`/agents/video-jobs/${jobId}`);
+      const status = result.job?.status ?? 'queued';
+
+      if (status === 'completed' && result.message) {
+        return result;
+      }
+
+      if (status === 'failed' || status === 'released') {
+        throw new Error(result.job?.failureMessage || 'Video generation failed.');
+      }
+
+      attempts += 1;
+      delayMs = Math.min(delayMs + 1000, 12_000);
+    }
+
+    throw new Error('Video generation is taking longer than expected. Check back in a moment.');
+  }
 }

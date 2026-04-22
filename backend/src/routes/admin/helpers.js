@@ -163,6 +163,8 @@ export function mapTraceRow(row) {
     evaluation: row.metadata?.evaluation ?? null,
     schemaValidation: row.metadata?.schemaValidation ?? null,
     sentinelReview: row.metadata?.sentinelReview ?? null,
+    enforcementSummary: row.metadata?.enforcementSummary ?? null,
+    geminiGrounding: row.metadata?.geminiGrounding ?? null,
     contract: row.metadata?.contract ?? null,
     policyClass: row.metadata?.policyClass ?? row.metadata?.routing?.policyClass ?? row.policyKey,
     fallbackModel: row.metadata?.fallbackModel ?? row.metadata?.routing?.fallbackModelUsed ?? null,

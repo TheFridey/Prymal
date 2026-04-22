@@ -10,6 +10,18 @@ import { formatDateTime } from '../../../lib/utils';
 import { EditIcon, PinIcon, TrashIcon } from '../chat/icons';
 import { CogIcon } from '../chat/icons';
 import { MotionList, MotionListItem, MotionPanel, MotionPresence } from '../../../components/motion';
+import { getAgentCapabilities, getCapabilityTone } from '../../../lib/agentCapabilities';
+
+const SIDEBAR_TONE_COLORS = {
+  lore: '#b8a0ff',
+  structure: '#7ad7ff',
+  strict: '#f5b04b',
+  live: '#3fd9b8',
+  side_effect: '#ffa789',
+  oversight: '#ff7d7d',
+  voice: '#ff8db3',
+  default: 'var(--muted)',
+};
 
 export default function AgentSidebar({
   // Active state
@@ -108,6 +120,7 @@ export default function AgentSidebar({
         </div>
         <AgentAvatar agent={activeAgent} size={120} active className="workspace-studio__hero-avatar" />
         <div className="workspace-studio__hero-description">{activeAgent.description}</div>
+        <AgentCapabilityStrip agentId={activeAgent.id} />
         <div className="workspace-studio__hero-actions">
           <Button tone="accent" block onClick={onStartNewChat}>New chat</Button>
         </div>
@@ -234,5 +247,83 @@ export default function AgentSidebar({
         </div>
       </div>
     </MotionPanel>
+  );
+}
+
+function AgentCapabilityStrip({ agentId }) {
+  const { capabilities, notIdealFor } = getAgentCapabilities(agentId);
+
+  if (capabilities.length === 0 && notIdealFor.length === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gap: '8px',
+        margin: '0 0 12px',
+        padding: '12px',
+        borderRadius: '12px',
+        background: 'rgba(255,255,255,0.02)',
+        border: '1px solid rgba(255,255,255,0.06)',
+      }}
+    >
+      {capabilities.length > 0 ? (
+        <div>
+          <div
+            style={{
+              fontSize: '10px',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--muted)',
+              marginBottom: '6px',
+            }}
+          >
+            Capabilities
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+            {capabilities.map((label) => {
+              const color = SIDEBAR_TONE_COLORS[getCapabilityTone(label)] ?? SIDEBAR_TONE_COLORS.default;
+              return (
+                <span
+                  key={label}
+                  title={label}
+                  style={{
+                    fontSize: '10px',
+                    padding: '3px 8px',
+                    borderRadius: '999px',
+                    border: `1px solid ${color}33`,
+                    color,
+                    background: `${color}10`,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      {notIdealFor.length > 0 ? (
+        <div>
+          <div
+            style={{
+              fontSize: '10px',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: 'var(--muted)',
+              marginBottom: '6px',
+            }}
+          >
+            Not ideal for
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--muted)', lineHeight: 1.55 }}>
+            {notIdealFor.join(' · ')}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

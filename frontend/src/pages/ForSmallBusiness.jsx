@@ -224,7 +224,7 @@ export default function ForSmallBusiness() {
               </div>
               <div className="pm-uc-hero__ctas">
                 <Link to="/signup" className="pm-btn pm-btn--primary" onClick={() => trackSignup('small-business-hero')}>Start free →</Link>
-                <a href="/#pricing" className="pm-btn pm-btn--ghost">See pricing</a>
+                <a href="/pricing" className="pm-btn pm-btn--ghost">See pricing</a>
               </div>
               <div className="pm-uc-hero__chips">
                 {['Support cover', 'Follow-up system', 'Website review', 'Weekly reporting'].map((chip) => (
@@ -405,7 +405,7 @@ export default function ForSmallBusiness() {
                   <Link to="/signup" onClick={() => trackSignup('small-business-footer')}>
                     <Button tone="accent">Start free</Button>
                   </Link>
-                  <a href="/#pricing">
+                  <a href="/pricing">
                     <Button tone="ghost">See pricing</Button>
                   </a>
                 </div>
