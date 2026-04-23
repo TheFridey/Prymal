@@ -322,6 +322,64 @@ export async function detectKnowledgeGap({ orgId, query, threshold = 0.6 }) {
   return Number(results[0].similarity) < threshold;
 }
 
+export function buildRetrievalDiagnostics({ results = [], knowledgeGap = false } = {}) {
+  const topResult = results[0] ?? null;
+  const confidenceScores = results.map((result) => Number(result.confidenceScore ?? 0));
+  const averageConfidence = confidenceScores.length > 0
+    ? confidenceScores.reduce((sum, value) => sum + value, 0) / confidenceScores.length
+    : 0;
+  const contradictionCount = results.reduce(
+    (sum, result) => sum + (Array.isArray(result.contradictionSignals) ? result.contradictionSignals.length : 0),
+    0,
+  );
+  const staleCount = results.filter((result) => Boolean(result.staleWarning)).length;
+  const lowConfidence = !topResult || Number(topResult.confidenceScore ?? 0) < 0.55 || averageConfidence < 0.5;
+
+  return {
+    resultCount: results.length,
+    topScore: roundScore(topResult?.finalScore),
+    topConfidence: roundScore(topResult?.confidenceScore),
+    averageConfidence: roundScore(averageConfidence),
+    modes: [...new Set(results.map((result) => result.retrievalMode).filter(Boolean))],
+    contradictionCount,
+    staleCount,
+    knowledgeGap: Boolean(knowledgeGap),
+    lowConfidence,
+    userMessage: buildRetrievalDiagnosticMessage({
+      resultCount: results.length,
+      knowledgeGap,
+      lowConfidence,
+      contradictionCount,
+      staleCount,
+    }),
+  };
+}
+
+function buildRetrievalDiagnosticMessage({ resultCount, knowledgeGap, lowConfidence, contradictionCount, staleCount }) {
+  if (resultCount === 0) {
+    return 'LORE did not find indexed workspace knowledge for this query.';
+  }
+
+  if (knowledgeGap || lowConfidence) {
+    return 'LORE found weak evidence. Treat the answer as uncertain unless additional source material is added.';
+  }
+
+  if (contradictionCount > 0) {
+    return 'LORE found potentially conflicting source material. Review the cited documents before acting.';
+  }
+
+  if (staleCount > 0) {
+    return 'LORE found source material, but some matches may be stale.';
+  }
+
+  return 'LORE found source-backed matches for this query.';
+}
+
+function roundScore(value) {
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) ? Number(numeric.toFixed(4)) : 0;
+}
+
 export async function checkForContradictions({ orgId, newContent, documentId }) {
   const chunks = splitIntoChunks(newContent).slice(0, 8);
   const contradictions = [];

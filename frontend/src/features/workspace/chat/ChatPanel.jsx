@@ -59,6 +59,37 @@ function SentinelHoldBlock({ holdData, onRequestReview }) {
   );
 }
 
+function AgentErrorBlock({ errorData, onRetry }) {
+  const retryText = errorData?.retryText ?? '';
+
+  return (
+    <div
+      style={{
+        margin: '12px 0',
+        padding: '16px 20px',
+        borderRadius: '14px',
+        border: '1px solid rgba(245,158,11,0.35)',
+        background: 'rgba(245,158,11,0.07)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" style={{ flexShrink: 0 }}>
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <strong style={{ color: '#f59e0b', fontSize: '14px' }}>Response could not be completed</strong>
+      </div>
+      <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '0 0 12px', lineHeight: 1.7 }}>
+        {errorData?.message ?? 'Prymal could not complete this response. No partial answer was saved.'}
+      </p>
+      {retryText ? (
+        <Button tone="ghost" onClick={() => onRetry?.(retryText)}>
+          Retry prompt
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export default function ChatPanel({
   // Agent
   activeAgent,
@@ -147,6 +178,19 @@ export default function ChatPanel({
                     <SentinelHoldBlock
                       holdData={message.holdData}
                       onRequestReview={onRequestReview}
+                    />
+                  </motion.div>
+                ) : message._error ? (
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    exit={{ opacity: 0, y: -8, filter: 'blur(2px)' }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <AgentErrorBlock
+                      errorData={message.errorData}
+                      onRetry={onSetDraft}
                     />
                   </motion.div>
                 ) : (

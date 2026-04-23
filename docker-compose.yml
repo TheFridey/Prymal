@@ -1,22 +1,22 @@
 services:
-  axiom-db:
+  prymal-db:
     image: pgvector/pgvector:pg16
-    container_name: axiom-db
+    container_name: prymal-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: axiom
+      POSTGRES_DB: prymal
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
       - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d axiom"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d prymal"]
       interval: 10s
       timeout: 5s
       retries: 10
     volumes:
-      - axiom_postgres_data:/var/lib/postgresql/data
+      - prymal_postgres_data:/var/lib/postgresql/data
       - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
 
 volumes:
-  axiom_postgres_data:
+  prymal_postgres_data:

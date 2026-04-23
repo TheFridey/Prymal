@@ -88,6 +88,28 @@ export function useChatSend({
   const unlockedAgentsRef = useRef(unlockedAgents);
   unlockedAgentsRef.current = unlockedAgents;
 
+  function appendFailureMessage({ message, retryText, code, agentId }) {
+    setMessages((current) => [
+      ...current,
+      {
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: '',
+        _error: true,
+        errorData: {
+          message,
+          retryText,
+          code,
+          agentId,
+        },
+        metadata: {
+          failed: true,
+          code,
+        },
+      },
+    ]);
+  }
+
   async function handleImageGeneration({ targetAgent, prompt }) {
     const settings = settingsByAgentRef.current[targetAgent.id] ?? {};
     const userContent = `/image ${prompt}`;
@@ -142,6 +164,12 @@ export function useChatSend({
     } catch (error) {
       setIsStreaming(false);
       setStreamingTask(null);
+      appendFailureMessage({
+        message: getErrorMessage(error, 'Prymal could not generate this image.'),
+        retryText: userContent,
+        code: error?.code ?? 'IMAGE_GENERATION_FAILED',
+        agentId: targetAgent.id,
+      });
       notify({ type: 'error', title: 'Image generation failed', message: getErrorMessage(error) });
     }
   }
@@ -200,6 +228,12 @@ export function useChatSend({
     } catch (error) {
       setIsStreaming(false);
       setStreamingTask(null);
+      appendFailureMessage({
+        message: getErrorMessage(error, 'Prymal could not complete this video render.'),
+        retryText: `/video ${prompt}`,
+        code: error?.code ?? 'VIDEO_GENERATION_FAILED',
+        agentId: targetAgent.id,
+      });
       notify({ type: 'error', title: 'Video generation failed', message: getErrorMessage(error) });
     }
   }
@@ -427,6 +461,14 @@ export function useChatSend({
         ]);
       }
       if (error.code === 'RATE_LIMITED') {
+        appendFailureMessage({
+          message: error.upgrade
+            ? `You've used your plan's chat allowance. Upgrade to continue. Resets in ${error.retryAfter}s.`
+            : `Too many requests. Please wait ${error.retryAfter}s before sending another message.`,
+          retryText: finalMessage,
+          code: error.code,
+          agentId: targetAgent.id,
+        });
         notify({
           type: 'warning',
           title: 'Chat limit reached',
@@ -438,6 +480,12 @@ export function useChatSend({
         return;
       }
 
+      appendFailureMessage({
+        message: getErrorMessage(error, 'Prymal could not complete this response.'),
+        retryText: finalMessage,
+        code: error?.code ?? 'CHAT_FAILED',
+        agentId: targetAgent.id,
+      });
       notify({ type: 'error', title: 'Chat failed', message: getErrorMessage(error) });
     }
   }

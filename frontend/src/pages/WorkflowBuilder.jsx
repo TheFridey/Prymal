@@ -542,7 +542,8 @@ export default function WorkflowBuilder({ onClose }) {
 
   const onDrop = useCallback((event) => {
     event.preventDefault();
-    const agentId = event.dataTransfer.getData('application/axiom-agent');
+    const agentId = event.dataTransfer.getData('application/prymal-agent')
+      || event.dataTransfer.getData('application/axiom-agent');
     if (!agentId || !rfInstance) {
       return;
     }
@@ -762,7 +763,10 @@ export default function WorkflowBuilder({ onClose }) {
               <div
                 key={agent.id}
                 draggable
-                onDragStart={(event) => event.dataTransfer.setData('application/axiom-agent', agent.id)}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData('application/prymal-agent', agent.id);
+                  event.dataTransfer.setData('application/axiom-agent', agent.id);
+                }}
                 className="workflow-builder__agent-pill"
                 style={{ '--agent-accent': agent.color }}
               >

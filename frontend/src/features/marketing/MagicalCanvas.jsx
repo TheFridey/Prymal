@@ -39,8 +39,15 @@ export function MagicalCanvas({ reducedMotion = false }) {
 
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
+    if (import.meta.env?.MODE === 'test') return undefined;
 
-    const ctx = canvas.getContext('2d');
+    let ctx = null;
+    try {
+      ctx = canvas.getContext('2d');
+    } catch {
+      // jsdom and some privacy-hardened browsers can expose canvas without 2D support.
+      return undefined;
+    }
     if (!ctx) return undefined;
 
     let animationId = 0;

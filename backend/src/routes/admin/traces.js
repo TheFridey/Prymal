@@ -224,7 +224,9 @@ router.get('/model-policy', requireStaff, requireStaffPermission('admin.activity
   try {
     const raw = process.env.ORG_MODEL_POLICY_OVERRIDES?.trim();
     if (raw) orgOverrides = JSON.parse(raw);
-  } catch {}
+  } catch {
+    // Invalid override JSON should not break the admin diagnostics surface.
+  }
 
   const policyLanes = Object.values(MODEL_POLICIES).map((policy) => ({
     key: policy.key,

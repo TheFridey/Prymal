@@ -1,4 +1,4 @@
-// axiom/backend/drizzle.config.js
+// Prymal backend Drizzle configuration.
 import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({

@@ -19,6 +19,7 @@ import {
 import {
   flattenMeta,
   formatCurrency,
+  displayName,
   getOrganisationAttentionScore,
   getPercent,
   getPlanTone,

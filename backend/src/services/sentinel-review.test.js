@@ -5,7 +5,8 @@ import { reviewAgentOutputWithSentinel, shouldRunSentinelReview } from './sentin
 test('shouldRunSentinelReview activates only for eligible plans and agents', () => {
   assert.equal(shouldRunSentinelReview({ agentId: 'cipher', orgPlan: 'pro' }), true);
   assert.equal(shouldRunSentinelReview({ agentId: 'cipher', orgPlan: 'solo' }), false);
-  assert.equal(shouldRunSentinelReview({ agentId: 'lore', orgPlan: 'agency' }), false);
+  assert.equal(shouldRunSentinelReview({ agentId: 'lore', orgPlan: 'agency' }), true);
+  assert.equal(shouldRunSentinelReview({ agentId: 'sentinel', orgPlan: 'agency' }), false);
 });
 
 test('reviewAgentOutputWithSentinel returns PASS for grounded, compliant output', () => {

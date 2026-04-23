@@ -6,6 +6,7 @@ setupTestEnv();
 
 const {
   buildVersionLineage,
+  buildRetrievalDiagnostics,
   computeAuthorityScore,
   computeContradictionSignals,
   computeFreshnessScore,
@@ -137,4 +138,24 @@ test('rankLoreRows labels lexical-only matches as fallback retrieval', () => {
 
   assert.equal(rows[0].retrievalMode, 'lexical_fallback');
   assert.equal(rows[0].confidenceLabel, 'low');
+});
+
+test('buildRetrievalDiagnostics explains weak or missing LORE evidence', () => {
+  const empty = buildRetrievalDiagnostics({ results: [], knowledgeGap: true });
+  const weak = buildRetrievalDiagnostics({
+    knowledgeGap: true,
+    results: [
+      {
+        finalScore: 0.31,
+        confidenceScore: 0.42,
+        retrievalMode: 'lexical_fallback',
+        contradictionSignals: [],
+      },
+    ],
+  });
+
+  assert.equal(empty.lowConfidence, true);
+  assert.match(empty.userMessage, /did not find indexed workspace knowledge/i);
+  assert.equal(weak.lowConfidence, true);
+  assert.match(weak.userMessage, /weak evidence/i);
 });

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// axiom/backend/src/services/agent-runner.js
+// Prymal backend agent runner.
 // Core execution loop for single-turn agent chat interactions.
 // Wraps llm.js streaming with lifecycle management: eval, trace,
 // fallback handling, and tool dispatch enforcement.
@@ -13,7 +13,7 @@ import { streamAgentResponse } from './llm.js';
 import { classifyLLMFailure, recordLLMExecutionTrace } from './llm-observability.js';
 import { extractMemoryFromTurn } from './memory.js';
 import { selectExecutionPlan, EXTENDED_THINKING_PLANS } from './model-policy.js';
-import { reviewAgentOutputWithSentinel } from './sentinel-review.js';
+import { reviewAgentOutputWithSentinel, shouldRunSentinelReview } from './sentinel-review.js';
 
 /**
  * Run a single agent chat turn and stream the result.
@@ -80,6 +80,7 @@ export async function* runAgentChat({
 
   let assistantText = '';
   let lastDoneEvent = null;
+  const bufferUntilSentinelVerdict = shouldRunSentinelReview({ agentId, orgPlan });
 
   try {
     const generator = streamAgentResponse({
@@ -105,7 +106,9 @@ export async function* runAgentChat({
     for await (const event of generator) {
       if (event.type === 'text') {
         assistantText += event.chunk;
-        yield { type: 'chunk', text: event.chunk };
+        if (!bufferUntilSentinelVerdict) {
+          yield { type: 'chunk', text: event.chunk };
+        }
       }
 
       if (event.type === 'done') {
@@ -225,6 +228,10 @@ export async function* runAgentChat({
         agentId,
       };
       return;
+    }
+
+    if (bufferUntilSentinelVerdict && assistantText) {
+      yield { type: 'chunk', text: assistantText, bufferedForSentinel: true };
     }
 
     yield {

@@ -149,7 +149,9 @@ async function fetchInternalLinks(page, options) {
         summary: child.summary,
         fetchedVia: child.fetchedVia,
       });
-    } catch {}
+    } catch {
+      // Ignore malformed child result URLs from search providers.
+    }
   }
 
   return results;
@@ -180,7 +182,9 @@ function extractUrls(text) {
       }
 
       unique.add(url.toString());
-    } catch {}
+    } catch {
+      // Ignore malformed URL-like text rather than blocking valid matches.
+    }
   }
 
   return Array.from(unique);
@@ -449,7 +453,9 @@ function extractInternalLinks(html, baseUrl) {
 
       seen.add(url.toString());
       results.push({ url: url.toString(), text });
-    } catch {}
+    } catch {
+      // Ignore individual page extraction failures and keep processing siblings.
+    }
   }
 
   return results;

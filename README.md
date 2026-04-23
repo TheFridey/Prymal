@@ -14,7 +14,7 @@ Prymal is a multi-agent AI platform that gives businesses an orchestrated team o
 ## Repo layout
 
 ```text
-axiom/
+Prymal/
   backend/      Hono API, Drizzle schema, services, routes
   frontend/     Vite React app
   database/     Raw PostgreSQL bootstrap schema
@@ -37,7 +37,7 @@ axiom/
 - SENTINEL HOLD inline notice with "Request review" button and persistent hold messages
 - `ActionReceiptDrawer` with immutable admin action receipts and before/after diff rendering
 - Settings decomposition into `SettingsTabPanels.jsx`
-- `verify-build.mjs` for clean install -> build -> test reproducibility validation
+- `verify-build.mjs` for lint -> build -> test validation, with `--clean` for clean-install reproducibility
 - Playwright E2E coverage for marketing smoke, workspace smoke, settings smoke, and onboarding smoke tests
 - Waitlist tab with per-row checkboxes, batch selection, and batch invite action bar
 - Referral analytics tab with stat tiles, top-referrers table, and recent activity feed
@@ -98,13 +98,13 @@ Supported ingest types today:
 Recommended for local development: use the bundled Docker pgvector database so it does not collide with a local PostgreSQL install.
 
 ```bash
-docker compose up -d axiom-db
+docker compose up -d prymal-db
 ```
 
 The Docker database listens on `localhost:5433`, so the matching backend connection string is:
 
 ```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5433/axiom
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/prymal
 ```
 
 If you prefer a native PostgreSQL install instead, you must install `pgvector` on that server before running Prymal.
@@ -128,6 +128,10 @@ bun run dev:bun
 Useful backend scripts:
 
 ```bash
+npm run lint
+npm run typecheck
+npm test
+npm run verify
 npm run db:generate
 npm run db:push
 npm run db:migrate
@@ -145,11 +149,12 @@ npm run dev
 
 The frontend defaults to `http://localhost:5173`.
 
-For a clean lockfile install and build check:
+For the normal frontend health path:
 
 ```bash
 cd frontend
-npm ci
+npm run lint
+npm test
 npm run build
 ```
 
@@ -157,7 +162,7 @@ For a clean-checkout reproducibility pass suitable for CI:
 
 ```bash
 cd frontend
-npm run verify-build
+npm run verify-build -- --clean
 ```
 
 Release gating and branch protection recommendations are documented in [RELEASE.md](./RELEASE.md).

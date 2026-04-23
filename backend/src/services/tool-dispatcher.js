@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// axiom/backend/src/services/tool-dispatcher.js
+// Prymal backend tool dispatcher.
 // Routes tool calls from agents to the correct handler service.
 // Enforces allowedTools / disallowedTools from the agent contract.
 // ─────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// axiom/backend/src/db/index.js
+// Prymal database connection.
 // Drizzle ORM + postgres connection
 // ─────────────────────────────────────────────────────────────────
 

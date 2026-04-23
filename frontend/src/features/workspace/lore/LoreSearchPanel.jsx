@@ -34,6 +34,7 @@ export function LoreSearchPanel({
   searchQuery,
 }) {
   const searchResults = searchQuery.data?.results ?? [];
+  const diagnostics = searchQuery.data?.diagnostics ?? null;
 
   return (
     <SurfaceCard accent="#C77DFF" className="workspace-knowledge-panel__search">
@@ -59,10 +60,19 @@ export function LoreSearchPanel({
         <InlineNotice tone="danger">{getErrorMessage(searchQuery.error)}</InlineNotice>
       ) : null}
 
-      {searchQuery.data?.knowledgeGap ? (
-        <InlineNotice tone="warning">
-          Prymal could not find strong evidence for this query yet. Uploading a more direct source may improve grounded answers.
+      {diagnostics?.userMessage ? (
+        <InlineNotice tone={diagnostics.knowledgeGap || diagnostics.lowConfidence || diagnostics.contradictionCount > 0 ? 'warning' : 'default'}>
+          {diagnostics.userMessage}
         </InlineNotice>
+      ) : null}
+
+      {diagnostics ? (
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', color: 'var(--muted)', fontSize: '12px' }}>
+          <span>Average confidence {formatPercent(diagnostics.averageConfidence)}</span>
+          <span>{diagnostics.modes?.length ? `Modes: ${diagnostics.modes.join(', ')}` : 'No retrieval mode yet'}</span>
+          {diagnostics.staleCount > 0 ? <span>{diagnostics.staleCount} stale signal{diagnostics.staleCount === 1 ? '' : 's'}</span> : null}
+          {diagnostics.contradictionCount > 0 ? <span>{diagnostics.contradictionCount} contradiction signal{diagnostics.contradictionCount === 1 ? '' : 's'}</span> : null}
+        </div>
       ) : null}
 
       {debouncedSearch ? (

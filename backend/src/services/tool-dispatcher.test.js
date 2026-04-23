@@ -40,6 +40,6 @@ test('non-lore agents cannot call knowledge_gap_check', async () => {
   });
 
   assert.equal(result.success, false);
-  assert.equal(result.error, "Tool 'knowledge_gap_check' is not in the allowed list for agent cipher.");
+  assert.equal(result.error, "Tool 'knowledge_gap_check' is outside the allowed contract for agent cipher.");
   assert.equal(result.result, null);
 });

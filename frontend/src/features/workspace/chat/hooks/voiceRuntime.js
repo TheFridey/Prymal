@@ -95,17 +95,23 @@ export async function startRealtimeSession({
 
     try {
       dataChannel?.close();
-    } catch {}
+    } catch {
+      // Closing an already-disposed RTC data channel is harmless.
+    }
 
     try {
       peer?.close();
-    } catch {}
+    } catch {
+      // Closing an already-disposed peer connection is harmless.
+    }
 
     if (localStream) {
       for (const track of localStream.getTracks()) {
         try {
           track.stop();
-        } catch {}
+        } catch {
+          // Individual tracks can already be stopped by browser cleanup.
+        }
       }
     }
 

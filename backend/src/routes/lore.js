@@ -9,6 +9,7 @@ import { planAwareRateLimit } from '../middleware/rateLimit.js';
 import { parseUploadedFile, SUPPORTED_UPLOAD_ACCEPT } from '../services/ingestion/parsers.js';
 import {
   checkForContradictions,
+  buildRetrievalDiagnostics,
   deleteDocument,
   detectKnowledgeGap,
   ingestDocument,
@@ -254,7 +255,13 @@ router.get('/search', requireOrg, async (context) => {
     detectKnowledgeGap({ orgId: org.orgId, query }),
   ]);
 
-  return context.json({ results, knowledgeGap });
+  const diagnostics = buildRetrievalDiagnostics({ results, knowledgeGap });
+
+  return context.json({
+    results,
+    knowledgeGap,
+    diagnostics,
+  });
 });
 
 router.get('/:id', requireOrg, async (context) => {

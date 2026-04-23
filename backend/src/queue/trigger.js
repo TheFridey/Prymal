@@ -15,7 +15,7 @@ async function getClient() {
   if (!clientPromise) {
     clientPromise = import('@trigger.dev/sdk').then(({ TriggerClient }) =>
       new TriggerClient({
-        id: 'axiom-platform',
+        id: 'prymal-platform',
         apiKey: process.env.TRIGGER_API_KEY,
         apiUrl: process.env.TRIGGER_API_URL ?? 'https://api.trigger.dev',
       }),
@@ -43,7 +43,7 @@ export async function dispatchWorkflowRun({ runId, workflow, orgContext }) {
   }
 
   await triggerClient.sendEvent({
-    name: 'axiom.workflow.run',
+    name: 'prymal.workflow.run',
     payload: {
       runId,
       workflow,

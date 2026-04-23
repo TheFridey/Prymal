@@ -1,14 +1,20 @@
 export async function consumeAgentStream(response, handlers) {
   if (!response.ok) {
     let message = `Streaming request failed with status ${response.status}.`;
+    let payload = null;
 
     try {
-      const data = await response.json();
-      message = data?.error || data?.message || message;
-    } catch {}
+      payload = await response.json();
+      message = payload?.error || payload?.message || message;
+    } catch {
+      // Non-JSON error responses still surface via the HTTP status message.
+    }
 
     const error = new Error(message);
     error.status = response.status;
+    error.code = payload?.code ?? null;
+    error.upgrade = Boolean(payload?.upgrade);
+    error.requestId = payload?.requestId ?? response.headers.get('x-request-id') ?? null;
     throw error;
   }
 
@@ -65,7 +71,7 @@ export async function consumeAgentStream(response, handlers) {
         continue;
       }
 
-      dispatchEvent(JSON.parse(dataLine.slice(6)));
+      dispatchRawEvent(dataLine.slice(6));
     }
   }
 
@@ -75,7 +81,7 @@ export async function consumeAgentStream(response, handlers) {
       .find((line) => line.startsWith('data: '));
 
     if (dataLine) {
-      dispatchEvent(JSON.parse(dataLine.slice(6)));
+      dispatchRawEvent(dataLine.slice(6));
     }
   }
 
@@ -85,5 +91,17 @@ export async function consumeAgentStream(response, handlers) {
     );
     error.code = 'STREAM_INCOMPLETE';
     throw error;
+  }
+
+  function dispatchRawEvent(raw) {
+    try {
+      dispatchEvent(JSON.parse(raw));
+    } catch (parseError) {
+      terminalReceived = true;
+      const error = new Error('The agent stream returned malformed data. Please retry your message.');
+      error.code = 'STREAM_PARSE_FAILED';
+      error.cause = parseError;
+      throw error;
+    }
   }
 }

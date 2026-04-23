@@ -38,7 +38,7 @@ test('loadBackendEnv does not load backend .env automatically during tests', () 
 
 test('bootstrapRuntimeEnv allows placeholder values in test mode without throwing', () => {
   process.env.NODE_ENV = 'test';
-  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5433/axiom';
+  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5433/prymal';
   process.env.OPENAI_API_KEY = 'your_openai_key_here';
 
   assert.doesNotThrow(() => bootstrapRuntimeEnv({ mode: 'test', force: true }));
@@ -47,7 +47,7 @@ test('bootstrapRuntimeEnv allows placeholder values in test mode without throwin
 test('validateRuntimeEnv enforces placeholder protection in strict runtime modes', () => {
   const result = validateRuntimeEnv(
     {
-      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/axiom',
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/prymal',
       OPENAI_API_KEY: 'your_openai_key_here',
     },
     { mode: 'development', strict: true },
@@ -60,7 +60,7 @@ test('validateRuntimeEnv enforces placeholder protection in strict runtime modes
 test('validateRuntimeEnv allows optional placeholder Stripe and encryption values in development', () => {
   const result = validateRuntimeEnv(
     {
-      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/axiom',
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/prymal',
       OPENAI_API_KEY: 'sk-real-ish-openai-key',
       ANTHROPIC_API_KEY: 'sk-ant-real-ish-key',
       STRIPE_SECRET_KEY: 'sk_test_xxxx',
@@ -79,7 +79,7 @@ test('validateRuntimeEnv allows optional placeholder Stripe and encryption value
 test('validateRuntimeEnv warns when SENTRY_DSN is configured with an invalid value', () => {
   const result = validateRuntimeEnv(
     {
-      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/axiom',
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/prymal',
       OPENAI_API_KEY: 'sk-real-ish-openai-key',
       ANTHROPIC_API_KEY: 'sk-ant-real-ish-key',
       SENTRY_DSN: 'not-a-real-dsn',
@@ -100,7 +100,7 @@ test('getMemorySessionTtlHours falls back to 24 hours when unset or invalid', ()
 test('validateRuntimeEnv requires a real encryption key when OAuth integrations are configured', () => {
   const result = validateRuntimeEnv(
     {
-      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/axiom',
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/prymal',
       OPENAI_API_KEY: 'sk-real-ish-openai-key',
       ANTHROPIC_API_KEY: 'sk-ant-real-ish-key',
       GOOGLE_CLIENT_ID: 'google-client-id.apps.googleusercontent.com',
@@ -116,7 +116,7 @@ test('validateRuntimeEnv requires a real encryption key when OAuth integrations 
 
 test('bootstrapRuntimeEnv throws in development when strict validation fails', () => {
   process.env.NODE_ENV = 'development';
-  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5433/axiom';
+  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5433/prymal';
   process.env.OPENAI_API_KEY = 'placeholder-openai-key';
 
   assert.throws(

@@ -1,10 +1,13 @@
 {
-  "name": "axiom-frontend",
+  "name": "prymal-frontend",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "lint": "eslint .",
+    "typecheck": "npm run build",
+    "verify": "npm run lint && npm test && npm run build",
     "preview": "vite preview",
     "verify-build": "node scripts/verify-build.mjs",
     "avatar:prepare": "node scripts/convert-agent-avatar.mjs",
@@ -33,7 +36,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.0",
-    "@rollup/rollup-win32-arm64-msvc": "^4.60.2",
+    "eslint": "^9.39.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
     "@testing-library/user-event": "^14.5.2",

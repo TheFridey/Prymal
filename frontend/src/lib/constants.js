@@ -34,7 +34,6 @@ export const AGENT_LIBRARY = [
     avatarScene: 'cipher-data',
     color: '#33c7ff',
     animal: 'Monkey',
-    animal: 'Monkey',
     description: 'Turns operational, revenue, and campaign data into evidence the team can act on immediately.',
     prompts: [
       'Analyse this CSV and surface the anomalies.',
@@ -67,7 +66,6 @@ export const AGENT_LIBRARY = [
     avatarSrc: heraldAvatar,
     avatarScene: 'herald-feathers',
     color: '#ff8b5f',
-    animal: 'Eagle',
     animal: 'Eagle',
     description: 'Writes sharp outbound, stakeholder, and lifecycle email with context from the wider workspace.',
     prompts: [
@@ -102,7 +100,6 @@ export const AGENT_LIBRARY = [
     avatarScene: 'lore-pages',
     color: '#996dff',
     animal: 'Elephant',
-    animal: 'Elephant',
     description: 'Anchors responses in indexed company knowledge with source-aware retrieval and provenance.',
     prompts: [
       'What does our knowledge base say about pricing?',
@@ -135,7 +132,6 @@ export const AGENT_LIBRARY = [
     avatarSrc: forgeAvatar,
     avatarScene: 'forge-sparks',
     color: '#f8c44f',
-    animal: 'Beaver',
     animal: 'Beaver',
     description: 'Builds premium homepage copy, articles, launch narratives, and sales assets with structure.',
     prompts: [
@@ -170,7 +166,6 @@ export const AGENT_LIBRARY = [
     avatarScene: 'atlas-orbits',
     color: '#40d7c3',
     animal: 'Lion',
-    animal: 'Lion',
     description: 'Converts ambiguous briefs into milestones, owners, dependencies, and operating plans.',
     prompts: [
       'Turn this brief into a four-week launch plan.',
@@ -203,7 +198,6 @@ export const AGENT_LIBRARY = [
     avatarSrc: echoAvatar,
     avatarScene: 'echo-waves',
     color: '#ff5c98',
-    animal: 'Dolphin',
     animal: 'Dolphin',
     description: 'Repurposes ideas into platform-native social content that still sounds like the brand.',
     prompts: [
@@ -271,7 +265,6 @@ export const AGENT_LIBRARY = [
     avatarScene: 'oracle-comets',
     color: '#62dca5',
     animal: 'Owl',
-    animal: 'Owl',
     description: 'Finds search opportunities, intent mismatches, and content angles worth building around.',
     prompts: [
       'Create an SEO brief for this keyword cluster.',
@@ -304,7 +297,6 @@ export const AGENT_LIBRARY = [
     avatarSrc: vanceAvatar,
     avatarScene: 'vance-arrows',
     color: '#ff7a3c',
-    animal: 'Fox',
     animal: 'Fox',
     description: 'Moves pipeline forward with better qualification, proposals, and progression messaging.',
     prompts: [
@@ -339,7 +331,6 @@ export const AGENT_LIBRARY = [
     avatarScene: 'wren-bubbles',
     color: '#85d4a8',
     animal: 'Wren',
-    animal: 'Wren',
     description: 'Handles support replies, FAQ generation, and sensitive communication with empathy.',
     prompts: [
       'Reply to this frustrated customer with a clear resolution.',
@@ -372,7 +363,6 @@ export const AGENT_LIBRARY = [
     avatarSrc: ledgerAvatar,
     avatarScene: 'ledger-bars',
     color: '#7ec4da',
-    animal: 'Mallard Duck',
     animal: 'Mallard Duck',
     description: 'Translates financial movement into plain-English reporting for leaders and clients.',
     prompts: [
@@ -434,7 +424,6 @@ export const AGENT_LIBRARY = [
     avatarSrc: scoutAvatar,
     avatarScene: 'scout-compass',
     color: '#ff9aa5',
-    animal: 'Rabbit',
     animal: 'Rabbit',
     description: 'Maps competitor positions, market shifts, and whitespace opportunities worth acting on.',
     prompts: [

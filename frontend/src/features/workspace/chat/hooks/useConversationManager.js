@@ -156,7 +156,9 @@ export function useConversationManager({ activeAgentId, activeAgent, notify, sto
       const settingsRaw = window.localStorage.getItem(`prymal:chat-settings:${storageSuffix}`);
       if (pinnedRaw) setPinnedByAgent(JSON.parse(pinnedRaw));
       if (settingsRaw) setSettingsByAgent(JSON.parse(settingsRaw));
-    } catch {}
+    } catch {
+      // Local preference storage is best-effort; corrupted values should not block chat.
+    }
   }, [storageSuffix]);
 
   useEffect(() => {

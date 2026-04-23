@@ -160,7 +160,11 @@ export function useVoiceInput({
       clearRecordingSnapshotInterval(recordingSnapshotIntervalRef);
       recordingSnapshotIntervalRef.current = setInterval(() => {
         if (speechFallbackRecorderRef.current?.state === 'recording') {
-          try { speechFallbackRecorderRef.current.requestData(); } catch {}
+          try {
+            speechFallbackRecorderRef.current.requestData();
+          } catch {
+            // MediaRecorder snapshots are opportunistic during live speech fallback.
+          }
         }
       }, 1200);
 
@@ -513,7 +517,9 @@ export function useVoiceInput({
       speechFallbackRollingTranscriptRef.current = transcript;
       setDraft(composeVoiceDraft(voiceDraftBaseRef.current, transcript, ''));
       setVoiceInterim('Listening live...');
-    } catch {}
+    } catch {
+      // Rolling transcription retries on the next recorder snapshot.
+    }
     finally {
       speechFallbackRollingBusyRef.current = false;
     }
@@ -558,7 +564,11 @@ export function useVoiceInput({
         });
         recordingSnapshotIntervalRef.current = setInterval(() => {
           if (mediaRecorderRef.current?.state === 'recording') {
-            try { mediaRecorderRef.current.requestData(); } catch {}
+            try {
+              mediaRecorderRef.current.requestData();
+            } catch {
+              // Ignore transient recorder snapshot failures while the stream settles.
+            }
           }
         }, 1200);
         recordingTimeoutRef.current = setTimeout(() => {

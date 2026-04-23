@@ -1,6 +1,6 @@
 export function setupTestEnv() {
   process.env.NODE_ENV = 'test';
-  process.env.DATABASE_URL ??= 'postgresql://postgres:postgres@localhost:5433/axiom';
+  process.env.DATABASE_URL ??= 'postgresql://postgres:postgres@localhost:5433/prymal';
   process.env.CLERK_PUBLISHABLE_KEY ??= 'pk_test_prymaltestkey';
   process.env.CLERK_SECRET_KEY ??= 'sk_test_prymaltestkey';
   process.env.CLERK_WEBHOOK_SECRET ??= 'whsec_prymal';

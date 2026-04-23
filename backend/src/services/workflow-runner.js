@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// axiom/backend/src/services/workflow-runner.js
+// Prymal backend workflow runner.
 // Thin orchestration wrapper over workflow-engine.js that adds:
 //   - Output schema validation per agent contract
 //   - Trigger.dev dispatch vs inline execution routing

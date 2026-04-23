@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for future coding agents working inside this AXIOM repository.
+Guidance for future coding agents working inside this Prymal repository.
 
 ## Core rules
 
@@ -25,7 +25,9 @@ Guidance for future coding agents working inside this AXIOM repository.
 cd frontend
 npm install
 npm run dev
-npm exec vite build
+npm run lint
+npm test
+npm run build
 ```
 
 ### Backend
@@ -34,6 +36,8 @@ npm exec vite build
 cd backend
 npm install
 npm run dev
+npm run lint
+NODE_ENV=test npm test
 ```
 
 Useful backend validation:
@@ -60,7 +64,7 @@ node --check src/routes/workflows.js
 
 ## Product honesty
 
-- LORE currently supports pasted text, crawled URLs, `.txt`, `.md`, `.markdown`, and `.csv`.
+- LORE currently supports pasted text, crawled URLs, `.txt`, `.md`, `.markdown`, `.csv`, `.pdf`, and `.docx`.
 - Trigger.dev is optional. Scheduled workflows must not be presented as active unless Trigger.dev is configured.
 - API keys are real and Agency-only.
 - Do not reintroduce fictional integrations or unsupported ingestion types in the UI.
@@ -94,7 +98,7 @@ node --check src/routes/workflows.js
 
 | Service | Port | Start command |
 |---|---|---|
-| PostgreSQL + pgvector | 5433 | `sudo dockerd` then `docker compose up -d axiom-db` (from repo root) |
+| PostgreSQL + pgvector | 5433 | `sudo dockerd` then `docker compose up -d prymal-db` (from repo root) |
 | Backend (Hono) | 3001 | `cd backend && npm run dev` |
 | Frontend (Vite) | 5173 | `cd frontend && npm run dev` |
 
@@ -106,7 +110,7 @@ node --check src/routes/workflows.js
 - **Clerk auth**: All `/api/*` routes (except Clerk webhooks) require a valid Clerk JWT. Without real Clerk keys, authenticated flows cannot be tested end-to-end; the landing page and login page still render.
 - **Backend tests**: Run with `NODE_ENV=test npm test` — this skips strict env validation and allows placeholder API keys.
 - **Frontend tests**: `npm test` (Vitest unit tests) and `npm run test:e2e` (Playwright). E2E tests build the app first.
-- **Database migrations**: The Docker init script loads `database/schema.sql` on first container start. Additional migrations in `database/migrations/` should be applied manually with `docker exec -i axiom-db psql -U postgres -d axiom < database/migrations/<file>.sql`.
+- **Database migrations**: The Docker init script loads `database/schema.sql` on first container start. Additional migrations in `database/migrations/` should be applied manually with `docker exec -i prymal-db psql -U postgres -d prymal < database/migrations/<file>.sql`.
 - **Env var precedence**: System-level env vars (injected secrets) take precedence over `backend/.env` because dotenv does not override existing vars. Use `sed` to update `.env` files, but be aware that secrets injected into the VM environment will always win. The backend startup warnings about placeholder keys reflect the `.env` file values, not necessarily the runtime values.
 - **Clerk signup flow**: Clerk enforces email verification and CAPTCHA. To do a full end-to-end authenticated test, you need either a real email or a pre-existing test account. Google OAuth is also available on the sign-in page.
 - **Clerk new-device 2FA**: Even with valid credentials, Clerk sends a 6-digit email verification code when signing in from a new device. To bypass this in the cloud VM, either: (1) the user logs in via the Desktop pane so the session cookie persists, (2) disable "Require email verification for sign-in from new devices" in the Clerk dashboard under User & Authentication → Email, or (3) provide an OTP seed secret if TOTP-based 2FA is configured.

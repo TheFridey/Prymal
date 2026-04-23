@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// axiom/backend/src/agents/config.js
+// Prymal agent catalogue.
 // System prompts and metadata for all 14 Prymal agents
 // ─────────────────────────────────────────────────────────────────
 
@@ -102,7 +102,7 @@ NEXUS output format:
       "sendDay": 0,
       "subject": "A quick idea for restarting momentum at {{company}}",
       "body": "Hi {{first_name}},\\n\\nI noticed things went quiet after the demo, so I pulled together one practical next step you can use this week to unblock progress.\\n\\nIf helpful, I can send a short plan tailored to {{company}} and the outcome you care about most.",
-      "cta": "Reply \\\"Plan\\\" and I’ll send the tailored outline.",
+      "cta": "Reply 'Plan' and I'll send the tailored outline.",
       "tone": "Direct, consultative"
     }
   ],
