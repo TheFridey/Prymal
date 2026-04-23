@@ -330,10 +330,9 @@ export function getOrgBudgetCap(orgId = null, orgModelOverrides = null) {
  * @param {{ policyKey: string, provider: string, model: string, route: string, reason: string, fallbackChain: any[], selectionDetails: object }} plan
  * @param {{ maxCostUsdPerRun: number|null, maxOutputTokensPerRun: number|null, allowedPolicies: string[]|null }|null} budgetCap
  * @param {{ premium: string, default: string, fast: string }} anthropicModels
- * @param {{ premium: string, router: string, lightweight: string }} openAIModels
  * @returns {{ plan: object, maxTokensCap: number|null }}
  */
-export function applyOrgBudgetCap(plan, budgetCap, anthropicModels, openAIModels) {
+export function applyOrgBudgetCap(plan, budgetCap, anthropicModels) {
   if (!budgetCap) {
     return { plan, maxTokensCap: null };
   }
@@ -417,7 +416,6 @@ export function selectExecutionPlan({
     policyOverride,
   });
 
-  const policyConfig = MODEL_POLICIES[policyKey] ?? MODEL_POLICIES.fast_chat;
   const effectiveOrgOverrides = orgModelOverrides ?? getOrgModelPolicyOverrides(orgId);
   const orgPolicyOverride = resolveOrgPolicyOverride(effectiveOrgOverrides, policyKey);
   const preferredLane = agentContract?.modelPolicy?.preferredLane ?? null;

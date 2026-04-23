@@ -39,6 +39,50 @@ test('consumeAgentStream throws a user-safe error for malformed stream data', as
   ).rejects.toMatchObject({ code: 'STREAM_PARSE_FAILED' });
 });
 
+test('consumeAgentStream preserves valid backend stream errors', async () => {
+  await expect(
+    consumeAgentStream(
+      streamResponse([
+        'data: {"type":"started","conversationId":"c1"}\n\n',
+        'data: {"type":"error","message":"Credits exhausted","code":"EXECUTION_CREDITS_EXHAUSTED","upgrade":true,"conversationId":"c1"}\n\n',
+      ]),
+      {},
+    ),
+  ).rejects.toMatchObject({
+    message: 'Credits exhausted',
+    code: 'EXECUTION_CREDITS_EXHAUSTED',
+    upgrade: true,
+    conversationId: 'c1',
+  });
+});
+
+test('consumeAgentStream preserves HTTP error metadata for stream setup failures', async () => {
+  const response = new Response(
+    JSON.stringify({
+      error: 'Rate limit exceeded.',
+      code: 'RATE_LIMITED',
+      upgrade: true,
+      retryAfter: 42,
+      requestId: 'req_123',
+    }),
+    {
+      status: 429,
+      headers: {
+        'content-type': 'application/json',
+      },
+    },
+  );
+
+  await expect(consumeAgentStream(response, {})).rejects.toMatchObject({
+    message: 'Rate limit exceeded.',
+    status: 429,
+    code: 'RATE_LIMITED',
+    upgrade: true,
+    retryAfter: 42,
+    requestId: 'req_123',
+  });
+});
+
 test('consumeAgentStream fails clearly when no terminal event arrives', async () => {
   await expect(
     consumeAgentStream(

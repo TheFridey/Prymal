@@ -542,6 +542,7 @@ export default function WorkflowBuilder({ onClose }) {
 
   const onDrop = useCallback((event) => {
     event.preventDefault();
+    // Keep the old MIME key so in-progress canvases from pre-Prymal sessions still drop correctly.
     const agentId = event.dataTransfer.getData('application/prymal-agent')
       || event.dataTransfer.getData('application/axiom-agent');
     if (!agentId || !rfInstance) {
@@ -765,6 +766,7 @@ export default function WorkflowBuilder({ onClose }) {
                 draggable
                 onDragStart={(event) => {
                   event.dataTransfer.setData('application/prymal-agent', agent.id);
+                  // Legacy compatibility only; new clients read application/prymal-agent.
                   event.dataTransfer.setData('application/axiom-agent', agent.id);
                 }}
                 className="workflow-builder__agent-pill"

@@ -20,13 +20,12 @@ import { generateImageAsset } from '../services/image-generation.js';
 import { enqueueVideoGenerationJob } from '../services/video-generation.js';
 import { getAccessToken } from './integrations.js';
 import { estimateTokens, streamAgentResponse } from '../services/llm.js';
-import { evaluateAgentOutput } from '../services/evals.js';
 import {
   classifyLLMFailure,
   estimateModelCostUsd,
   recordLLMExecutionTrace,
 } from '../services/llm-observability.js';
-import { deleteMemory, extractMemoryFromTurn } from '../services/memory.js';
+import { deleteMemory } from '../services/memory.js';
 import { hasUsableOpenAIKey } from '../services/model-policy.js';
 import { createRealtimeSessionToken, OPENAI_REALTIME_MODEL } from '../services/openai-realtime.js';
 import { recordProductEvent } from '../services/telemetry.js';

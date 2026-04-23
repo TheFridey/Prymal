@@ -720,7 +720,7 @@ export function validateAgentOutput(agentId, responseText) {
   }
 
   // 1. Extract JSON
-  const { parsed, raw } = extractJson(responseText);
+  const { parsed } = extractJson(responseText);
   if (!parsed || typeof parsed !== 'object') {
     const defaultRepair = getSchemaRepairDefaults(agentId, contract.outputSchema);
     if (defaultRepair) {

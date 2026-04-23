@@ -14,6 +14,7 @@ export async function consumeAgentStream(response, handlers) {
     error.status = response.status;
     error.code = payload?.code ?? null;
     error.upgrade = Boolean(payload?.upgrade);
+    error.retryAfter = Number(payload?.retryAfter ?? response.headers.get('retry-after') ?? 0) || null;
     error.requestId = payload?.requestId ?? response.headers.get('x-request-id') ?? null;
     throw error;
   }
@@ -47,6 +48,7 @@ export async function consumeAgentStream(response, handlers) {
       const error = new Error(event.message || 'Streaming failed.');
       error.code = event.code;
       error.upgrade = event.upgrade;
+      error.retryAfter = Number(event.retryAfter ?? 0) || null;
       error.conversationId = event.conversationId ?? null;
       throw error;
     }
@@ -94,8 +96,10 @@ export async function consumeAgentStream(response, handlers) {
   }
 
   function dispatchRawEvent(raw) {
+    let event;
+
     try {
-      dispatchEvent(JSON.parse(raw));
+      event = JSON.parse(raw);
     } catch (parseError) {
       terminalReceived = true;
       const error = new Error('The agent stream returned malformed data. Please retry your message.');
@@ -103,5 +107,7 @@ export async function consumeAgentStream(response, handlers) {
       error.cause = parseError;
       throw error;
     }
+
+    dispatchEvent(event);
   }
 }

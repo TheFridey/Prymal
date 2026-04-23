@@ -12,7 +12,7 @@ import { evaluateAgentOutput } from './evals.js';
 import { streamAgentResponse } from './llm.js';
 import { classifyLLMFailure, recordLLMExecutionTrace } from './llm-observability.js';
 import { extractMemoryFromTurn } from './memory.js';
-import { selectExecutionPlan, EXTENDED_THINKING_PLANS } from './model-policy.js';
+import { EXTENDED_THINKING_PLANS } from './model-policy.js';
 import { reviewAgentOutputWithSentinel, shouldRunSentinelReview } from './sentinel-review.js';
 
 /**

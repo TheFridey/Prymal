@@ -11,7 +11,6 @@ import {
   integrations,
   llmExecutionTraces,
   organisationFeatureFlags,
-  organisationInvitations,
   organisations,
   productEvents,
   workflowRuns,

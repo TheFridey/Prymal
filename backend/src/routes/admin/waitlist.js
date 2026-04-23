@@ -171,7 +171,7 @@ router.post(
   createBatchInviteHandler(),
 );
 
-router.get('/waitlist/export', requireStaff, requireStaffPermission('admin.waitlist.read'), async (context) => {
+router.get('/waitlist/export', requireStaff, requireStaffPermission('admin.waitlist.read'), async (_context) => {
   const rows = await db.query.waitlistEntries.findMany({ orderBy: [asc(waitlistEntries.createdAt)] });
 
   const csvLines = [

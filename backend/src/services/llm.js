@@ -34,16 +34,6 @@ import {
 import { ragSearch } from './rag.js';
 import { fetchLiveWebContext } from './web-research.js';
 
-const LEGACY_MODEL_REPLACEMENTS = {
-  'claude-3-5-sonnet-latest': 'claude-sonnet-4-6',
-  'claude-3-5-sonnet-20240620': 'claude-sonnet-4-6',
-  'claude-3-5-sonnet-20241022': 'claude-sonnet-4-6',
-  'claude-3-7-sonnet-latest': 'claude-sonnet-4-6',
-  'claude-3-7-sonnet-20250219': 'claude-sonnet-4-6',
-  'claude-3-5-haiku-latest': 'claude-haiku-4-5',
-  'claude-3-5-haiku-20241022': 'claude-haiku-4-5',
-};
-
 const ANTHROPIC_MODELS = getAnthropicModels();
 const OPENAI_MODELS = getOpenAIModels();
 const GEMINI_MODELS = getGeminiModels();
@@ -635,25 +625,6 @@ function buildAnthropicUserContent(userMessage, attachments = []) {
   return parts.length === 1 ? userMessage : parts;
 }
 
-function buildOpenAIUserContent(userMessage, attachments = []) {
-  const pdfAttachments = attachments.filter((a) => a.mediaType === 'application/pdf');
-  if (pdfAttachments.length > 0) {
-    throw Object.assign(
-      new Error('PDF attachments are not supported with the current model routing. Try uploading to LORE instead.'),
-      { userFacing: true },
-    );
-  }
-  const imageAttachments = attachments.filter((a) => a.mediaType.startsWith('image/'));
-  if (imageAttachments.length === 0) return userMessage;
-  return [
-    { type: 'text', text: userMessage },
-    ...imageAttachments.map((a) => ({
-      type: 'image_url',
-      image_url: { url: `data:${a.mediaType};base64,${a.base64}` },
-    })),
-  ];
-}
-
 async function runProviderResponse({
   plan,
   agent,
@@ -862,7 +833,6 @@ async function* streamAnthropicResponse({ plan, agent, systemPrompt, messages, u
 
 async function* streamOpenAIResponse({ plan, systemPrompt, messages, userMessage, maxTokens, attachments = [] }) {
   const client = getOpenAIClient();
-  // buildOpenAIUserContent throws a user-facing error if PDFs are present
   const imageAttachments = attachments.filter((a) => a.mediaType.startsWith('image/'));
   if (attachments.some((a) => a.mediaType === 'application/pdf')) {
     throw Object.assign(

@@ -1,16 +1,15 @@
 // routes/admin/support.js
-import { asc, desc, eq, isNull, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, lte } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../../db/index.js';
-import { auditLogs, emailQueue, emailUnsubscribes, powerups } from '../../db/schema.js';
+import { emailQueue, emailUnsubscribes, powerups } from '../../db/schema.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
 import { findAdminMutationReplay, getAdminMutationMeta } from '../../services/admin-mutations.js';
 import { sendDay3Email, sendDay7Email } from '../../services/email.js';
 import { pruneExpiredMemory } from '../../services/memory-pruner.js';
 import { recordAdminActionLog, recordAuditLog } from '../../services/telemetry.js';
-import { and } from 'drizzle-orm';
 
 const router = new Hono();
 

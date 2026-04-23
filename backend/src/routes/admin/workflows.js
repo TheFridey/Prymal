@@ -7,7 +7,7 @@ import { db } from '../../db/index.js';
 import { adminActionLogs, llmExecutionTraces, organisations, workflowRuns, workflows, workflowWebhooks } from '../../db/schema.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
 import { findAdminMutationReplay, getAdminMutationMeta } from '../../services/admin-mutations.js';
-import { creditsRemaining } from '../../services/entitlements.js';
+import { getBillingSnapshotForOrg } from '../../services/billing-engine.js';
 import { recordAdminActionLog, recordAuditLog } from '../../services/telemetry.js';
 import { dispatchWorkflowRun } from '../../queue/trigger.js';
 import { combineFilters, getPaginationQuery, getWindowDays, getSinceDate, mapTraceRow } from './helpers.js';
@@ -122,9 +122,10 @@ router.post(
       triggerSource: 'replay', status: 'queued', replayOfRunId: sourceRun.id,
     }).returning();
 
+    const billingSnapshot = await getBillingSnapshotForOrg(organisation.id);
     const dispatch = await dispatchWorkflowRun({
       runId: replayRun.id, workflow,
-      orgContext: { userId: staff.userId, orgId: organisation.id, orgPlan: organisation.plan, orgName: organisation.name, credits: creditsRemaining(organisation) },
+      orgContext: { userId: staff.userId, orgId: organisation.id, orgPlan: organisation.plan, orgName: organisation.name, credits: billingSnapshot.credits },
     });
 
     await db.update(workflowRuns).set({ executionMode: dispatch.mode }).where(eq(workflowRuns.id, replayRun.id));

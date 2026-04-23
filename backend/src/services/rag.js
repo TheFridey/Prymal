@@ -334,6 +334,13 @@ export function buildRetrievalDiagnostics({ results = [], knowledgeGap = false }
   );
   const staleCount = results.filter((result) => Boolean(result.staleWarning)).length;
   const lowConfidence = !topResult || Number(topResult.confidenceScore ?? 0) < 0.55 || averageConfidence < 0.5;
+  const severity = getRetrievalDiagnosticSeverity({
+    resultCount: results.length,
+    knowledgeGap,
+    lowConfidence,
+    contradictionCount,
+    staleCount,
+  });
 
   return {
     resultCount: results.length,
@@ -345,6 +352,8 @@ export function buildRetrievalDiagnostics({ results = [], knowledgeGap = false }
     staleCount,
     knowledgeGap: Boolean(knowledgeGap),
     lowConfidence,
+    severity,
+    tone: severity === 'ok' ? 'default' : 'warning',
     userMessage: buildRetrievalDiagnosticMessage({
       resultCount: results.length,
       knowledgeGap,
@@ -352,7 +361,30 @@ export function buildRetrievalDiagnostics({ results = [], knowledgeGap = false }
       contradictionCount,
       staleCount,
     }),
+    recommendedAction: buildRetrievalRecommendedAction({
+      resultCount: results.length,
+      knowledgeGap,
+      lowConfidence,
+      contradictionCount,
+      staleCount,
+    }),
   };
+}
+
+function getRetrievalDiagnosticSeverity({ resultCount, knowledgeGap, lowConfidence, contradictionCount, staleCount }) {
+  if (resultCount === 0 || knowledgeGap || lowConfidence) {
+    return 'weak';
+  }
+
+  if (contradictionCount > 0) {
+    return 'conflict';
+  }
+
+  if (staleCount > 0) {
+    return 'stale';
+  }
+
+  return 'ok';
 }
 
 function buildRetrievalDiagnosticMessage({ resultCount, knowledgeGap, lowConfidence, contradictionCount, staleCount }) {
@@ -373,6 +405,26 @@ function buildRetrievalDiagnosticMessage({ resultCount, knowledgeGap, lowConfide
   }
 
   return 'LORE found source-backed matches for this query.';
+}
+
+function buildRetrievalRecommendedAction({ resultCount, knowledgeGap, lowConfidence, contradictionCount, staleCount }) {
+  if (resultCount === 0) {
+    return 'Upload or crawl a direct source before relying on an agent answer.';
+  }
+
+  if (knowledgeGap || lowConfidence) {
+    return 'Treat this as insufficient evidence and add more authoritative source material.';
+  }
+
+  if (contradictionCount > 0) {
+    return 'Compare the conflicting citations and prefer the latest verified source.';
+  }
+
+  if (staleCount > 0) {
+    return 'Check whether a newer source exists before acting on this result.';
+  }
+
+  return 'Safe to use as a grounded source, subject to normal review.';
 }
 
 function roundScore(value) {

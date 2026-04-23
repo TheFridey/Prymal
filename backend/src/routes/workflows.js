@@ -6,7 +6,7 @@ import { db } from '../db/index.js';
 import { organisations, workflowRuns, workflows, workflowWebhooks } from '../db/schema.js';
 import { requireOrg, requireRole } from '../middleware/auth.js';
 import { planAwareRateLimit } from '../middleware/rateLimit.js';
-import { creditsRemaining } from '../services/entitlements.js';
+import { getBillingSnapshotForOrg } from '../services/billing-engine.js';
 import { dispatchWorkflowRun, hasTriggerDevConfig, registerCron, unregisterCron } from '../queue/trigger.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
 import { validateWorkflowDefinition } from '../services/workflow-engine.js';
@@ -541,6 +541,7 @@ router.post('/webhook/:id/:secret', async (context) => {
     })
     .returning();
 
+  const billingSnapshot = await getBillingSnapshotForOrg(organisation.id);
   const dispatch = await dispatchWorkflowRun({
     runId: run.id,
     workflow,
@@ -549,7 +550,7 @@ router.post('/webhook/:id/:secret', async (context) => {
       orgId: organisation.id,
       orgPlan: organisation.plan,
       orgName: organisation.name,
-      credits: creditsRemaining(organisation),
+      credits: billingSnapshot.credits,
     },
   });
 

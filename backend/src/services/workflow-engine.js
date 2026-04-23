@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { AGENT_IDS } from '../agents/config.js';
 import { db } from '../db/index.js';
@@ -112,6 +112,17 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
     return {
       nodeOutputs: existingRun.nodeOutputs ?? {},
       creditsUsed: existingRun.creditsUsed ?? 0,
+      skipped: true,
+      reason: `Workflow run is already ${existingRun.status}.`,
+    };
+  }
+
+  if (existingRun.status === 'running') {
+    return {
+      nodeOutputs: existingRun.nodeOutputs ?? {},
+      creditsUsed: existingRun.creditsUsed ?? 0,
+      skipped: true,
+      reason: 'Workflow run is already running.',
     };
   }
 
@@ -131,7 +142,7 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
     { attemptCount, maxAttempts },
   );
 
-  await db
+  const [claimedRun] = await db
     .update(workflowRuns)
     .set({
       status: 'running',
@@ -143,7 +154,23 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
       timeoutAt,
       runLog,
     })
-    .where(sql`${workflowRuns.id} = ${runId}`);
+    .where(and(eq(workflowRuns.id, runId), inArray(workflowRuns.status, ['queued'])))
+    .returning();
+
+  if (!claimedRun) {
+    const currentRun = await db.query.workflowRuns.findFirst({
+      where: eq(workflowRuns.id, runId),
+    });
+
+    return {
+      nodeOutputs: currentRun?.nodeOutputs ?? existingRun.nodeOutputs ?? {},
+      creditsUsed: currentRun?.creditsUsed ?? existingRun.creditsUsed ?? 0,
+      skipped: true,
+      reason: currentRun
+        ? `Workflow run is not claimable from status "${currentRun.status}".`
+        : 'Workflow run could not be claimed.',
+    };
+  }
 
   try {
     for (const node of sortedNodes) {

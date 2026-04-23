@@ -61,13 +61,15 @@ export function LoreSearchPanel({
       ) : null}
 
       {diagnostics?.userMessage ? (
-        <InlineNotice tone={diagnostics.knowledgeGap || diagnostics.lowConfidence || diagnostics.contradictionCount > 0 ? 'warning' : 'default'}>
+        <InlineNotice tone={diagnostics.tone ?? (diagnostics.knowledgeGap || diagnostics.lowConfidence || diagnostics.contradictionCount > 0 ? 'warning' : 'default')}>
           {diagnostics.userMessage}
+          {diagnostics.recommendedAction ? ` ${diagnostics.recommendedAction}` : ''}
         </InlineNotice>
       ) : null}
 
       {diagnostics ? (
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', color: 'var(--muted)', fontSize: '12px' }}>
+          <span>Integrity: {diagnostics.severity ?? 'unknown'}</span>
           <span>Average confidence {formatPercent(diagnostics.averageConfidence)}</span>
           <span>{diagnostics.modes?.length ? `Modes: ${diagnostics.modes.join(', ')}` : 'No retrieval mode yet'}</span>
           {diagnostics.staleCount > 0 ? <span>{diagnostics.staleCount} stale signal{diagnostics.staleCount === 1 ? '' : 's'}</span> : null}

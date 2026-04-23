@@ -155,7 +155,41 @@ test('buildRetrievalDiagnostics explains weak or missing LORE evidence', () => {
   });
 
   assert.equal(empty.lowConfidence, true);
+  assert.equal(empty.severity, 'weak');
   assert.match(empty.userMessage, /did not find indexed workspace knowledge/i);
+  assert.match(empty.recommendedAction, /Upload or crawl/i);
   assert.equal(weak.lowConfidence, true);
+  assert.equal(weak.severity, 'weak');
   assert.match(weak.userMessage, /weak evidence/i);
+});
+
+test('buildRetrievalDiagnostics marks conflicting and stale evidence explicitly', () => {
+  const conflict = buildRetrievalDiagnostics({
+    results: [
+      {
+        finalScore: 0.8,
+        confidenceScore: 0.9,
+        retrievalMode: 'hybrid',
+        contradictionSignals: [{ type: 'numeric_conflict' }],
+      },
+    ],
+  });
+  const stale = buildRetrievalDiagnostics({
+    results: [
+      {
+        finalScore: 0.76,
+        confidenceScore: 0.88,
+        retrievalMode: 'semantic',
+        contradictionSignals: [],
+        staleWarning: 'Source may be stale.',
+      },
+    ],
+  });
+
+  assert.equal(conflict.severity, 'conflict');
+  assert.equal(conflict.contradictionCount, 1);
+  assert.match(conflict.recommendedAction, /conflicting citations/i);
+  assert.equal(stale.severity, 'stale');
+  assert.equal(stale.staleCount, 1);
+  assert.match(stale.recommendedAction, /newer source/i);
 });

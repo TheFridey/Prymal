@@ -11,7 +11,6 @@ import {
   videoGenerationEvents,
 } from '../db/schema.js';
 import {
-  BILLING_THRESHOLDS,
   BILLING_INTERVALS,
   CREDIT_TYPES,
   calculateExecutionCreditBurn,
@@ -28,9 +27,6 @@ import {
   serializeBillingCatalog,
   validateVideoGenerationRequest,
 } from './billing-catalog.js';
-
-const EXECUTION_ACTIVE_STATUSES = ['reserved', 'running'];
-const VIDEO_ACTIVE_STATUSES = ['queued', 'reserved', 'processing'];
 
 const CREDIT_FIELD_MAP = {
   [CREDIT_TYPES.execution]: {

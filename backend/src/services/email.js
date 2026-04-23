@@ -317,7 +317,7 @@ function buildWelcomeText({ firstName, orgName, agentLink, agentName, unsubscrib
   ].join('\n');
 }
 
-function buildDay3Html({ firstName, orgName, loreLink, unsubscribeUrl }) {
+function buildDay3Html({ firstName, loreLink, unsubscribeUrl }) {
   return `
     <div style="font-family:Arial,sans-serif;background:#f5f7fb;padding:32px;color:#0f172a;">
       <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:20px;padding:32px;border:1px solid #dbe2f0;">
