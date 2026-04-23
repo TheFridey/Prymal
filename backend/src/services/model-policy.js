@@ -777,40 +777,6 @@ export function getFallbackPlan(currentPlan) {
 }
 
 /**
- * Rough cost-per-1k-token reference table (USD).
- * These are approximate and should be updated as provider pricing changes.
- * Used for budget cap enforcement and spend analytics — not billing.
- */
-export const APPROX_COST_PER_1K_TOKENS = {
-  'claude-opus-4-6':    { input: 0.015,  output: 0.075  },
-  'claude-sonnet-4-6':  { input: 0.003,  output: 0.015  },
-  'claude-haiku-4-5':   { input: 0.0008, output: 0.004  },
-  'gpt-5.4':            { input: 0.01,   output: 0.03   },
-  'gpt-5.4-mini':       { input: 0.0015, output: 0.006  },
-  'gpt-5.4-nano':       { input: 0.0004, output: 0.0016 },
-  'gemini-2.5-pro':     { input: 0.00125,output: 0.005  },
-  'gemini-2.5-flash':   { input: 0.00015,output: 0.0006 },
-};
-
-/**
- * Estimate cost for a given run given input/output token counts.
- * Returns null when the model is unknown.
- *
- * @param {string} model
- * @param {number} inputTokens
- * @param {number} outputTokens
- * @returns {number|null}  Estimated cost in USD
- */
-export function estimateRunCostUsd(model, inputTokens, outputTokens) {
-  const pricing = APPROX_COST_PER_1K_TOKENS[model];
-  if (!pricing) return null;
-  return (
-    (inputTokens / 1000) * pricing.input +
-    (outputTokens / 1000) * pricing.output
-  );
-}
-
-/**
  * Build a provider-level routing summary from a set of run rows.
  * Groups by provider + model, surfaces fallback rates and average cost.
  *
