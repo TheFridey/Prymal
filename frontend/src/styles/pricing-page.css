@@ -13,6 +13,14 @@
   color: var(--text-strong, #fff);
 }
 
+.pricing-page__shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+}
+
 .pricing-hero {
   max-width: 720px;
   margin: 0 auto 3rem;
@@ -117,6 +125,30 @@
   color: var(--text-strong, #fff);
 }
 
+@media (max-width: 520px) {
+  .pricing-intervals {
+    margin-left: calc(-1 * max(1.25rem, env(safe-area-inset-left)));
+    margin-right: calc(-1 * max(1.25rem, env(safe-area-inset-right)));
+    padding-left: max(1.25rem, env(safe-area-inset-left));
+    padding-right: max(1.25rem, env(safe-area-inset-right));
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent);
+  }
+
+  .pricing-intervals__inner {
+    flex-shrink: 0;
+    width: max-content;
+  }
+}
+
+.pricing-cards-hint {
+  display: none;
+}
+
 /* Cards grid */
 .pricing-cards {
   display: grid;
@@ -130,11 +162,139 @@
   .pricing-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  /* Scale transform overflows grid cells and clips badges on tablet — keep glow only */
+  .pricing-card--pro {
+    transform: none;
+    box-shadow:
+      0 0 0 1px rgba(199, 125, 255, 0.45),
+      0 12px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .pricing-card--pro:hover {
+    transform: translateY(-2px);
+  }
 }
 
 @media (max-width: 640px) {
+  /* Carousel: one plan per view, snap scroll — avoids tiny 2-up grid and long vertical stack */
   .pricing-cards {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    grid-template-columns: unset;
+    gap: 0.85rem;
+    margin-bottom: 2.5rem;
+    /* Room for “Most popular” badge (absolute, above card) — overflow-x clips vertically */
+    padding-top: 2.35rem;
+    padding-bottom: 0.35rem;
+    margin-left: calc(-1 * max(1.25rem, env(safe-area-inset-left)));
+    margin-right: calc(-1 * max(1.25rem, env(safe-area-inset-right)));
+    padding-left: max(1.25rem, env(safe-area-inset-left));
+    padding-right: max(1.25rem, env(safe-area-inset-right));
+    overflow-x: auto;
+    overflow-y: visible;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: max(1.25rem, env(safe-area-inset-left));
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    mask-image: linear-gradient(to right, transparent, black 10px, black calc(100% - 10px), transparent);
+  }
+
+  .pricing-cards::-webkit-scrollbar {
+    height: 5px;
+  }
+
+  .pricing-cards::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+  }
+
+  .pricing-card {
+    flex: 0 0 min(
+      calc(100vw - 2.75rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)),
+      340px
+    );
+    width: min(
+      calc(100vw - 2.75rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)),
+      340px
+    );
+    max-width: 100%;
+    min-width: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  .pricing-card--pro {
+    transform: none;
+    box-shadow:
+      0 0 0 1px rgba(199, 125, 255, 0.45),
+      0 12px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .pricing-card--pro:hover,
+  .pricing-card:hover {
+    transform: none;
+  }
+
+  .pricing-card__badge {
+    top: -10px;
+    max-width: calc(100% - 1rem);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+    font-size: 0.6rem;
+    padding: 0.32rem 0.65rem;
+  }
+
+  .pricing-card__persona {
+    min-height: unset;
+  }
+
+  .pricing-card__price {
+    font-size: clamp(1.45rem, 6.5vw, 1.75rem);
+    word-break: break-word;
+  }
+
+  .pricing-card__period-note {
+    line-height: 1.35;
+  }
+
+  .pricing-cards-hint {
+    display: block;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted, #8b9cb3);
+    margin: -0.25rem 0 0.85rem;
+    padding-left: 2px;
+  }
+
+  .pricing-page__shell {
+    padding-top: 1.25rem;
+    padding-bottom: 2rem;
+  }
+
+  .pricing-hero {
+    margin-bottom: 2rem;
+    text-align: left;
+  }
+
+  .pricing-hero__ctas {
+    justify-content: flex-start;
+  }
+
+  .pricing-final-cta h2 {
+    font-size: clamp(1.35rem, 5vw, 1.65rem);
+  }
+}
+
+@media (max-width: 640px) and (prefers-reduced-motion: reduce) {
+  .pricing-cards {
+    scroll-snap-type: none;
   }
 }
 
@@ -252,7 +412,10 @@
 }
 
 .pricing-card__cta .button {
+  display: inline-flex;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   justify-content: center;
 }
 
@@ -368,15 +531,62 @@
   line-height: 1.65;
 }
 
-/* Comparison table */
+.pricing-compare-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.pricing-compare__corner {
+  position: relative;
+}
+
+/* Comparison table — horizontal scroll on narrow viewports */
 .pricing-compare-wrap {
   margin-bottom: 3.5rem;
+  position: relative;
+}
+
+.pricing-compare-scroll {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  margin-left: calc(-1 * max(1.25rem, env(safe-area-inset-left)));
+  margin-right: calc(-1 * max(1.25rem, env(safe-area-inset-right)));
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+
+.pricing-compare-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.pricing-compare-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+
+.pricing-compare-hint {
+  display: none;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, #8b9cb3);
+  margin: 0 0 0.5rem;
+  padding-left: 2px;
 }
 
 .pricing-compare {
   width: 100%;
-  min-width: 640px;
+  min-width: 720px;
   border-collapse: collapse;
   font-size: 0.84rem;
 }
@@ -386,6 +596,7 @@
   padding: 0.75rem 0.85rem;
   text-align: left;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  vertical-align: top;
 }
 
 .pricing-compare th {
@@ -399,10 +610,80 @@
   box-shadow: inset 0 -2px 0 var(--pricing-pro-ring);
 }
 
+/* Feature column — default: no sticky (mobile-first safe). */
+.pricing-compare th:first-child {
+  min-width: 140px;
+}
+
 .pricing-compare td:first-child {
   color: var(--muted, #9aa4b2);
   font-weight: 500;
   max-width: 200px;
+  min-width: 140px;
+}
+
+/* Sticky feature column only on wide screens (after this rule, mobile blocks must not repeat sticky). */
+@media (min-width: 901px) {
+  .pricing-compare td:first-child,
+  .pricing-compare th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: color-mix(in srgb, var(--panel-strong, #0c1018) 96%, transparent);
+    box-shadow: 8px 0 24px -8px rgba(0, 0, 0, 0.45);
+  }
+
+  .pricing-compare th:first-child {
+    z-index: 3;
+  }
+
+  .pricing-compare-scroll {
+    mask-image: linear-gradient(to right, black 0%, black calc(100% - 48px), transparent 100%);
+  }
+}
+
+@media (max-width: 900px) {
+  .pricing-compare-hint {
+    display: block;
+  }
+
+  /*
+   * No sticky + no mask: table scrolls as one layer (avoids Chrome/WebKit overlap bugs).
+   */
+  .pricing-compare-scroll {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+
+  .pricing-compare th:first-child,
+  .pricing-compare td:first-child {
+    position: relative;
+    left: auto;
+    z-index: auto;
+    box-shadow: none;
+    /* Solid fill — must override `.pricing-compare th { background: … }` so labels never show plan cells through */
+    background: #0b0f16;
+  }
+
+  .pricing-compare th:first-child {
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .pricing-compare td:first-child {
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    max-width: none;
+    min-width: 152px;
+    width: 152px;
+  }
+
+  .pricing-compare th:not(:first-child),
+  .pricing-compare td:not(:first-child) {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .pricing-compare th.pricing-compare__highlight {
+    background: rgba(199, 125, 255, 0.18);
+  }
 }
 
 .pricing-compare__tick {

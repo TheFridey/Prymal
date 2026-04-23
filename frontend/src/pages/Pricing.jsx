@@ -37,8 +37,8 @@ export default function Pricing() {
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="pricing" />
 
-        <PageShell width="100%">
-          <div style={{ maxWidth: 1120, margin: '0 auto', padding: '2rem 1.25rem 3rem' }}>
+        <PageShell width="100%" flushMobile>
+          <div className="pricing-page__shell">
             <PricingPageContent />
           </div>
         </PageShell>

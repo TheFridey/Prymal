@@ -100,7 +100,13 @@ export function PricingPageContent() {
         </div>
       </div>
 
-      <div id="pricing-plans" className="pricing-cards">
+      <p className="pricing-cards-hint">Swipe to compare plans</p>
+      <div
+        id="pricing-plans"
+        className="pricing-cards"
+        role="region"
+        aria-label="Pricing plans — swipe sideways on small screens"
+      >
         {PLAN_LIBRARY.map((plan) => {
           const ent = PLAN_ENTITLEMENTS[plan.id];
           const price = getPlanPrice(plan, activeInterval.id);
@@ -222,10 +228,14 @@ export function PricingPageContent() {
         <h2 id="plan-compare-heading" className="pricing-section-title" style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
           Compare plans
         </h2>
+        <p className="pricing-compare-hint">Swipe sideways to see all plans</p>
+        <div className="pricing-compare-scroll" role="region" aria-label="Plan comparison table" tabIndex={0}>
         <table className="pricing-compare">
           <thead>
             <tr>
-              <th scope="col" />
+              <th scope="col" className="pricing-compare__corner">
+                <span className="pricing-compare-sr-only">Feature</span>
+              </th>
               {PLAN_LIBRARY.map((plan) => (
                 <th
                   key={plan.id}
@@ -279,6 +289,7 @@ export function PricingPageContent() {
             </tr>
           </tbody>
         </table>
+        </div>
       </section>
 
       <section className="pricing-faq" aria-labelledby="faq-heading">
