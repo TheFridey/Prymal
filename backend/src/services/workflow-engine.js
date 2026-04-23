@@ -99,6 +99,55 @@ export function validateWorkflowDefinition(input) {
   return workflow;
 }
 
+export async function claimQueuedWorkflowRunForExecution({
+  runId,
+  existingRun,
+  runLog,
+  attemptCount,
+  maxAttempts,
+  timeoutAt,
+  now = new Date(),
+  tx = db,
+}) {
+  const [claimedRun] = await tx
+    .update(workflowRuns)
+    .set({
+      status: 'running',
+      startedAt: existingRun.startedAt ?? now,
+      attemptCount,
+      maxAttempts,
+      failureClass: null,
+      lastHeartbeatAt: now,
+      timeoutAt,
+      runLog,
+    })
+    .where(and(eq(workflowRuns.id, runId), inArray(workflowRuns.status, ['queued'])))
+    .returning();
+
+  if (claimedRun) {
+    return {
+      claimedRun,
+      skippedResult: null,
+    };
+  }
+
+  const currentRun = await tx.query.workflowRuns.findFirst({
+    where: eq(workflowRuns.id, runId),
+  });
+
+  return {
+    claimedRun: null,
+    skippedResult: {
+      nodeOutputs: currentRun?.nodeOutputs ?? existingRun.nodeOutputs ?? {},
+      creditsUsed: currentRun?.creditsUsed ?? existingRun.creditsUsed ?? 0,
+      skipped: true,
+      reason: currentRun
+        ? `Workflow run is not claimable from status "${currentRun.status}".`
+        : 'Workflow run could not be claimed.',
+    },
+  };
+}
+
 export async function executeWorkflowRun({ runId, workflow, orgContext }) {
   const existingRun = await db.query.workflowRuns.findFirst({
     where: eq(workflowRuns.id, runId),
@@ -142,34 +191,17 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
     { attemptCount, maxAttempts },
   );
 
-  const [claimedRun] = await db
-    .update(workflowRuns)
-    .set({
-      status: 'running',
-      startedAt: existingRun.startedAt ?? new Date(),
-      attemptCount,
-      maxAttempts,
-      failureClass: null,
-      lastHeartbeatAt: new Date(),
-      timeoutAt,
-      runLog,
-    })
-    .where(and(eq(workflowRuns.id, runId), inArray(workflowRuns.status, ['queued'])))
-    .returning();
+  const claim = await claimQueuedWorkflowRunForExecution({
+    runId,
+    existingRun,
+    runLog,
+    attemptCount,
+    maxAttempts,
+    timeoutAt,
+  });
 
-  if (!claimedRun) {
-    const currentRun = await db.query.workflowRuns.findFirst({
-      where: eq(workflowRuns.id, runId),
-    });
-
-    return {
-      nodeOutputs: currentRun?.nodeOutputs ?? existingRun.nodeOutputs ?? {},
-      creditsUsed: currentRun?.creditsUsed ?? existingRun.creditsUsed ?? 0,
-      skipped: true,
-      reason: currentRun
-        ? `Workflow run is not claimable from status "${currentRun.status}".`
-        : 'Workflow run could not be claimed.',
-    };
+  if (!claim.claimedRun) {
+    return claim.skippedResult;
   }
 
   try {

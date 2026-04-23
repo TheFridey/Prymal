@@ -120,6 +120,7 @@ jobs:
         env:
           PLAYWRIGHT_AUTH_REQUIRED: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
+          PLAYWRIGHT_API_URL: ${{ secrets.PLAYWRIGHT_API_URL || '' }}
           PLAYWRIGHT_TEST_USER_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_USER_EMAIL || '' }}
           PLAYWRIGHT_TEST_USER_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_USER_PASSWORD || '' }}
           PLAYWRIGHT_TEST_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_STAFF_EMAIL || '' }}
@@ -131,13 +132,14 @@ jobs:
           PLAYWRIGHT_TEST_BILLING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_BILLING_EMAIL || '' }}
           PLAYWRIGHT_TEST_BILLING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_BILLING_PASSWORD || '' }}
       - run: npx playwright install chromium --with-deps
-      - run: npm run test:e2e -- tests/authenticated-regression.spec.js tests/onboarding-regression.spec.js tests/invite-membership.spec.js tests/billing-portal.spec.js tests/admin-operator.spec.js
+      - run: npm run test:e2e -- tests/authenticated-regression.spec.js tests/onboarding-regression.spec.js tests/invite-membership.spec.js tests/billing-portal.spec.js tests/admin-operator.spec.js tests/security-boundaries.spec.js
         env:
           CI: true
           VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_API_URL: ${{ env.VITE_API_URL }}
           PLAYWRIGHT_AUTH_REQUIRED: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
+          PLAYWRIGHT_API_URL: ${{ secrets.PLAYWRIGHT_API_URL || '' }}
           PLAYWRIGHT_TEST_USER_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_USER_EMAIL || '' }}
           PLAYWRIGHT_TEST_USER_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_USER_PASSWORD || '' }}
           PLAYWRIGHT_TEST_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_STAFF_EMAIL || '' }}

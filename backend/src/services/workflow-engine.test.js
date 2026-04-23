@@ -1,11 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { setupTestEnv } from '../../test-helpers.js';
 
 setupTestEnv();
 
 const { db } = await import('../db/index.js');
-const { executeWorkflowRun } = await import('./workflow-engine.js');
+const { organisations, workflowRuns, workflows } = await import('../db/schema.js');
+const {
+  claimQueuedWorkflowRunForExecution,
+  executeWorkflowRun,
+} = await import('./workflow-engine.js');
 
 const workflow = {
   id: 'workflow_1',
@@ -94,3 +100,84 @@ test('executeWorkflowRun does not execute when a queued run cannot be atomically
     db.update = originalUpdate;
   }
 });
+
+test(
+  'claimQueuedWorkflowRunForExecution allows only one DB-backed claimant',
+  {
+    skip: process.env.PRYMAL_RUN_DB_WORKFLOW_CONCURRENCY_TESTS === 'true'
+      ? false
+      : 'Set PRYMAL_RUN_DB_WORKFLOW_CONCURRENCY_TESTS=true with a migrated test database to run DB-backed workflow race proof.',
+  },
+  async () => {
+    const orgId = randomUUID();
+    const workflowId = randomUUID();
+    const runId = randomUUID();
+    const now = new Date();
+    const existingRun = {
+      id: runId,
+      status: 'queued',
+      startedAt: null,
+      nodeOutputs: {},
+      creditsUsed: 0,
+    };
+
+    await db.insert(organisations).values({
+      id: orgId,
+      name: `Concurrency Org ${orgId.slice(0, 8)}`,
+      slug: `concurrency-${orgId.slice(0, 8)}`,
+      plan: 'pro',
+      monthlyCreditLimit: 2000,
+    });
+
+    try {
+      await db.insert(workflows).values({
+        id: workflowId,
+        orgId,
+        name: 'Concurrency proof workflow',
+        triggerType: 'manual',
+        nodes: [{ id: 'node_1', agentId: 'cipher', prompt: 'Test', outputVar: 'out' }],
+        edges: [],
+      });
+
+      await db.insert(workflowRuns).values({
+        id: runId,
+        workflowId,
+        orgId,
+        status: 'queued',
+        triggerSource: 'manual',
+      });
+
+      const claimAttempts = await Promise.all([
+        claimQueuedWorkflowRunForExecution({
+          runId,
+          existingRun,
+          runLog: [{ level: 'system', message: 'claim-a' }],
+          attemptCount: 1,
+          maxAttempts: 3,
+          timeoutAt: new Date(now.getTime() + 60_000),
+        }),
+        claimQueuedWorkflowRunForExecution({
+          runId,
+          existingRun,
+          runLog: [{ level: 'system', message: 'claim-b' }],
+          attemptCount: 1,
+          maxAttempts: 3,
+          timeoutAt: new Date(now.getTime() + 60_000),
+        }),
+      ]);
+
+      const winners = claimAttempts.filter((attempt) => attempt.claimedRun);
+      const skipped = claimAttempts.filter((attempt) => !attempt.claimedRun);
+      const persistedRun = await db.query.workflowRuns.findFirst({
+        where: eq(workflowRuns.id, runId),
+      });
+
+      assert.equal(winners.length, 1);
+      assert.equal(skipped.length, 1);
+      assert.equal(persistedRun.status, 'running');
+      assert.match(skipped[0].skippedResult.reason, /not claimable from status "running"/);
+    } finally {
+      await db.delete(organisations).where(eq(organisations.id, orgId));
+    }
+  },
+);

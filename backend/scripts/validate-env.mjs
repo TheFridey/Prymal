@@ -114,6 +114,15 @@ function validateFrontendEnv(currentMode) {
 }
 
 function validatePlaywrightEnv({ authRequired: shouldRequireAuth }) {
+  for (const [emailKey, passwordKey, label] of getPlaywrightRolePairs()) {
+    const hasEmail = hasConfigured(emailKey);
+    const hasPassword = hasConfigured(passwordKey);
+
+    if (hasEmail !== hasPassword) {
+      errors.push(`playwright ${label} has a partial credential pair. Set both ${emailKey} and ${passwordKey}, or neither.`);
+    }
+  }
+
   if (!shouldRequireAuth) {
     const configured = [
       'PLAYWRIGHT_TEST_USER_EMAIL',
@@ -126,21 +135,29 @@ function validatePlaywrightEnv({ authRequired: shouldRequireAuth }) {
     if (configured.length > 0 && !hasConfigured('PLAYWRIGHT_BASE_URL')) {
       warnings.push('PLAYWRIGHT_BASE_URL is not set. Authenticated Playwright will fall back to the local preview shell.');
     }
+    if (configured.length > 0 && !hasConfigured('PLAYWRIGHT_API_URL') && !hasConfigured('VITE_API_URL')) {
+      warnings.push('PLAYWRIGHT_API_URL or VITE_API_URL is not set. Authenticated API boundary tests will be skipped or fail setup.');
+    }
     return;
   }
 
   requireValue('PLAYWRIGHT_BASE_URL', 'playwright');
+  requireValue('PLAYWRIGHT_API_URL', 'playwright');
 
-  for (const [emailKey, passwordKey, label] of [
+  for (const [emailKey, passwordKey, label] of getPlaywrightRolePairs()) {
+    requireValue(emailKey, `playwright ${label}`);
+    requireValue(passwordKey, `playwright ${label}`);
+  }
+}
+
+function getPlaywrightRolePairs() {
+  return [
     ['PLAYWRIGHT_TEST_USER_EMAIL', 'PLAYWRIGHT_TEST_USER_PASSWORD', 'owner user'],
     ['PLAYWRIGHT_TEST_STAFF_EMAIL', 'PLAYWRIGHT_TEST_STAFF_PASSWORD', 'staff user'],
     ['PLAYWRIGHT_TEST_INVITEE_EMAIL', 'PLAYWRIGHT_TEST_INVITEE_PASSWORD', 'invitee user'],
     ['PLAYWRIGHT_TEST_ONBOARDING_EMAIL', 'PLAYWRIGHT_TEST_ONBOARDING_PASSWORD', 'onboarding user'],
     ['PLAYWRIGHT_TEST_BILLING_EMAIL', 'PLAYWRIGHT_TEST_BILLING_PASSWORD', 'billing user'],
-  ]) {
-    requireValue(emailKey, `playwright ${label}`);
-    requireValue(passwordKey, `playwright ${label}`);
-  }
+  ];
 }
 
 function requireValue(key, scopeLabel) {

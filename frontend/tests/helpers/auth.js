@@ -10,6 +10,11 @@ const ROLE_ENV_MAP = {
 };
 
 const AUTH_STATE_DIR = path.resolve(process.cwd(), 'tests', '.auth');
+const API_BASE_URL = normalizeApiBaseUrl(
+  process.env.PLAYWRIGHT_API_URL
+  ?? process.env.VITE_API_URL
+  ?? '',
+);
 
 export function authStatePath(role) {
   return path.join(AUTH_STATE_DIR, `${role}.json`);
@@ -38,6 +43,10 @@ export function hasCredentials(role = 'user') {
 
 export function getConfiguredRoles() {
   return Object.keys(ROLE_ENV_MAP).filter((role) => hasCredentials(role));
+}
+
+export function getMissingRoles() {
+  return Object.keys(ROLE_ENV_MAP).filter((role) => !hasCredentials(role));
 }
 
 export function isAuthRequired() {
@@ -69,9 +78,23 @@ export function validateAuthEnvironment({
   baseURL = process.env.PLAYWRIGHT_BASE_URL,
 } = {}) {
   const errors = [];
+  const warnings = [];
 
   if (isAuthRequired() && !String(baseURL ?? '').trim()) {
     errors.push('PLAYWRIGHT_BASE_URL must be set when PLAYWRIGHT_AUTH_REQUIRED=true.');
+  }
+
+  if (isAuthRequired() && !process.env.PLAYWRIGHT_API_URL?.trim()) {
+    errors.push('PLAYWRIGHT_API_URL must be set when PLAYWRIGHT_AUTH_REQUIRED=true.');
+  }
+
+  for (const [role, [emailKey, passwordKey]] of Object.entries(ROLE_ENV_MAP)) {
+    const hasEmail = Boolean(process.env[emailKey]?.trim());
+    const hasPassword = Boolean(process.env[passwordKey]?.trim());
+
+    if (hasEmail !== hasPassword) {
+      errors.push(`Playwright role "${role}" has a partial credential pair. Set both ${emailKey} and ${passwordKey}, or neither.`);
+    }
   }
 
   for (const role of requiredRoles) {
@@ -81,10 +104,36 @@ export function validateAuthEnvironment({
     }
   }
 
+  if (!isAuthRequired() && getConfiguredRoles().length === 0) {
+    warnings.push('No Playwright auth roles are configured. Authenticated specs will be reported as skipped.');
+  }
+
   return {
     valid: errors.length === 0,
     errors,
+    warnings,
   };
+}
+
+export function describeAuthConfiguration() {
+  const configuredRoles = getConfiguredRoles();
+  const missingRolesList = getMissingRoles();
+
+  return {
+    configuredRoles,
+    missingRoles: missingRolesList,
+    apiBaseUrl: API_BASE_URL || null,
+    authRequired: isAuthRequired(),
+  };
+}
+
+export function apiUrl(pathname) {
+  if (!API_BASE_URL) {
+    throw new Error('PLAYWRIGHT_API_URL or VITE_API_URL is required for authenticated API boundary tests.');
+  }
+
+  const normalizedPath = String(pathname ?? '').replace(/^\/+/, '');
+  return `${API_BASE_URL}/${normalizedPath}`;
 }
 
 export async function ensureAuthStateDir() {
@@ -185,4 +234,13 @@ export async function authFetch(page, url, init = {}) {
 
 export function uniqueSuffix(prefix = 'ci') {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeApiBaseUrl(value) {
+  const trimmed = String(value ?? '').trim().replace(/\/$/, '');
+  if (!trimmed) {
+    return '';
+  }
+
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
 }

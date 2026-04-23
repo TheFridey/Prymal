@@ -20,6 +20,7 @@ import {
   getBillingSnapshotForOrg,
   getPackCheckoutConfig,
   setSubscriptionPlan,
+  updateSubscriptionBillingStatus,
 } from '../services/billing-engine.js';
 import { getPlanConfig } from '../services/entitlements.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
@@ -414,20 +415,25 @@ router.post('/webhook/stripe', async (context) => {
 
       // Regular plan upgrade
       if (session.metadata?.orgId && session.metadata?.plan) {
-        await setSubscriptionPlan({
+        const sync = await setSubscriptionPlan({
           orgId: session.metadata.orgId,
           planId: session.metadata.plan,
           billingInterval: session.metadata.interval ?? 'monthly',
+          stripeEventId: event.id,
+          stripeEventCreated: event.created,
+          stripeSubscriptionId: typeof session.subscription === 'string' ? session.subscription : null,
+          source: 'checkout.session.completed',
         });
-        await db
-          .update(organisations)
-          .set({
-            stripeSubId: String(session.subscription ?? ''),
-          })
-          .where(eq(organisations.id, session.metadata.orgId));
 
-        await Promise.all([
-          recordAuditLog({
+        if (!sync.skipped) {
+          await db
+            .update(organisations)
+            .set({
+              stripeSubId: String(session.subscription ?? ''),
+            })
+            .where(eq(organisations.id, session.metadata.orgId));
+
+          await recordAuditLog({
             orgId: session.metadata.orgId,
             action: 'billing.plan_changed',
             targetType: 'organisation',
@@ -436,17 +442,21 @@ router.post('/webhook/stripe', async (context) => {
               plan: session.metadata.plan,
               interval: session.metadata.interval ?? 'monthly',
               source: 'checkout.session.completed',
+              stripeEventId: event.id,
             },
-          }),
-          recordProductEvent({
-            orgId: session.metadata.orgId,
-            eventName: 'billing.plan_changed',
-            metadata: {
-              plan: session.metadata.plan,
-              interval: session.metadata.interval ?? 'monthly',
-            },
-          }),
-        ]);
+          });
+        }
+
+        await recordBillingSyncOutcome({
+          orgId: session.metadata.orgId,
+          event,
+          eventName: 'billing.plan_changed',
+          sync,
+          metadata: {
+            plan: session.metadata.plan,
+            interval: session.metadata.interval ?? 'monthly',
+          },
+        });
       }
       break;
     }
@@ -463,14 +473,29 @@ router.post('/webhook/stripe', async (context) => {
       const orgId = customer.deleted ? null : customer.metadata?.orgId;
 
       if (orgId) {
-        await setSubscriptionPlan({
+        const sync = await setSubscriptionPlan({
           orgId,
           planId: resolvedPlan.plan,
           billingInterval: resolvedPlan.interval ?? 'monthly',
+          status: subscription.status ?? 'active',
+          stripeEventId: event.id,
+          stripeEventCreated: event.created,
+          stripeSubscriptionId: subscription.id,
+          source: 'customer.subscription.updated',
         });
-        await recordProductEvent({
+
+        if (!sync.skipped) {
+          await db
+            .update(organisations)
+            .set({ stripeSubId: subscription.id })
+            .where(eq(organisations.id, orgId));
+        }
+
+        await recordBillingSyncOutcome({
           orgId,
           eventName: 'billing.subscription_updated',
+          event,
+          sync,
           metadata: resolvedPlan,
         });
       }
@@ -483,20 +508,31 @@ router.post('/webhook/stripe', async (context) => {
       const orgId = customer.deleted ? null : customer.metadata?.orgId;
 
       if (orgId) {
-        await setSubscriptionPlan({
+        const sync = await setSubscriptionPlan({
           orgId,
           planId: 'free',
           billingInterval: 'monthly',
+          status: 'cancelled',
+          stripeEventId: event.id,
+          stripeEventCreated: event.created,
+          stripeSubscriptionId: subscription.id,
+          source: 'customer.subscription.deleted',
         });
-        await db
-          .update(organisations)
-          .set({
-            stripeSubId: null,
-          })
-          .where(eq(organisations.id, orgId));
-        await recordProductEvent({
+
+        if (!sync.skipped) {
+          await db
+            .update(organisations)
+            .set({
+              stripeSubId: null,
+            })
+            .where(eq(organisations.id, orgId));
+        }
+
+        await recordBillingSyncOutcome({
           orgId,
           eventName: 'billing.subscription_cancelled',
+          event,
+          sync,
         });
       }
       break;
@@ -518,12 +554,58 @@ router.post('/webhook/stripe', async (context) => {
         ]);
 
         if (organisation) {
-          await setSubscriptionPlan({
+          const sync = await setSubscriptionPlan({
             orgId,
             planId: organisation.plan,
             billingInterval: existingSubscription?.billingInterval ?? 'monthly',
+            status: 'active',
+            stripeEventId: event.id,
+            stripeEventCreated: event.created,
+            stripeSubscriptionId: typeof invoice.subscription === 'string' ? invoice.subscription : existingSubscription?.metadata?.stripe?.subscriptionId ?? null,
+            source: 'invoice.paid',
+          });
+
+          await recordBillingSyncOutcome({
+            orgId,
+            event,
+            eventName: 'billing.subscription_cycle_paid',
+            sync,
+            metadata: {
+              invoiceId: invoice.id,
+              billingReason: invoice.billing_reason,
+            },
           });
         }
+      }
+      break;
+    }
+
+    case 'invoice.payment_failed': {
+      const invoice = event.data.object;
+      const customer = await stripe.customers.retrieve(String(invoice.customer));
+      const orgId = customer.deleted ? null : customer.metadata?.orgId;
+
+      if (orgId) {
+        const sync = await updateSubscriptionBillingStatus({
+          orgId,
+          status: 'past_due',
+          stripeEventId: event.id,
+          stripeEventCreated: event.created,
+          stripeSubscriptionId: typeof invoice.subscription === 'string' ? invoice.subscription : null,
+          source: 'invoice.payment_failed',
+        });
+
+        await recordBillingSyncOutcome({
+          orgId,
+          event,
+          eventName: 'billing.payment_failed',
+          sync,
+          metadata: {
+            invoiceId: invoice.id,
+            amountDue: invoice.amount_due ?? null,
+            currency: invoice.currency ?? 'gbp',
+          },
+        });
       }
       break;
     }
@@ -586,6 +668,27 @@ function planFromPriceId(priceId) {
   }
 
   return null;
+}
+
+async function recordBillingSyncOutcome({
+  orgId,
+  event,
+  eventName,
+  sync,
+  metadata = {},
+}) {
+  await recordProductEvent({
+    orgId,
+    eventName: sync?.skipped ? 'billing.subscription_sync_skipped' : eventName,
+    metadata: {
+      ...metadata,
+      stripeEventId: event.id,
+      stripeEventType: event.type,
+      stripeEventCreated: event.created ?? null,
+      skipped: Boolean(sync?.skipped),
+      skipReason: sync?.reason ?? null,
+    },
+  });
 }
 
 export default router;

@@ -319,6 +319,7 @@ Authenticated Playwright should run against staging only.
 Required GitHub secrets:
 
 - `PLAYWRIGHT_BASE_URL`
+- `PLAYWRIGHT_API_URL`
 - `PLAYWRIGHT_TEST_USER_EMAIL`
 - `PLAYWRIGHT_TEST_USER_PASSWORD`
 - `PLAYWRIGHT_TEST_STAFF_EMAIL`
@@ -337,6 +338,8 @@ cd backend
 PLAYWRIGHT_AUTH_REQUIRED=true node scripts/validate-env.mjs --scope playwright --mode staging
 ```
 
+`PLAYWRIGHT_BASE_URL` should point at the deployed frontend. `PLAYWRIGHT_API_URL` should point at the matching backend API root, including `/api`, for example `https://prymal-staging-api.up.railway.app/api`. The validation step fails on partial credential pairs so skipped tests mean “role intentionally absent,” not “half-configured login.”
+
 The authenticated suite covers:
 
 - Clerk login
@@ -349,6 +352,16 @@ The authenticated suite covers:
 - admin trace drilldown
 - SENTINEL held-output visibility
 - billing upgrade and Stripe portal
+- non-staff rejection from staff admin APIs
+
+Optional DB-backed workflow race proof:
+
+```bash
+cd backend
+PRYMAL_RUN_DB_WORKFLOW_CONCURRENCY_TESTS=true DATABASE_URL="$STAGING_TEST_DATABASE_URL" node --test src/services/workflow-engine.test.js
+```
+
+Run this only against a disposable or staging test database that has the current schema applied. The default unit suite keeps this proof skipped because local contributors may not have Postgres running.
 
 ## Staging vs Production Variables
 

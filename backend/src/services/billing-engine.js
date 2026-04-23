@@ -897,6 +897,11 @@ export async function setSubscriptionPlan({
   orgId,
   planId,
   billingInterval = BILLING_INTERVALS.monthly,
+  status = 'active',
+  stripeEventId = null,
+  stripeEventCreated = null,
+  stripeSubscriptionId = null,
+  source = 'manual',
 }) {
   return db.transaction(async (tx) => {
     const organisation = await tx.query.organisations.findFirst({
@@ -908,13 +913,72 @@ export async function setSubscriptionPlan({
     }
 
     const plan = getBillingPlan(planId);
-    const { subscription } = await ensureSubscriptionForOrg(orgId, { tx, organisation });
+    let subscription = await tx.query.subscriptions.findFirst({
+      where: eq(subscriptions.orgId, orgId),
+    });
+
+    if (!subscription) {
+      subscription = await createSubscriptionForOrganisation(tx, organisation);
+    }
+
+    const syncDecision = shouldApplyStripeSubscriptionEvent({
+      metadata: subscription.metadata,
+      eventId: stripeEventId,
+      eventCreated: stripeEventCreated,
+    });
+
+    if (!syncDecision.apply) {
+      return {
+        organisation,
+        subscription,
+        skipped: true,
+        reason: syncDecision.reason,
+      };
+    }
+
     const now = new Date();
+    const metadata = buildBillingSyncMetadata(subscription.metadata, {
+      stripeEventId,
+      stripeEventCreated,
+      stripeSubscriptionId,
+      stripeStatus: status,
+      source,
+      syncedAt: now,
+    });
+
+    if (!shouldResetSubscriptionEntitlements({
+      organisation,
+      subscription,
+      plan,
+      billingInterval,
+      source,
+    })) {
+      const [nextSubscription] = await tx
+        .update(subscriptions)
+        .set({
+          plan: plan.id,
+          status,
+          billingInterval,
+          metadata,
+          updatedAt: now,
+        })
+        .where(eq(subscriptions.id, subscription.id))
+        .returning();
+
+      await syncLegacyOrganisationCounters(tx, organisation, nextSubscription);
+
+      return {
+        organisation,
+        subscription: nextSubscription,
+        entitlementReset: false,
+      };
+    }
 
     const [nextSubscription] = await tx
       .update(subscriptions)
       .set({
         plan: plan.id,
+        status,
         billingInterval,
         currentPeriodStart: now,
         currentPeriodEnd: addBillingInterval(now, billingInterval),
@@ -923,7 +987,7 @@ export async function setSubscriptionPlan({
         executionReservedBalance: 0,
         videoIncludedBalance: plan.includedVideoCredits,
         videoReservedBalance: 0,
-        status: 'active',
+        metadata,
         updatedAt: now,
       })
       .where(eq(subscriptions.id, subscription.id))
@@ -973,6 +1037,72 @@ export async function setSubscriptionPlan({
 
     return {
       organisation: updatedOrg,
+      subscription: nextSubscription,
+      entitlementReset: true,
+    };
+  });
+}
+
+export async function updateSubscriptionBillingStatus({
+  orgId,
+  status,
+  stripeEventId = null,
+  stripeEventCreated = null,
+  stripeSubscriptionId = null,
+  source = 'manual',
+}) {
+  return db.transaction(async (tx) => {
+    const organisation = await tx.query.organisations.findFirst({
+      where: eq(organisations.id, orgId),
+    });
+
+    if (!organisation) {
+      throw buildBillingError('Organisation not found.', 404, 'ORG_NOT_FOUND');
+    }
+
+    let subscription = await tx.query.subscriptions.findFirst({
+      where: eq(subscriptions.orgId, orgId),
+    });
+
+    if (!subscription) {
+      subscription = await createSubscriptionForOrganisation(tx, organisation);
+    }
+
+    const syncDecision = shouldApplyStripeSubscriptionEvent({
+      metadata: subscription.metadata,
+      eventId: stripeEventId,
+      eventCreated: stripeEventCreated,
+    });
+
+    if (!syncDecision.apply) {
+      return {
+        organisation,
+        subscription,
+        skipped: true,
+        reason: syncDecision.reason,
+      };
+    }
+
+    const now = new Date();
+    const [nextSubscription] = await tx
+      .update(subscriptions)
+      .set({
+        status,
+        metadata: buildBillingSyncMetadata(subscription.metadata, {
+          stripeEventId,
+          stripeEventCreated,
+          stripeSubscriptionId,
+          stripeStatus: status,
+          source,
+          syncedAt: now,
+        }),
+        updatedAt: now,
+      })
+      .where(eq(subscriptions.id, subscription.id))
+      .returning();
+
+    return {
+      organisation,
       subscription: nextSubscription,
     };
   });
@@ -1288,6 +1418,106 @@ async function assertVideoDailyCap(tx, { orgId, plan, subscription, requestedCre
       true,
     );
   }
+}
+
+export function shouldApplyStripeSubscriptionEvent({ metadata = {}, eventId = null, eventCreated = null } = {}) {
+  if (!eventId && eventCreated == null) {
+    return { apply: true, reason: null };
+  }
+
+  const stripeMetadata = metadata?.stripe ?? {};
+  const latestEventId = stripeMetadata.latestEventId ?? null;
+  const latestEventCreated = normalizeStripeEventCreated(stripeMetadata.latestEventCreated);
+  const incomingEventCreated = normalizeStripeEventCreated(eventCreated);
+
+  if (eventId && latestEventId === eventId) {
+    return { apply: false, reason: 'duplicate_stripe_event' };
+  }
+
+  if (
+    incomingEventCreated != null
+    && latestEventCreated != null
+    && incomingEventCreated < latestEventCreated
+  ) {
+    return { apply: false, reason: 'stale_stripe_event' };
+  }
+
+  return { apply: true, reason: null };
+}
+
+function buildBillingSyncMetadata(existingMetadata = {}, {
+  stripeEventId = null,
+  stripeEventCreated = null,
+  stripeSubscriptionId = null,
+  stripeStatus = null,
+  source = 'manual',
+  syncedAt = new Date(),
+} = {}) {
+  if (!stripeEventId && stripeEventCreated == null && !stripeSubscriptionId && !stripeStatus) {
+    return existingMetadata ?? {};
+  }
+
+  const stripeMetadata = {
+    ...(existingMetadata?.stripe ?? {}),
+    lastSyncSource: source,
+    lastSyncedAt: syncedAt.toISOString(),
+  };
+
+  if (stripeEventId) {
+    stripeMetadata.latestEventId = stripeEventId;
+  }
+
+  const normalizedCreated = normalizeStripeEventCreated(stripeEventCreated);
+  if (normalizedCreated != null) {
+    stripeMetadata.latestEventCreated = normalizedCreated;
+  }
+
+  if (stripeSubscriptionId) {
+    stripeMetadata.subscriptionId = stripeSubscriptionId;
+  }
+
+  if (stripeStatus) {
+    stripeMetadata.status = stripeStatus;
+  }
+
+  return {
+    ...(existingMetadata ?? {}),
+    stripe: stripeMetadata,
+  };
+}
+
+function shouldResetSubscriptionEntitlements({
+  organisation,
+  subscription,
+  plan,
+  billingInterval,
+  source = 'manual',
+}) {
+  if ([
+    'manual',
+    'checkout.session.completed',
+    'customer.subscription.deleted',
+    'invoice.paid',
+  ].includes(source)) {
+    return true;
+  }
+
+  return (
+    subscription.plan !== plan.id
+    || subscription.billingInterval !== billingInterval
+    || organisation.plan !== plan.id
+    || organisation.seatLimit !== plan.seatLimit
+    || organisation.monthlyCreditLimit !== plan.includedExecutionCredits
+  );
+}
+
+function normalizeStripeEventCreated(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
 }
 
 async function getCommittedCreditsForCycle(tx, orgId, subscription, creditType) {
