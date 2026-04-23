@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import * as Sentry from '@sentry/react';
 
 /**
  * Reusable React error boundary. Catches render-phase errors from any child
@@ -30,6 +31,15 @@ export class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     const { onError } = this.props;
+    Sentry.captureException(error, {
+      tags: {
+        boundary: this.props.label ?? 'Application',
+      },
+      extra: {
+        componentStack: info?.componentStack ?? null,
+      },
+    });
+
     if (typeof onError === 'function') {
       try {
         onError(error, info);

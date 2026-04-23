@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import { llmExecutionTraces } from '../db/schema.js';
 
 const DEFAULT_MODEL_COSTS = {
+  'anthropic:claude-opus-4-7': { inputPerMillion: 5, outputPerMillion: 25 },
   'anthropic:claude-opus-4-6': { inputPerMillion: 5, outputPerMillion: 25 },
   'anthropic:claude-sonnet-4-6': { inputPerMillion: 3, outputPerMillion: 15 },
   'anthropic:claude-haiku-4-5': { inputPerMillion: 1, outputPerMillion: 5 },

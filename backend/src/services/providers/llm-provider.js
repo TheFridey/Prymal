@@ -17,12 +17,16 @@ export function normalizeProviderError(error, { provider, defaultCode, defaultSt
     const normalized = new Error(`The ${provider} provider failed.`);
     normalized.code = defaultCode;
     normalized.status = defaultStatus;
+    normalized.provider = provider;
+    normalized.errorType = 'ProviderError';
     return normalized;
   }
 
   const normalized = new Error(error.message || `The ${provider} provider failed.`);
   normalized.code = error.code ?? defaultCode;
   normalized.status = error.status ?? error.statusCode ?? defaultStatus;
+  normalized.provider = provider;
+  normalized.errorType = error.name ?? 'ProviderError';
   normalized.cause = error;
   return normalized;
 }

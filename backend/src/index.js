@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/node';
 import { serve } from '@hono/node-server';
-import { clerkMiddleware } from '@hono/clerk-auth';
+import { clerkMiddleware, getAuth } from '@hono/clerk-auth';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
@@ -65,6 +65,34 @@ function isAllowedOrigin(origin) {
   }
 
   return /^http:\/\/localhost:517\d$/.test(origin);
+}
+
+function resolveErrorProvider(error) {
+  return (
+    error?.provider
+    ?? error?.llmMeta?.provider
+    ?? error?.metadata?.provider
+    ?? error?.cause?.provider
+    ?? error?.cause?.llmMeta?.provider
+    ?? null
+  );
+}
+
+function resolveErrorType(error) {
+  return error?.errorType ?? error?.name ?? error?.constructor?.name ?? 'Error';
+}
+
+function isEarlyUser(userId, org) {
+  const earlyUserIds = (process.env.EARLY_USER_IDS ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return Boolean(
+    (userId && earlyUserIds.includes(userId))
+    || org?.orgMetadata?.earlyUser
+    || org?.orgMetadata?.launchCohort === 'first-users',
+  );
 }
 
 app.use('*', timing());
@@ -170,14 +198,53 @@ app.route('/api/waitlist', waitlistRoutes);
 app.notFound((context) => context.json({ error: 'Route not found' }, 404));
 
 app.onError((error, context) => {
-  console.error('[PRYMAL ERROR]', error);
   const requestId = context.get('requestId') ?? null;
+  const org = context.get('org') ?? null;
+  const staff = context.get('staff') ?? null;
+  let auth = null;
+
+  try {
+    auth = getAuth(context);
+  } catch {
+    auth = null;
+  }
+
+  const userId = org?.userId ?? staff?.userId ?? auth?.userId ?? null;
+  const orgId = org?.orgId ?? null;
+  const status = error.status || 500;
+  const code = error.code || 'INTERNAL_ERROR';
+  const provider = resolveErrorProvider(error);
+  const errorType = resolveErrorType(error);
+  const userMessage = status >= 500
+    ? 'Something went wrong — try again.'
+    : error.message || 'Something went wrong — try again.';
+
+  console.error(JSON.stringify({
+    event: 'request_failed',
+    requestId,
+    userId,
+    orgId,
+    provider,
+    errorType,
+    earlyUser: isEarlyUser(userId, org),
+    method: context.req.method,
+    path: context.req.path,
+    status,
+    code,
+    message: error.message || 'Internal server error',
+    stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
+    timestamp: new Date().toISOString(),
+  }));
+
   if (process.env.SENTRY_DSN) {
     Sentry.captureException(error, {
       extra: {
         path: context.req.path,
         method: context.req.method,
         orgId: context.get('org')?.orgId ?? null,
+        userId,
+        provider,
+        errorType,
         requestId,
       },
     });
@@ -189,12 +256,12 @@ app.onError((error, context) => {
 
   return context.json(
     {
-      error: error.message || 'Internal server error',
-      code: error.code || 'INTERNAL_ERROR',
+      error: userMessage,
+      code,
       upgrade: Boolean(error.upgrade),
       requestId,
     },
-    error.status || 500,
+    status,
   );
 });
 

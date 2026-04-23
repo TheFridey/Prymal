@@ -211,10 +211,12 @@ Required for real product behaviour:
 
 - `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
+- `ANTHROPIC_MODEL_PREMIUM=claude-opus-4-7` or the current approved Opus model
 
 Optional but supported:
 
 - `GEMINI_API_KEY`
+- `GEMINI_GROUNDING_ENABLED=false` for launch; live Gemini web grounding is intentionally deferred
 
 Email:
 
@@ -225,6 +227,12 @@ Email:
 Operational mail:
 
 - `WREN_ESCALATION_EMAIL`
+
+Launch support:
+
+- optional `EARLY_USER_IDS`
+  - comma-separated Clerk user IDs for your first customer cohort
+  - these users are tagged as `earlyUser: true` in `request_failed` backend logs so support can triage first-session friction faster
 
 Security:
 
@@ -399,7 +407,9 @@ Run these checks after every staging deploy and before every production go-live:
 
 - [ ] Open `/app/dashboard`
 - [ ] Open an agent workspace
+- [ ] As a brand-new user, confirm the dashboard and first chat clearly explain what to ask Prymal to do
 - [ ] Verify a normal response renders
+- [ ] Verify the first-run hint and starter prompts appear on a fresh workspace
 - [ ] Verify a SENTINEL-held response is visible in admin traces if one exists in the staging window
 
 ### LORE
@@ -421,6 +431,7 @@ Run these checks after every staging deploy and before every production go-live:
 - [ ] Start a Stripe checkout session
 - [ ] Open the Stripe billing portal with the staging billing account
 - [ ] Verify plan changes land through Stripe webhooks
+- [ ] Verify execution/video credit balances update after a real run and a real video job
 
 ### Admin / operations
 

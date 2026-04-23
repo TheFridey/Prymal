@@ -154,7 +154,7 @@ test('getAnthropicModels returns default model names when env vars are absent', 
   delete process.env.ANTHROPIC_MODEL_DEFAULT;
   delete process.env.ANTHROPIC_MODEL_FAST;
   const models = getAnthropicModels();
-  assert.equal(models.premium, 'claude-opus-4-6');
+  assert.equal(models.premium, 'claude-opus-4-7');
   assert.equal(models.default, 'claude-sonnet-4-6');
   assert.equal(models.fast, 'claude-haiku-4-5');
   // Legacy aliases must mirror the canonical names.
@@ -164,10 +164,10 @@ test('getAnthropicModels returns default model names when env vars are absent', 
 });
 
 test('getAnthropicModels respects env var overrides', () => {
-  process.env.ANTHROPIC_MODEL_PREMIUM = 'claude-opus-4-6';
+  process.env.ANTHROPIC_MODEL_PREMIUM = 'claude-opus-4-7';
   process.env.ANTHROPIC_MODEL_DEFAULT = 'claude-sonnet-4-6';
   const models = getAnthropicModels();
-  assert.equal(models.premium, 'claude-opus-4-6');
+  assert.equal(models.premium, 'claude-opus-4-7');
   assert.equal(models.default, 'claude-sonnet-4-6');
   delete process.env.ANTHROPIC_MODEL_PREMIUM;
   delete process.env.ANTHROPIC_MODEL_DEFAULT;

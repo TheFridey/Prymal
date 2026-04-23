@@ -153,8 +153,29 @@ export async function signInWith(page, { email, password, destination = '/app/da
   await emailField.fill(email);
   await passwordField.fill(password);
 
-  await page.getByRole('button', { name: /sign in|continue/i }).first().click();
-  await page.waitForURL(/\/app\//, { timeout: 20_000 });
+  const continueButton = page.getByRole('button', { name: /^continue$/i });
+  const signInButton = page.getByRole('button', { name: /^sign in$/i });
+
+  if (await continueButton.count()) {
+    await continueButton.first().click();
+  } else {
+    await signInButton.first().click();
+  }
+
+  const destinationResult = await Promise.race([
+    page.waitForURL(/\/app\//, { timeout: 20_000 }).then(() => 'app'),
+    page.waitForURL(/\/factor-two/, { timeout: 20_000 }).then(() => 'factor-two'),
+  ]).catch(() => null);
+
+  if (destinationResult === 'factor-two') {
+    throw new Error(
+      'Clerk sign-in reached factor-two verification. Provide inbox/OTP access or relax new-device verification for QA.',
+    );
+  }
+
+  if (destinationResult !== 'app') {
+    throw new Error(`Sign-in did not reach the workspace. Final URL: ${page.url()}`);
+  }
 
   if (destination && !page.url().includes(destination)) {
     await page.goto(destination);

@@ -96,7 +96,7 @@ export function detectProviderFromModel(model) {
 export function getAnthropicModels() {
   const premium = resolveModelName(
     process.env.ANTHROPIC_MODEL_PREMIUM ?? process.env.ANTHROPIC_MODEL_OPUS,
-    'claude-opus-4-6',
+    'claude-opus-4-7',
   );
   const defaultModel = resolveModelName(
     process.env.ANTHROPIC_MODEL_DEFAULT ?? process.env.ANTHROPIC_MODEL_PRIMARY,

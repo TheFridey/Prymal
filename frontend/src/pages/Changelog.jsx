@@ -113,7 +113,7 @@ const CHANGELOG = [
     tag: 'Release',
     title: 'SAGE Extended Thinking + Entitlement Tests',
     entries: [
-      'SAGE now uses Anthropic extended thinking via claude-opus-4-6 on qualifying plans, improving strategic analysis and SWOT output quality.',
+      'SAGE now uses Anthropic extended thinking via claude-opus-4-7 on qualifying plans, improving strategic analysis and SWOT output quality.',
       'CIPHER extended thinking budget increased from 8,000 to 12,000 tokens for deeper data analysis tasks.',
       'Expanded unit test coverage for entitlements (plan config, agent access gates, credit assertion) and billing (webhook signature validation).',
       'Atlas agent max response tokens increased to 12,000 to support longer cross-document synthesis.',

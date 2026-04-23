@@ -1,6 +1,8 @@
 import { bootstrapRuntimeEnv } from '../env.js';
+import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
+import { fileURLToPath } from 'node:url';
 
 bootstrapRuntimeEnv();
 
@@ -12,10 +14,11 @@ if (!connectionString) {
 }
 
 const client = postgres(connectionString, { max: 1 });
+const db = drizzle(client);
 
 try {
-  await migrate(client, {
-    migrationsFolder: new URL('../../drizzle', import.meta.url).pathname,
+  await migrate(db, {
+    migrationsFolder: fileURLToPath(new URL('../../drizzle', import.meta.url)),
   });
   console.log('Drizzle migrations applied.');
 } finally {

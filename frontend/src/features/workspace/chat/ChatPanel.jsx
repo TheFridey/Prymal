@@ -101,6 +101,7 @@ export default function ChatPanel({
   streamingTask,
   hasConversationContent,
   promptCards,
+  showFirstRunHint,
 
   // Oracle audit
   auditUrl,
@@ -119,6 +120,7 @@ export default function ChatPanel({
   onSetAuditUrl,
   onOracleAudit,
   onRequestReview,
+  onDismissFirstRunHint,
   onHandoff,
 }) {
   return (
@@ -144,6 +146,18 @@ export default function ChatPanel({
         </div>
       ) : null}
 
+      {showFirstRunHint ? (
+        <MotionSection className="workspace-studio__first-run-hint" reveal={{ y: 14, blur: 6 }}>
+          <div>
+            <strong>Start by asking Prymal to do something for your business</strong>
+            <span>Choose a starter prompt or type one practical task below.</span>
+          </div>
+          <button type="button" onClick={onDismissFirstRunHint}>
+            Got it
+          </button>
+        </MotionSection>
+      ) : null}
+
       {!hasConversationContent && promptCards.length > 0 ? (
         <MotionSection className="workspace-studio__prompt-row" reveal={{ y: 18, blur: 6 }}>
           {promptCards.map((prompt) => (
@@ -159,7 +173,7 @@ export default function ChatPanel({
           <MotionSection reveal={{ y: 20, blur: 8 }}>
             <EmptyState
               title={`Start a ${activeAgent.name} conversation`}
-              description="Everything here is integrated: chat, history, agent settings, and future avatar-driven presence in one workspace."
+              description="Ask me to generate content, automate a task, or analyse something. Prymal will stream the reply and show review, retry, or credit states clearly."
               accent={activeAgent.color}
             />
           </MotionSection>

@@ -198,7 +198,7 @@ Backend env loading is now split into:
 - Invitations: `RESEND_API_KEY`, `EMAIL_FROM`, optional `INVITE_EMAIL_REPLY_TO`
 - Tiered internal staff access: `STAFF_SUPPORT_*`, `STAFF_OPS_*`, `STAFF_FINANCE_*`, `STAFF_SUPERADMIN_*`
 - Model lanes and overrides: `ANTHROPIC_MODEL_PREMIUM`, `ANTHROPIC_MODEL_DEFAULT`, `ANTHROPIC_MODEL_FAST`, `OPENAI_MODEL_PREMIUM`, `OPENAI_MODEL_ROUTER`, `OPENAI_MODEL_LIGHTWEIGHT`, optional `ORG_MODEL_POLICY_OVERRIDES`
-- Google Gemini (optional third lane): `GEMINI_API_KEY`, `GEMINI_MODEL_FLASH` (default `gemini-2.5-flash`), `GEMINI_MODEL_PRO` (default `gemini-2.5-pro`)
+- Google Gemini (optional third lane): `GEMINI_API_KEY`, `GEMINI_MODEL_FLASH` (default `gemini-2.5-flash`), `GEMINI_MODEL_PRO` (default `gemini-2.5-pro`), `GEMINI_GROUNDING_ENABLED=false` for launch
 - Optional model cost overrides for LLM tracing: `MODEL_COST_OVERRIDES`
 - Workflow runtime controls: `WORKFLOW_NODE_TIMEOUT_MS`, `WORKFLOW_RUN_TIMEOUT_MS`, `WORKFLOW_MAX_ATTEMPTS`
 - Optional distributed rate limiting: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
@@ -293,13 +293,13 @@ Full runtime smoke testing still depends on a complete local install for:
 ## Current caveats
 
 - Trigger.dev scheduling is intentionally optional; the inline scheduler is the fallback for local/manual execution.
-- Gemini live grounding via `google_search_retrieval` is intentionally deferred to the final sprint.
-- Avatar assets require running `frontend/scripts/generate-agent-avatars.mjs` against a live Prymal instance, or manually supplying final assets.
+- Gemini live grounding via Google Search remains intentionally deferred and disabled by default; do not enable `GEMINI_GROUNDING_ENABLED` until the provider/tooling path is explicitly cleared for production.
+- Final WebP avatar assets for all 15 agents are committed under `frontend/src/assets/agents/`.
 
 ## Next high-leverage sprint
 
-1. Run `generate-agent-avatars.mjs` against a live instance to produce real agent avatar assets.
-2. Provision a Clerk production instance and complete the deployment checklist in `DEPLOY.md`.
-3. Onboard the first 10 paying beta customers and instrument feedback via `productEvents`.
-4. Gemini live grounding: add `google_search_retrieval` tool calls to the `grounded_research` policy lane for SCOUT, ORACLE, and SAGE — this is the final platform capability deferred from the main build.
-5. Add Playwright authenticated CI tests once the staging environment is provisioned.
+1. Provision Clerk production and staging applications, then complete the deployment checklist in `DEPLOY.md`.
+2. Configure Stripe live prices/webhooks when billing is ready to accept production payments.
+3. Run authenticated Playwright against staging with the dedicated role accounts.
+4. Onboard the first 10 paying beta customers and instrument feedback via `productEvents`.
+5. Evaluate Gemini live grounding separately after launch; keep it disabled by default until then.

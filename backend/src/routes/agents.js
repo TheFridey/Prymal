@@ -78,6 +78,14 @@ const videoGenerationSchema = z.object({
   resolution: z.enum(['720p', '1080p']).default('720p'),
   aspectRatio: z.enum(['16:9', '9:16']).default('16:9'),
 });
+const mediaGenerationRateLimit = planAwareRateLimit({
+  free: 4,
+  solo: 8,
+  pro: 16,
+  teams: 40,
+  agency: 120,
+  keyPrefix: 'agents-media',
+});
 
 const realtimeTokenSchema = z.object({
   agentId: z.enum(AGENT_IDS).optional(),
@@ -561,7 +569,7 @@ router.post('/chat', requireOrg, planAwareRateLimit({
   });
 });
 
-router.post('/generate-image', requireOrg, zValidator('json', imageGenerationSchema), async (context) => {
+router.post('/generate-image', requireOrg, mediaGenerationRateLimit, zValidator('json', imageGenerationSchema), async (context) => {
   const org = context.get('org');
   const payload = context.req.valid('json');
 
@@ -769,7 +777,7 @@ router.post('/generate-image', requireOrg, zValidator('json', imageGenerationSch
   }
 });
 
-router.post('/generate-video', requireOrg, zValidator('json', videoGenerationSchema), async (context) => {
+router.post('/generate-video', requireOrg, mediaGenerationRateLimit, zValidator('json', videoGenerationSchema), async (context) => {
   const org = context.get('org');
   const payload = context.req.valid('json');
 

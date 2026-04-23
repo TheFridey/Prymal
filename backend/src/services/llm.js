@@ -877,6 +877,7 @@ async function* streamOpenAIResponse({ plan, systemPrompt, messages, userMessage
  * grounded_research policy, AND the routed model supports search grounding.
  */
 function shouldUseGeminiGrounding(plan, contract) {
+  if (process.env.GEMINI_GROUNDING_ENABLED !== 'true') return false;
   if (!plan?.model || !plan.model.startsWith('gemini-')) return false;
   // Search-grounded responses are only supported on Gemini 2.x text models.
   // (Lite variants do not support grounding in current SDK.)

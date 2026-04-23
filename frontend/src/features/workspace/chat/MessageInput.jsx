@@ -27,6 +27,7 @@ export default function MessageInput({
   // Settings
   activeSettings,
   hasConversationContent,
+  isFirstRun,
   isStreaming,
 
   // Slash commands
@@ -49,8 +50,18 @@ export default function MessageInput({
   onApplySlashCommand,
   onAttachClick,
 }) {
+  const composerClassName = `workspace-studio__composer${isFirstRun ? ' workspace-studio__composer--first-run' : ''}`;
+  const placeholder = isFirstRun
+    ? 'Ask me to generate content, automate a task, or analyse something'
+    : `Message ${activeAgent.name}... Type / for prompts, clear, settings, and more.`;
+  const metaCopy = isFirstRun
+    ? 'Credits are checked before each run. Start with one practical business task.'
+    : hasConversationContent
+      ? 'Type / for prompts, clear chat, settings, and toggles.'
+      : 'Try a starter prompt or open / commands.';
+
   return (
-    <MotionPanel className="workspace-studio__composer">
+    <MotionPanel className={composerClassName}>
       <MotionPresence initial={false}>
         {attachedFiles.length > 0 ? (
           <div key="attachments" className="workspace-studio__attachments">
@@ -99,7 +110,7 @@ export default function MessageInput({
           value={draft}
           onChange={onDraftChange}
           onKeyDown={onComposerKeyDown}
-          placeholder={`Message ${activeAgent.name}... Type / for prompts, clear, settings, and more.`}
+          placeholder={placeholder}
           rows={1}
           className="field field--textarea"
         />
@@ -162,8 +173,8 @@ export default function MessageInput({
       </MotionPresence>
 
       <div className="workspace-studio__composer-actions">
-        <div className="workspace-studio__composer-meta">
-          {hasConversationContent ? 'Type / for prompts, clear chat, settings, and toggles.' : 'Try a starter prompt or open / commands.'}{' '}
+        <div className="workspace-studio__composer-meta" title="Execution and video credits are tracked separately and checked server-side before each run.">
+          {metaCopy}{' '}
           | {activeSettings.useLore ? 'LORE enabled' : 'LORE disabled'} | {activeSettings.responseLength} response | {activeSettings.tone} tone | {activeSettings.voiceInputMode} voice
           {voiceMode === 'realtime' ? ' | 🎙 Live' : null}
           {voiceMode === 'recording' ? ' | ⏺ Recording' : null}

@@ -36,7 +36,7 @@ const CAPABILITIES = {
   },
   oracle: {
     notIdealFor: ['Creative copy', 'Image work', 'Operational planning'],
-    capabilities: ['Live web grounding', 'Uses LORE', 'Structured output', 'Strict runtime'],
+    capabilities: ['Live web research', 'Uses LORE', 'Structured output', 'Strict runtime'],
   },
   vance: {
     notIdealFor: ['Casual chat', 'Creative copy', 'Brand voice work'],
@@ -56,7 +56,7 @@ const CAPABILITIES = {
   },
   scout: {
     notIdealFor: ['Long-form drafting', 'Image work', 'Operational planning'],
-    capabilities: ['Live web grounding', 'Uses LORE', 'Structured output', 'Strict runtime'],
+    capabilities: ['Live web research', 'Uses LORE', 'Structured output', 'Strict runtime'],
   },
   sage: {
     notIdealFor: ['Live web breaking news', 'Image work', 'Outbound writing'],
@@ -83,7 +83,7 @@ const CAPABILITY_TONE = {
   'Schema-enforced': 'structure',
   'Citation required': 'structure',
   'Strict runtime': 'strict',
-  'Live web grounding': 'live',
+  'Live web research': 'live',
   'Sends email': 'side_effect',
   'Workflow orchestration': 'side_effect',
   'Generates images': 'side_effect',

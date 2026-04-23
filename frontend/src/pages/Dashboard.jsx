@@ -295,7 +295,7 @@ export default function Dashboard() {
 
               <p className="pm-dash__sub">
                 {conversationCount === 0
-                  ? 'NEXUS orchestrates, ATLAS sequences work, LORE grounds context — everything else slots in as depth.'
+                  ? 'Ask Prymal to generate content, automate a task, or analyse something. Start with one practical business request and the right agent will take it from there.'
                   : 'Command from NEXUS, track delivery in ATLAS, and watch the active graph highlight where attention is flowing.'}
               </p>
 
@@ -334,7 +334,7 @@ export default function Dashboard() {
                 </div>
                 <form className="pm-dash__nexus-form" onSubmit={handleNexusSubmit}>
                   <label className="pm-dash__nexus-label" htmlFor="dash-nexus-command">
-                    Describe the outcome or workflow move
+                    {conversationCount === 0 ? 'Start by asking Prymal to do something for your business' : 'Describe the outcome or workflow move'}
                   </label>
                   <div className="pm-dash__nexus-field">
                     <input
@@ -342,7 +342,11 @@ export default function Dashboard() {
                       className="pm-dash__nexus-input"
                       value={commandDraft}
                       onChange={(e) => setCommandDraft(e.target.value)}
-                      placeholder="e.g. Weekly client report with metrics, narrative, and send-ready email…"
+                      placeholder={
+                        conversationCount === 0
+                          ? 'e.g. Write 5 social posts for my business'
+                          : 'e.g. Weekly client report with metrics, narrative, and send-ready email…'
+                      }
                       autoComplete="off"
                     />
                     <button type="submit" className="pm-dash__nexus-submit">
@@ -350,7 +354,7 @@ export default function Dashboard() {
                     </button>
                   </div>
                   <div className="pm-dash__nexus-meta">
-                    <span>Empty submit opens the graph editor</span>
+                    <span>{conversationCount === 0 ? 'Start with one concrete request. Empty submit still opens the graph editor.' : 'Empty submit opens the graph editor'}</span>
                     <button type="button" className="pm-dash__nexus-linkish" onClick={() => navigate('/app/agents/nexus?new=1')}>
                       New NEXUS thread
                     </button>

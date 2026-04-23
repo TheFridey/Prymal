@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1743984000000,
+      "tag": "0001_waitlist_invited_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1776902400000,
+      "tag": "0002_billing_credit_schema",
+      "breakpoints": true
+    }
+  ]
+}

@@ -17,6 +17,13 @@ import { useConversationManager, DEFAULT_CHAT_SETTINGS } from './hooks/useConver
 import { useChatSend } from './hooks/useChatSend';
 import { useVoiceInput } from './hooks/useVoiceInput';
 
+const FIRST_USER_PROMPTS = [
+  'Write 5 social posts for my business',
+  'Create a marketing plan',
+  'Generate a promo video',
+];
+const FIRST_RUN_HINT_STORAGE_KEY = 'prymal:first-run-hint-seen';
+
 export default function WorkspaceChatExperience({
   viewer,
   fallbackAgents = [],
@@ -50,6 +57,7 @@ export default function WorkspaceChatExperience({
   const [commandMenuOpen, setCommandMenuOpen] = useState(false);
   const [commandFilter, setCommandFilter] = useState('');
   const [commandIndex, setCommandIndex] = useState(0);
+  const [showFirstRunHint, setShowFirstRunHint] = useState(false);
 
   useEffect(() => { draftRef.current = draft; }, [draft]);
 
@@ -79,8 +87,9 @@ export default function WorkspaceChatExperience({
 
   const activeAgent = unlockedAgents.find((a) => a.id === activeAgentId) ?? unlockedAgents[0] ?? null;
   const storageSuffix = viewer?.user?.id ?? 'local';
-  const promptCards = activeAgent?.prompts?.slice(0, 4) ?? [];
+  const agentPromptCards = useMemo(() => activeAgent?.prompts?.slice(0, 4) ?? [], [activeAgent]);
   const powerCards = activeAgent?.focusAreas?.slice(0, 2) ?? [];
+  const firstRunHintStorageKey = `${FIRST_RUN_HINT_STORAGE_KEY}:${storageSuffix}`;
 
   // ── hooks ─────────────────────────────────────────────────────────────────
   const strip = useAgentStripDrag();
@@ -121,6 +130,36 @@ export default function WorkspaceChatExperience({
   // ── derived ───────────────────────────────────────────────────────────────
   const hasConversationContent =
     conv.messages.length > 0 || chat.isStreaming || Boolean(chat.streamingText) || !conv.isDraftingNewChat;
+
+  const promptCards = useMemo(() => {
+    const prompts = hasConversationContent
+      ? agentPromptCards
+      : [...FIRST_USER_PROMPTS, ...agentPromptCards];
+
+    return [...new Set(prompts.filter(Boolean))].slice(0, 4);
+  }, [agentPromptCards, hasConversationContent]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      setShowFirstRunHint(window.localStorage.getItem(firstRunHintStorageKey) !== '1');
+    } catch {
+      setShowFirstRunHint(false);
+    }
+  }, [firstRunHintStorageKey]);
+
+  useEffect(() => {
+    if (!showFirstRunHint || !hasConversationContent || typeof window === 'undefined') return;
+
+    try {
+      window.localStorage.setItem(firstRunHintStorageKey, '1');
+    } catch {
+      // Local storage can be unavailable in private browsing; the hint remains harmless.
+    }
+
+    setShowFirstRunHint(false);
+  }, [firstRunHintStorageKey, hasConversationContent, showFirstRunHint]);
 
   const recentAgentIds = useMemo(
     () =>
@@ -237,6 +276,18 @@ export default function WorkspaceChatExperience({
     setDraft('');
     setAutoScrollEnabled(true);
     if (routeMode) navigate(`/app/agents/${activeAgent.id}?new=1`);
+  }
+
+  function markFirstRunHintSeen() {
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(firstRunHintStorageKey, '1');
+      } catch {
+        // Ignore unavailable storage; dismissing should still work for this session.
+      }
+    }
+
+    setShowFirstRunHint(false);
   }
 
   // ── slash command setup ───────────────────────────────────────────────────
@@ -406,6 +457,7 @@ export default function WorkspaceChatExperience({
               streamingTask={chat.streamingTask}
               hasConversationContent={hasConversationContent}
               promptCards={promptCards}
+              showFirstRunHint={showFirstRunHint && !hasConversationContent}
               auditUrl={chat.auditUrl}
               isAuditing={chat.isAuditing}
               wrenEscalated={chat.wrenEscalated}
@@ -416,6 +468,7 @@ export default function WorkspaceChatExperience({
               onSetAuditUrl={chat.setAuditUrl}
               onOracleAudit={chat.handleOracleAudit}
               onRequestReview={chat.handleRequestReview}
+              onDismissFirstRunHint={markFirstRunHintSeen}
               onHandoff={handleHandoff}
             />
             <MessageInput
@@ -435,6 +488,7 @@ export default function WorkspaceChatExperience({
               composerRef={composerRef}
               fileInputRef={fileInputRef}
               hasConversationContent={hasConversationContent}
+              isFirstRun={!hasConversationContent}
               isStreaming={chat.isStreaming}
               onSend={() => chat.handleSend(draft)}
               onDraftChange={handleDraftChange}

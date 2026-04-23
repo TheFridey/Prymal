@@ -1,5 +1,3 @@
-import {
-} from '../assets/agents/finalAvatars';
 import atlasAvatar from '../assets/agents/atlas.webp';
 import cipherAvatar from '../assets/agents/cipher.webp';
 import echoAvatar from '../assets/agents/echo.webp';

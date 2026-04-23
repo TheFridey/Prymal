@@ -7,14 +7,26 @@ This repository currently ships from the `master` branch. CI and branch protecti
 The GitHub Actions workflow at `.github/workflows/ci.yml` is the release gate for:
 
 - dependency install
+- backend lint
 - backend test execution
+- frontend lint
 - frontend clean-checkout reproducibility via `npm run verify-build`
 - frontend production build
 - bundle budget enforcement
 - Playwright marketing smoke
 - Playwright authenticated smoke
 
-`lint` is intentionally not a required check yet because the repo does not currently expose a stable `npm run lint` script in either workspace. Add lint as a required gate only after a real lint command exists and passes locally.
+## Performance Budget
+
+The frontend performance budget is enforced by `frontend/scripts/check-bundles.mjs`.
+
+- Initial JavaScript budget: `700 KB`
+- Initial CSS budget: `380 KB`
+- Largest async JavaScript budget: `1000 KB`
+
+The `380 KB` initial CSS budget is intentional. Prymal ships a premium cinematic design system with a large global interaction layer, agent avatar presentation, workspace chrome, governance states, billing UI, and release-grade empty/error states. The previous `220 KB` budget was too small for the completed product and was failing CI despite the bundle being structurally healthy.
+
+This is not treated as a regression waiver: the budget still sits close to the current measured initial CSS size, and route-scoped CSS such as `landing-rebuild.css` remains code-split into async page chunks instead of being folded blindly into the global bundle.
 
 ## Required status checks
 

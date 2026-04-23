@@ -233,6 +233,8 @@ function buildProviderError(error) {
   const normalized = new Error(error?.message || 'Veo video generation failed.');
   normalized.code = error?.code ?? 'VIDEO_GENERATION_FAILED';
   normalized.status = error?.status ?? 503;
+  normalized.provider = 'google';
+  normalized.errorType = error?.name ?? 'VideoProviderError';
   return normalized;
 }
 
