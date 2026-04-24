@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import {
+  buildVideoConfirmCopy,
   createVideoGenerationDraft,
   estimateImageExecutionCredits,
   estimatePromptTokens,
   estimateVideoCredits,
+  shouldConfirmVideoRender,
 } from './media-generation';
 
 describe('media-generation helpers', () => {
@@ -25,6 +27,34 @@ describe('media-generation helpers', () => {
     expect(
       estimateVideoCredits({ mode: 'standard', durationSeconds: 8, resolution: '1080p' }),
     ).toBe(13);
+  });
+
+  test('requires confirmation for Standard, 1080p, or high-credit renders', () => {
+    expect(
+      shouldConfirmVideoRender({ mode: 'lite', resolution: '720p', estimatedCredits: 2 }),
+    ).toBe(false);
+    expect(
+      shouldConfirmVideoRender({ mode: 'standard', resolution: '720p', estimatedCredits: 2 }),
+    ).toBe(true);
+    expect(
+      shouldConfirmVideoRender({ mode: 'lite', resolution: '1080p', estimatedCredits: 2 }),
+    ).toBe(true);
+    expect(
+      shouldConfirmVideoRender({ mode: 'lite', resolution: '720p', estimatedCredits: 5 }),
+    ).toBe(true);
+  });
+
+  test('confirm copy surfaces credit count and mode clearly', () => {
+    const copy = buildVideoConfirmCopy({
+      mode: 'standard',
+      durationSeconds: 8,
+      resolution: '1080p',
+      referenceImageCount: 2,
+      estimatedCredits: 13,
+    });
+    expect(copy.headline).toBe('This Standard render will use 13 video credits. Continue?');
+    expect(copy.detail).toContain('Standard 8s at 1080p');
+    expect(copy.detail).toContain('2 reference images');
   });
 
   test('normalizes unsupported video draft options to the selected mode', () => {

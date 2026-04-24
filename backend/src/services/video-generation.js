@@ -6,9 +6,11 @@ import { getAgent } from '../agents/config.js';
 import { db } from '../db/index.js';
 import { conversations, messages, videoGenerationEvents } from '../db/schema.js';
 import {
+  claimQueuedVideoJob,
   commitVideoJob,
   incrementVideoJobRetry,
   listQueuedVideoJobs,
+  listStuckProcessingVideoJobs,
   markVideoJobProcessing,
   releaseVideoJob,
 } from './billing-engine.js';
@@ -29,6 +31,41 @@ const TEMP_VIDEO_DIR = path.join(os.tmpdir(), 'prymal-video-jobs');
 
 export function getVideoGenerationConfig(env = process.env) {
   return getVideoJobTimingConfig(env);
+}
+
+export function isVideoWorkerEnabled(env = process.env) {
+  return String(env.VIDEO_WORKER_ENABLED ?? '').toLowerCase() === 'true';
+}
+
+export function logVideoJobEvent(event, job = {}, extras = {}) {
+  const payload = {
+    event,
+    timestamp: new Date().toISOString(),
+    jobId: job.id ?? extras.jobId ?? null,
+    orgId: job.orgId ?? extras.orgId ?? null,
+    userId: job.userId ?? extras.userId ?? null,
+    mode: job.providerMetadata?.mode ?? extras.mode ?? null,
+    provider: job.provider ?? extras.provider ?? null,
+    model: job.model ?? extras.model ?? null,
+    resolution: job.resolution ?? extras.resolution ?? null,
+    durationSeconds: job.durationSeconds ?? extras.durationSeconds ?? null,
+    creditsReserved: job.creditsReserved ?? extras.creditsReserved ?? null,
+    attempt: extras.attempt ?? (job.retryCount ?? null),
+    status: extras.status ?? job.status ?? null,
+    durationSecondsElapsed: extras.durationSecondsElapsed ?? null,
+    failureCode: extras.failureCode ?? job.failureCode ?? null,
+    failureCategory: extras.failureCategory ?? null,
+    ...extras.extra,
+  };
+
+  const isFailure = Boolean(extras.failureCode || extras.failure || extras.level === 'error');
+  const line = JSON.stringify(payload);
+
+  if (isFailure) {
+    console.error('[VIDEO_JOB]', line);
+  } else {
+    console.log('[VIDEO_JOB]', line);
+  }
 }
 
 export function classifyVideoJobFailure(error) {
@@ -117,15 +154,34 @@ export function classifyVideoJobFailure(error) {
 }
 
 export async function enqueueVideoGenerationJob(jobId, options = {}) {
-  if (!jobId || PROCESSING_JOBS.has(jobId)) {
-    return;
+  if (!jobId) {
+    return { dispatchMode: 'noop' };
   }
+
+  const env = options.env ?? process.env;
+
+  if (isVideoWorkerEnabled(env)) {
+    logVideoJobEvent('job_enqueued', { id: jobId }, {
+      extra: { dispatchMode: 'worker' },
+    });
+    return { dispatchMode: 'worker' };
+  }
+
+  if (PROCESSING_JOBS.has(jobId)) {
+    return { dispatchMode: 'inline', alreadyProcessing: true };
+  }
+
+  logVideoJobEvent('job_enqueued', { id: jobId }, {
+    extra: { dispatchMode: 'inline' },
+  });
 
   queueMicrotask(() => {
     processQueuedVideoJob(jobId, options).catch((error) => {
       console.error('[VIDEO] Job processing failed:', error.message);
     });
   });
+
+  return { dispatchMode: 'inline' };
 }
 
 export async function processQueuedVideoJobs(limit = 5, options = {}) {
@@ -136,6 +192,41 @@ export async function processQueuedVideoJobs(limit = 5, options = {}) {
   for (const job of jobs) {
     await processQueuedVideoJob(job.id, options);
   }
+}
+
+export async function claimAndProcessNextVideoJobs(options = {}) {
+  const deps = buildVideoGenerationDeps(options);
+  const batchSize = Math.max(
+    1,
+    Math.min(Number(options.batchSize ?? deps.batchSize) || 3, 25),
+  );
+
+  await sweepTimedOutVideoJobs(deps);
+
+  const candidates = await deps.listQueuedVideoJobs(batchSize);
+  let claimed = 0;
+
+  for (const candidate of candidates) {
+    const reserved = await deps.claimQueuedVideoJob(candidate.id);
+
+    if (!reserved) {
+      continue;
+    }
+
+    claimed += 1;
+    logVideoJobEvent('job_claimed', reserved, {
+      status: reserved.status,
+      extra: { claimSource: 'worker' },
+    });
+
+    try {
+      await processQueuedVideoJob(reserved.id, options);
+    } catch (error) {
+      console.error('[VIDEO_WORKER] processQueuedVideoJob failed for', reserved.id, error?.message ?? error);
+    }
+  }
+
+  return { candidates: candidates.length, claimed };
 }
 
 export async function processQueuedVideoJob(jobId, options = {}) {
@@ -185,6 +276,12 @@ export async function processQueuedVideoJob(jobId, options = {}) {
             providerErrorCategory: null,
             processingStartedAt: new Date(startedAt).toISOString(),
           },
+        });
+
+        logVideoJobEvent('status_transition', job, {
+          status: 'processing',
+          attempt,
+          extra: { providerJobId: operation.name },
         });
 
         await deps.recordProductEvent({
@@ -274,6 +371,16 @@ export async function processQueuedVideoJob(jobId, options = {}) {
           uploadedAsset,
         });
 
+        logVideoJobEvent('status_transition', committed.job ?? job, {
+          status: 'completed',
+          attempt,
+          durationSecondsElapsed: Math.round((deps.now() - startedAt) / 1000),
+          extra: {
+            providerJobId: operation.name,
+            storageProvider: uploadedAsset.storageProvider,
+          },
+        });
+
         await deps.recordProductEvent({
           orgId: job.orgId,
           userId: job.userId,
@@ -325,6 +432,13 @@ export async function processQueuedVideoJob(jobId, options = {}) {
       userId: job.userId,
       failure: lastFailure,
       deps,
+    });
+
+    logVideoJobEvent('status_transition', released.job ?? job, {
+      status: released?.job?.status ?? 'failed',
+      failureCode: lastFailure?.code ?? 'VIDEO_GENERATION_FAILED',
+      failureCategory: lastFailure?.category ?? 'provider_error',
+      failure: true,
     });
   } finally {
     PROCESSING_JOBS.delete(jobId);
@@ -586,8 +700,15 @@ function buildVideoEventMetadata(job, overrides = {}) {
 }
 
 function buildVideoGenerationDeps(options = {}) {
-  const timing = getVideoGenerationConfig(options.env ?? process.env);
-  const mediaStorage = options.mediaStorage ?? getMediaStorage({ env: options.env ?? process.env });
+  const env = options.env ?? process.env;
+  const timing = getVideoGenerationConfig(env);
+  const mediaStorage = options.mediaStorage ?? getMediaStorage({ env });
+  const processingTimeoutMs = Number(
+    options.processingTimeoutMs
+      ?? env.VIDEO_JOB_PROCESSING_TIMEOUT_MS
+      ?? timing.timeoutMs,
+  );
+  const batchSize = Number(options.batchSize ?? env.VIDEO_WORKER_BATCH_SIZE ?? 3);
 
   return {
     db: options.db ?? db,
@@ -597,6 +718,8 @@ function buildVideoGenerationDeps(options = {}) {
     sleep: options.sleep ?? sleep,
     timeoutMs: Number(options.timeoutMs ?? timing.timeoutMs),
     pollIntervalMs: Number(options.pollIntervalMs ?? timing.pollIntervalMs),
+    processingTimeoutMs,
+    batchSize,
     applyVideoJobThrottle: options.applyVideoJobThrottle ?? applyVideoJobThrottle,
     loadReferenceImages: options.loadReferenceImages
       ?? ((assets) => loadVideoReferenceImages(assets, { storage: mediaStorage })),
@@ -607,6 +730,8 @@ function buildVideoGenerationDeps(options = {}) {
     releaseVideoJob: options.releaseVideoJob ?? releaseVideoJob,
     incrementVideoJobRetry: options.incrementVideoJobRetry ?? incrementVideoJobRetry,
     listQueuedVideoJobs: options.listQueuedVideoJobs ?? listQueuedVideoJobs,
+    claimQueuedVideoJob: options.claimQueuedVideoJob ?? claimQueuedVideoJob,
+    listStuckProcessingVideoJobs: options.listStuckProcessingVideoJobs ?? listStuckProcessingVideoJobs,
     recordProductEvent: options.recordProductEvent ?? recordProductEvent,
   };
 }

@@ -17,6 +17,7 @@ import auditRouter from './admin/audit.js';
 import waitlistRouter from './admin/waitlist.js';
 import referralsRouter from './admin/referrals.js';
 import searchRouter from './admin/search.js';
+import operatorRouter from './admin/operator.js';
 
 const router = new Hono();
 
@@ -32,5 +33,6 @@ router.route('/', auditRouter);
 router.route('/', waitlistRouter);
 router.route('/', referralsRouter);
 router.route('/', searchRouter);
+router.route('/', operatorRouter);
 
 export default router;

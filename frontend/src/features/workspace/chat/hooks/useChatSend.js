@@ -222,6 +222,14 @@ export function useChatSend({
         afterSendUpdate(targetAgent.id, response.conversationId);
       }
 
+      if (Number.isFinite(response.creditsUsed) && response.creditsUsed > 0) {
+        notify({
+          type: 'info',
+          title: 'Render queued',
+          message: `Reserved ${response.creditsUsed} video credit${response.creditsUsed === 1 ? '' : 's'} for this render. Final burn is confirmed when the render completes.`,
+        });
+      }
+
       const result = await waitForVideoJob(response.jobId, response.pollAfterMs ?? 4000);
 
       setIsStreaming(false);
@@ -240,10 +248,18 @@ export function useChatSend({
         queryClient.invalidateQueries({ queryKey: ['viewer'] }),
       ]);
 
+      const actualCredits = Number(result.job?.creditsCommitted)
+        || Number(result.job?.creditsReserved)
+        || Number(response.creditsUsed)
+        || 0;
+      const actualSuffix = actualCredits > 0
+        ? ` Used ${actualCredits} video credit${actualCredits === 1 ? '' : 's'}.`
+        : '';
+
       notify({
         type: 'success',
         title: 'Video generated',
-        message: `${targetAgent.name} finished a queued video render for this chat.`,
+        message: `${targetAgent.name} finished a queued video render for this chat.${actualSuffix}`,
       });
     } catch (error) {
       setIsStreaming(false);

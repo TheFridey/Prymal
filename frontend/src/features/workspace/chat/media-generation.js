@@ -91,6 +91,43 @@ export function estimateVideoCredits({
   return Math.ceil(baseCredits + resolutionSurcharge);
 }
 
+export const VIDEO_CONFIRM_CREDIT_THRESHOLD = 5;
+
+export function shouldConfirmVideoRender({
+  mode = 'lite',
+  resolution = '720p',
+  estimatedCredits = 0,
+} = {}) {
+  if (mode === 'standard') {
+    return true;
+  }
+
+  if (resolution === '1080p') {
+    return true;
+  }
+
+  return Number(estimatedCredits) >= VIDEO_CONFIRM_CREDIT_THRESHOLD;
+}
+
+export function buildVideoConfirmCopy({
+  mode = 'lite',
+  durationSeconds = 4,
+  resolution = '720p',
+  referenceImageCount = 0,
+  estimatedCredits = 0,
+} = {}) {
+  const modeLabel = mode === 'standard' ? 'Standard' : 'Lite';
+  const creditWord = Number(estimatedCredits) === 1 ? 'credit' : 'credits';
+  const referenceSuffix = Number(referenceImageCount) > 0
+    ? ` using ${referenceImageCount} reference image${referenceImageCount === 1 ? '' : 's'}`
+    : '';
+
+  return {
+    headline: `This ${modeLabel} render will use ${estimatedCredits} video ${creditWord}. Continue?`,
+    detail: `${modeLabel} ${durationSeconds}s at ${resolution}${referenceSuffix}. Final credit burn is confirmed server-side once the render queues.`,
+  };
+}
+
 export function createImageGenerationDraft(overrides = {}) {
   return {
     prompt: '',

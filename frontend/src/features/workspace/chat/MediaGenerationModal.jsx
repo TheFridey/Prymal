@@ -7,12 +7,14 @@ import {
   IMAGE_QUALITY_OPTIONS,
   IMAGE_SIZE_OPTIONS,
   VIDEO_MODE_OPTIONS,
+  buildVideoConfirmCopy,
   createImageGenerationDraft,
   createVideoGenerationDraft,
   estimateImageExecutionCredits,
   estimatePromptTokens,
   estimateVideoCredits,
   getVideoModeConfig,
+  shouldConfirmVideoRender,
 } from './media-generation';
 
 const MAX_REFERENCE_IMAGES = 3;
@@ -31,11 +33,13 @@ export default function MediaGenerationModal({
     isVideo ? createVideoGenerationDraft(initialDraft) : createImageGenerationDraft(initialDraft),
   );
   const [referenceError, setReferenceError] = useState('');
+  const [confirmStage, setConfirmStage] = useState(false);
   const referenceInputRef = useRef(null);
 
   useEffect(() => {
     setDraft(isVideo ? createVideoGenerationDraft(initialDraft) : createImageGenerationDraft(initialDraft));
     setReferenceError('');
+    setConfirmStage(false);
   }, [initialDraft, isVideo]);
 
   const videoMode = useMemo(
@@ -62,6 +66,21 @@ export default function MediaGenerationModal({
     || !String(draft.prompt ?? '').trim()
     || Boolean(referenceError)
     || requiresEightSecondReferenceRender;
+  const confirmNeeded = isVideo
+    && shouldConfirmVideoRender({
+      mode: draft.mode,
+      resolution: draft.resolution,
+      estimatedCredits,
+    });
+  const confirmCopy = isVideo && confirmStage
+    ? buildVideoConfirmCopy({
+      mode: draft.mode,
+      durationSeconds: draft.durationSeconds,
+      resolution: draft.resolution,
+      referenceImageCount: draft.referenceImages?.length ?? 0,
+      estimatedCredits,
+    })
+    : null;
   const videoSummaryItems = isVideo
     ? [
       { label: 'Mode', value: videoMode.label },
@@ -171,6 +190,11 @@ export default function MediaGenerationModal({
       return;
     }
 
+    if (isVideo && confirmNeeded && !confirmStage) {
+      setConfirmStage(true);
+      return;
+    }
+
     await onSubmit({
       ...draft,
       prompt: String(draft.prompt ?? '').trim(),
@@ -201,23 +225,73 @@ export default function MediaGenerationModal({
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '18px' }}>
+          {isVideo ? (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '10px',
+              }}
+            >
+              {Object.values(VIDEO_MODE_OPTIONS).map((mode) => {
+                const isActive = mode.id === draft.mode;
+                const previewCredits = estimateVideoCredits({
+                  mode: mode.id,
+                  durationSeconds: Number(draft.durationSeconds) || mode.supportedDurations[0],
+                  resolution: mode.supportedResolutions.includes(draft.resolution) ? draft.resolution : mode.supportedResolutions[0],
+                });
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => handleVideoModeChange(mode.id)}
+                    aria-pressed={isActive}
+                    style={{
+                      textAlign: 'left',
+                      padding: '14px 16px',
+                      borderRadius: '16px',
+                      cursor: 'pointer',
+                      background: isActive ? 'rgba(124, 224, 195, 0.14)' : 'rgba(255,255,255,0.03)',
+                      border: isActive ? '1px solid rgba(124, 224, 195, 0.55)' : '1px solid rgba(255,255,255,0.08)',
+                      color: 'var(--text-strong)',
+                      display: 'grid',
+                      gap: '6px',
+                    }}
+                    title={mode.id === 'standard'
+                      ? 'Standard is best for polished renders and reference-led videos. Higher credit burn.'
+                      : 'Lite is best for quick drafts and simple promos. Lower credit burn.'}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                      <strong style={{ fontSize: '14px' }}>{mode.label}</strong>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
+                          padding: '2px 8px',
+                          borderRadius: '999px',
+                          background: mode.id === 'standard' ? 'rgba(255, 196, 111, 0.2)' : 'rgba(105, 188, 255, 0.18)',
+                          color: mode.id === 'standard' ? 'rgb(255, 196, 111)' : 'rgb(105, 188, 255)',
+                        }}
+                      >
+                        {mode.id === 'standard' ? 'higher burn' : 'lower burn'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.5 }}>
+                      {mode.id === 'standard'
+                        ? 'Higher-quality Veo lane. Supports reference images on 8s renders. Heavier credit burn because the provider costs more.'
+                        : 'Faster, lower-credit draft lane. Great for quick concepts and simple promo passes.'}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                      {mode.providerLabel} — approx. {previewCredits} credits at current settings
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+
           <div className="workspace-modal__grid">
-            {isVideo ? (
-              <label className="workspace-modal__field">
-                <span>Render mode</span>
-                <select
-                  value={draft.mode}
-                  onChange={(event) => handleVideoModeChange(event.target.value)}
-                  className="field"
-                >
-                  {Object.values(VIDEO_MODE_OPTIONS).map((mode) => (
-                    <option key={mode.id} value={mode.id}>
-                      {[mode.label, mode.providerLabel].join(' | ')}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
 
             {isVideo ? (
               <label className="workspace-modal__field">
@@ -363,7 +437,7 @@ export default function MediaGenerationModal({
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-strong)' }}>Reference images</div>
                     <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>
-                      Upload up to 3 PNG, JPEG, or WEBP images to guide the render. Reference images are only available on Standard 8 second renders.
+                      Reference images require Standard mode and an 8 second render. Upload up to 3 PNG, JPEG, or WEBP images to guide the render.
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -491,19 +565,42 @@ export default function MediaGenerationModal({
           </div>
 
           <div className="workspace-modal__footer">
-            <InlineNotice tone="default">
-              {isVideo
-                ? draft.mode === 'standard'
-                  ? 'Video credits are used only for AI video renders. Standard renders use more credits than Lite because they use the higher-quality Veo lane.'
-                  : 'Video credits are used only for AI video renders. Lite is the lower-cost draft lane for faster iteration.'
-                : 'Image generation uses execution credits and respects the same server-side rate limits and billing controls as chat.'}
-            </InlineNotice>
+            {confirmCopy ? (
+              <InlineNotice tone="warning">
+                <div style={{ display: 'grid', gap: '4px' }}>
+                  <strong>{confirmCopy.headline}</strong>
+                  <span style={{ fontSize: '12px', color: 'var(--muted)' }}>{confirmCopy.detail}</span>
+                </div>
+              </InlineNotice>
+            ) : (
+              <InlineNotice tone="default">
+                {isVideo
+                  ? draft.mode === 'standard'
+                    ? 'Video credits are used only for AI video renders. Standard renders use more credits than Lite because they use the higher-quality Veo lane.'
+                    : 'Video credits are used only for AI video renders. Lite is the lower-cost draft lane for faster iteration.'
+                  : 'Image generation uses execution credits and respects the same server-side rate limits and billing controls as chat.'}
+              </InlineNotice>
+            )}
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <Button tone="ghost" type="button" onClick={onClose} disabled={isSubmitting}>
-                Cancel
-              </Button>
+              {confirmStage ? (
+                <Button tone="ghost" type="button" onClick={() => setConfirmStage(false)} disabled={isSubmitting}>
+                  Back to brief
+                </Button>
+              ) : (
+                <Button tone="ghost" type="button" onClick={onClose} disabled={isSubmitting}>
+                  Cancel
+                </Button>
+              )}
               <Button tone="accent" type="submit" disabled={submitDisabled}>
-                {isSubmitting ? 'Preparing...' : isVideo ? 'Generate video' : 'Generate image'}
+                {isSubmitting
+                  ? 'Preparing...'
+                  : isVideo
+                    ? confirmNeeded && !confirmStage
+                      ? `Review ${estimatedCredits} credit ${estimatedCredits === 1 ? 'render' : 'renders'}`
+                      : confirmStage
+                        ? `Confirm and use ${estimatedCredits} credits`
+                        : 'Generate video'
+                    : 'Generate image'}
               </Button>
             </div>
           </div>

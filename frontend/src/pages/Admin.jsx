@@ -45,6 +45,7 @@ import { BillingTab, RevenueTab, ReferralsTab } from '../features/admin/tabs/bil
 import { ActivityTab, AuditLogsTab, CreditUsageTab, ProductEventsTab } from '../features/admin/tabs/activity';
 import { EmailQueueTab, WaitlistTab, PowerUpsTab } from '../features/admin/tabs/support';
 import { GrowthTab } from '../features/admin/tabs/growth';
+import { OperatorTab } from '../features/admin/tabs/operator';
 import { AdminCommandPalette } from '../features/admin/AdminCommandPalette';
 
 const TRACE_PAGE_SIZE = 40;
@@ -139,6 +140,14 @@ export default function Admin() {
     queryFn: () => api.get('/admin/growth'),
     enabled: isStaff && activeTab === 'growth',
     refetchInterval: activeTab === 'growth' ? 60_000 : false,
+  });
+
+  const [operatorDays, setOperatorDays] = useState(30);
+  const operatorQuery = useQuery({
+    queryKey: ['staff-admin-operator', operatorDays],
+    queryFn: () => api.get(`/admin/operator-dashboard?days=${operatorDays}`),
+    enabled: isStaff && activeTab === 'operator',
+    refetchInterval: activeTab === 'operator' ? 60_000 : false,
   });
 
   const auditLogsQuery = useQuery({
@@ -1000,6 +1009,13 @@ export default function Admin() {
         ) : null}
         {activeTab === 'growth' ? (
           <GrowthTab query={growthQuery} />
+        ) : null}
+        {activeTab === 'operator' ? (
+          <OperatorTab
+            query={operatorQuery}
+            days={operatorDays}
+            onDaysChange={(value) => setOperatorDays(Number(value) || 30)}
+          />
         ) : null}
         </motion.div>
         </MotionPresence>

@@ -593,7 +593,7 @@ export async function commitVideoJob({
       throw buildBillingError('Video job not found.', 404, 'VIDEO_JOB_NOT_FOUND');
     }
 
-    if (job.status === 'completed') {
+    if (['completed', 'failed', 'released'].includes(job.status)) {
       return { job };
     }
 
@@ -682,7 +682,7 @@ export async function releaseVideoJob({
       throw buildBillingError('Video job not found.', 404, 'VIDEO_JOB_NOT_FOUND');
     }
 
-    if (job.status === 'released') {
+    if (['released', 'failed', 'completed'].includes(job.status)) {
       return { job };
     }
 
@@ -776,6 +776,35 @@ export async function listQueuedVideoJobs(limit = 10) {
   return db.query.videoGenerationEvents.findMany({
     where: eq(videoGenerationEvents.status, 'queued'),
     orderBy: (table, { asc }) => [asc(table.heavyUsageFlagged), asc(table.createdAt)],
+    limit,
+  });
+}
+
+export async function claimQueuedVideoJob(jobId) {
+  const [claimed] = await db
+    .update(videoGenerationEvents)
+    .set({
+      status: 'reserved',
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(videoGenerationEvents.id, jobId),
+        eq(videoGenerationEvents.status, 'queued'),
+      ),
+    )
+    .returning();
+
+  return claimed ?? null;
+}
+
+export async function listStuckProcessingVideoJobs({ timeoutMs, limit = 20 } = {}) {
+  const cutoff = new Date(Date.now() - Math.max(Number(timeoutMs) || 0, 0));
+  return db.query.videoGenerationEvents.findMany({
+    where: and(
+      eq(videoGenerationEvents.status, 'processing'),
+      lt(videoGenerationEvents.startedAt, cutoff),
+    ),
     limit,
   });
 }

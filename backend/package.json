@@ -17,7 +17,8 @@
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node src/db/migrate.js",
-    "worker": "node src/queue/worker.js"
+    "worker": "node src/queue/worker.js",
+    "worker:video": "node src/workers/video-worker.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
