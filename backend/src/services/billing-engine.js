@@ -421,31 +421,9 @@ export async function reserveVideoCredits({
   referenceImages = [],
   metadata = {},
 }) {
-  const validation = validateVideoGenerationRequest({
-    durationSeconds,
-    resolution,
-    aspectRatio,
-    mode,
-    referenceImages,
-  });
-
-  if (!validation.ok) {
-    throw buildBillingError(validation.message, 400, validation.code);
-  }
-
   return db.transaction(async (tx) => {
     const { organisation, subscription } = await ensureSubscriptionForOrg(orgId, { tx });
     const plan = getBillingPlan(organisation.plan);
-    const activeCount = await countActiveUsage(tx, CREDIT_TYPES.video, orgId);
-
-    if (activeCount >= plan.concurrency.video) {
-      throw buildBillingError(
-        `Video concurrency limit reached for the ${plan.label} plan.`,
-        429,
-        'VIDEO_CONCURRENCY_LIMIT',
-      );
-    }
-
     const videoMode = getVideoGenerationMode(mode);
     const burn = calculateVideoCreditBurn({
       durationSeconds,
@@ -454,14 +432,28 @@ export async function reserveVideoCredits({
       referenceImageCount: referenceImages.length,
     });
     const balances = getAvailableBalances(subscription, CREDIT_TYPES.video);
-
-    assertCreditAvailability(CREDIT_TYPES.video, balances.available, burn.creditsUsed);
-    await assertVideoDailyCap(tx, {
-      orgId,
+    const validation = validateVideoGenerationRequest({
+      durationSeconds,
+      resolution,
+      aspectRatio,
+      mode,
+      referenceImages,
+    });
+    const usedTodayCredits = await getConsumedVideoCreditsForCurrentDay(tx, orgId);
+    const activeCount = await countActiveUsage(tx, CREDIT_TYPES.video, orgId);
+    const preflightError = getVideoReservationPreflightError({
       plan,
       subscription,
-      requestedCredits: burn.creditsUsed,
+      balances,
+      burn,
+      validation,
+      usedTodayCredits,
+      activeCount,
     });
+
+    if (preflightError) {
+      throw preflightError;
+    }
 
     const reserved = reserveFromBalances(balances, burn.creditsUsed);
     const cycleSummaryBefore = await getCreditSummary(tx, organisation, subscription, CREDIT_TYPES.video);
@@ -494,7 +486,7 @@ export async function reserveVideoCredits({
         creditsRequested: burn.creditsUsed,
         creditsReserved: burn.creditsUsed,
         creditsCommitted: 0,
-        maxRetries: 2,
+        maxRetries: videoMode.maxRetries ?? 2,
         heavyUsageFlagged: heavyUsage.flagged,
         providerMetadata: {
           ...metadata,
@@ -1411,15 +1403,7 @@ async function refreshThresholdState(tx, { orgId, subscription, creditType }) {
   return summary.threshold;
 }
 
-async function assertVideoDailyCap(tx, { orgId, plan, subscription, requestedCredits }) {
-  if (plan.dailyVideoCreditCap === 0) {
-    if (plan.id === 'solo' && (subscription.videoPurchasedBalance ?? 0) > 0) {
-      return;
-    }
-
-    throw buildBillingError('Your plan does not include daily video generation.', 402, 'VIDEO_DAILY_CAP_REACHED', true);
-  }
-
+export async function getConsumedVideoCreditsForCurrentDay(tx, orgId) {
   const start = startOfUtcDay(new Date());
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   const [{ total = 0 } = {}] = await tx
@@ -1434,14 +1418,113 @@ async function assertVideoDailyCap(tx, { orgId, plan, subscription, requestedCre
       sql`${videoGenerationEvents.status} <> 'released'`,
     ));
 
-  if (Number(total) + requestedCredits > plan.dailyVideoCreditCap) {
-    throw buildBillingError(
+  return Number(total);
+}
+
+export function getVideoDailyCapError({
+  plan,
+  subscription,
+  usedTodayCredits = 0,
+  requestedCredits = 0,
+}) {
+  if (plan.dailyVideoCreditCap === 0) {
+    if (plan.id === 'solo' && (subscription.videoPurchasedBalance ?? 0) > 0) {
+      return null;
+    }
+
+    return buildBillingError('Your plan does not include daily video generation.', 402, 'VIDEO_DAILY_CAP_REACHED', true);
+  }
+
+  if (Number(usedTodayCredits) + Number(requestedCredits) > plan.dailyVideoCreditCap) {
+    return buildBillingError(
       `Daily video cap reached for the ${plan.label} plan.`,
       402,
       'VIDEO_DAILY_CAP_REACHED',
       true,
     );
   }
+
+  return null;
+}
+
+export function getVideoReservationPreflightError({
+  plan,
+  subscription,
+  balances,
+  burn,
+  validation,
+  usedTodayCredits = 0,
+  activeCount = 0,
+}) {
+  const creditError = getVideoCreditAvailabilityError({
+    plan,
+    subscription,
+    balances,
+    requiredCredits: burn.creditsUsed,
+  });
+
+  if (creditError) {
+    return creditError;
+  }
+
+  if (!validation.ok) {
+    return buildBillingError(validation.message, 400, validation.code);
+  }
+
+  const dailyCapError = getVideoDailyCapError({
+    plan,
+    subscription,
+    usedTodayCredits,
+    requestedCredits: burn.creditsUsed,
+  });
+
+  if (dailyCapError) {
+    return dailyCapError;
+  }
+
+  if (activeCount >= plan.concurrency.video) {
+    return buildBillingError(
+      `Video concurrency limit reached for the ${plan.label} plan.`,
+      429,
+      'VIDEO_CONCURRENCY_LIMIT',
+    );
+  }
+
+  return null;
+}
+
+export function getVideoCreditAvailabilityError({
+  plan,
+  subscription,
+  balances,
+  requiredCredits,
+}) {
+  const available = Number(balances?.available ?? 0);
+
+  if (available >= requiredCredits) {
+    return null;
+  }
+
+  const hasAnyVideoEntitlement = Number(plan.includedVideoCredits ?? 0) > 0
+    || Number(subscription?.videoIncludedBalance ?? 0) > 0
+    || Number(subscription?.videoPurchasedBalance ?? 0) > 0
+    || Number(subscription?.videoReservedBalance ?? 0) > 0;
+
+  if (!hasAnyVideoEntitlement) {
+    return buildBillingError(
+      'Video generation requires video credits. Upgrade or add a video pack to continue.',
+      402,
+      'VIDEO_CREDITS_REQUIRED',
+      true,
+    );
+  }
+
+  return buildBillingError(
+    'Video credits exhausted. Purchase a video pack or upgrade to continue.',
+    402,
+    'VIDEO_CREDITS_EXHAUSTED',
+    true,
+  );
 }
 
 export function shouldApplyStripeSubscriptionEvent({ metadata = {}, eventId = null, eventCreated = null } = {}) {

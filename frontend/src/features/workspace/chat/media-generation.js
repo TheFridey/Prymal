@@ -32,9 +32,9 @@ export const IMAGE_BACKGROUND_OPTIONS = [
 export const VIDEO_MODE_OPTIONS = {
   lite: {
     id: 'lite',
-    label: 'Fast draft',
+    label: 'Lite',
     providerLabel: 'Veo 3.1 Lite',
-    description: 'Lower-cost drafts for quick iteration and storyboarding.',
+    description: 'Lower-credit, faster renders for drafts, simple promos, and quick iteration.',
     supportedDurations: [4, 6, 8],
     supportedResolutions: ['720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16'],
@@ -43,9 +43,9 @@ export const VIDEO_MODE_OPTIONS = {
   },
   standard: {
     id: 'standard',
-    label: 'Cinematic',
+    label: 'Standard',
     providerLabel: 'Veo 3.1 Standard',
-    description: 'Higher-fidelity renders with optional reference images and a heavier credit burn.',
+    description: 'Higher-quality renders with a heavier credit burn. Best for polished campaign visuals.',
     supportedDurations: [4, 6, 8],
     supportedResolutions: ['720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16'],

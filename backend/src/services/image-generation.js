@@ -1,10 +1,7 @@
-import { randomUUID } from 'crypto';
-import { mkdir, readFile, writeFile } from 'fs/promises';
-import path from 'path';
 import OpenAI from 'openai';
+import { getMediaStorage } from './media-storage/index.js';
 
 const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL?.trim() || 'gpt-image-1.5';
-const GENERATED_IMAGE_DIR = path.resolve(process.cwd(), 'storage', 'generated-images');
 const ALLOWED_FORMATS = new Set(['png', 'webp', 'jpeg']);
 
 export async function generateImageAsset({
@@ -14,6 +11,8 @@ export async function generateImageAsset({
   quality = 'medium',
   outputFormat = 'webp',
   background = 'auto',
+  orgId = null,
+  conversationId = null,
 }) {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
 
@@ -56,10 +55,20 @@ export async function generateImageAsset({
       throw error;
     }
 
-    await mkdir(GENERATED_IMAGE_DIR, { recursive: true });
-    const fileName = `${Date.now()}-${randomUUID()}.${normalizedFormat}`;
-    const filePath = path.join(GENERATED_IMAGE_DIR, fileName);
-    await writeFile(filePath, Buffer.from(base64, 'base64'));
+    const fileBuffer = Buffer.from(base64, 'base64');
+    const mediaStorage = getMediaStorage();
+    const storedAsset = await mediaStorage.uploadGeneratedImage({
+      buffer: fileBuffer,
+      outputFormat: normalizedFormat,
+      mimeType: `image/${normalizedFormat === 'jpg' ? 'jpeg' : normalizedFormat}`,
+      orgId,
+      conversationId,
+      metadata: {
+        prompt,
+        model: IMAGE_MODEL,
+        agentId: agent?.id ?? null,
+      },
+    });
 
     return {
       prompt,
@@ -69,25 +78,22 @@ export async function generateImageAsset({
       quality,
       outputFormat: normalizedFormat,
       background,
-      url: `/generated-assets/${fileName}`,
-      fileName,
+      url: storedAsset.deliveryUrl ?? storedAsset.secureUrl ?? null,
+      fileName: storedAsset.fileName ?? storedAsset.publicId ?? null,
+      storageProvider: storedAsset.storageProvider ?? 'local',
+      publicId: storedAsset.publicId ?? null,
+      resourceType: storedAsset.resourceType ?? 'image',
+      secureUrl: storedAsset.secureUrl ?? null,
+      deliveryUrl: storedAsset.deliveryUrl ?? storedAsset.secureUrl ?? null,
+      bytes: storedAsset.bytes ?? fileBuffer.length,
+      width: storedAsset.width ?? null,
+      height: storedAsset.height ?? null,
+      format: storedAsset.format ?? normalizedFormat,
+      cleanupStatus: storedAsset.cleanupStatus ?? 'retained',
     };
   } catch (error) {
     throw normalizeImageError(error);
   }
-}
-
-export async function readGeneratedImageAsset(fileName) {
-  const safeName = path.basename(fileName);
-
-  if (!safeName || safeName !== fileName) {
-    const error = new Error('Invalid asset path.');
-    error.status = 400;
-    error.code = 'IMAGE_ASSET_INVALID';
-    throw error;
-  }
-
-  return readFile(path.join(GENERATED_IMAGE_DIR, safeName));
 }
 
 function buildImagePrompt({ prompt, agent }) {

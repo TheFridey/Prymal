@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { validateMediaStorageConfiguration } from '../src/services/media-storage/index.js';
+
 const args = process.argv.slice(2);
 const mode = getArgValue('--mode') ?? process.env.NODE_ENV ?? 'development';
 const scopeArg = getArgValue('--scope') ?? 'backend';
@@ -95,6 +97,21 @@ function validateBackendEnv(currentMode) {
 
   if (!hasConfigured('WREN_ESCALATION_EMAIL')) {
     warnings.push('WREN_ESCALATION_EMAIL is not configured. Escalations will be suppressed.');
+  }
+
+  const mediaStorageResult = validateMediaStorageConfiguration(process.env);
+  errors.push(...mediaStorageResult.errors);
+  warnings.push(...mediaStorageResult.warnings);
+
+  if (mediaStorageResult.driver === 'cloudinary') {
+    for (const key of ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET']) {
+      requireValue(key, 'backend');
+      rejectPlaceholder(key, 'backend');
+    }
+  }
+
+  if (['staging', 'production'].includes(currentMode) && mediaStorageResult.driver === 'cloudinary') {
+    requireValue('CLOUDINARY_FOLDER', 'backend');
   }
 }
 

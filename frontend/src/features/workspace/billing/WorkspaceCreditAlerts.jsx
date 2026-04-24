@@ -82,14 +82,14 @@ export function WorkspaceCreditAlerts({ viewer }) {
     criticalTarget === 'both'
       ? 'You are running low on credits'
       : criticalTarget === 'video'
-        ? 'Video credits are running low'
+        ? 'AI video credits are running low'
         : 'Execution credits are running low';
 
   const modalBody =
     criticalTarget === 'both'
       ? 'Upgrade for more included credits each month, or add a one-off pack if you only need a short boost.'
       : criticalTarget === 'video'
-        ? 'Upgrade for a higher monthly video allowance, or add a small video pack as a backup.'
+        ? 'Upgrade for a higher monthly AI video allowance, or add a video pack as a backup.'
         : 'Upgrade for more monthly execution credits, or add a pack if you need capacity before your cycle resets.';
 
   if (!viewer?.organisation?.id || billingQuery.isLoading) {

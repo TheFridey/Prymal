@@ -5,9 +5,10 @@ import { InlineNotice, LoadingPanel } from '../../../components/ui';
 import { formatCurrency, humanize, getPlanTone } from '../utils';
 import { MotionList, MotionListItem } from '../../../components/motion';
 
-export function BillingTab({ data, billingTotals }) {
+export function BillingTab({ data, billingTotals, videoJobsQuery }) {
   const invoices = data.billing.invoices ?? [];
   const subscriptions = data.billing.subscriptions ?? [];
+  const videoJobs = videoJobsQuery?.data?.jobs ?? [];
 
   return (
     <div className="staff-admin__billing-grid">
@@ -123,6 +124,96 @@ export function BillingTab({ data, billingTotals }) {
             ))
           )}
         </MotionList>
+      </section>
+
+      <section className="staff-admin__surface">
+        <div className="staff-admin__surface-head">
+          <div>
+            <div className="staff-admin__surface-label">Video queue visibility</div>
+            <h2>Recent video jobs</h2>
+          </div>
+          <div className="staff-admin__surface-meta">
+            {formatNumber(videoJobs.length)} visible
+          </div>
+        </div>
+
+        {videoJobsQuery?.isLoading ? (
+          <LoadingPanel label="Loading recent video jobs..." />
+        ) : videoJobs.length === 0 ? (
+          <div className="staff-admin__empty">No video jobs have been recorded in this environment yet.</div>
+        ) : (
+          <MotionList className="staff-admin__ledger">
+            {videoJobs.map((job) => (
+              <MotionListItem key={job.id} className="staff-admin__ledger-row" reveal={{ y: 10, blur: 3 }}>
+                <div>
+                  <strong>{job.orgName ?? 'Unknown organisation'}</strong>
+                  <span>{job.userEmail ?? job.userId ?? 'No user attached'}</span>
+                </div>
+                <div>
+                  <strong>{humanize(job.status)}</strong>
+                  <span>{job.providerLabel ?? job.mode}</span>
+                </div>
+                <div>
+                  <strong>{`${job.durationSeconds}s | ${job.resolution} | ${job.aspectRatio}`}</strong>
+                  <span>
+                    {job.referenceImageCount > 0 ? `${job.referenceImageCount} refs` : 'No refs'}
+                    {' | '}
+                    {job.creditsRequested} reserved
+                    {' | '}
+                    {job.creditsCommitted} committed
+                  </span>
+                </div>
+                <div className="staff-admin__ledger-actions" style={{ alignItems: 'flex-end' }}>
+                  <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                    {job.storageProvider ?? 'storage n/a'}
+                    {job.providerErrorCategory ? ` | ${job.providerErrorCategory}` : ''}
+                  </span>
+                  {job.deliveryUrl ? (
+                    <a className="staff-admin__ghost-link" href={job.deliveryUrl} target="_blank" rel="noreferrer">
+                      Open asset
+                    </a>
+                  ) : null}
+                </div>
+              </MotionListItem>
+            ))}
+          </MotionList>
+        )}
+
+        {!videoJobsQuery?.isLoading && videoJobs.length > 0 ? (
+          <div style={{ display: 'grid', gap: '10px', marginTop: '14px' }}>
+            {videoJobs.slice(0, 6).map((job) => (
+              <div
+                key={`${job.id}-detail`}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '14px',
+                  border: '1px solid var(--line)',
+                  background: 'rgba(255,255,255,0.02)',
+                  color: 'var(--muted)',
+                  fontSize: '12px',
+                  lineHeight: 1.6,
+                }}
+              >
+                <div style={{ color: 'var(--text-strong)', fontWeight: 600, marginBottom: '4px' }}>
+                  {job.id}
+                </div>
+                <div>
+                  {job.failureCode ? `Failure: ${job.failureCode}` : 'Failure: none'}
+                  {job.failureMessage ? ` | ${job.failureMessage}` : ''}
+                </div>
+                <div>
+                  {job.providerJobId ? `Provider job: ${job.providerJobId}` : 'Provider job: pending'}
+                  {job.cloudinaryPublicId ? ` | Cloudinary: ${job.cloudinaryPublicId}` : ''}
+                </div>
+                <div>
+                  Created {formatDate(job.createdAt)}
+                  {job.completedAt ? ` | Completed ${formatDate(job.completedAt)}` : ''}
+                  {job.retryCount > 0 ? ` | Retries ${job.retryCount}/${job.maxRetries}` : ''}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </section>
     </div>
   );

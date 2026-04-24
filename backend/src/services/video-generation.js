@@ -1,7 +1,7 @@
-import { randomUUID } from 'crypto';
-import { mkdir, readFile } from 'fs/promises';
+import { mkdir, unlink } from 'fs/promises';
+import os from 'os';
 import path from 'path';
-import { eq } from 'drizzle-orm';
+import { and, eq, lt, or } from 'drizzle-orm';
 import { getAgent } from '../agents/config.js';
 import { db } from '../db/index.js';
 import { conversations, messages, videoGenerationEvents } from '../db/schema.js';
@@ -13,44 +13,141 @@ import {
   releaseVideoJob,
 } from './billing-engine.js';
 import { applyVideoJobThrottle } from './billing-throttle.js';
+import {
+  getMediaStorage,
+  getVideoJobTimingConfig,
+} from './media-storage/index.js';
 import { getVeoVideoProvider } from './providers/veo-video-provider.js';
 import {
   cleanupVideoReferenceImages,
   loadVideoReferenceImages,
 } from './video-reference-images.js';
+import { recordProductEvent } from './telemetry.js';
 
-const GENERATED_VIDEO_DIR = path.resolve(process.cwd(), 'storage', 'generated-videos');
 const PROCESSING_JOBS = new Set();
+const TEMP_VIDEO_DIR = path.join(os.tmpdir(), 'prymal-video-jobs');
 
-export async function enqueueVideoGenerationJob(jobId) {
+export function getVideoGenerationConfig(env = process.env) {
+  return getVideoJobTimingConfig(env);
+}
+
+export function classifyVideoJobFailure(error) {
+  const rawMessage = String(error?.message ?? '').trim() || 'Video generation failed before render completion.';
+  const normalizedCode = String(error?.code ?? '').trim() || 'VIDEO_GENERATION_FAILED';
+  const normalizedStatus = Number(error?.status ?? 503);
+  const errorType = String(error?.errorType ?? error?.name ?? 'VideoProviderError').trim() || 'VideoProviderError';
+
+  if (normalizedCode === 'VIDEO_JOB_TIMEOUT') {
+    return {
+      code: normalizedCode,
+      message: rawMessage,
+      status: normalizedStatus || 504,
+      provider: error?.provider ?? 'google',
+      errorType,
+      category: 'timeout',
+      retryable: false,
+    };
+  }
+
+  if (
+    ['VIDEO_AUTH_INVALID', 'VIDEO_NOT_CONFIGURED'].includes(normalizedCode)
+    || normalizedStatus === 401
+    || normalizedStatus === 403
+    || /invalid api key|authentication|unauthori[sz]ed|permission/i.test(rawMessage)
+  ) {
+    return {
+      code: normalizedCode || 'VIDEO_AUTH_INVALID',
+      message: rawMessage,
+      status: normalizedStatus || 503,
+      provider: error?.provider ?? 'google',
+      errorType,
+      category: 'auth',
+      retryable: false,
+    };
+  }
+
+  if (
+    ['VIDEO_DURATION_UNSUPPORTED', 'VIDEO_RESOLUTION_UNSUPPORTED', 'VIDEO_ASPECT_RATIO_UNSUPPORTED', 'VIDEO_REFERENCE_IMAGES_UNSUPPORTED', 'VIDEO_REFERENCE_IMAGES_DURATION_INVALID', 'VIDEO_REFERENCE_IMAGE_INVALID_TYPE', 'VIDEO_REFERENCE_IMAGE_TOO_LARGE', 'VIDEO_MODE_UNSUPPORTED', 'VIDEO_RESOLUTION_DURATION_INVALID', 'VIDEO_RETRY_LIMIT_REACHED'].includes(normalizedCode)
+    || normalizedStatus === 400
+  ) {
+    return {
+      code: normalizedCode,
+      message: rawMessage,
+      status: normalizedStatus || 400,
+      provider: error?.provider ?? 'google',
+      errorType,
+      category: 'validation',
+      retryable: false,
+    };
+  }
+
+  if (normalizedStatus === 429 || /rate.?limit/i.test(rawMessage)) {
+    return {
+      code: normalizedCode,
+      message: rawMessage,
+      status: normalizedStatus || 429,
+      provider: error?.provider ?? 'google',
+      errorType,
+      category: 'rate_limit',
+      retryable: true,
+    };
+  }
+
+  if (normalizedStatus >= 500 || /temporar|unavailable|network|timeout/i.test(rawMessage)) {
+    return {
+      code: normalizedCode,
+      message: rawMessage,
+      status: normalizedStatus || 503,
+      provider: error?.provider ?? 'google',
+      errorType,
+      category: 'provider_unavailable',
+      retryable: true,
+    };
+  }
+
+  return {
+    code: normalizedCode,
+    message: rawMessage,
+    status: normalizedStatus || 503,
+    provider: error?.provider ?? 'google',
+    errorType,
+    category: 'provider_error',
+    retryable: false,
+  };
+}
+
+export async function enqueueVideoGenerationJob(jobId, options = {}) {
   if (!jobId || PROCESSING_JOBS.has(jobId)) {
     return;
   }
 
   queueMicrotask(() => {
-    processQueuedVideoJob(jobId).catch((error) => {
+    processQueuedVideoJob(jobId, options).catch((error) => {
       console.error('[VIDEO] Job processing failed:', error.message);
     });
   });
 }
 
-export async function processQueuedVideoJobs(limit = 5) {
-  const jobs = await listQueuedVideoJobs(limit);
+export async function processQueuedVideoJobs(limit = 5, options = {}) {
+  const deps = buildVideoGenerationDeps(options);
+  await sweepTimedOutVideoJobs(deps);
+  const jobs = await deps.listQueuedVideoJobs(limit);
 
   for (const job of jobs) {
-    await processQueuedVideoJob(job.id);
+    await processQueuedVideoJob(job.id, options);
   }
 }
 
-export async function processQueuedVideoJob(jobId) {
+export async function processQueuedVideoJob(jobId, options = {}) {
   if (!jobId || PROCESSING_JOBS.has(jobId)) {
     return;
   }
 
+  const deps = buildVideoGenerationDeps(options);
   PROCESSING_JOBS.add(jobId);
 
   try {
-    const job = await db.query.videoGenerationEvents.findFirst({
+    const job = await deps.db.query.videoGenerationEvents.findFirst({
       where: eq(videoGenerationEvents.id, jobId),
     });
 
@@ -58,17 +155,18 @@ export async function processQueuedVideoJob(jobId) {
       return;
     }
 
-    const provider = getVeoVideoProvider();
     let attempt = (job.retryCount ?? 0) + 1;
-    let lastError = null;
-    let operation = null;
-    const referenceImages = await loadVideoReferenceImages(job.providerMetadata?.referenceImages ?? []);
+    let lastFailure = null;
+    const referenceImages = await deps.loadReferenceImages(job.providerMetadata?.referenceImages ?? []);
 
-    await applyVideoJobThrottle(job);
+    await deps.applyVideoJobThrottle(job);
 
     while (attempt <= (job.maxRetries ?? 2) + 1) {
+      let tempFilePath = null;
+
       try {
-        operation = await provider.startJob({
+        const provider = deps.providerFactory();
+        let operation = await provider.startJob({
           prompt: job.prompt,
           durationSeconds: job.durationSeconds,
           resolution: job.resolution,
@@ -76,17 +174,35 @@ export async function processQueuedVideoJob(jobId) {
           mode: job.providerMetadata?.mode ?? 'lite',
           referenceImages,
         });
-        await markVideoJobProcessing({
+        const startedAt = deps.now();
+
+        await deps.markVideoJobProcessing({
           jobId,
           providerJobId: operation.name,
           metadata: {
             attempt,
             operationName: operation.name,
+            providerErrorCategory: null,
+            processingStartedAt: new Date(startedAt).toISOString(),
           },
         });
 
+        await deps.recordProductEvent({
+          orgId: job.orgId,
+          userId: job.userId,
+          eventName: 'video.job_started',
+          metadata: buildVideoEventMetadata(job, {
+            attempt,
+            providerJobId: operation.name,
+          }),
+        });
+
         while (!operation.done) {
-          await sleep(10_000);
+          if (deps.now() - startedAt > deps.timeoutMs) {
+            throw buildVideoJobTimeoutError(job, deps.timeoutMs);
+          }
+
+          await deps.sleep(deps.pollIntervalMs);
           operation = await provider.pollJob(operation.raw);
         }
 
@@ -99,77 +215,201 @@ export async function processQueuedVideoJob(jobId) {
           throw buildProviderError(new Error('Veo completed without a downloadable video payload.'));
         }
 
-        await mkdir(GENERATED_VIDEO_DIR, { recursive: true });
-        const fileName = `${Date.now()}-${randomUUID()}.mp4`;
-        const filePath = path.join(GENERATED_VIDEO_DIR, fileName);
+        await mkdir(TEMP_VIDEO_DIR, { recursive: true });
+        tempFilePath = path.join(TEMP_VIDEO_DIR, `${job.id}-${Date.now()}.mp4`);
 
         await provider.downloadAsset({
           file: generatedVideo,
-          downloadPath: filePath,
+          downloadPath: tempFilePath,
         });
 
-        const outputUrl = `/generated-video-assets/${fileName}`;
-        const committed = await commitVideoJob({
+        const uploadedAsset = await deps.mediaStorage.uploadGeneratedVideo({
+          filePath: tempFilePath,
+          orgId: job.orgId,
+          conversationId: job.conversationId,
+          videoJobId: job.id,
+          metadata: {
+            duration: job.durationSeconds,
+            resolution: job.resolution,
+            aspectRatio: job.aspectRatio,
+            mode: job.providerMetadata?.mode ?? 'lite',
+          },
+        });
+
+        await deps.recordProductEvent({
+          orgId: job.orgId,
+          userId: job.userId,
+          eventName: 'video.asset_uploaded',
+          metadata: buildVideoEventMetadata(job, {
+            storageProvider: uploadedAsset.storageProvider,
+            publicId: uploadedAsset.publicId ?? null,
+            deliveryUrl: uploadedAsset.deliveryUrl ?? uploadedAsset.secureUrl ?? null,
+            bytes: uploadedAsset.bytes ?? null,
+            format: uploadedAsset.format ?? null,
+          }),
+        });
+
+        const cleanedReferenceAssets = await deps.cleanupReferenceImages(
+          job.providerMetadata?.referenceImages ?? [],
+        );
+        const committed = await deps.commitVideoJob({
           jobId,
-          outputUrl,
-          outputFileName: fileName,
+          outputUrl: uploadedAsset.deliveryUrl ?? uploadedAsset.secureUrl ?? null,
+          outputFileName: uploadedAsset.fileName ?? uploadedAsset.publicId ?? null,
           providerJobId: operation.name,
           providerMetadata: {
             completedAt: new Date().toISOString(),
+            providerErrorCategory: null,
+            storageProvider: uploadedAsset.storageProvider,
+            outputAsset: normalizeStoredAsset(uploadedAsset),
+            referenceImages: cleanedReferenceAssets,
+            referenceImageCleanupStatus: summarizeCleanupStatus(cleanedReferenceAssets),
           },
         });
 
         await createAssistantMessageForVideo(committed.job, {
-          outputUrl,
-          outputFileName: fileName,
+          outputUrl: uploadedAsset.deliveryUrl ?? uploadedAsset.secureUrl ?? null,
+          outputFileName: uploadedAsset.fileName ?? uploadedAsset.publicId ?? null,
           providerOperation: operation.name,
+          uploadedAsset,
         });
 
-        await cleanupVideoReferenceImages(job.providerMetadata?.referenceImages ?? []);
+        await deps.recordProductEvent({
+          orgId: job.orgId,
+          userId: job.userId,
+          eventName: 'video.job_completed',
+          metadata: buildVideoEventMetadata(committed.job, {
+            providerJobId: operation.name,
+            storageProvider: uploadedAsset.storageProvider,
+            publicId: uploadedAsset.publicId ?? null,
+            deliveryUrl: uploadedAsset.deliveryUrl ?? uploadedAsset.secureUrl ?? null,
+            bytes: uploadedAsset.bytes ?? null,
+            attempt,
+          }),
+        });
 
         return committed.job;
       } catch (error) {
-        lastError = error;
+        lastFailure = classifyVideoJobFailure(error);
 
-        if (attempt > (job.maxRetries ?? 2)) {
+        if (!lastFailure.retryable || attempt > (job.maxRetries ?? 2)) {
           break;
         }
 
-        await incrementVideoJobRetry(jobId);
+        await deps.incrementVideoJobRetry(jobId);
         attempt += 1;
-        await sleep(2_500 * attempt);
+        await deps.sleep(2_500 * attempt);
+      } finally {
+        if (tempFilePath) {
+          await deleteTemporaryFile(tempFilePath);
+        }
       }
     }
 
-    await releaseVideoJob({
+    const cleanedReferenceAssets = await deps.cleanupReferenceImages(job.providerMetadata?.referenceImages ?? []);
+    const released = await deps.releaseVideoJob({
       jobId,
       status: 'failed',
-      failureCode: lastError?.code ?? 'VIDEO_GENERATION_FAILED',
-      failureMessage: lastError?.message ?? 'Video generation failed before render completion.',
+      failureCode: lastFailure?.code ?? 'VIDEO_GENERATION_FAILED',
+      failureMessage: lastFailure?.message ?? 'Video generation failed before render completion.',
       providerMetadata: {
         failedAt: new Date().toISOString(),
+        providerErrorType: lastFailure?.errorType ?? null,
+        providerErrorCategory: lastFailure?.category ?? 'provider_error',
+        referenceImages: cleanedReferenceAssets,
+        referenceImageCleanupStatus: summarizeCleanupStatus(cleanedReferenceAssets),
       },
     });
-    await cleanupVideoReferenceImages(job.providerMetadata?.referenceImages ?? []);
+
+    await recordFailedVideoJob(released.job, {
+      userId: job.userId,
+      failure: lastFailure,
+      deps,
+    });
   } finally {
     PROCESSING_JOBS.delete(jobId);
   }
 }
 
-export async function readGeneratedVideoAsset(fileName) {
-  const safeName = path.basename(fileName);
+async function sweepTimedOutVideoJobs(deps) {
+  const jobs = await deps.db.query.videoGenerationEvents.findMany({
+    where: or(
+      and(
+        eq(videoGenerationEvents.status, 'processing'),
+        lt(videoGenerationEvents.startedAt, new Date(deps.now() - deps.timeoutMs)),
+      ),
+      and(
+        or(
+          eq(videoGenerationEvents.status, 'queued'),
+          eq(videoGenerationEvents.status, 'reserved'),
+        ),
+        lt(videoGenerationEvents.createdAt, new Date(deps.now() - deps.timeoutMs)),
+      ),
+    ),
+    limit: 20,
+  });
 
-  if (!safeName || safeName !== fileName) {
-    const error = new Error('Invalid video asset path.');
-    error.status = 400;
-    error.code = 'VIDEO_ASSET_INVALID';
-    throw error;
+  for (const job of jobs) {
+    const cleanedReferenceAssets = await deps.cleanupReferenceImages(job.providerMetadata?.referenceImages ?? []);
+    const released = await deps.releaseVideoJob({
+      jobId: job.id,
+      status: 'failed',
+      failureCode: 'VIDEO_JOB_TIMEOUT',
+      failureMessage: `Video generation exceeded the ${Math.round(deps.timeoutMs / 1000)} second timeout window.`,
+      providerMetadata: {
+        timedOutAt: new Date().toISOString(),
+        providerErrorCategory: 'timeout',
+        referenceImages: cleanedReferenceAssets,
+        referenceImageCleanupStatus: summarizeCleanupStatus(cleanedReferenceAssets),
+      },
+    });
+
+    await recordFailedVideoJob(released.job, {
+      userId: job.userId,
+      failure: classifyVideoJobFailure(buildVideoJobTimeoutError(job, deps.timeoutMs)),
+      deps,
+    });
   }
-
-  return readFile(path.join(GENERATED_VIDEO_DIR, safeName));
 }
 
-async function createAssistantMessageForVideo(job, { outputUrl, outputFileName, providerOperation }) {
+async function recordFailedVideoJob(job, { userId, failure, deps }) {
+  console.error('[VIDEO JOB FAILED]', {
+    jobId: job.id,
+    orgId: job.orgId,
+    userId,
+    provider: job.provider,
+    model: job.model,
+    failureCode: failure?.code ?? job.failureCode,
+    failureCategory: failure?.category ?? job.providerMetadata?.providerErrorCategory ?? null,
+    failureMessage: failure?.message ?? job.failureMessage,
+  });
+
+  await Promise.all([
+    deps.recordProductEvent({
+      orgId: job.orgId,
+      userId,
+      eventName: 'video.job_failed',
+      metadata: buildVideoEventMetadata(job, {
+        failureCode: failure?.code ?? job.failureCode,
+        failureMessage: failure?.message ?? job.failureMessage,
+        failureCategory: failure?.category ?? job.providerMetadata?.providerErrorCategory ?? null,
+        errorType: failure?.errorType ?? job.providerMetadata?.providerErrorType ?? null,
+      }),
+    }),
+    deps.recordProductEvent({
+      orgId: job.orgId,
+      userId,
+      eventName: 'video.credits_released',
+      metadata: buildVideoEventMetadata(job, {
+        failureCode: failure?.code ?? job.failureCode,
+        failureMessage: failure?.message ?? job.failureMessage,
+        releasedCredits: job.creditsReserved ?? 0,
+      }),
+    }),
+  ]);
+}
+
+async function createAssistantMessageForVideo(job, { outputUrl, outputFileName, providerOperation, uploadedAsset }) {
   if (!job.conversationId) {
     return null;
   }
@@ -200,20 +440,13 @@ async function createAssistantMessageForVideo(job, { outputUrl, outputFileName, 
         routeReason,
         model: job.model,
         videoJobId: job.id,
-        generatedVideos: [
-          {
-            prompt: job.prompt,
-            mode: videoMode,
-            providerLabel,
-            durationSeconds: job.durationSeconds,
-            resolution: job.resolution,
-            aspectRatio: job.aspectRatio,
-            referenceImageCount: Number(job.providerMetadata?.referenceImageCount ?? 0),
-            url: outputUrl,
-            fileName: outputFileName,
-            providerOperation,
-          },
-        ],
+        generatedVideos: [buildGeneratedVideoArtifact(job, uploadedAsset, {
+          outputUrl,
+          outputFileName,
+          providerOperation,
+          mode: videoMode,
+          providerLabel,
+        })],
       },
     })
     .returning();
@@ -253,6 +486,137 @@ function buildProviderError(error) {
   normalized.provider = 'google';
   normalized.errorType = error?.name ?? 'VideoProviderError';
   return normalized;
+}
+
+function buildVideoJobTimeoutError(job, timeoutMs) {
+  const error = new Error(
+    `Video generation exceeded the ${Math.round(timeoutMs / 1000)} second timeout window.`,
+  );
+  error.code = 'VIDEO_JOB_TIMEOUT';
+  error.status = 504;
+  error.provider = job?.provider ?? 'google';
+  error.errorType = 'VideoJobTimeoutError';
+  return error;
+}
+
+function summarizeCleanupStatus(referenceAssets = []) {
+  if (!Array.isArray(referenceAssets) || referenceAssets.length === 0) {
+    return 'none';
+  }
+
+  if (referenceAssets.every((asset) => asset.cleanupStatus === 'retained_for_audit')) {
+    return 'retained_for_audit';
+  }
+
+  if (referenceAssets.every((asset) => asset.cleanupStatus === 'deleted_after_job' || asset.cleanupStatus === 'already_removed')) {
+    return 'deleted_after_job';
+  }
+
+  return 'partial';
+}
+
+function normalizeStoredAsset(asset = {}) {
+  return {
+    storageProvider: asset.storageProvider ?? 'local',
+    publicId: asset.publicId ?? null,
+    secureUrl: asset.secureUrl ?? null,
+    deliveryUrl: asset.deliveryUrl ?? asset.secureUrl ?? null,
+    resourceType: asset.resourceType ?? 'video',
+    bytes: asset.bytes ?? null,
+    duration: asset.duration ?? null,
+    format: asset.format ?? null,
+    width: asset.width ?? null,
+    height: asset.height ?? null,
+    cleanupStatus: asset.cleanupStatus ?? 'retained',
+  };
+}
+
+export function buildGeneratedVideoArtifact(job, uploadedAsset = {}, {
+  outputUrl = null,
+  outputFileName = null,
+  providerOperation = null,
+  mode = null,
+  providerLabel = null,
+} = {}) {
+  return {
+    prompt: job.prompt,
+    mode: mode ?? job.providerMetadata?.mode ?? 'lite',
+    providerLabel: providerLabel ?? job.providerMetadata?.providerLabel ?? null,
+    durationSeconds: job.durationSeconds,
+    resolution: job.resolution,
+    aspectRatio: job.aspectRatio,
+    referenceImageCount: Number(job.providerMetadata?.referenceImageCount ?? 0),
+    url: outputUrl,
+    fileName: outputFileName,
+    providerOperation,
+    storageProvider: uploadedAsset.storageProvider ?? 'local',
+    publicId: uploadedAsset.publicId ?? null,
+    secureUrl: uploadedAsset.secureUrl ?? null,
+    deliveryUrl: uploadedAsset.deliveryUrl ?? uploadedAsset.secureUrl ?? null,
+    resourceType: uploadedAsset.resourceType ?? 'video',
+    bytes: uploadedAsset.bytes ?? null,
+    duration: uploadedAsset.duration ?? job.durationSeconds,
+    format: uploadedAsset.format ?? 'mp4',
+    cleanupStatus: uploadedAsset.cleanupStatus ?? 'retained',
+  };
+}
+
+function buildVideoEventMetadata(job, overrides = {}) {
+  return {
+    jobId: job.id,
+    orgId: job.orgId,
+    userId: job.userId ?? null,
+    mode: job.providerMetadata?.mode ?? 'lite',
+    providerLabel: job.providerMetadata?.providerLabel ?? null,
+    durationSeconds: job.durationSeconds,
+    resolution: job.resolution,
+    aspectRatio: job.aspectRatio,
+    referenceImageCount: Number(job.providerMetadata?.referenceImageCount ?? 0),
+    creditsRequested: job.creditsRequested ?? 0,
+    creditsReserved: job.creditsReserved ?? 0,
+    creditsCommitted: job.creditsCommitted ?? 0,
+    providerJobId: job.providerJobId ?? null,
+    retryCount: job.retryCount ?? 0,
+    maxRetries: job.maxRetries ?? 2,
+    createdAt: job.createdAt,
+    startedAt: job.startedAt ?? null,
+    completedAt: job.completedAt ?? null,
+    ...overrides,
+  };
+}
+
+function buildVideoGenerationDeps(options = {}) {
+  const timing = getVideoGenerationConfig(options.env ?? process.env);
+  const mediaStorage = options.mediaStorage ?? getMediaStorage({ env: options.env ?? process.env });
+
+  return {
+    db: options.db ?? db,
+    providerFactory: options.providerFactory ?? (() => options.provider ?? getVeoVideoProvider()),
+    mediaStorage,
+    now: options.now ?? (() => Date.now()),
+    sleep: options.sleep ?? sleep,
+    timeoutMs: Number(options.timeoutMs ?? timing.timeoutMs),
+    pollIntervalMs: Number(options.pollIntervalMs ?? timing.pollIntervalMs),
+    applyVideoJobThrottle: options.applyVideoJobThrottle ?? applyVideoJobThrottle,
+    loadReferenceImages: options.loadReferenceImages
+      ?? ((assets) => loadVideoReferenceImages(assets, { storage: mediaStorage })),
+    cleanupReferenceImages: options.cleanupReferenceImages
+      ?? ((assets) => cleanupVideoReferenceImages(assets, { storage: mediaStorage })),
+    markVideoJobProcessing: options.markVideoJobProcessing ?? markVideoJobProcessing,
+    commitVideoJob: options.commitVideoJob ?? commitVideoJob,
+    releaseVideoJob: options.releaseVideoJob ?? releaseVideoJob,
+    incrementVideoJobRetry: options.incrementVideoJobRetry ?? incrementVideoJobRetry,
+    listQueuedVideoJobs: options.listQueuedVideoJobs ?? listQueuedVideoJobs,
+    recordProductEvent: options.recordProductEvent ?? recordProductEvent,
+  };
+}
+
+async function deleteTemporaryFile(filePath) {
+  try {
+    await unlink(filePath);
+  } catch {
+    // Temporary-file cleanup is best effort.
+  }
 }
 
 function sleep(ms) {

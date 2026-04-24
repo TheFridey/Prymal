@@ -107,6 +107,13 @@ export default function Admin() {
     refetchInterval: activeTab === 'revenue' ? 60_000 : false,
   });
 
+  const videoJobsQuery = useQuery({
+    queryKey: ['staff-admin-video-jobs'],
+    queryFn: () => api.get('/admin/video-jobs?limit=40'),
+    enabled: isStaff && activeTab === 'billing',
+    refetchInterval: activeTab === 'billing' ? 30_000 : false,
+  });
+
   const [referralDays, setReferralDays] = useState(30);
   const referralsQuery = useQuery({
     queryKey: ['staff-admin-referrals', referralDays],
@@ -828,7 +835,7 @@ export default function Admin() {
         ) : null}
 
         {activeTab === 'billing' ? (
-          <BillingTab data={data} billingTotals={billingTotals} />
+          <BillingTab data={data} billingTotals={billingTotals} videoJobsQuery={videoJobsQuery} />
         ) : null}
 
         {activeTab === 'activity' ? (

@@ -12,7 +12,7 @@ export default function Pricing() {
     <div className="marketing-page prymal-marketing pricing-page">
       <PageMeta
         title="Prymal | Pricing — AI agents, workflows & video"
-        description="Simple plans for execution credits and video credits. Pro is the best balance of power and cost for most teams."
+        description="Simple plans for execution credits and AI video credits. Pro is the best balance of power and cost for most teams."
         canonicalPath="/pricing"
       />
       <JsonLd
@@ -21,7 +21,7 @@ export default function Pricing() {
           '@context': 'https://schema.org',
           '@type': 'WebPage',
           name: 'Prymal pricing',
-          description: 'Prymal subscription plans: Solo, Pro, Teams, and Agency with execution and video credits.',
+          description: 'Prymal subscription plans: Solo, Pro, Teams, and Agency with execution credits and AI video credits.',
           offers: [
             { '@type': 'Offer', name: freePlan.name, price: '0', priceCurrency: 'GBP' },
             ...PLAN_LIBRARY.map((plan) => ({

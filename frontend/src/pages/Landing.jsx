@@ -594,7 +594,7 @@ export default function Landing() {
               </div>
               <h2 className="pm-pricing-ladder__title">Simple plans for serious work</h2>
               <p className="pm-pricing-ladder__lede" style={{ maxWidth: 560 }}>
-                Execution credits for AI tasks and agents, plus video credits when you need clips. Pro is the best balance for most
+                Execution credits for AI tasks and agents, plus AI video credits when you need renders. Pro is the best balance for most
                 teams — see every tier, limits, and FAQs on the dedicated pricing page.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 20 }}>

@@ -1,4 +1,5 @@
 import { getEnvironmentMode, loadBackendEnv } from './parse.js';
+import { validateMediaStorageConfiguration } from '../services/media-storage/index.js';
 
 const REQUIRED_IN_ALL_ENVIRONMENTS = ['DATABASE_URL'];
 const REQUIRED_IN_PRODUCTION = [
@@ -159,6 +160,10 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
   ) {
     warnings.push('Staff access is easier to misconfigure without explicit STAFF_* role lists.');
   }
+
+  const mediaStorageValidation = validateMediaStorageConfiguration(env);
+  errors.push(...mediaStorageValidation.errors);
+  warnings.push(...mediaStorageValidation.warnings);
 
   return {
     mode,

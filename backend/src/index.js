@@ -23,8 +23,10 @@ import { startInlineScheduler } from './services/inline-scheduler.js';
 import { createRateLimiter } from './middleware/rateLimit.js';
 import { requestContext } from './middleware/request-context.js';
 import { securityHeaders } from './middleware/security-headers.js';
-import { readGeneratedImageAsset } from './services/image-generation.js';
-import { readGeneratedVideoAsset } from './services/video-generation.js';
+import {
+  readGeneratedImageAsset,
+  readGeneratedVideoAsset,
+} from './services/media-storage/index.js';
 import { readWebAsset } from './services/web-research.js';
 
 if (process.env.SENTRY_DSN) {

@@ -5,7 +5,11 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../../db/index.js';
-import { creditAdjustments, organisations } from '../../db/schema.js';
+import {
+  creditAdjustments,
+  organisations,
+  videoGenerationEvents,
+} from '../../db/schema.js';
 import { hasConfiguredStripe } from '../../env.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
 import { findAdminMutationReplay, getAdminMutationMeta } from '../../services/admin-mutations.js';
@@ -211,6 +215,68 @@ router.get('/credit-usage', requireStaff, requireStaffPermission('admin.credits.
       creditsUsed: org.creditsUsed ?? 0, monthlyCreditLimit: org.monthlyCreditLimit,
       usagePercent: org.monthlyCreditLimit > 0 ? Math.round(((org.creditsUsed ?? 0) / org.monthlyCreditLimit) * 100) : 0,
     })),
+  });
+});
+
+router.get('/video-jobs', requireStaff, requireStaffPermission('admin.billing.read'), async (context) => {
+  const limit = Math.min(Math.max(Number(context.req.query('limit') ?? 40), 1), 100);
+  const [jobs, orgRows, userRows] = await Promise.all([
+    db.query.videoGenerationEvents.findMany({
+      orderBy: [desc(videoGenerationEvents.createdAt)],
+      limit,
+    }),
+    db.query.organisations.findMany(),
+    db.query.users.findMany(),
+  ]);
+
+  const orgMap = new Map(orgRows.map((org) => [org.id, org]));
+  const userMap = new Map(userRows.map((user) => [user.id, user]));
+
+  return context.json({
+    jobs: jobs.map((job) => {
+      const org = orgMap.get(job.orgId);
+      const user = job.userId ? userMap.get(job.userId) : null;
+      const outputAsset = job.providerMetadata?.outputAsset ?? null;
+
+      return {
+        id: job.id,
+        orgId: job.orgId,
+        orgName: org?.name ?? null,
+        userId: job.userId,
+        userEmail: user?.email ?? null,
+        mode: job.providerMetadata?.mode ?? 'lite',
+        providerLabel: job.providerMetadata?.providerLabel ?? null,
+        durationSeconds: job.durationSeconds,
+        resolution: job.resolution,
+        aspectRatio: job.aspectRatio,
+        referenceImageCount: Number(job.providerMetadata?.referenceImageCount ?? 0),
+        status: job.status,
+        creditsRequested: job.creditsRequested,
+        creditsReserved: job.creditsReserved,
+        creditsCommitted: job.creditsCommitted,
+        provider: job.provider,
+        model: job.model,
+        providerJobId: job.providerJobId,
+        storageProvider: job.providerMetadata?.storageProvider ?? null,
+        cloudinaryPublicId: outputAsset?.publicId ?? null,
+        cloudinaryResourceType: outputAsset?.resourceType ?? null,
+        secureUrl: outputAsset?.secureUrl ?? null,
+        deliveryUrl: outputAsset?.deliveryUrl ?? job.outputUrl ?? null,
+        bytes: outputAsset?.bytes ?? null,
+        duration: outputAsset?.duration ?? null,
+        format: outputAsset?.format ?? null,
+        cleanupStatus: outputAsset?.cleanupStatus ?? null,
+        failureCode: job.failureCode,
+        failureMessage: job.failureMessage,
+        providerErrorType: job.providerMetadata?.providerErrorType ?? null,
+        providerErrorCategory: job.providerMetadata?.providerErrorCategory ?? null,
+        retryCount: job.retryCount,
+        maxRetries: job.maxRetries,
+        createdAt: job.createdAt,
+        startedAt: job.startedAt,
+        completedAt: job.completedAt,
+      };
+    }),
   });
 });
 

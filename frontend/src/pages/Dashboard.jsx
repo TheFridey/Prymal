@@ -264,7 +264,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>Video credits</div>
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '6px' }}>AI video credits</div>
                   <div style={{ height: 10, borderRadius: 999, background: '#131C2B', overflow: 'hidden' }}>
                     <div style={{ width: `${videoPct}%`, height: '100%', background: '#BDB4FE' }} />
                   </div>

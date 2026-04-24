@@ -27,6 +27,7 @@
     "@hono/zod-validator": "^0.4.1",
     "@sentry/node": "^10.47.0",
     "@trigger.dev/sdk": "^3.0.0",
+    "cloudinary": "^2.9.0",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.12",

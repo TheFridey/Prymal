@@ -173,7 +173,7 @@ export default function MessageInput({
       </MotionPresence>
 
       <div className="workspace-studio__composer-actions">
-        <div className="workspace-studio__composer-meta" title="Execution and video credits are tracked separately and checked server-side before each run.">
+        <div className="workspace-studio__composer-meta" title="Execution credits and AI video credits are tracked separately and checked server-side before each run.">
           {metaCopy}{' '}
           | {activeSettings.useLore ? 'LORE enabled' : 'LORE disabled'} | {activeSettings.responseLength} response | {activeSettings.tone} tone | {activeSettings.voiceInputMode} voice
           {voiceMode === 'realtime' ? ' | 🎙 Live' : null}

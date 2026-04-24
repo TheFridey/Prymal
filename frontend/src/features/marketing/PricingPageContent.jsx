@@ -20,7 +20,7 @@ const PRIORITY_LABEL = {
 const FAQ_ITEMS = [
   {
     q: 'How do credits work?',
-    a: 'Credits are used when you run AI tasks — chat, agents, and workflows draw from your execution balance. Most short tasks use about 1–3 credits; larger workflows with more context use more. Video credits are separate and only power AI-generated video clips.',
+    a: 'Credits are used when you run AI tasks — chat, agents, and workflows draw from your execution balance. Most short tasks use about 1–3 credits; larger workflows with more context use more. AI video credits are separate and only power AI-generated video renders.',
   },
   {
     q: 'What happens if I run out?',
@@ -36,7 +36,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Is pricing predictable?',
-    a: 'Your subscription price is fixed in GBP. Usage stays within the included execution and video credits for your tier, with clear limits for concurrent runs and daily video caps on higher plans.',
+    a: 'Your subscription price is fixed in GBP. Usage stays within the included execution credits and AI video credits for your tier, with clear limits for concurrent runs and daily video caps on higher plans.',
   },
 ];
 
@@ -139,8 +139,8 @@ export function PricingPageContent() {
                 </li>
                 <li>
                   {ent.monthlyVideoCredits > 0
-                    ? `${ent.monthlyVideoCredits} video credits / month`
-                    : 'Video credits via upgrade'}
+                    ? `${ent.monthlyVideoCredits} AI video credits / month`
+                    : 'AI video credits via upgrade'}
                 </li>
                 <li>AI agents &amp; automations</li>
                 <li>
@@ -177,14 +177,14 @@ export function PricingPageContent() {
             uses more. Most everyday tasks fall in the 1–3 credit range; larger automations scale up from there.
           </p>
           <p>
-            <strong>Video credits power AI-generated video clips.</strong> They are separate from execution credits so you always
+            <strong>AI video credits power video renders only.</strong> They are separate from execution credits so you always
             know what kind of work you are funding.
           </p>
         </div>
         <div className="pricing-panel">
           <h3>Simple, predictable billing</h3>
           <p>
-            Your plan price is fixed. Included execution and video credits reset each billing cycle. You can see remaining
+            Your plan price is fixed. Included execution credits and AI video credits reset each billing cycle. You can see remaining
             balances in the app, get early warnings as you approach limits, and add top-ups only if you need them.
           </p>
         </div>
@@ -209,9 +209,9 @@ export function PricingPageContent() {
               <span className="pricing-credit-visual__icon" aria-hidden="true">
                 ▶
               </span>
-              Video credits
+              AI video credits
             </h4>
-            <p>Used only when you create AI-generated video clips. Keeps video spend visible and separate.</p>
+            <p>Used only when you create AI-generated video renders. Keeps video spend visible and separate.</p>
           </div>
         </div>
         <div className="pricing-reassure">
@@ -256,7 +256,7 @@ export function PricingPageContent() {
               ))}
             </tr>
             <tr>
-              <td>Monthly video credits</td>
+              <td>Monthly AI video credits</td>
               {PLAN_LIBRARY.map((plan) => (
                 <td key={plan.id}>
                   {PLAN_ENTITLEMENTS[plan.id].monthlyVideoCredits > 0

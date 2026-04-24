@@ -114,6 +114,22 @@ test('validateRuntimeEnv requires a real encryption key when OAuth integrations 
   assert.match(result.errors.join('\n'), /ENCRYPTION_KEY must be a real 64-character hex key/i);
 });
 
+test('validateRuntimeEnv blocks live video environments from using local media storage without override', () => {
+  const result = validateRuntimeEnv(
+    {
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/prymal',
+      OPENAI_API_KEY: 'sk-real-ish-openai-key',
+      ANTHROPIC_API_KEY: 'sk-ant-real-ish-key',
+      GEMINI_API_KEY: 'AIza-real-ish-key',
+      MEDIA_STORAGE_DRIVER: 'local',
+    },
+    { mode: 'production', strict: true },
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /Local media storage is not allowed/i);
+});
+
 test('bootstrapRuntimeEnv throws in development when strict validation fails', () => {
   process.env.NODE_ENV = 'development';
   process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5433/prymal';

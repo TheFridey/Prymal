@@ -1,7 +1,11 @@
 import { hasTriggerDevConfig } from './trigger.js';
 import { processQueuedVideoJobs } from '../services/video-generation.js';
 
-const POLL_INTERVAL_MS = Number(process.env.VIDEO_QUEUE_POLL_INTERVAL_MS ?? 15_000);
+const POLL_INTERVAL_MS = Number(
+  process.env.VIDEO_JOB_POLL_INTERVAL_MS
+  ?? process.env.VIDEO_QUEUE_POLL_INTERVAL_MS
+  ?? 10_000,
+);
 
 async function main() {
   if (hasTriggerDevConfig()) {

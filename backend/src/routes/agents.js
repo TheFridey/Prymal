@@ -673,6 +673,8 @@ router.post('/generate-image', requireOrg, mediaGenerationRateLimit, zValidator(
       quality: payload.quality,
       outputFormat: payload.outputFormat,
       background: payload.background,
+      orgId: org.orgId,
+      conversationId: conversation.id,
     });
 
     await commitExecutionUsage({
@@ -854,7 +856,11 @@ router.post('/generate-video', requireOrg, mediaGenerationRateLimit, zValidator(
 
   try {
     if ((payload.referenceImages ?? []).length > 0) {
-      referenceAssets = await persistVideoReferenceImages(reservation.job.id, payload.referenceImages);
+      referenceAssets = await persistVideoReferenceImages(reservation.job.id, payload.referenceImages, {
+        orgId: org.orgId,
+        userId: org.userId,
+        conversationId: conversation.id,
+      });
 
       await db
         .update(videoGenerationEvents)
@@ -869,7 +875,7 @@ router.post('/generate-video', requireOrg, mediaGenerationRateLimit, zValidator(
         .where(eq(videoGenerationEvents.id, reservation.job.id));
     }
   } catch (error) {
-    await releaseVideoJob({
+    const released = await releaseVideoJob({
       jobId: reservation.job.id,
       status: 'released',
       failureCode: error?.code ?? 'VIDEO_REFERENCE_IMAGE_FAILED',
@@ -880,7 +886,37 @@ router.post('/generate-video', requireOrg, mediaGenerationRateLimit, zValidator(
       },
     }).catch((releaseError) => {
       console.error('[BILLING] Failed to release video reservation after reference-image error:', releaseError.message);
+      return null;
     });
+
+    await Promise.all([
+      recordProductEvent({
+        orgId: org.orgId,
+        userId: org.userId,
+        eventName: 'video.job_failed',
+        metadata: {
+          jobId: reservation.job.id,
+          mode: payload.mode,
+          durationSeconds: payload.durationSeconds,
+          resolution: payload.resolution,
+          aspectRatio: payload.aspectRatio,
+          referenceImageCount: 0,
+          failureCode: error?.code ?? 'VIDEO_REFERENCE_IMAGE_FAILED',
+          failureMessage: error?.message ?? 'Reference images could not be prepared for rendering.',
+          status: released?.job?.status ?? 'released',
+        },
+      }),
+      recordProductEvent({
+        orgId: org.orgId,
+        userId: org.userId,
+        eventName: 'video.credits_released',
+        metadata: {
+          jobId: reservation.job.id,
+          releasedCredits: reservation.job.creditsReserved ?? reservation.burn.creditsUsed,
+          failureCode: error?.code ?? 'VIDEO_REFERENCE_IMAGE_FAILED',
+        },
+      }),
+    ]);
 
     return context.json(
       {
@@ -920,6 +956,24 @@ router.post('/generate-video', requireOrg, mediaGenerationRateLimit, zValidator(
     .where(eq(conversations.id, conversation.id));
 
   await enqueueVideoGenerationJob(reservation.job.id);
+
+  await recordProductEvent({
+    orgId: org.orgId,
+    userId: org.userId,
+    eventName: 'video.job_queued',
+    metadata: {
+      jobId: reservation.job.id,
+      conversationId: conversation.id,
+      mode: reservation.job.providerMetadata?.mode ?? payload.mode,
+      providerLabel: reservation.job.providerMetadata?.providerLabel ?? null,
+      durationSeconds: payload.durationSeconds,
+      resolution: payload.resolution,
+      aspectRatio: payload.aspectRatio,
+      referenceImageCount: referenceAssets.length,
+      creditsRequested: reservation.job.creditsRequested ?? reservation.burn.creditsUsed,
+      storageProvider: reservation.job.providerMetadata?.storageProvider ?? null,
+    },
+  });
 
   return context.json({
     conversationId: conversation.id,
@@ -964,10 +1018,25 @@ router.get('/video-jobs/:jobId', requireOrg, async (context) => {
       failureCode: job.failureCode,
       failureMessage: job.failureMessage,
       outputUrl: job.outputUrl,
+      outputFileName: job.outputFileName,
       createdAt: job.createdAt,
+      startedAt: job.startedAt,
       completedAt: job.completedAt,
       creditsRequested: job.creditsRequested,
+      creditsReserved: job.creditsReserved,
       creditsCommitted: job.creditsCommitted,
+      providerJobId: job.providerJobId,
+      mode: job.providerMetadata?.mode ?? 'lite',
+      providerLabel: job.providerMetadata?.providerLabel ?? null,
+      referenceImageCount: Number(job.providerMetadata?.referenceImageCount ?? 0),
+      providerMetadata: {
+        storageProvider: job.providerMetadata?.storageProvider ?? null,
+        outputAsset: job.providerMetadata?.outputAsset ?? null,
+        referenceImages: job.providerMetadata?.referenceImages ?? [],
+        referenceImageCleanupStatus: job.providerMetadata?.referenceImageCleanupStatus ?? null,
+        providerErrorType: job.providerMetadata?.providerErrorType ?? null,
+        providerErrorCategory: job.providerMetadata?.providerErrorCategory ?? null,
+      },
     },
     message: assistantMessage
       ? {

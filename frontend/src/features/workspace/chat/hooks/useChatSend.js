@@ -699,7 +699,9 @@ export function useChatSend({
       }
 
       if (status === 'failed' || status === 'released') {
-        throw new Error(result.job?.failureMessage || 'Video generation failed.');
+        const error = new Error(result.job?.failureMessage || 'Video generation failed.');
+        error.code = result.job?.failureCode ?? 'VIDEO_GENERATION_FAILED';
+        throw error;
       }
 
       attempts += 1;

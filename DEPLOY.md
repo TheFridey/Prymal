@@ -407,8 +407,27 @@ Production should use:
 - production domains
 - production email sender identity
 - production alerting addresses
+- Cloudinary-backed media storage for generated images, generated videos, and video reference images
 
 Never point staging frontend at production backend or vice versa.
+
+## Cloudinary checklist
+
+Configure Cloudinary before any staging or production rollout that enables video generation:
+
+- [ ] Set `MEDIA_STORAGE_DRIVER=cloudinary`
+- [ ] Set `CLOUDINARY_CLOUD_NAME`
+- [ ] Set `CLOUDINARY_API_KEY`
+- [ ] Set `CLOUDINARY_API_SECRET`
+- [ ] Set `CLOUDINARY_FOLDER=prymal` or another environment-specific folder prefix
+- [ ] Decide `VIDEO_REFERENCE_ASSET_RETENTION`
+- [ ] Confirm `ALLOW_LOCAL_MEDIA_STORAGE_IN_PRODUCTION` remains `false`
+
+Folder convention used by the backend:
+
+- generated images: `<folder>/generated-images/<orgId>/...`
+- generated videos: `<folder>/generated-videos/<orgId>/...`
+- video reference images: `<folder>/video-reference-images/<orgId>/<videoJobId>/...`
 
 ## Post-Deploy Verification Checklist
 
@@ -453,6 +472,15 @@ Run these checks after every staging deploy and before every production go-live:
 - [ ] Verify execution/video credit balances update after a real run and a real video job
 - [ ] Verify failed video jobs release reserved video credits correctly
 
+### Media generation
+
+- [ ] Generate a Lite video and confirm the final asset URL is Cloudinary-hosted
+- [ ] Generate a Standard video and confirm the credit burn is higher than Lite for the same duration/resolution
+- [ ] Generate a Standard 8-second reference-image render and confirm the references persist with the expected retention mode
+- [ ] Confirm the chat message artifact plays the uploaded Cloudinary video successfully
+- [ ] Confirm failed video jobs release reserved credits and record a visible failure code
+- [ ] Confirm local asset URLs are only used when `MEDIA_STORAGE_DRIVER=local`
+
 ### Admin / operations
 
 - [ ] Open `/app/admin`
@@ -486,3 +514,18 @@ Do not treat a green static build as production readiness. Prymal’s release co
 - authenticated staging Playwright
 - webhook health
 - live admin drilldown sanity
+
+## Deferred Stripe checklist
+
+Stripe remains intentionally deferred until the final pre-launch window. Before launch:
+
+- [ ] Create subscription prices for Solo, Pro, Teams, and Agency across monthly, quarterly, and yearly intervals
+- [ ] Create Stripe prices for execution credit packs
+- [ ] Create Stripe prices for AI video credit packs
+- [ ] Create the Teams seat add-on recurring price
+- [ ] Set every `STRIPE_PRICE_*` env var
+- [ ] Configure the Stripe webhook endpoint and signing secret
+- [ ] Run one real checkout flow
+- [ ] Buy one credit pack
+- [ ] Replay one webhook event safely
+- [ ] Verify entitlement sync and billing UI state after replay

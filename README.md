@@ -202,6 +202,7 @@ Backend env loading is now split into:
 - Tiered internal staff access: `STAFF_SUPPORT_*`, `STAFF_OPS_*`, `STAFF_FINANCE_*`, `STAFF_SUPERADMIN_*`
 - Model lanes and overrides: `ANTHROPIC_MODEL_PREMIUM`, `ANTHROPIC_MODEL_DEFAULT`, `ANTHROPIC_MODEL_FAST`, `OPENAI_MODEL_PREMIUM`, `OPENAI_MODEL_ROUTER`, `OPENAI_MODEL_LIGHTWEIGHT`, optional `ORG_MODEL_POLICY_OVERRIDES`
 - Google Gemini (optional third lane): `GEMINI_API_KEY`, `GEMINI_MODEL_FLASH` (default `gemini-2.5-flash`), `GEMINI_MODEL_PRO` (default `gemini-2.5-pro`), `GEMINI_MODEL_VEO` (default `veo-3.1-lite-generate-preview`), `GEMINI_MODEL_VEO_STANDARD` (default `veo-3.1-generate-preview`), `GEMINI_GROUNDING_ENABLED=false` for launch
+- Media storage: `MEDIA_STORAGE_DRIVER`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_FOLDER`, `VIDEO_REFERENCE_ASSET_RETENTION`, `MEDIA_ASSET_RETENTION_DAYS`, `FAILED_MEDIA_ASSET_RETENTION_DAYS`, `VIDEO_JOB_TIMEOUT_MS`, `VIDEO_JOB_POLL_INTERVAL_MS`
 - Optional model cost overrides for LLM tracing: `MODEL_COST_OVERRIDES`
 - Workflow runtime controls: `WORKFLOW_NODE_TIMEOUT_MS`, `WORKFLOW_RUN_TIMEOUT_MS`, `WORKFLOW_MAX_ATTEMPTS`
 - Optional distributed rate limiting: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
@@ -225,13 +226,16 @@ Current plan defaults in code:
 | `teams` | 6000 | 30 | 5 included seats, seat add-ons available, SENTINEL review eligibility, rate limits: chat 100/min, LORE ingest 100/min, workflow runs 60/min |
 | `agency` | 10000 | 60 | 25-seat workspace, API keys, SENTINEL review eligibility, and unlimited plan-aware rate limits |
 
-Execution and video credits are enforced separately before expensive agent, workflow, and media-generation paths.
+Execution credits and AI video credits are enforced separately before expensive agent, workflow, and media-generation paths.
 
 Video-generation rules currently implemented in code:
 
 - `/video` supports two server-authoritative lanes: `lite` (Veo 3.1 Lite) and `standard` (Veo 3.1 Standard)
 - current Veo durations are limited to `4`, `6`, or `8` seconds
 - Standard-mode reference images are supported for `8` second renders only
+- Lite is the lower-credit draft lane; Standard is the higher-credit, higher-quality lane
+- generated images, generated videos, and video reference images use Cloudinary in beta/production and local storage only as a development fallback
+- if video generation is enabled in a live-like environment, Cloudinary must be configured unless `ALLOW_LOCAL_MEDIA_STORAGE_IN_PRODUCTION=true` is explicitly set
 - UI token and credit previews are approximate guidance only; final billing stays server-side authoritative
 
 ## Security

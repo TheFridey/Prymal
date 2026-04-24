@@ -62,6 +62,16 @@ export default function MediaGenerationModal({
     || !String(draft.prompt ?? '').trim()
     || Boolean(referenceError)
     || requiresEightSecondReferenceRender;
+  const videoSummaryItems = isVideo
+    ? [
+      { label: 'Mode', value: videoMode.label },
+      { label: 'Provider lane', value: videoMode.providerLabel },
+      { label: 'Duration', value: `${draft.durationSeconds}s` },
+      { label: 'Resolution', value: draft.resolution },
+      { label: 'Aspect', value: draft.aspectRatio },
+      { label: 'References', value: String(draft.referenceImages?.length ?? 0) },
+    ]
+    : [];
 
   function updateDraft(patch) {
     setDraft((current) => ({ ...current, ...patch }));
@@ -94,7 +104,7 @@ export default function MediaGenerationModal({
     }
 
     if (!videoMode?.supportsReferenceImages) {
-      setReferenceError('Reference images are only available in Cinematic mode.');
+      setReferenceError('Reference images are only available in Standard mode.');
       event.target.value = '';
       return;
     }
@@ -329,6 +339,15 @@ export default function MediaGenerationModal({
               <InlineNotice tone="default">
                 {videoMode.description} Google&apos;s current Veo API still limits one-shot renders to 4, 6, or 8 seconds.
               </InlineNotice>
+              {draft.mode === 'standard' ? (
+                <InlineNotice tone="default">
+                  Standard uses more credits because it costs more to render. It is the higher-quality Veo lane and the only option that supports reference images in Prymal.
+                </InlineNotice>
+              ) : (
+                <InlineNotice tone="default">
+                  Lite is the faster, lower-credit draft lane. It is best for quick concepts and simple promo passes.
+                </InlineNotice>
+              )}
 
               <div
                 style={{
@@ -344,7 +363,7 @@ export default function MediaGenerationModal({
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-strong)' }}>Reference images</div>
                     <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>
-                      Upload up to 3 PNG, JPEG, or WEBP images to guide the render. Prymal currently enables this on Veo 3.1 Standard only, and Google requires an 8 second render when references are attached.
+                      Upload up to 3 PNG, JPEG, or WEBP images to guide the render. Reference images are only available on Standard 8 second renders.
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -417,7 +436,7 @@ export default function MediaGenerationModal({
                 {referenceError ? <InlineNotice tone="danger">{referenceError}</InlineNotice> : null}
                 {requiresEightSecondReferenceRender ? (
                   <InlineNotice tone="warning">
-                    Reference images require an 8 second Cinematic render. Adjust the duration before generating.
+                    Reference images require an 8 second Standard render. Adjust the duration before generating.
                   </InlineNotice>
                 ) : null}
               </div>
@@ -443,11 +462,29 @@ export default function MediaGenerationModal({
               </div>
               <div>
                 <div style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)' }}>
-                  Estimated {isVideo ? 'video credits' : 'execution credits'}
+                  Estimated {isVideo ? 'AI video credits' : 'execution credits'}
                 </div>
                 <div style={{ fontSize: '18px', color: 'var(--text-strong)', fontWeight: 700 }}>{estimatedCredits}</div>
               </div>
             </div>
+            {isVideo ? (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+                  gap: '10px',
+                }}
+              >
+                {videoSummaryItems.map((item) => (
+                  <div key={item.label}>
+                    <div style={{ fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)' }}>
+                      {item.label}
+                    </div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-strong)', fontWeight: 600 }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>
               Prompt tokens are a rough text-only estimate for your brief. Billing, queue checks, and final burn remain server-side authoritative.
             </div>
@@ -456,7 +493,9 @@ export default function MediaGenerationModal({
           <div className="workspace-modal__footer">
             <InlineNotice tone="default">
               {isVideo
-                ? 'Video credits are checked before the render is queued. Higher-end modes consume more credits to stay margin-safe.'
+                ? draft.mode === 'standard'
+                  ? 'Video credits are used only for AI video renders. Standard renders use more credits than Lite because they use the higher-quality Veo lane.'
+                  : 'Video credits are used only for AI video renders. Lite is the lower-cost draft lane for faster iteration.'
                 : 'Image generation uses execution credits and respects the same server-side rate limits and billing controls as chat.'}
             </InlineNotice>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>

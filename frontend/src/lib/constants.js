@@ -652,7 +652,7 @@ export const PLAN_LIBRARY = [
     description: 'For growing businesses and creators — full specialist roster, video allowance, and room to run real workflows.',
     features: [
       '2,000 monthly execution credits',
-      '10 monthly video credits',
+      '10 monthly AI video credits',
       'Full 14-agent roster & automations',
       'Higher concurrent runs',
     ],
@@ -669,7 +669,7 @@ export const PLAN_LIBRARY = [
       'For teams running workflows together — pooled credits, more seats, and shared workspace memory.',
     features: [
       '6,000 monthly execution credits',
-      '30 monthly video credits · 5 seats',
+      '30 monthly AI video credits · 5 seats',
       '£25/mo per extra seat',
       'Full roster & team-scale concurrency',
     ],
@@ -683,7 +683,7 @@ export const PLAN_LIBRARY = [
     description: 'For high-scale operations — API keys, maximum included credits, and room for many seats.',
     features: [
       '10,000 monthly execution credits',
-      '60 monthly video credits · 25 seats',
+      '60 monthly AI video credits · 25 seats',
       'API keys (programmatic access)',
       'Highest included concurrency',
     ],

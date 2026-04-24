@@ -1,7 +1,8 @@
-import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
-import path from 'path';
+import {
+  getMediaStorage,
+  getVideoReferenceAssetRetention,
+} from './media-storage/index.js';
 
-const VIDEO_REFERENCE_IMAGE_DIR = path.resolve(process.cwd(), 'storage', 'video-reference-images');
 const ALLOWED_REFERENCE_IMAGE_TYPES = new Map([
   ['image/png', 'png'],
   ['image/jpeg', 'jpg'],
@@ -10,7 +11,11 @@ const ALLOWED_REFERENCE_IMAGE_TYPES = new Map([
 const MAX_REFERENCE_IMAGES = 3;
 const MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024;
 
-export async function persistVideoReferenceImages(jobId, referenceImages = []) {
+export async function persistVideoReferenceImages(
+  jobId,
+  referenceImages = [],
+  { orgId = null, userId = null, conversationId = null, storage = getMediaStorage() } = {},
+) {
   const normalizedImages = Array.isArray(referenceImages) ? referenceImages : [];
 
   if (normalizedImages.length === 0) {
@@ -24,68 +29,72 @@ export async function persistVideoReferenceImages(jobId, referenceImages = []) {
     throw error;
   }
 
-  const jobDirectory = path.join(VIDEO_REFERENCE_IMAGE_DIR, String(jobId));
-  await mkdir(jobDirectory, { recursive: true });
-  const writtenPaths = [];
+  const persisted = [];
 
-  try {
-    const persisted = [];
+  for (const [index, referenceImage] of normalizedImages.entries()) {
+    const mimeType = String(referenceImage?.mimeType ?? '').trim().toLowerCase();
+    const extension = ALLOWED_REFERENCE_IMAGE_TYPES.get(mimeType);
 
-    for (const [index, referenceImage] of normalizedImages.entries()) {
-      const mimeType = String(referenceImage?.mimeType ?? '').trim().toLowerCase();
-      const extension = ALLOWED_REFERENCE_IMAGE_TYPES.get(mimeType);
-
-      if (!extension) {
-        const error = new Error('Reference images must be PNG, JPEG, or WEBP files.');
-        error.status = 400;
-        error.code = 'VIDEO_REFERENCE_IMAGE_INVALID_TYPE';
-        throw error;
-      }
-
-      const buffer = Buffer.from(String(referenceImage?.base64 ?? ''), 'base64');
-
-      if (!buffer.length || buffer.length > MAX_REFERENCE_IMAGE_BYTES) {
-        const error = new Error('Each reference image must be under 2 MB.');
-        error.status = 400;
-        error.code = 'VIDEO_REFERENCE_IMAGE_TOO_LARGE';
-        throw error;
-      }
-
-      const fileName = `${String(index + 1).padStart(2, '0')}-${sanitizeReferenceImageName(referenceImage?.name)}.${extension}`;
-      const filePath = path.join(jobDirectory, fileName);
-      await writeFile(filePath, buffer);
-      writtenPaths.push(filePath);
-
-      persisted.push({
-        name: String(referenceImage?.name ?? fileName).trim() || fileName,
-        mimeType,
-        referenceType: 'ASSET',
-        relativePath: path.relative(VIDEO_REFERENCE_IMAGE_DIR, filePath),
-      });
+    if (!extension) {
+      const error = new Error('Reference images must be PNG, JPEG, or WEBP files.');
+      error.status = 400;
+      error.code = 'VIDEO_REFERENCE_IMAGE_INVALID_TYPE';
+      throw error;
     }
 
-    return persisted;
-  } catch (error) {
-    await Promise.all(
-      writtenPaths.map(async (filePath) => {
-        try {
-          await unlink(filePath);
-        } catch {
-          // Best-effort cleanup for partially written reference assets.
-        }
-      }),
-    );
-    throw error;
+    const buffer = Buffer.from(String(referenceImage?.base64 ?? ''), 'base64');
+
+    if (!buffer.length || buffer.length > MAX_REFERENCE_IMAGE_BYTES) {
+      const error = new Error('Each reference image must be under 2 MB.');
+      error.status = 400;
+      error.code = 'VIDEO_REFERENCE_IMAGE_TOO_LARGE';
+      throw error;
+    }
+
+    const uploaded = await storage.uploadVideoReferenceImage({
+      buffer,
+      mimeType,
+      originalName: String(referenceImage?.name ?? `reference-${index + 1}.${extension}`).trim(),
+      orgId,
+      videoJobId: jobId,
+      index,
+      metadata: {
+        userId,
+        conversationId,
+      },
+    });
+
+    persisted.push({
+      name: uploaded.originalName ?? (String(referenceImage?.name ?? '').trim() || uploaded.fileName),
+      originalName: uploaded.originalName ?? (String(referenceImage?.name ?? '').trim() || null),
+      mimeType,
+      referenceType: 'ASSET',
+      storageProvider: uploaded.storageProvider,
+      publicId: uploaded.publicId ?? null,
+      secureUrl: uploaded.secureUrl ?? null,
+      deliveryUrl: uploaded.deliveryUrl ?? null,
+      resourceType: uploaded.resourceType ?? 'image',
+      relativePath: uploaded.relativePath ?? null,
+      localPath: uploaded.localPath ?? null,
+      bytes: uploaded.bytes ?? buffer.length,
+      format: uploaded.format ?? extension,
+      uploadedAt: uploaded.uploadedAt ?? new Date().toISOString(),
+      cleanupStatus: uploaded.cleanupStatus ?? 'pending',
+    });
   }
+
+  return persisted;
 }
 
-export async function loadVideoReferenceImages(referenceAssets = []) {
+export async function loadVideoReferenceImages(
+  referenceAssets = [],
+  { storage = getMediaStorage() } = {},
+) {
   const normalizedAssets = Array.isArray(referenceAssets) ? referenceAssets : [];
 
   return Promise.all(
     normalizedAssets.map(async (asset) => {
-      const absolutePath = resolveReferenceImagePath(asset?.relativePath);
-      const buffer = await readFile(absolutePath);
+      const buffer = await storage.loadAssetBuffer(asset);
 
       return {
         image: {
@@ -98,40 +107,46 @@ export async function loadVideoReferenceImages(referenceAssets = []) {
   );
 }
 
-export async function cleanupVideoReferenceImages(referenceAssets = []) {
+export async function cleanupVideoReferenceImages(
+  referenceAssets = [],
+  {
+    storage = getMediaStorage(),
+    retention = getVideoReferenceAssetRetention(),
+  } = {},
+) {
   const normalizedAssets = Array.isArray(referenceAssets) ? referenceAssets : [];
 
-  await Promise.all(
+  if (normalizedAssets.length === 0) {
+    return [];
+  }
+
+  if (retention === 'keep_for_audit') {
+    return normalizedAssets.map((asset) => ({
+      ...asset,
+      cleanupStatus: 'retained_for_audit',
+    }));
+  }
+
+  return Promise.all(
     normalizedAssets.map(async (asset) => {
       try {
-        const absolutePath = resolveReferenceImagePath(asset?.relativePath);
-        await unlink(absolutePath);
+        const result = await storage.deleteAsset({
+          asset,
+          publicId: asset.publicId ?? null,
+          resourceType: asset.resourceType ?? 'image',
+          relativePath: asset.relativePath ?? asset.localPath ?? null,
+        });
+
+        return {
+          ...asset,
+          cleanupStatus: result.deleted ? 'deleted_after_job' : result.missing ? 'already_removed' : 'delete_skipped',
+        };
       } catch {
-        // Reference-image cleanup is best-effort and should not fail the job lifecycle.
+        return {
+          ...asset,
+          cleanupStatus: 'delete_failed',
+        };
       }
     }),
   );
-}
-
-function resolveReferenceImagePath(relativePath) {
-  const absolutePath = path.resolve(VIDEO_REFERENCE_IMAGE_DIR, String(relativePath ?? ''));
-
-  if (!absolutePath.startsWith(VIDEO_REFERENCE_IMAGE_DIR)) {
-    const error = new Error('Invalid reference image path.');
-    error.status = 400;
-    error.code = 'VIDEO_REFERENCE_IMAGE_PATH_INVALID';
-    throw error;
-  }
-
-  return absolutePath;
-}
-
-function sanitizeReferenceImageName(value) {
-  const baseName = path.basename(String(value ?? 'reference').trim(), path.extname(String(value ?? 'reference')));
-  const sanitized = baseName
-    .replace(/[^a-z0-9_-]+/gi, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48);
-
-  return sanitized || 'reference';
 }

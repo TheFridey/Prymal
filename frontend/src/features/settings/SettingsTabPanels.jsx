@@ -183,7 +183,7 @@ export function BillingSettingsTab({
     },
     {
       key: 'video',
-      label: 'Video credits',
+      label: 'AI video credits',
       data: videoCredits,
       accent: '#BDB4FE',
     },
@@ -227,17 +227,17 @@ export function BillingSettingsTab({
             {showExecutionWarning && showVideoWarning
               ? 'Execution and video usage are both above 80%. Upgrading your plan is usually the best next step; credit packs are there if you only need a short boost.'
               : showVideoWarning
-                ? 'Video usage is above 80%. Consider upgrading for a higher monthly video allowance, or add a small video pack.'
+                ? 'AI video usage is above 80%. Consider upgrading for a higher monthly video allowance, or add a video pack.'
                 : 'Execution usage is above 80%. Consider upgrading for more included credits, or add a pack if you need capacity before your cycle resets.'}
           </InlineNotice>
         ) : null}
         {(executionBlocked || videoBlocked) ? (
           <InlineNotice tone="danger" style={{ marginBottom: '12px' }}>
             {executionBlocked && videoBlocked
-              ? 'Execution and video credits are both exhausted.'
+              ? 'Execution credits and AI video credits are both exhausted.'
               : executionBlocked
                 ? 'Execution credits are exhausted for this cycle.'
-                : 'Video credits are exhausted for this cycle.'}
+                : 'AI video credits are exhausted for this cycle.'}
           </InlineNotice>
         ) : null}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '12px' }}>
@@ -303,13 +303,13 @@ export function BillingSettingsTab({
 
       <SurfaceCard title="Credit packs" accent="#BDB4FE">
         <p style={{ color: 'var(--muted)', lineHeight: 1.7, marginBottom: '14px', fontSize: '13px' }}>
-          Top-ups are for short bursts or end-of-cycle gaps. If usage keeps landing here, upgrading your plan is usually better
-          value than buying packs repeatedly.
+          Top-ups are for short bursts or end-of-cycle gaps. Video credits are used only for AI video renders. If usage keeps
+          landing here, upgrading your plan is usually better value than buying packs repeatedly.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
           {[
             { key: 'execution', title: 'Execution top-ups', accent: '#00FFD1', packs: packGroups.execution },
-            { key: 'video', title: 'Video top-ups', accent: '#BDB4FE', packs: packGroups.video },
+            { key: 'video', title: 'AI video top-ups', accent: '#BDB4FE', packs: packGroups.video },
           ].map((group) => (
             <div key={group.key} style={{ padding: '16px', borderRadius: '18px', border: '1px solid var(--line)', background: 'var(--panel-soft)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '12px' }}>
@@ -426,7 +426,7 @@ export function BillingSettingsTab({
                   <span style={chipStyle}>{plan.credits.toLocaleString()} execution credits / mo</span>
                   {PLAN_ENTITLEMENTS[plan.id]?.monthlyVideoCredits > 0 ? (
                     <span style={chipStyle}>
-                      {PLAN_ENTITLEMENTS[plan.id].monthlyVideoCredits} video credits / mo
+                      {PLAN_ENTITLEMENTS[plan.id].monthlyVideoCredits} AI video credits / mo
                     </span>
                   ) : (
                     <span style={chipStyle}>Video via upgrade</span>
