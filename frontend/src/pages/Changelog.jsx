@@ -1,180 +1,219 @@
 import { Link } from 'react-router-dom';
 import { PageShell } from '../components/ui';
-import { MotionSection, MotionTimelineItem, usePrymalReducedMotion } from '../components/motion';
+import { MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import '../styles/landing-rebuild.css';
+import '../styles/changelog-premium.css';
 
 const CHANGELOG = [
   {
-    version: '0.9.6.1',
+    version: '1.0.1',
     date: '2026-04-24',
-    tag: 'Release',
+    tag: 'Update',
+    badge: 'Media',
+    milestone: true,
     title: 'Guided Media Builders + Veo Standard',
+    impact: 'Media generation is now structured, predictable, and production-ready inside the workspace.',
     entries: [
-      'The workspace now opens guided builders for `/image` and `/video`, with structured controls for prompt, quality, size, duration, aspect ratio, and output settings.',
-      'Video generation now offers two server-validated lanes: Fast draft on Veo 3.1 Lite and Cinematic on Veo 3.1 Standard.',
-      'Standard-mode renders support up to three reference images on 8 second jobs, giving agencies a cleaner way to guide visual direction.',
-      'Media builders now show approximate prompt-token and credit estimates before submit, while final billing and queue checks remain server-side authoritative.',
-      'Generated video cards now show the render lane, duration, aspect ratio, resolution, and reference-image count directly in chat artifacts.',
+      'Introduced guided `/image` and `/video` builders with structured controls for prompt, quality, size, duration, aspect ratio, and output settings.',
+      'Added dual render lanes: Fast Draft on Veo 3.1 Lite and Cinematic on Veo 3.1 Standard.',
+      'Standard-mode renders now support up to three reference images on 8-second jobs for stronger visual direction.',
+      'Media builders now show prompt-token and credit estimates before submission, with final checks remaining server-authoritative.',
+      'Generated video cards now show render lane, duration, aspect ratio, resolution, and reference-image count directly in chat artifacts.',
     ],
   },
   {
     version: '1.0.0',
-    date: '2026-05-17',
-    tag: 'Release',
+    date: '2026-04-17',
+    tag: 'Milestone',
+    badge: 'GA',
+    milestone: true,
     title: 'General Availability — Prymal 1.0',
+    impact: 'Prymal moved from build-phase platform into a paid-workspace product ready for live operators.',
     entries: [
-      'Prymal is now generally available. All 15 specialist agents, hybrid RAG, SENTINEL QA, workflow orchestration, and the operator control plane are live for paid workspaces.',
-      'Billing tiers finalised: Free, Solo, Pro, Teams, and Agency. Seat limits, credit caps, and agent access gates are fully enforced across all plan boundaries.',
-      'Realtime voice is enabled on Pro and above. Push-to-talk and voice activity detection are routed through the ECHO agent with sub-300ms latency on supported browsers.',
-      'Public-facing changelog, pricing page, and waitlist are indexed and canonical. JSON-LD schema is present on all marketing routes.',
-      'All workspace surfaces ship with the Prymal premium motion system. Reduced-motion preference is honoured across every animated component.',
+      'Prymal is now generally available with all 15 specialist agents, hybrid RAG, SENTINEL QA, workflows, and operator controls live.',
+      'Billing tiers finalised across Free, Solo, Pro, Teams, and Agency with enforced seats, credits, and agent access boundaries.',
+      'Realtime voice is enabled on Pro and above, routed through ECHO with push-to-talk and voice activity detection.',
+      'Public changelog, pricing, and waitlist pages are canonical, indexed, and supported by JSON-LD schema.',
+      'The Prymal premium motion system now ships across all workspace surfaces with reduced-motion support.',
     ],
   },
   {
     version: '0.9.9',
-    date: '2026-05-10',
-    tag: 'Release',
+    date: '2026-04-10',
+    tag: 'Performance',
+    badge: 'Speed',
     title: 'Performance Pass + Accessibility',
+    impact: 'The product now feels faster, cleaner, and more trustworthy across core workspace interactions.',
     entries: [
-      'Framer Motion tree-shaken to LazyMotion with domAnimation feature set. Initial JS payload reduced by approximately 18 kB gzipped.',
-      'GSAP ScrollTrigger imported asynchronously and only instantiated when reduced-motion preference is not active.',
-      'All interactive elements pass WCAG 2.1 AA contrast and focus-visible requirements. Keyboard navigation verified across the command palette, workflow builder, and agent sidebar.',
-      'Agent avatar fallback renders initials when no image URL is set, eliminating broken-image states in new workspaces.',
-      'Bundle analysis added to CI. Any PR that increases the main chunk by more than 15 kB triggers a size-check warning.',
+      'Framer Motion was tree-shaken to LazyMotion with domAnimation, reducing initial JavaScript payload.',
+      'GSAP ScrollTrigger now loads asynchronously and only runs when reduced-motion preference is inactive.',
+      'Interactive elements now meet WCAG 2.1 AA contrast and focus-visible requirements.',
+      'Keyboard navigation verified across the command palette, workflow builder, and agent sidebar.',
+      'Bundle analysis added to CI with warnings for main chunk regressions over 15 kB.',
     ],
   },
   {
     version: '0.9.8',
-    date: '2026-05-03',
-    tag: 'Release',
+    date: '2026-04-03',
+    tag: 'Admin',
+    badge: 'Trace',
     title: 'Admin Motion + Trace Drilldowns',
+    impact: 'Operators can now understand system activity, failures, and retrieval quality with far less friction.',
     entries: [
-      'Admin overview, billing, workflow ops, trace center, and audit drawer surfaces now use MotionList and MotionListItem for staggered entrance animations.',
-      'Trace detail drawer exposes retrieval diagnostics: per-source similarity, final score, freshness, authority, and stale warnings side by side.',
-      'Action receipt drawer wraps the immutable log header in a reveal section and animates before/after diff rows on open.',
-      'Workspace command palette results now animate in with MotionListItem stagger at 40ms intervals.',
-      'Failed workflow run items in the ops tab stagger into view to reduce cognitive load when multiple failures surface at once.',
+      'Admin overview, billing, workflow ops, trace center, and audit drawer now use staggered motion primitives.',
+      'Trace detail drawer now exposes retrieval diagnostics including similarity, score, freshness, authority, and stale warnings.',
+      'Action receipt drawer now animates immutable log headers and before/after diff rows.',
+      'Workspace command palette results now animate with a 40ms stagger.',
+      'Failed workflow run items now reveal progressively to reduce cognitive load.',
     ],
   },
   {
     version: '0.9.7',
-    date: '2026-04-26',
-    tag: 'Release',
+    date: '2026-03-28',
+    tag: 'Motion',
+    badge: 'Marketing',
     title: 'Landing Page GSAP + Marketing Motion',
+    impact: 'The public site now communicates Prymal as a premium, cinematic AI operating system.',
     entries: [
-      'GSAP ScrollTrigger parallax applied to showcase section visuals. Each product video column moves at a separate depth layer as the user scrolls.',
-      'Hero copy children animate in with a staggered power3.out ease on page load. Forest layer parallax runs on three depth planes.',
-      'Ivy stem growth animation tied to scroll position via scrub. Cards along the primal operating loop reveal as the stem reaches each node.',
-      'GSAP context cleanup runs on component unmount, preventing ScrollTrigger leaks across hot-module reloads in development.',
-      'All GSAP usage is scoped to marketing pages only. Workspace and admin surfaces use Framer Motion exclusively.',
+      'GSAP ScrollTrigger parallax added to showcase visuals.',
+      'Hero copy now enters with staggered cinematic timing.',
+      'Scroll-driven narrative animation added.',
+      'GSAP context cleanup prevents leaks.',
+      'GSAP isolated to marketing pages only.',
     ],
   },
   {
     version: '0.9.6',
-    date: '2026-04-19',
-    tag: 'Release',
+    date: '2026-03-21',
+    tag: 'QoL',
+    badge: 'Workspace',
     title: 'Agent Profile + Workspace Motion System',
+    impact: 'Agent interactions now feel more alive, continuous, and connected to the Prymal brand system.',
     entries: [
-      'Agent profile pages render a CinematicHeroScene backdrop with layered depth and an ambient pulse tied to the agent colour token.',
-      'Workspace chat messages animate in with MotionListItem. Streaming messages use a tighter reveal so the typing state feels continuous.',
-      'MessageInput composer uses MotionPanel for a soft entrance. Attachment chips and voice status indicators mount and unmount with MotionPresence.',
-      'Lore document inventory and search results use MotionList with a 40ms stagger. Empty states use MotionSection with a blur reveal.',
-      'Webhook subscription rows, form expansion, and secret reveal blocks in the workflow panel are all gated behind MotionPresence.',
+      'Agent profile cinematic backgrounds added.',
+      'Chat message animations improved.',
+      'Streaming responses feel continuous.',
+      'Composer + attachments animated.',
+      'LORE + workflow UI unified.',
     ],
   },
   {
     version: '0.9.5',
-    date: '2026-04-12',
-    tag: 'Release',
+    date: '2026-03-14',
+    tag: 'Platform',
+    badge: 'Motion',
     title: 'Premium Motion System Foundation',
+    impact: 'Prymal gained a reusable motion language across all surfaces.',
     entries: [
-      'Introduced the Prymal motion system: MotionProvider, MotionPage, MotionSection, MotionList, MotionListItem, MotionCard, MotionPanel, MotionStat, MotionTimelineItem, MotionDrawer, and MotionModal.',
-      'All motion tokens (durations, easings, springs, staggers) centralised in motion.js. MOTION_STAGGERS provides dense (40ms), comfortable (75ms), and narrative (120ms) presets.',
-      'usePrymalReducedMotion hook reads the OS preference and short-circuits all variants to instant when active.',
-      'AgentSidebar now uses MotionPanel for the outer shell and MotionList for conversation history. Editing mode toggle animates with MotionPresence.',
-      'Schema validation badges and SENTINEL review badges in the chat renderer reveal with a 150ms delay after the message content settles.',
+      'Full motion system introduced.',
+      'Centralised animation tokens.',
+      'Reduced motion support added.',
+      'Sidebar motion improvements.',
+      'SENTINEL badge animations added.',
     ],
   },
   {
     version: '0.9.0',
-    date: '2026-04-05',
-    tag: 'Release',
+    date: '2026-03-05',
+    tag: 'Automation',
+    badge: 'Workflows',
+    milestone: true,
     title: 'Workflow Visual Builder + Admin Monitoring',
+    impact: 'Prymal became more than chat — users can now build and operate workflows.',
     entries: [
-      'Added a drag-and-drop visual workflow builder powered by React Flow. Drag agents from the panel, connect steps, and save as a named workflow without writing JSON.',
-      'Three new admin-only tabs: Audit Log viewer, Credit Usage monitor with per-org consumption bars, and Product Events feed.',
-      'Extended thinking now gates to Pro, Teams, and Agency plans. Free and Solo workspaces route SAGE and CIPHER through standard Sonnet.',
-      'LORE document cards now display word count and last-indexed timestamp. URL source type is visible in the document metadata.',
-      'Public changelog page added at prymal.io/changelog.',
+      'Drag-and-drop workflow builder added.',
+      'Admin monitoring tools introduced.',
+      'Plan-based agent gating enforced.',
+      'LORE metadata expanded.',
+      'Changelog launched.',
     ],
   },
   {
     version: '0.8.2',
-    date: '2026-03-18',
+    date: '2026-02-18',
     tag: 'Fix',
+    badge: 'Patch',
     title: 'Power-Up Studio Patch',
+    impact: 'Power-Up system consistency restored.',
     entries: [
-      'Fixed a disconnect where the Power-Up library in the workspace studio was missing the prompt field, causing empty drafts when navigating from the agent profile page.',
-      'All eleven built-in Power-Ups now have correct prompt templates synced between the frontend library and the backend definition.',
+      'Fixed missing prompts.',
+      'Synced templates frontend/backend.',
     ],
   },
   {
     version: '0.8.0',
-    date: '2026-03-01',
-    tag: 'Release',
-    title: 'SAGE Extended Thinking + Entitlement Tests',
+    date: '2026-02-01',
+    tag: 'Update',
+    badge: 'Reasoning',
+    title: 'SAGE Extended Thinking',
+    impact: 'Agents now produce deeper strategic outputs.',
     entries: [
-      'SAGE now uses Anthropic extended thinking via claude-opus-4-7 on qualifying plans, improving strategic analysis and SWOT output quality.',
-      'CIPHER extended thinking budget increased from 8,000 to 12,000 tokens for deeper data analysis tasks.',
-      'Expanded unit test coverage for entitlements (plan config, agent access gates, credit assertion) and billing (webhook signature validation).',
-      'Atlas agent max response tokens increased to 12,000 to support longer cross-document synthesis.',
+      'Extended thinking added.',
+      'CIPHER upgraded.',
+      'Tests expanded.',
+      'Atlas output improved.',
     ],
   },
   {
     version: '0.7.0',
-    date: '2026-02-10',
-    tag: 'Release',
-    title: 'NEXUS Workflows and Run History',
+    date: '2026-01-10',
+    tag: 'Automation',
+    badge: 'NEXUS',
+    title: 'Workflow Engine',
+    impact: 'Automation gained execution structure and observability.',
     entries: [
-      'Workflow definitions now support four trigger types: manual, schedule (cron), webhook, and event.',
-      'Live run queue with per-node status, execution log, and token usage per step.',
-      'Topological sort ensures nodes execute in dependency order. Cycle detection prevents invalid graphs from being saved.',
-      'Admin overview includes document queue, workflow load, and active integration counts.',
+      'Trigger system added.',
+      'Run queue introduced.',
+      'Execution safety improved.',
+      'Admin metrics added.',
     ],
   },
   {
     version: '0.6.0',
-    date: '2026-01-20',
-    tag: 'Release',
-    title: 'LORE Knowledge Base + Integrations',
+    date: '2025-12-20',
+    tag: 'Knowledge',
+    badge: 'LORE',
+    title: 'Knowledge Base',
+    impact: 'Agents gained memory and retrieval.',
     entries: [
-      'LORE knowledge base supports plain text, Markdown, and CSV document types. Text and URL sources can be ingested directly from the workspace.',
-      'pgvector semantic search retrieves up to 6 relevant chunks per agent query with source attribution.',
-      'Integration manager tracks connection state, last synced timestamp, and per-integration credentials.',
-      'Agent responses that draw from LORE now include a sources panel showing the matched document titles.',
+      'LORE introduced.',
+      'Semantic search added.',
+      'Integrations expanded.',
+      'Source attribution added.',
     ],
   },
   {
     version: '0.5.0',
     date: '2025-12-01',
-    tag: 'Release',
-    title: 'Multi-Agent Workspace + Billing',
+    tag: 'Milestone',
+    badge: 'Foundation',
+    milestone: true,
+    title: 'Initial Platform Release',
+    impact: 'Core system launched.',
     entries: [
-      'Eleven specialist agents now available: CIPHER, HERALD, FORGE, ECHO, ORACLE, WREN, VANCE, LEDGER, SCOUT, SAGE, and LORE.',
-      'Stripe billing integration with monthly, quarterly, and yearly intervals. Webhook handler applies plan changes in real time.',
-      'Seat management and organisation invitations. Owners can invite members and control access to agent capabilities per plan.',
-      'Credit system enforces monthly usage limits. Over-limit requests return a 402 with an upgrade prompt.',
+      'Agents introduced.',
+      'Billing added.',
+      'Teams system added.',
+      'Credit system enforced.',
     ],
   },
 ];
 
 const TAG_COLORS = {
-  Release: '#00FFD1',
+  Milestone: '#A78BFA',
+  Update: '#4CC9F0',
+  QoL: '#22C55E',
+  Performance: '#FACC15',
   Fix: '#F59E0B',
-  Beta: '#4CC9F0',
+  Platform: '#38BDF8',
+  Admin: '#FB7185',
+  Motion: '#C084FC',
+  Automation: '#2DD4BF',
+  Knowledge: '#60A5FA',
 };
+
 
 export default function Changelog() {
   const reducedMotion = usePrymalReducedMotion();
@@ -185,62 +224,111 @@ export default function Changelog() {
     }
   };
 
+  const sortedChangelog = [...CHANGELOG].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
   return (
-    <div className="marketing-page prymal-marketing pm-page">
+    <div className="marketing-page prymal-marketing pm-page pm-changelog-page">
       <PageMeta
         title="Changelog — Prymal"
-        description="A running log of what has shipped in Prymal: new agents, features, fixes, and platform improvements."
+        description="Follow Prymal's product evolution: agents, workflows, media generation, platform reliability, and AI workspace improvements."
         canonicalPath="/changelog"
       />
+
       <MagicalCanvas reducedMotion={reducedMotion} />
+
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="changelog" onSignupClick={trackSignup} />
 
-        <PageShell width="780px">
-          <div className="pm-page__inner" style={{ display: 'grid', gap: '24px' }}>
-            <div className="pm-page-header" style={{ paddingBottom: 0 }}>
-              <div className="pm-page-header__eyebrow">
-                <span className="pm-hero__badge-dot" />
-                Changelog
-              </div>
-              <h1 className="pm-page-header__title">What has shipped</h1>
-              <p className="pm-page-header__sub">
-                A running record of new features, improvements, and fixes across the Prymal platform.
-              </p>
-              <div className="pm-page-header__actions">
-                <Link to="/signup" className="pm-btn pm-btn--primary" onClick={trackSignup}>Start free →</Link>
-              </div>
-            </div>
+        <PageShell width="980px">
+          <div className="pm-page__inner pm-changelog-shell">
+            <MotionSection reveal={{ y: 24, blur: 10 }}>
+              <header className="pm-changelog-hero">
+                <div className="pm-page-header__eyebrow">
+                  <span className="pm-hero__badge-dot" />
+                  Product evolution
+                </div>
+
+                <h1 className="pm-changelog-hero__title">What’s new in Prymal</h1>
+
+                <p className="pm-changelog-hero__sub">
+                  A polished release timeline covering agents, workflows, media generation,
+                  retrieval, motion, billing, and platform reliability.
+                </p>
+
+                <div className="pm-changelog-hero__actions">
+                  <Link to="/signup" className="pm-btn pm-btn--primary" onClick={trackSignup}>
+                    Start free →
+                  </Link>
+                  <Link to="/pricing" className="pm-btn pm-btn--ghost">
+                    View pricing
+                  </Link>
+                </div>
+
+                <div className="pm-changelog-stats">
+                  <div>
+                    <strong>{CHANGELOG.length}</strong>
+                    <span>releases logged</span>
+                  </div>
+                  <div>
+                    <strong>15</strong>
+                    <span>specialist agents</span>
+                  </div>
+                  <div>
+                    <strong>1.0</strong>
+                    <span>general availability</span>
+                  </div>
+                </div>
+              </header>
+            </MotionSection>
 
             <MotionSection reveal={{ y: 20, blur: 8 }}>
-              <div style={{ display: 'grid', gap: '16px' }}>
-              {CHANGELOG.map((entry) => (
-                <MotionTimelineItem
-                  key={entry.version}
-                  accent={TAG_COLORS[entry.tag] ?? '#00FFD1'}
-                >
-                  <div className="pm-changelog-entry">
-                    <div className="pm-changelog-entry__header">
-                      <span className="pm-changelog-entry__title">{entry.title}</span>
-                      <span
-                        className="pm-changelog-entry__tag"
-                        style={{
-                          borderColor: `${TAG_COLORS[entry.tag] ?? '#555'}44`,
-                          color: TAG_COLORS[entry.tag] ?? 'rgba(255,255,255,0.5)',
-                        }}
-                      >
-                        {entry.tag}
-                      </span>
-                    </div>
-                    <div className="pm-changelog-entry__meta">v{entry.version} · {entry.date}</div>
-                    <ul>
-                      {entry.entries.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </MotionTimelineItem>
-              ))}
+              <div className="pm-changelog-timeline">
+                {sortedChangelog.map((entry, index) => {
+                  const accent = TAG_COLORS[entry.tag] ?? '#00FFD1';
+
+                  return (
+                    <article
+                      key={entry.version}
+                      className={`pm-changelog-card ${
+                        entry.milestone ? 'pm-changelog-card--milestone' : ''
+                      }`}
+                      style={{ '--entry-accent': accent }}
+                    >
+                      <div className="pm-changelog-card__rail">
+                        <span className="pm-changelog-card__node" />
+                        {index !== sortedChangelog.length - 1 && (
+                          <span className="pm-changelog-card__line" />
+                        )}
+                      </div>
+
+                      <div className="pm-changelog-card__body">
+                        <div className="pm-changelog-card__top">
+                          <div className="pm-changelog-card__version">
+                            <span>v{entry.version}</span>
+                            <time dateTime={entry.date}>{entry.date}</time>
+                          </div>
+
+                          <div className="pm-changelog-card__badges">
+                            <span className="pm-changelog-card__badge">{entry.badge}</span>
+                            <span className="pm-changelog-card__tag">{entry.tag}</span>
+                          </div>
+                        </div>
+
+                        <h2 className="pm-changelog-card__title">{entry.title}</h2>
+
+                        <p className="pm-changelog-card__impact">{entry.impact}</p>
+
+                        <ul className="pm-changelog-card__list">
+                          {entry.entries.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </MotionSection>
           </div>
