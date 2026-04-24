@@ -7,6 +7,19 @@ import '../styles/landing-rebuild.css';
 
 const CHANGELOG = [
   {
+    version: '0.9.6.1',
+    date: '2026-04-24',
+    tag: 'Release',
+    title: 'Guided Media Builders + Veo Standard',
+    entries: [
+      'The workspace now opens guided builders for `/image` and `/video`, with structured controls for prompt, quality, size, duration, aspect ratio, and output settings.',
+      'Video generation now offers two server-validated lanes: Fast draft on Veo 3.1 Lite and Cinematic on Veo 3.1 Standard.',
+      'Standard-mode renders support up to three reference images on 8 second jobs, giving agencies a cleaner way to guide visual direction.',
+      'Media builders now show approximate prompt-token and credit estimates before submit, while final billing and queue checks remain server-side authoritative.',
+      'Generated video cards now show the render lane, duration, aspect ratio, resolution, and reference-image count directly in chat artifacts.',
+    ],
+  },
+  {
     version: '1.0.0',
     date: '2026-05-17',
     tag: 'Release',

@@ -123,6 +123,7 @@ psql "$DATABASE_URL" < database/migrations/2026-04-06-add-pixel-agent.sql
 psql "$DATABASE_URL" < database/migrations/2026-04-06-control-plane-runtime-hardening.sql
 psql "$DATABASE_URL" < database/migrations/2026-04-06-memory-scope-expansion.sql
 psql "$DATABASE_URL" < database/migrations/2026-04-07-workflow-webhooks.sql
+psql "$DATABASE_URL" < database/migrations/2026-04-23-billing-credit-schema.sql
 psql "$DATABASE_URL" -c "ALTER TABLE waitlist_entries ADD COLUMN IF NOT EXISTS invited_at TIMESTAMPTZ;"
 ```
 
@@ -196,6 +197,12 @@ Configure:
    - `STRIPE_PRICE_AGENCY`
    - `STRIPE_PRICE_AGENCY_QUARTERLY`
    - `STRIPE_PRICE_AGENCY_YEARLY`
+   - `STRIPE_PRICE_EXEC_100`
+   - `STRIPE_PRICE_EXEC_300`
+   - `STRIPE_PRICE_EXEC_700`
+   - `STRIPE_PRICE_VIDEO_15`
+   - `STRIPE_PRICE_VIDEO_30`
+   - `STRIPE_PRICE_VIDEO_100`
    - `STRIPE_PRICE_SEAT_ADDON`
 6. Configure the webhook:
    - `POST https://<backend-domain>/api/billing/webhook/stripe`
@@ -216,7 +223,15 @@ Required for real product behaviour:
 Optional but supported:
 
 - `GEMINI_API_KEY`
+- `GEMINI_MODEL_VEO`
+- `GEMINI_MODEL_VEO_STANDARD`
 - `GEMINI_GROUNDING_ENABLED=false` for launch; live Gemini web grounding is intentionally deferred
+
+Current media-generation constraints to keep honest in deploy/runbooks:
+
+- Prymal currently supports Veo one-shot renders at `4`, `6`, or `8` seconds only.
+- Guided reference images are supported on Veo 3.1 Standard for `8` second renders only.
+- UI token and credit previews are advisory; billing enforcement stays server-side authoritative.
 
 Email:
 
@@ -286,6 +301,8 @@ curl https://<backend-domain>/health
 - Start with one backend instance for launch.
 - If you scale horizontally, configure Upstash Redis so rate limiting is shared.
 - If Trigger.dev is not configured, scheduled workflows are inline-only and should be communicated that way.
+- Video generation currently stores reference uploads under `backend/storage/video-reference-images` and completed outputs under `backend/storage/generated-videos`.
+- Because those assets are served from local disk, single-instance backend deploys are the honest default until shared object storage is added.
 
 ## Step 6: Deploy Frontend
 
@@ -410,6 +427,8 @@ Run these checks after every staging deploy and before every production go-live:
 - [ ] As a brand-new user, confirm the dashboard and first chat clearly explain what to ask Prymal to do
 - [ ] Verify a normal response renders
 - [ ] Verify the first-run hint and starter prompts appear on a fresh workspace
+- [ ] Verify `/image` opens the guided image builder and shows token/credit guidance
+- [ ] Verify `/video` opens the guided video builder and shows mode, duration, aspect, and credit guidance
 - [ ] Verify a SENTINEL-held response is visible in admin traces if one exists in the staging window
 
 ### LORE
@@ -430,8 +449,9 @@ Run these checks after every staging deploy and before every production go-live:
 
 - [ ] Start a Stripe checkout session
 - [ ] Open the Stripe billing portal with the staging billing account
-- [ ] Verify plan changes land through Stripe webhooks
+- [ ] Verify plan changes and top-up packs land through Stripe webhooks
 - [ ] Verify execution/video credit balances update after a real run and a real video job
+- [ ] Verify failed video jobs release reserved video credits correctly
 
 ### Admin / operations
 

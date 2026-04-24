@@ -67,11 +67,16 @@ node --check src/routes/workflows.js
 - LORE currently supports pasted text, crawled URLs, `.txt`, `.md`, `.markdown`, `.csv`, `.pdf`, and `.docx`.
 - Trigger.dev is optional. Scheduled workflows must not be presented as active unless Trigger.dev is configured.
 - API keys are real and Agency-only.
+- `/image` and `/video` now use guided workspace builders. Do not document or design around raw slash-command-only media flows.
+- Prymal currently supports Veo one-shot renders at `4`, `6`, or `8` seconds only. Do not claim arbitrary longer single-pass durations.
+- Video reference images are currently supported only on Veo 3.1 Standard at `8` seconds.
+- Generated video outputs and uploaded video reference images currently live on backend-local storage under `backend/storage/`. Do not imply durable/shared media storage until object storage is implemented.
 - Do not reintroduce fictional integrations or unsupported ingestion types in the UI.
 
 ## Frontend conventions
 
 - Shared agent metadata lives in `frontend/src/lib/constants.js`.
+- Media-builder options and credit/token estimates live in `frontend/src/features/workspace/chat/media-generation.js`.
 - Reuse shared primitives from `frontend/src/components/ui.jsx` before adding more page-local UI wrappers.
 - Prefer route-safe flows:
   - `/`
@@ -84,11 +89,13 @@ node --check src/routes/workflows.js
 
 - Prefer parameterised Drizzle queries over raw SQL.
 - Keep route payloads validated with Zod where practical.
+- Billing, queue validation, and burn logic must remain server-side authoritative. Frontend estimates are guidance only.
 - If a dependency is only needed for an optional feature, avoid eager startup imports when possible.
 
 ## Docs and env files
 
 - Keep `README.md` honest.
+- Keep `RELEASE.md`, `DEPLOY.md`, and the public changelog aligned with the actual shipped product surface.
 - Keep `frontend/.env.example` and `backend/.env.example` current when adding or removing env vars.
 - If a feature is partial, either finish it or narrow the docs and UI language immediately.
 

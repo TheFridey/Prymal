@@ -2,6 +2,19 @@
 
 This repository currently ships from the `master` branch. CI and branch protection should point at `master` until the live default branch is renamed.
 
+## Recent shipped updates
+
+- Guided `/image` and `/video` builders now open modal-based brief composers instead of relying on long free-form slash commands.
+- Video generation now exposes two Veo lanes in-product: `Fast draft` (Veo 3.1 Lite) and `Cinematic` (Veo 3.1 Standard), with approximate prompt-token and credit estimates shown before submit.
+- Standard-mode video renders now support up to three reference images on 8 second jobs, while final validation, queueing, and credit burn remain server-side authoritative.
+- Generated video cards now surface render metadata such as duration, resolution, aspect ratio, Veo lane, and reference-image count directly in chat artifacts.
+
+## Operational caveat
+
+- Generated video outputs and uploaded reference images currently live on backend-local storage under `backend/storage/`.
+- Keep the backend single-instance for video generation until shared object storage is added.
+- Do not market video storage as durable across deploys or horizontally scaled instances yet.
+
 ## Required CI gates
 
 The GitHub Actions workflow at `.github/workflows/ci.yml` is the release gate for:

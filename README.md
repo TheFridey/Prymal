@@ -30,7 +30,8 @@ Prymal/
 - Guided onboarding with workspace profiling and first-win recommendations
 - Team settings for seats, invites, roles, membership management, and Agency-only API key management
 - Shared agent constants, reusable UI primitives, and the admin component library (`AdminHero`, `AdminCommandBar`, `admin/runtime/shared.jsx`)
-- `MessageArtifacts.jsx` with schema validation badges (`pass` / `repaired` / `failed`), SENTINEL verdict chips, and PIXEL image artifact rendering
+- Guided `/image` and `/video` builders with modal controls for prompt, size/quality, Veo lane, duration, aspect ratio, reference images, and approximate prompt-token / credit estimates before submit
+- `MessageArtifacts.jsx` with schema validation badges (`pass` / `repaired` / `failed`), SENTINEL verdict chips, and PIXEL image/video artifact rendering with Veo lane metadata
 - Lore workspace decomposition into `LoreDocumentInventory`, `LoreIngestPanel`, `LoreSearchPanel`, and `loreHelpers`
 - Inline RAG contradiction warnings in `LoreIngestPanel` and document conflict badges in `LoreDocumentInventory`
 - `voiceRuntime.js` with WebRTC capability detection, MediaRecorder transcription fallback, and OpenAI Realtime WebRTC transcription path
@@ -60,6 +61,8 @@ Prymal/
 - OAuth integrations for Gmail, Google Drive, Notion, and Slack
 - Invitation email delivery and waitlist batch invite dispatch through `email_queue`
 - Stripe checkout, portal, usage stats, and webhook sync
+- Deterministic execution/video credit burn with append-only ledgers, threshold tracking, top-up packs, and server-authoritative entitlement enforcement
+- Veo video queue with `lite` and `standard` lanes, Standard-mode reference images for 8 second renders, and generated asset serving through the backend
 - API key issuance and revocation
 - Staff admin control plane with tiered RBAC, immutable admin action logs, feature flags, credit adjustment history, trace drilldowns, failed-run explorer, scorecards, model spend, and org timelines
 - Waitlist batch invite endpoint (`POST /admin/waitlist/batch-invite`) with `email_queue` dispatch, `invited_at` updates, and admin audit logging
@@ -191,14 +194,14 @@ Backend env loading is now split into:
 
 ### Optional backend features
 
-- Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_TEAMS`, `STRIPE_PRICE_AGENCY`
+- Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, plan price IDs, execution/video top-up price IDs, and `STRIPE_PRICE_SEAT_ADDON`
 - Trigger.dev: `TRIGGER_API_KEY`, optional `TRIGGER_API_URL`
 - Integrations: Google, Notion, and Slack OAuth credentials
 - Secure OAuth callback state: `INTEGRATION_STATE_SECRET`
 - Invitations: `RESEND_API_KEY`, `EMAIL_FROM`, optional `INVITE_EMAIL_REPLY_TO`
 - Tiered internal staff access: `STAFF_SUPPORT_*`, `STAFF_OPS_*`, `STAFF_FINANCE_*`, `STAFF_SUPERADMIN_*`
 - Model lanes and overrides: `ANTHROPIC_MODEL_PREMIUM`, `ANTHROPIC_MODEL_DEFAULT`, `ANTHROPIC_MODEL_FAST`, `OPENAI_MODEL_PREMIUM`, `OPENAI_MODEL_ROUTER`, `OPENAI_MODEL_LIGHTWEIGHT`, optional `ORG_MODEL_POLICY_OVERRIDES`
-- Google Gemini (optional third lane): `GEMINI_API_KEY`, `GEMINI_MODEL_FLASH` (default `gemini-2.5-flash`), `GEMINI_MODEL_PRO` (default `gemini-2.5-pro`), `GEMINI_GROUNDING_ENABLED=false` for launch
+- Google Gemini (optional third lane): `GEMINI_API_KEY`, `GEMINI_MODEL_FLASH` (default `gemini-2.5-flash`), `GEMINI_MODEL_PRO` (default `gemini-2.5-pro`), `GEMINI_MODEL_VEO` (default `veo-3.1-lite-generate-preview`), `GEMINI_MODEL_VEO_STANDARD` (default `veo-3.1-generate-preview`), `GEMINI_GROUNDING_ENABLED=false` for launch
 - Optional model cost overrides for LLM tracing: `MODEL_COST_OVERRIDES`
 - Workflow runtime controls: `WORKFLOW_NODE_TIMEOUT_MS`, `WORKFLOW_RUN_TIMEOUT_MS`, `WORKFLOW_MAX_ATTEMPTS`
 - Optional distributed rate limiting: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
@@ -214,15 +217,22 @@ Backend env loading is now split into:
 
 Current plan defaults in code:
 
-| Plan | Monthly credits | Notes |
-|---|---:|---|
-| `free` | 50 | limited agent access; rate limits: chat 10/min, LORE ingest 5/min, workflow runs 3/min |
-| `solo` | 500 | includes LORE; rate limits: chat 30/min, LORE ingest 20/min, workflow runs 10/min |
-| `pro` | 2000 | full specialist roster plus SENTINEL review eligibility; rate limits: chat 60/min, LORE ingest 50/min, workflow runs 30/min |
-| `teams` | 6000 | 5 included seats, seat add-ons available, SENTINEL review eligibility, rate limits: chat 100/min, LORE ingest 100/min, workflow runs 60/min |
-| `agency` | 10000 | 25-seat workspace, API keys, SENTINEL review eligibility, and unlimited plan-aware rate limits |
+| Plan | Execution credits / month | Video credits / month | Notes |
+|---|---:|---:|---|
+| `free` | 50 | 0 | limited agent access; rate limits: chat 10/min, LORE ingest 5/min, workflow runs 3/min |
+| `solo` | 500 | 0 | includes LORE; rate limits: chat 30/min, LORE ingest 20/min, workflow runs 10/min |
+| `pro` | 2000 | 10 | full specialist roster plus SENTINEL review eligibility; rate limits: chat 60/min, LORE ingest 50/min, workflow runs 30/min |
+| `teams` | 6000 | 30 | 5 included seats, seat add-ons available, SENTINEL review eligibility, rate limits: chat 100/min, LORE ingest 100/min, workflow runs 60/min |
+| `agency` | 10000 | 60 | 25-seat workspace, API keys, SENTINEL review eligibility, and unlimited plan-aware rate limits |
 
-Credits are now enforced before expensive agent and workflow execution paths.
+Execution and video credits are enforced separately before expensive agent, workflow, and media-generation paths.
+
+Video-generation rules currently implemented in code:
+
+- `/video` supports two server-authoritative lanes: `lite` (Veo 3.1 Lite) and `standard` (Veo 3.1 Standard)
+- current Veo durations are limited to `4`, `6`, or `8` seconds
+- Standard-mode reference images are supported for `8` second renders only
+- UI token and credit previews are approximate guidance only; final billing stays server-side authoritative
 
 ## Security
 
@@ -261,7 +271,9 @@ Credits are now enforced before expensive agent and workflow execution paths.
 - `database/migrations/2026-04-06-control-plane-runtime-hardening.sql`
 - `database/migrations/2026-04-06-memory-scope-expansion.sql`
 - `database/migrations/2026-04-07-workflow-webhooks.sql`
+- `database/migrations/2026-04-23-billing-credit-schema.sql`
 - `backend/drizzle/0001_waitlist_invited_at.sql` - adds `invited_at` to `waitlist_entries`
+- `backend/drizzle/0002_billing_credit_schema.sql` - adds subscriptions, ledgers, usage events, and threshold state tables
 
 Keep `backend/src/db/schema.js` and `database/schema.sql` in sync whenever you add future migrations.
 
@@ -295,6 +307,7 @@ Full runtime smoke testing still depends on a complete local install for:
 - Trigger.dev scheduling is intentionally optional; the inline scheduler is the fallback for local/manual execution.
 - Gemini live grounding via Google Search remains intentionally deferred and disabled by default; do not enable `GEMINI_GROUNDING_ENABLED` until the provider/tooling path is explicitly cleared for production.
 - Final WebP avatar assets for all 15 agents are committed under `frontend/src/assets/agents/`.
+- Generated video outputs and uploaded video reference images currently live on backend-local storage under `backend/storage/`. Single-instance deploys are the honest default until shared object storage is added.
 
 ## Next high-leverage sprint
 
