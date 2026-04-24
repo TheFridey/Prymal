@@ -3,7 +3,7 @@ import { api } from '../../../../lib/api';
 import { consumeAgentStream } from '../../../../lib/agentStream';
 import { findAgentByInvocation, stripAgentInvocationPrefix } from '../../../../lib/constants';
 import { getErrorMessage } from '../../../../lib/utils';
-import { extractImagePrompt, extractVideoPrompt } from '../../composer/commands';
+import { extractImagePrompt, extractVideoRequest } from '../../composer/commands';
 import {
   getVoiceReplyCharacterLimit,
   getVoiceReplyPitch,
@@ -110,9 +110,19 @@ export function useChatSend({
     ]);
   }
 
-  async function handleImageGeneration({ targetAgent, prompt }) {
+  async function handleImageGeneration({
+    targetAgent,
+    prompt,
+    size = '1024x1024',
+    quality = null,
+    outputFormat = 'webp',
+    background = 'auto',
+  }) {
     const settings = settingsByAgentRef.current[targetAgent.id] ?? {};
     const userContent = `/image ${prompt}`;
+    const finalQuality = quality ?? (
+      settings.responseLength === 'long' ? 'high' : settings.responseLength === 'short' ? 'low' : 'medium'
+    );
 
     setDraft('');
     setStreamingText('');
@@ -133,10 +143,10 @@ export function useChatSend({
         agentId: targetAgent.id,
         conversationId: selectedConversationIdsRef.current[targetAgent.id] || undefined,
         prompt,
-        quality: settings.responseLength === 'long' ? 'high' : settings.responseLength === 'short' ? 'low' : 'medium',
-        size: '1024x1024',
-        outputFormat: 'webp',
-        background: 'auto',
+        quality: finalQuality,
+        size,
+        outputFormat,
+        background,
       });
 
       setIsStreaming(false);
@@ -174,7 +184,15 @@ export function useChatSend({
     }
   }
 
-  async function handleVideoGeneration({ targetAgent, prompt }) {
+  async function handleVideoGeneration({
+    targetAgent,
+    prompt,
+    durationSeconds = 4,
+    resolution = '720p',
+    aspectRatio = '16:9',
+    mode = 'lite',
+    referenceImages = [],
+  }) {
     setDraft('');
     setStreamingText('');
     setStreamingTask(buildStreamingTask({
@@ -193,9 +211,11 @@ export function useChatSend({
         agentId: targetAgent.id,
         conversationId: selectedConversationIdsRef.current[targetAgent.id] || undefined,
         prompt,
-        durationSeconds: 4,
-        resolution: '720p',
-        aspectRatio: '16:9',
+        durationSeconds,
+        resolution,
+        aspectRatio,
+        mode,
+        referenceImages,
       });
 
       if (targetAgent.id === activeAgentRef.current?.id) {
@@ -271,7 +291,7 @@ export function useChatSend({
     }
 
     const imagePrompt = extractImagePrompt(finalMessage);
-    const videoPrompt = extractVideoPrompt(finalMessage);
+    const videoRequest = extractVideoRequest(finalMessage);
     const isFirstMessage =
       !selectedConversationIdsRef.current[targetAgent.id] && /* messages.length === 0 — caller resets state */ true;
 
@@ -289,8 +309,14 @@ export function useChatSend({
       return;
     }
 
-    if (videoPrompt) {
-      await handleVideoGeneration({ targetAgent, prompt: videoPrompt });
+    if (videoRequest) {
+      await handleVideoGeneration({
+        targetAgent,
+        prompt: videoRequest.prompt,
+        durationSeconds: videoRequest.durationSeconds,
+        resolution: videoRequest.resolution,
+        aspectRatio: videoRequest.aspectRatio,
+      });
       return;
     }
 

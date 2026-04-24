@@ -11,6 +11,7 @@ import { planAwareRateLimit } from '../middleware/rateLimit.js';
 import { canAccessAgent } from '../services/entitlements.js';
 import {
   commitExecutionUsage,
+  releaseVideoJob,
   releaseExecutionUsage,
   reserveExecutionCredits,
   reserveVideoCredits,
@@ -18,6 +19,7 @@ import {
 import { applyReservationThrottle } from '../services/billing-throttle.js';
 import { generateImageAsset } from '../services/image-generation.js';
 import { enqueueVideoGenerationJob } from '../services/video-generation.js';
+import { persistVideoReferenceImages } from '../services/video-reference-images.js';
 import { getAccessToken } from './integrations.js';
 import { estimateTokens, streamAgentResponse } from '../services/llm.js';
 import {
@@ -74,9 +76,15 @@ const videoGenerationSchema = z.object({
   agentId: z.enum(AGENT_IDS),
   prompt: z.string().trim().min(1).max(4000),
   conversationId: z.string().uuid().optional(),
-  durationSeconds: z.union([z.literal(4), z.literal(6), z.literal(8)]).default(4),
+  durationSeconds: z.number().int().min(1).max(30).default(4),
   resolution: z.enum(['720p', '1080p']).default('720p'),
   aspectRatio: z.enum(['16:9', '9:16']).default('16:9'),
+  mode: z.enum(['lite', 'standard']).default('lite'),
+  referenceImages: z.array(z.object({
+    base64: z.string().max(3_000_000),
+    mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+    name: z.string().max(255),
+  })).max(3).optional(),
 });
 const mediaGenerationRateLimit = planAwareRateLimit({
   free: 4,
@@ -834,11 +842,54 @@ router.post('/generate-video', requireOrg, mediaGenerationRateLimit, zValidator(
     durationSeconds: payload.durationSeconds,
     resolution: payload.resolution,
     aspectRatio: payload.aspectRatio,
+    mode: payload.mode,
+    referenceImages: payload.referenceImages ?? [],
     metadata: {
       route: '/agents/generate-video',
       agentId: payload.agentId,
     },
   });
+
+  let referenceAssets = [];
+
+  try {
+    if ((payload.referenceImages ?? []).length > 0) {
+      referenceAssets = await persistVideoReferenceImages(reservation.job.id, payload.referenceImages);
+
+      await db
+        .update(videoGenerationEvents)
+        .set({
+          providerMetadata: {
+            ...(reservation.job.providerMetadata ?? {}),
+            referenceImages: referenceAssets,
+            referenceImageCount: referenceAssets.length,
+          },
+          updatedAt: new Date(),
+        })
+        .where(eq(videoGenerationEvents.id, reservation.job.id));
+    }
+  } catch (error) {
+    await releaseVideoJob({
+      jobId: reservation.job.id,
+      status: 'released',
+      failureCode: error?.code ?? 'VIDEO_REFERENCE_IMAGE_FAILED',
+      failureMessage: error?.message ?? 'Reference images could not be prepared for rendering.',
+      providerMetadata: {
+        mode: payload.mode,
+        referenceImageCount: 0,
+      },
+    }).catch((releaseError) => {
+      console.error('[BILLING] Failed to release video reservation after reference-image error:', releaseError.message);
+    });
+
+    return context.json(
+      {
+        error: error?.message ?? 'Reference images could not be prepared for rendering.',
+        code: error?.code ?? 'VIDEO_REFERENCE_IMAGE_FAILED',
+      },
+      error?.status ?? 400,
+    );
+  }
 
   const userContent = `/video ${payload.prompt}`;
   const [userMessage] = await db
@@ -849,9 +900,11 @@ router.post('/generate-video', requireOrg, mediaGenerationRateLimit, zValidator(
       content: userContent,
       metadata: {
         tool: 'video-generation',
+        mode: payload.mode,
         durationSeconds: payload.durationSeconds,
         resolution: payload.resolution,
         aspectRatio: payload.aspectRatio,
+        referenceImageCount: referenceAssets.length,
         videoJobId: reservation.job.id,
       },
     })

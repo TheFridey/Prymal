@@ -21,6 +21,7 @@ import {
   evaluateCostGuard,
   getBillingPlan,
   getCreditPack,
+  getVideoGenerationMode,
   getPackStripePriceId,
   getThresholdPresentation,
   getUsageThreshold,
@@ -416,12 +417,16 @@ export async function reserveVideoCredits({
   durationSeconds,
   resolution,
   aspectRatio,
+  mode = 'lite',
+  referenceImages = [],
   metadata = {},
 }) {
   const validation = validateVideoGenerationRequest({
     durationSeconds,
     resolution,
     aspectRatio,
+    mode,
+    referenceImages,
   });
 
   if (!validation.ok) {
@@ -441,7 +446,13 @@ export async function reserveVideoCredits({
       );
     }
 
-    const burn = calculateVideoCreditBurn({ durationSeconds, resolution });
+    const videoMode = getVideoGenerationMode(mode);
+    const burn = calculateVideoCreditBurn({
+      durationSeconds,
+      resolution,
+      mode,
+      referenceImageCount: referenceImages.length,
+    });
     const balances = getAvailableBalances(subscription, CREDIT_TYPES.video);
 
     assertCreditAvailability(CREDIT_TYPES.video, balances.available, burn.creditsUsed);
@@ -460,7 +471,7 @@ export async function reserveVideoCredits({
       durationSeconds,
       resolution,
     });
-    const estimatedCostUsd = estimateVideoProviderCostUsd({ durationSeconds, resolution });
+    const estimatedCostUsd = estimateVideoProviderCostUsd({ durationSeconds, resolution, mode });
     const costGuard = evaluateCostGuard({
       creditType: CREDIT_TYPES.video,
       credits: burn.creditsUsed,
@@ -474,8 +485,8 @@ export async function reserveVideoCredits({
         userId,
         conversationId,
         status: 'queued',
-        provider: 'google',
-        model: 'veo-3.1-lite-generate-preview',
+        provider: videoMode.provider,
+        model: videoMode.model,
         prompt,
         durationSeconds,
         resolution,
@@ -487,6 +498,9 @@ export async function reserveVideoCredits({
         heavyUsageFlagged: heavyUsage.flagged,
         providerMetadata: {
           ...metadata,
+          mode: videoMode.id,
+          providerLabel: videoMode.providerLabel,
+          referenceImageCount: referenceImages.length,
           reservationSplit: reserved.split,
           estimatedCostUsd,
           costGuard,
@@ -517,9 +531,12 @@ export async function reserveVideoCredits({
       reservedBalanceAfter: reserved.reservedBalance,
       metadata: {
         reservationSplit: reserved.split,
+        mode: videoMode.id,
+        providerLabel: videoMode.providerLabel,
         durationSeconds,
         resolution,
         aspectRatio,
+        referenceImageCount: referenceImages.length,
       },
     });
 
@@ -613,6 +630,7 @@ export async function commitVideoJob({
     const estimatedCostUsd = Number(job.providerMetadata?.estimatedCostUsd ?? estimateVideoProviderCostUsd({
       durationSeconds: job.durationSeconds,
       resolution: job.resolution,
+      mode: job.providerMetadata?.mode,
     }));
 
     const [nextSubscription] = await tx
@@ -637,8 +655,11 @@ export async function commitVideoJob({
       purchasedBalanceAfter: nextSubscription.videoPurchasedBalance,
       reservedBalanceAfter,
       metadata: {
+        mode: job.providerMetadata?.mode ?? 'lite',
+        providerLabel: job.providerMetadata?.providerLabel ?? null,
         outputUrl,
         outputFileName,
+        referenceImageCount: Number(job.providerMetadata?.referenceImageCount ?? 0),
       },
     });
 
@@ -719,8 +740,11 @@ export async function releaseVideoJob({
       purchasedBalanceAfter: restored.purchasedBalance,
       reservedBalanceAfter: restored.reservedBalance,
       metadata: {
+        mode: job.providerMetadata?.mode ?? 'lite',
+        providerLabel: job.providerMetadata?.providerLabel ?? null,
         failureCode,
         failureMessage,
+        referenceImageCount: Number(job.providerMetadata?.referenceImageCount ?? 0),
       },
     });
 

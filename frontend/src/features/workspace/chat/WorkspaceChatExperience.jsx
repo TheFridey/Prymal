@@ -6,12 +6,18 @@ import { mergeAgentState, sortAgentsByUiHierarchy } from '../../../lib/constants
 import { InlineNotice } from '../../../components/ui';
 import { useAppStore } from '../../../stores/useAppStore';
 import { useQuery } from '@tanstack/react-query';
-import { buildSlashCommands } from '../composer/commands';
+import {
+  buildSlashCommands,
+  extractImagePrompt,
+  extractVideoPrompt,
+  extractVideoRequest,
+} from '../composer/commands';
 import { resizeComposer } from '../composer/voice';
 import AgentSidebar from '../agents/AgentSidebar';
 import ChatPanel from './ChatPanel';
 import MessageInput from './MessageInput';
 import ChatSettingsModal from './ChatSettingsModal';
+import MediaGenerationModal from './MediaGenerationModal';
 import { useAgentStripDrag } from './hooks/useAgentStripDrag';
 import { useConversationManager, DEFAULT_CHAT_SETTINGS } from './hooks/useConversationManager';
 import { useChatSend } from './hooks/useChatSend';
@@ -58,6 +64,7 @@ export default function WorkspaceChatExperience({
   const [commandFilter, setCommandFilter] = useState('');
   const [commandIndex, setCommandIndex] = useState(0);
   const [showFirstRunHint, setShowFirstRunHint] = useState(false);
+  const [mediaComposer, setMediaComposer] = useState(null);
 
   useEffect(() => { draftRef.current = draft; }, [draft]);
 
@@ -290,6 +297,71 @@ export default function WorkspaceChatExperience({
     setShowFirstRunHint(false);
   }
 
+  function openMediaComposer(kind, initialDraftForModal = {}) {
+    setMediaComposer({
+      kind,
+      initialDraft: initialDraftForModal,
+    });
+  }
+
+  function closeMediaComposer() {
+    setMediaComposer(null);
+    requestAnimationFrame(() => composerRef.current?.focus());
+  }
+
+  async function handleMediaComposerSubmit(payload) {
+    if (!activeAgent || !mediaComposer) {
+      return;
+    }
+
+    setMediaComposer(null);
+
+    if (mediaComposer.kind === 'video') {
+      await chat.handleVideoGeneration({
+        targetAgent: activeAgent,
+        prompt: payload.prompt,
+        durationSeconds: payload.durationSeconds,
+        resolution: payload.resolution,
+        aspectRatio: payload.aspectRatio,
+        mode: payload.mode,
+        referenceImages: payload.referenceImages,
+      });
+      return;
+    }
+
+    await chat.handleImageGeneration({
+      targetAgent: activeAgent,
+      prompt: payload.prompt,
+      size: payload.size,
+      quality: payload.quality,
+      outputFormat: payload.outputFormat,
+      background: payload.background,
+    });
+  }
+
+  function handleComposerSend() {
+    const trimmedDraft = draft.trim();
+
+    if (/^\/image(?:\s+.*)?$/i.test(trimmedDraft)) {
+      openMediaComposer('image', {
+        prompt: extractImagePrompt(trimmedDraft) ?? '',
+      });
+      return;
+    }
+
+    if (/^\/video(?:\s+.*)?$/i.test(trimmedDraft)) {
+      openMediaComposer(
+        'video',
+        extractVideoRequest(trimmedDraft) ?? {
+          prompt: extractVideoPrompt(trimmedDraft) ?? '',
+        },
+      );
+      return;
+    }
+
+    void chat.handleSend(draft);
+  }
+
   // ── slash command setup ───────────────────────────────────────────────────
   const slashCommands = useMemo(
     () => buildSlashCommands({
@@ -300,11 +372,21 @@ export default function WorkspaceChatExperience({
       clearMessages: clearCurrentConversation,
       openSettings: () => setSettingsOpen(true),
       focusPrompt: (p) => setDraft(p),
+      openImageBuilder: () => openMediaComposer('image', { prompt: '' }),
+      openVideoBuilder: () => openMediaComposer('video', { prompt: '' }),
       toggleLore: () => conv.updateSettings({ useLore: !conv.activeSettings.useLore }),
       toggleVoiceReplies: () => conv.updateSettings({ voiceReplies: !conv.activeSettings.voiceReplies }),
       toggleVoiceAutoSend: () => conv.updateSettings({ voiceAutoSend: !conv.activeSettings.voiceAutoSend }),
     }),
-    [activeAgent, promptCards, conv.activeSettings],
+    [
+      activeAgent,
+      promptCards,
+      startNewChat,
+      clearCurrentConversation,
+      openMediaComposer,
+      conv.activeSettings,
+      conv.updateSettings,
+    ],
   );
 
   const filteredCommands = useMemo(() => {
@@ -335,7 +417,7 @@ export default function WorkspaceChatExperience({
     if (!commandMenuOpen) {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
-        void chat.handleSend(draft);
+        handleComposerSend();
       }
       return;
     }
@@ -490,7 +572,7 @@ export default function WorkspaceChatExperience({
               hasConversationContent={hasConversationContent}
               isFirstRun={!hasConversationContent}
               isStreaming={chat.isStreaming}
-              onSend={() => chat.handleSend(draft)}
+              onSend={handleComposerSend}
               onDraftChange={handleDraftChange}
               onComposerKeyDown={handleComposerKeyDown}
               onFileAttach={chat.handleFileAttach}
@@ -509,6 +591,17 @@ export default function WorkspaceChatExperience({
           activeSettings={conv.activeSettings}
           onUpdateSettings={conv.updateSettings}
           onClose={() => setSettingsOpen(false)}
+        />
+      ) : null}
+
+      {mediaComposer ? (
+        <MediaGenerationModal
+          kind={mediaComposer.kind}
+          activeAgent={activeAgent}
+          initialDraft={mediaComposer.initialDraft}
+          onClose={closeMediaComposer}
+          onSubmit={handleMediaComposerSubmit}
+          isSubmitting={chat.isStreaming}
         />
       ) : null}
     </>

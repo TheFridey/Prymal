@@ -14,6 +14,10 @@ import {
 } from './billing-engine.js';
 import { applyVideoJobThrottle } from './billing-throttle.js';
 import { getVeoVideoProvider } from './providers/veo-video-provider.js';
+import {
+  cleanupVideoReferenceImages,
+  loadVideoReferenceImages,
+} from './video-reference-images.js';
 
 const GENERATED_VIDEO_DIR = path.resolve(process.cwd(), 'storage', 'generated-videos');
 const PROCESSING_JOBS = new Set();
@@ -58,6 +62,7 @@ export async function processQueuedVideoJob(jobId) {
     let attempt = (job.retryCount ?? 0) + 1;
     let lastError = null;
     let operation = null;
+    const referenceImages = await loadVideoReferenceImages(job.providerMetadata?.referenceImages ?? []);
 
     await applyVideoJobThrottle(job);
 
@@ -68,6 +73,8 @@ export async function processQueuedVideoJob(jobId) {
           durationSeconds: job.durationSeconds,
           resolution: job.resolution,
           aspectRatio: job.aspectRatio,
+          mode: job.providerMetadata?.mode ?? 'lite',
+          referenceImages,
         });
         await markVideoJobProcessing({
           jobId,
@@ -118,6 +125,8 @@ export async function processQueuedVideoJob(jobId) {
           providerOperation: operation.name,
         });
 
+        await cleanupVideoReferenceImages(job.providerMetadata?.referenceImages ?? []);
+
         return committed.job;
       } catch (error) {
         lastError = error;
@@ -141,6 +150,7 @@ export async function processQueuedVideoJob(jobId) {
         failedAt: new Date().toISOString(),
       },
     });
+    await cleanupVideoReferenceImages(job.providerMetadata?.referenceImages ?? []);
   } finally {
     PROCESSING_JOBS.delete(jobId);
   }
@@ -174,6 +184,10 @@ async function createAssistantMessageForVideo(job, { outputUrl, outputFileName, 
 
   const agent = getAgent(conversation.agentId);
   const content = buildVideoMessage(agent?.name ?? 'PIXEL', job.prompt);
+  const videoMode = job.providerMetadata?.mode ?? 'lite';
+  const providerLabel = job.providerMetadata?.providerLabel ?? (videoMode === 'standard' ? 'Veo 3.1 Standard' : 'Veo 3.1 Lite');
+  const route = videoMode === 'standard' ? 'veo-3.1-standard' : 'veo-3.1-lite';
+  const routeReason = `Queued video generation through the ${providerLabel} provider.`;
   const [assistantMessage] = await db
     .insert(messages)
     .values({
@@ -182,16 +196,19 @@ async function createAssistantMessageForVideo(job, { outputUrl, outputFileName, 
       content,
       metadata: {
         provider: 'google',
-        route: 'veo-3.1-lite',
-        routeReason: 'Queued video generation through the Veo 3.1 Lite provider.',
+        route,
+        routeReason,
         model: job.model,
         videoJobId: job.id,
         generatedVideos: [
           {
             prompt: job.prompt,
+            mode: videoMode,
+            providerLabel,
             durationSeconds: job.durationSeconds,
             resolution: job.resolution,
             aspectRatio: job.aspectRatio,
+            referenceImageCount: Number(job.providerMetadata?.referenceImageCount ?? 0),
             url: outputUrl,
             fileName: outputFileName,
             providerOperation,

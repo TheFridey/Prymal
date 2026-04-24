@@ -1,8 +1,22 @@
 import { GoogleGenAI } from '@google/genai';
 import { VideoProvider } from './video-provider.js';
 
-const DEFAULT_VEO_MODEL = 'veo-3.1-lite-generate-preview';
-const VEO_MODEL = process.env.GEMINI_MODEL_VEO?.trim() || DEFAULT_VEO_MODEL;
+const VEO_MODELS = {
+  lite: process.env.GEMINI_MODEL_VEO?.trim() || 'veo-3.1-lite-generate-preview',
+  standard: process.env.GEMINI_MODEL_VEO_STANDARD?.trim() || 'veo-3.1-generate-preview',
+};
+const DEFAULT_VEO_NEGATIVE_PROMPT = [
+  'dense typography',
+  'tiny unreadable text',
+  'garbled lettering',
+  'misspelled UI labels',
+  'cluttered interface',
+  'stock footage',
+  'mascots',
+  'glitch effects',
+  'crypto aesthetics',
+  'cartoon visuals',
+].join(', ');
 
 export class VeoVideoProvider extends VideoProvider {
   constructor({ apiKey }) {
@@ -27,16 +41,32 @@ export class VeoVideoProvider extends VideoProvider {
     this.client = new GoogleGenAI({ apiKey });
   }
 
-  async startJob({ prompt, durationSeconds, resolution, aspectRatio }) {
+  async startJob({
+    prompt,
+    durationSeconds,
+    resolution,
+    aspectRatio,
+    mode = 'lite',
+    referenceImages = [],
+  }) {
+    const model = getVeoVideoModel(mode);
+    const finalPrompt = buildVeoVideoPrompt(prompt);
+    const config = {
+      durationSeconds,
+      resolution,
+      aspectRatio,
+      numberOfVideos: 1,
+      negativePrompt: DEFAULT_VEO_NEGATIVE_PROMPT,
+    };
+
+    if (Array.isArray(referenceImages) && referenceImages.length > 0) {
+      config.referenceImages = referenceImages;
+    }
+
     const operation = await this.client.models.generateVideos({
-      model: VEO_MODEL,
-      prompt,
-      config: {
-        durationSeconds,
-        resolution,
-        aspectRatio,
-        numberOfVideos: 1,
-      },
+      model,
+      prompt: finalPrompt,
+      config,
     });
 
     return normalizeOperation(operation);
@@ -56,6 +86,33 @@ export class VeoVideoProvider extends VideoProvider {
       downloadPath,
     });
   }
+}
+
+export function getVeoVideoModel(mode = 'lite') {
+  return VEO_MODELS[mode] ?? VEO_MODELS.lite;
+}
+
+export function buildVeoVideoPrompt(prompt) {
+  const normalizedPrompt = String(prompt ?? '').trim();
+
+  if (!normalizedPrompt) {
+    return '';
+  }
+
+  const sections = [
+    'Create a polished, premium product video with clean composition, controlled motion, and legible title-safe framing.',
+    'Typography guidance: if text appears on screen, keep it large, sparse, high-contrast, and limited to one short headline at a time.',
+    'Avoid dense UI microcopy, tiny dashboard labels, paragraphs, or repeated text across panels.',
+    'If exact wording cannot be rendered cleanly, prefer abstract dashboard cards or blank title-safe areas instead of misspelled text.',
+  ];
+
+  if (/(?:on[-\s]?screen copy|title card|headline)/i.test(normalizedPrompt)) {
+    sections.push('When explicit on-screen copy is requested, present each phrase as its own separate title card scene.');
+  }
+
+  sections.push(`Creative brief:\n${normalizedPrompt}`);
+
+  return sections.join('\n\n');
 }
 
 function normalizeOperation(operation) {

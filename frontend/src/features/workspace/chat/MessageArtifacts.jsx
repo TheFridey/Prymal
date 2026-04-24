@@ -552,6 +552,16 @@ export function GeneratedImageCard({ image }) {
 export function GeneratedVideoCard({ video }) {
   const origin = API_BASE_URL.replace(/\/api$/, '');
   const videoUrl = video.url ? new URL(video.url, origin).toString() : null;
+  const metaParts = [
+    `${video.durationSeconds ?? 4}s`,
+    video.resolution ?? '720p',
+    video.aspectRatio ?? '16:9',
+    video.providerLabel ?? (video.mode === 'standard' ? 'Veo 3.1 Standard' : 'Veo 3.1 Lite'),
+  ];
+
+  if (Number(video.referenceImageCount) > 0) {
+    metaParts.push(`refs: ${video.referenceImageCount}`);
+  }
 
   return (
     <div className="workspace-studio__generated-card">
@@ -569,7 +579,7 @@ export function GeneratedVideoCard({ video }) {
         <div>
           <div className="workspace-studio__source-title">Generated video</div>
           <div className="workspace-studio__source-meta">
-            {video.durationSeconds ?? 4}s | {video.resolution ?? '720p'} | {video.aspectRatio ?? '16:9'}
+            {metaParts.join(' | ')}
           </div>
         </div>
         {videoUrl ? (

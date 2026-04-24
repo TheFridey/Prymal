@@ -28,21 +28,52 @@ export const EXECUTION_AGENT_MULTIPLIERS = [
   { maxAgents: Number.POSITIVE_INFINITY, multiplier: 4 },
 ];
 
-export const VEO_31_LITE_SPEC = {
-  provider: 'google',
-  providerLabel: 'Veo 3.1 Lite',
-  model: process.env.GEMINI_MODEL_VEO?.trim() || 'veo-3.1-lite-generate-preview',
-  supportedDurations: [4, 6, 8],
-  supportedResolutions: ['720p', '1080p'],
-  supportedAspectRatios: ['16:9', '9:16'],
-  maxPromptTokens: 1024,
-  maxRetries: 2,
+export const DEFAULT_VIDEO_GENERATION_MODE = 'lite';
+
+export const VIDEO_GENERATION_MODES = {
+  lite: {
+    id: 'lite',
+    provider: 'google',
+    providerLabel: 'Veo 3.1 Lite',
+    model: process.env.GEMINI_MODEL_VEO?.trim() || 'veo-3.1-lite-generate-preview',
+    supportedDurations: [4, 6, 8],
+    supportedResolutions: ['720p', '1080p'],
+    supportedAspectRatios: ['16:9', '9:16'],
+    maxPromptTokens: 1024,
+    maxRetries: 2,
+    supportsReferenceImages: false,
+    maxReferenceImages: 0,
+    referenceImagesRequireDuration: null,
+    pricingUsdPerSecond: {
+      '720p': 0.05,
+      '1080p': 0.08,
+    },
+  },
+  standard: {
+    id: 'standard',
+    provider: 'google',
+    providerLabel: 'Veo 3.1 Standard',
+    model: process.env.GEMINI_MODEL_VEO_STANDARD?.trim() || 'veo-3.1-generate-preview',
+    supportedDurations: [4, 6, 8],
+    supportedResolutions: ['720p', '1080p'],
+    supportedAspectRatios: ['16:9', '9:16'],
+    maxPromptTokens: 1024,
+    maxRetries: 2,
+    supportsReferenceImages: true,
+    maxReferenceImages: 3,
+    referenceImagesRequireDuration: 8,
+    pricingUsdPerSecond: {
+      '720p': 0.4,
+      '1080p': 0.4,
+    },
+  },
 };
 
-export const VEO_31_LITE_PRICING_USD_PER_SECOND = {
-  '720p': 0.05,
-  '1080p': 0.08,
-};
+export const VEO_31_LITE_SPEC = VIDEO_GENERATION_MODES.lite;
+export const VEO_31_STANDARD_SPEC = VIDEO_GENERATION_MODES.standard;
+export const VEO_31_LITE_PRICING_USD_PER_SECOND = VEO_31_LITE_SPEC.pricingUsdPerSecond;
+export const VEO_31_STANDARD_PRICING_USD_PER_SECOND = VEO_31_STANDARD_SPEC.pricingUsdPerSecond;
+const BASE_VIDEO_CREDIT_USD = 0.25;
 
 export const COST_GUARD_DEFAULTS = {
   thresholdRatio: Number(process.env.BILLING_COST_GUARD_RATIO ?? 0.7),
@@ -196,6 +227,10 @@ export function getBillingPlan(planId = 'free') {
   return BILLING_PLANS[planId] ?? BILLING_PLANS.free;
 }
 
+export function getVideoGenerationMode(mode = DEFAULT_VIDEO_GENERATION_MODE) {
+  return VIDEO_GENERATION_MODES[mode] ?? VIDEO_GENERATION_MODES[DEFAULT_VIDEO_GENERATION_MODE];
+}
+
 export function getPlanConfig(planId = 'free') {
   const plan = getBillingPlan(planId);
 
@@ -261,49 +296,90 @@ export function getExecutionAgentMultiplier(agentCount = 1) {
   return EXECUTION_AGENT_MULTIPLIERS.find((entry) => normalized <= entry.maxAgents)?.multiplier ?? 4;
 }
 
-export function calculateVideoCreditBurn({ durationSeconds, resolution = '720p' }) {
+export function calculateVideoCreditBurn({
+  durationSeconds,
+  resolution = '720p',
+  mode = DEFAULT_VIDEO_GENERATION_MODE,
+  referenceImageCount = 0,
+}) {
+  const spec = getVideoGenerationMode(mode);
   const normalizedDuration = Math.max(Number(durationSeconds) || 0, 0);
   const baseCredits = Math.ceil(normalizedDuration / 5);
   const resolutionSurcharge = resolution === '1080p' ? 1 : 0;
-  const creditsUsed = Math.ceil(baseCredits + resolutionSurcharge);
+  const estimatedCostUsd = estimateVideoProviderCostUsd({
+    durationSeconds: normalizedDuration,
+    resolution,
+    mode,
+  });
+  const creditsUsed = mode === 'standard'
+    ? Math.ceil(estimatedCostUsd / BASE_VIDEO_CREDIT_USD)
+    : Math.ceil(baseCredits + resolutionSurcharge);
 
   return {
+    mode: spec.id,
+    providerLabel: spec.providerLabel,
     durationSeconds: normalizedDuration,
     resolution,
     baseCredits,
     resolutionSurcharge,
+    referenceImageCount: Math.max(Number(referenceImageCount) || 0, 0),
+    estimatedCostUsd,
     creditsUsed,
   };
 }
 
-export function estimateVideoProviderCostUsd({ durationSeconds, resolution = '720p' }) {
+export function estimateVideoProviderCostUsd({
+  durationSeconds,
+  resolution = '720p',
+  mode = DEFAULT_VIDEO_GENERATION_MODE,
+}) {
+  const spec = getVideoGenerationMode(mode);
   const normalizedDuration = Math.max(Number(durationSeconds) || 0, 0);
-  const unitPrice = VEO_31_LITE_PRICING_USD_PER_SECOND[resolution] ?? VEO_31_LITE_PRICING_USD_PER_SECOND['720p'];
+  const defaultResolution = spec.supportedResolutions[0] ?? '720p';
+  const unitPrice = spec.pricingUsdPerSecond[resolution] ?? spec.pricingUsdPerSecond[defaultResolution];
   return Number((normalizedDuration * unitPrice).toFixed(4));
 }
 
-export function validateVideoGenerationRequest({ durationSeconds, resolution, aspectRatio, retryCount = 0 }) {
-  if (!VEO_31_LITE_SPEC.supportedDurations.includes(Number(durationSeconds))) {
+export function validateVideoGenerationRequest({
+  durationSeconds,
+  resolution,
+  aspectRatio,
+  retryCount = 0,
+  mode = DEFAULT_VIDEO_GENERATION_MODE,
+  referenceImages = [],
+}) {
+  const spec = VIDEO_GENERATION_MODES[mode];
+  const normalizedReferenceImages = Array.isArray(referenceImages) ? referenceImages : [];
+
+  if (!spec) {
+    return {
+      ok: false,
+      code: 'VIDEO_MODE_UNSUPPORTED',
+      message: 'This video generation mode is not available.',
+    };
+  }
+
+  if (!spec.supportedDurations.includes(Number(durationSeconds))) {
     return {
       ok: false,
       code: 'VIDEO_DURATION_UNSUPPORTED',
-      message: `Veo 3.1 Lite currently supports ${VEO_31_LITE_SPEC.supportedDurations.join(', ')} second videos only.`,
+      message: `${spec.providerLabel} currently supports ${spec.supportedDurations.join(', ')} second videos only.`,
     };
   }
 
-  if (!VEO_31_LITE_SPEC.supportedResolutions.includes(resolution)) {
+  if (!spec.supportedResolutions.includes(resolution)) {
     return {
       ok: false,
       code: 'VIDEO_RESOLUTION_UNSUPPORTED',
-      message: `Veo 3.1 Lite supports ${VEO_31_LITE_SPEC.supportedResolutions.join(' and ')} output only.`,
+      message: `${spec.providerLabel} supports ${spec.supportedResolutions.join(' and ')} output only.`,
     };
   }
 
-  if (!VEO_31_LITE_SPEC.supportedAspectRatios.includes(aspectRatio)) {
+  if (!spec.supportedAspectRatios.includes(aspectRatio)) {
     return {
       ok: false,
       code: 'VIDEO_ASPECT_RATIO_UNSUPPORTED',
-      message: `Veo 3.1 Lite supports ${VEO_31_LITE_SPEC.supportedAspectRatios.join(' or ')} aspect ratios only.`,
+      message: `${spec.providerLabel} supports ${spec.supportedAspectRatios.join(' or ')} aspect ratios only.`,
     };
   }
 
@@ -311,15 +387,41 @@ export function validateVideoGenerationRequest({ durationSeconds, resolution, as
     return {
       ok: false,
       code: 'VIDEO_RESOLUTION_DURATION_INVALID',
-      message: '1080p video generation requires an 8 second duration with Veo 3.1 Lite.',
+      message: `1080p video generation requires an 8 second duration with ${spec.providerLabel}.`,
     };
   }
 
-  if (Number(retryCount) > VEO_31_LITE_SPEC.maxRetries) {
+  if (normalizedReferenceImages.length > 0) {
+    if (!spec.supportsReferenceImages) {
+      return {
+        ok: false,
+        code: 'VIDEO_REFERENCE_IMAGES_UNSUPPORTED',
+        message: `${spec.providerLabel} does not support guided reference images in Prymal. Switch to Veo 3.1 Standard for reference-led renders.`,
+      };
+    }
+
+    if (normalizedReferenceImages.length > spec.maxReferenceImages) {
+      return {
+        ok: false,
+        code: 'VIDEO_REFERENCE_IMAGES_LIMIT',
+        message: `${spec.providerLabel} supports up to ${spec.maxReferenceImages} reference images per render.`,
+      };
+    }
+
+    if (spec.referenceImagesRequireDuration && Number(durationSeconds) !== spec.referenceImagesRequireDuration) {
+      return {
+        ok: false,
+        code: 'VIDEO_REFERENCE_IMAGES_DURATION_INVALID',
+        message: `Reference images require an ${spec.referenceImagesRequireDuration} second render with ${spec.providerLabel}.`,
+      };
+    }
+  }
+
+  if (Number(retryCount) > spec.maxRetries) {
     return {
       ok: false,
       code: 'VIDEO_RETRY_LIMIT_REACHED',
-      message: `Video jobs may only be retried ${VEO_31_LITE_SPEC.maxRetries} times before a new credit reservation is required.`,
+      message: `Video jobs may only be retried ${spec.maxRetries} times before a new credit reservation is required.`,
     };
   }
 
@@ -428,6 +530,18 @@ export function serializeBillingCatalog() {
       label: pack.label,
       amountGbp: pack.amountGbp,
       credits: pack.credits,
+    })),
+    videoModes: Object.values(VIDEO_GENERATION_MODES).map((mode) => ({
+      id: mode.id,
+      providerLabel: mode.providerLabel,
+      model: mode.model,
+      supportedDurations: mode.supportedDurations,
+      supportedResolutions: mode.supportedResolutions,
+      supportedAspectRatios: mode.supportedAspectRatios,
+      supportsReferenceImages: mode.supportsReferenceImages,
+      maxReferenceImages: mode.maxReferenceImages,
+      referenceImagesRequireDuration: mode.referenceImagesRequireDuration,
+      maxRetries: mode.maxRetries,
     })),
     videoSpec: {
       ...VEO_31_LITE_SPEC,

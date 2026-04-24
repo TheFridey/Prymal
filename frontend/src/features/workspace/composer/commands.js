@@ -6,6 +6,8 @@ export function buildSlashCommands({
   clearMessages,
   openSettings,
   focusPrompt,
+  openImageBuilder,
+  openVideoBuilder,
   toggleLore,
   toggleVoiceReplies,
   toggleVoiceAutoSend,
@@ -18,12 +20,12 @@ export function buildSlashCommands({
     {
       name: 'image',
       description: `Generate an image draft with ${activeAgent.name}`,
-      run: () => focusPrompt('/image '),
+      run: () => openImageBuilder?.(),
     },
     {
       name: 'video',
       description: `Generate a short video draft with ${activeAgent.name}`,
-      run: () => focusPrompt('/video '),
+      run: () => openVideoBuilder?.(),
     },
     {
       name: 'new',
@@ -120,4 +122,58 @@ export function extractImagePrompt(message) {
 export function extractVideoPrompt(message) {
   const match = message.match(/^\/video(?:\s+(.+))$/i);
   return match?.[1]?.trim() || null;
+}
+
+const VIDEO_DURATION_PATTERN = /\b(4|5|6|8|10|15)\s*(?:-|\u2013|\u2014)?\s*(?:s|sec|secs|second|seconds)\b/i;
+const VIDEO_RESOLUTION_1080_PATTERN = /\b(?:1080p|full\s*hd)\b/i;
+const VIDEO_RESOLUTION_720_PATTERN = /\b720p\b/i;
+const VIDEO_ASPECT_VERTICAL_PATTERN = /\b(?:9\s*:\s*16|vertical|portrait)\b/i;
+const VIDEO_ASPECT_HORIZONTAL_PATTERN = /\b(?:16\s*:\s*9|landscape|horizontal|widescreen)\b/i;
+
+export function extractVideoRequest(message) {
+  const prompt = extractVideoPrompt(message);
+
+  if (!prompt) {
+    return null;
+  }
+
+  return {
+    prompt,
+    durationSeconds: extractVideoDuration(prompt),
+    resolution: extractVideoResolution(prompt),
+    aspectRatio: extractVideoAspectRatio(prompt),
+  };
+}
+
+function extractVideoDuration(prompt) {
+  const match = String(prompt ?? '').match(VIDEO_DURATION_PATTERN);
+  return match ? Number(match[1]) : 4;
+}
+
+function extractVideoResolution(prompt) {
+  const normalized = String(prompt ?? '');
+
+  if (VIDEO_RESOLUTION_1080_PATTERN.test(normalized)) {
+    return '1080p';
+  }
+
+  if (VIDEO_RESOLUTION_720_PATTERN.test(normalized)) {
+    return '720p';
+  }
+
+  return '720p';
+}
+
+function extractVideoAspectRatio(prompt) {
+  const normalized = String(prompt ?? '');
+
+  if (VIDEO_ASPECT_VERTICAL_PATTERN.test(normalized)) {
+    return '9:16';
+  }
+
+  if (VIDEO_ASPECT_HORIZONTAL_PATTERN.test(normalized)) {
+    return '16:9';
+  }
+
+  return '16:9';
 }

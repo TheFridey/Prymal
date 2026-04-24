@@ -41,9 +41,22 @@ test('video burn rounds up and applies 1080p surcharge', () => {
   assert.equal(result.creditsUsed, 3);
 });
 
+test('standard veo mode scales video credits to the higher provider cost', () => {
+  const result = billingCatalog.calculateVideoCreditBurn({
+    durationSeconds: 8,
+    resolution: '1080p',
+    mode: 'standard',
+  });
+
+  assert.equal(result.mode, 'standard');
+  assert.equal(result.providerLabel, 'Veo 3.1 Standard');
+  assert.equal(result.estimatedCostUsd, 3.2);
+  assert.equal(result.creditsUsed, 13);
+});
+
 test('veo validation rejects unsupported durations', () => {
   const result = billingCatalog.validateVideoGenerationRequest({
-    durationSeconds: 5,
+    durationSeconds: 10,
     resolution: '720p',
     aspectRatio: '16:9',
   });
@@ -61,6 +74,32 @@ test('veo validation rejects 1080p on non-8-second renders', () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.code, 'VIDEO_RESOLUTION_DURATION_INVALID');
+});
+
+test('lite veo mode rejects reference images', () => {
+  const result = billingCatalog.validateVideoGenerationRequest({
+    durationSeconds: 8,
+    resolution: '720p',
+    aspectRatio: '16:9',
+    mode: 'lite',
+    referenceImages: [{ name: 'brief.png' }],
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'VIDEO_REFERENCE_IMAGES_UNSUPPORTED');
+});
+
+test('standard veo reference renders require an 8-second clip', () => {
+  const result = billingCatalog.validateVideoGenerationRequest({
+    durationSeconds: 6,
+    resolution: '720p',
+    aspectRatio: '16:9',
+    mode: 'standard',
+    referenceImages: [{ name: 'brief.png' }],
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'VIDEO_REFERENCE_IMAGES_DURATION_INVALID');
 });
 
 test('veo validation enforces the max retry limit', () => {
@@ -118,10 +157,12 @@ test('cost guard triggers when estimated cost exceeds conservative revenue contr
   assert.ok(result.revenueContributionGbp > 0);
 });
 
-test('catalog serialization exposes both credit packs and video spec', () => {
+test('catalog serialization exposes both credit packs and video modes', () => {
   const catalog = billingCatalog.serializeBillingCatalog();
 
   assert.ok(Array.isArray(catalog.plans));
   assert.ok(Array.isArray(catalog.packs));
+  assert.ok(Array.isArray(catalog.videoModes));
+  assert.equal(catalog.videoModes.length, 2);
   assert.equal(catalog.videoSpec.model, 'veo-3.1-lite-generate-preview');
 });
