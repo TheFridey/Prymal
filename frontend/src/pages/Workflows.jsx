@@ -1,7 +1,10 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
-import { WORKFLOW_TEMPLATES, getAgentMeta } from '../lib/constants';
+import { getAgentMeta } from '../lib/constants';
+import WorkflowTemplateCard from '../features/workspace/workflows/WorkflowTemplateCard';
+import { WORKFLOW_TEMPLATES, createWorkflowTemplatePayload, findWorkflowTemplate } from '../lib/workflow-templates';
 import { formatDateTime, formatNumber, getErrorMessage, truncate } from '../lib/utils';
 import {
   Button,
@@ -28,11 +31,13 @@ const RUN_STATUS_COLORS = {
 };
 
 export default function Workflows() {
-  const [view, setView] = useState('monitor');
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedWorkflowId, setSelectedWorkflowId] = useState(null);
   const [selectedRunId, setSelectedRunId] = useState(null);
   const notify = useAppStore((state) => state.addNotification);
   const queryClient = useQueryClient();
+  const view = searchParams.get('view') === 'builder' ? 'builder' : 'monitor';
+  const selectedTemplate = findWorkflowTemplate(searchParams.get('template'));
 
   const workflowsQuery = useQuery({
     queryKey: ['workflows'],
@@ -49,6 +54,26 @@ export default function Workflows() {
   });
 
   const selectedRun = (runsQuery.data?.runs ?? []).find((run) => run.id === selectedRunId) ?? null;
+
+  const openBuilder = (templateSlug = null) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('view', 'builder');
+
+    if (templateSlug) {
+      next.set('template', templateSlug);
+    } else {
+      next.delete('template');
+    }
+
+    setSearchParams(next, { replace: true });
+  };
+
+  const openMonitor = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('view');
+    next.delete('template');
+    setSearchParams(next, { replace: true });
+  };
 
   const runDetailQuery = useQuery({
     queryKey: ['workflow-run-detail', selectedRunId],
@@ -78,9 +103,12 @@ export default function Workflows() {
   }, [runsQuery.data?.runs, selectedRunId, selectedWorkflowId]);
 
   const createMutation = useMutation({
-    mutationFn: (template) => api.post('/workflows', template),
+    mutationFn: (template) => api.post('/workflows', createWorkflowTemplatePayload(template) ?? template),
     onSuccess: async (result) => {
-      await queryClient.invalidateQueries({ queryKey: ['workflows'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['workflows'] }),
+        queryClient.invalidateQueries({ queryKey: ['workspace-workflows'] }),
+      ]);
       setSelectedWorkflowId(result.workflow.id);
       notify({ type: 'success', title: 'Workflow created', message: 'A validated workflow template was added to the workspace.' });
     },
@@ -168,8 +196,8 @@ export default function Workflows() {
         accent="#F72585"
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
-            <Button tone={view === 'monitor' ? 'accent' : 'ghost'} onClick={() => setView('monitor')}>Monitor</Button>
-            <Button tone={view === 'builder' ? 'accent' : 'ghost'} onClick={() => setView('builder')}>Builder</Button>
+            <Button tone={view === 'monitor' ? 'accent' : 'ghost'} onClick={openMonitor}>Monitor</Button>
+            <Button tone={view === 'builder' ? 'accent' : 'ghost'} onClick={() => openBuilder(selectedTemplate?.slug ?? null)}>Builder</Button>
           </div>
         }
       />
@@ -179,7 +207,7 @@ export default function Workflows() {
       {view === 'builder' ? (
         <SurfaceCard title="Visual workflow builder" subtitle="Drag agents, connect steps, save" accent="#F72585">
           <Suspense fallback={<LoadingPanel label="Loading workflow builder..." />}>
-            <WorkflowBuilder onClose={() => setView('monitor')} />
+            <WorkflowBuilder key={selectedTemplate?.slug ?? 'blank-builder'} initialTemplate={selectedTemplate} onClose={openMonitor} />
           </Suspense>
         </SurfaceCard>
       ) : null}
@@ -252,21 +280,19 @@ export default function Workflows() {
         </SurfaceCard>
 
         <div style={{ display: 'grid', gap: '14px' }}>
-          <SurfaceCard title="Template library" accent="#4CC9F0">
-            <div style={{ display: 'grid', gap: '10px' }}>
+          <SurfaceCard
+            title="Template library"
+            subtitle="10 default workflow blueprints with strong real-world use cases"
+            accent="#4CC9F0"
+          >
+            <div className="workflow-template-grid">
               {WORKFLOW_TEMPLATES.map((template) => (
-                <div key={template.name} style={panelStyle}>
-                  <div style={{ fontSize: '15px', marginBottom: '6px' }}>{template.name}</div>
-                  <div style={{ color: 'var(--muted)', lineHeight: 1.7, marginBottom: '10px' }}>{template.description}</div>
-                  <Button
-                    tone="ghost"
-                    onClick={() => createMutation.mutate(template)}
-                    disabled={createMutation.isPending}
-                    data-testid={`workflow-template-${template.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
-                  >
-                    Use template
-                  </Button>
-                </div>
+                <WorkflowTemplateCard
+                  key={template.slug}
+                  template={template}
+                  onPrimaryAction={(selected) => openBuilder(selected.slug)}
+                  onSecondaryAction={(selected) => createMutation.mutate(selected)}
+                />
               ))}
             </div>
           </SurfaceCard>

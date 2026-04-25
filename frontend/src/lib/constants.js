@@ -13,6 +13,7 @@ import scoutAvatar from '../assets/agents/scout.webp';
 import sentinelAvatar from '../assets/agents/sentinel.webp';
 import vanceAvatar from '../assets/agents/vance.webp';
 import wrenAvatar from '../assets/agents/wren.webp';
+export { WORKFLOW_TEMPLATES } from './workflow-templates';
 
 export const NAV_ITEMS = [
   { to: '/app/dashboard', label: 'Dashboard', icon: '[]' },
@@ -185,7 +186,7 @@ export const AGENT_LIBRARY = [
     stats: [
       { label: 'Best at', value: 'Sequencing' },
       { label: 'Output mode', value: 'Plans' },
-      { label: 'Works with', value: 'Notion + Drive' },
+      { label: 'Works with', value: 'Linked accounts' },
     ],
   },
   {
@@ -566,38 +567,421 @@ export const AGENT_GROUPS = [
   },
 ];
 
+export const INTEGRATION_SECTIONS = [
+  {
+    id: 'socials',
+    label: 'Socials',
+    description: 'Auto-post launches, campaigns, and founder updates across public brand channels.',
+    accent: '#FF6B9A',
+  },
+  {
+    id: 'messaging',
+    label: 'Messaging',
+    description: 'Route alerts, community drops, and live operator handoffs into conversation channels.',
+    accent: '#4CC9F0',
+  },
+  {
+    id: 'emails',
+    label: 'Emails',
+    description: 'Connect inbox context and outbound send lanes so support and outreach stay grounded.',
+    accent: '#FF8B5F',
+  },
+  {
+    id: 'files',
+    label: 'Files',
+    description: 'Keep trusted storage accounts linked for document-aware workflows and source tracking.',
+    accent: '#34D399',
+  },
+  {
+    id: 'knowledge',
+    label: 'Knowledge',
+    description: 'Sync structured workspaces and notes into the Prymal memory layer.',
+    accent: '#BDB4FE',
+  },
+  {
+    id: 'custom',
+    label: 'Custom',
+    description: 'Push Prymal output into bespoke endpoints and internal automations.',
+    accent: '#F59E0B',
+  },
+];
+
 export const INTEGRATION_LIBRARY = {
   gmail: {
     name: 'Gmail',
+    section: 'emails',
     category: 'Email',
     color: '#ea4335',
     icon: 'GM',
     description: 'HERALD and WREN can draft and work from your actual inbox context.',
+    authMode: 'oauth',
+    capabilities: ['inbox_context', 'send_email'],
     agentIds: ['herald', 'wren'],
+    setupSteps: [
+      'Start OAuth from an owner or admin seat.',
+      'Grant Gmail access so Prymal can work from live inbox context.',
+      'Reconnect any time to refresh Google consent.',
+    ],
+    setupLinks: [
+      {
+        label: 'OAuth clients',
+        href: 'https://console.cloud.google.com/apis/credentials',
+        description: 'Create or manage the Google OAuth client.',
+      },
+      {
+        label: 'Consent screen guide',
+        href: 'https://developers.google.com/workspace/guides/configure-oauth-consent',
+        description: 'Configure the OAuth consent screen and scopes.',
+      },
+    ],
+  },
+  outlook: {
+    name: 'Outlook',
+    section: 'emails',
+    category: 'Email',
+    color: '#0078d4',
+    icon: 'OL',
+    description: 'Verify Outlook mailbox access and send real outbound email with Microsoft Graph user tokens.',
+    authMode: 'manual_token',
+    capabilities: ['inbox_context', 'send_email', 'delivery_feedback'],
+    agentIds: ['herald', 'wren', 'vance'],
+    setupSteps: [
+      'Create a delegated Microsoft Graph user token with mailbox access.',
+      'Paste the token and, if useful, save a default recipient list.',
+      'Run a connection test before sending live mail from Prymal.',
+    ],
+    setupLinks: [
+      {
+        label: 'App registration guide',
+        href: 'https://learn.microsoft.com/entra/identity-platform/quickstart-register-app',
+        description: 'Register the Microsoft app that will issue your token.',
+      },
+      {
+        label: 'Azure portal',
+        href: 'https://portal.azure.com/',
+        description: 'Open Microsoft Entra and manage app registrations.',
+      },
+    ],
   },
   google_drive: {
     name: 'Google Drive',
+    section: 'files',
     category: 'Storage',
     color: '#34a853',
     icon: 'GD',
-    description: 'LORE can ingest shared documents from Drive so the wider system stays grounded in source material.',
+    description: 'Keep a trusted Google Drive account linked to the organisation for future file-aware workflows.',
+    authMode: 'oauth',
+    capabilities: ['file_account_link', 'storage_access'],
     agentIds: ['lore', 'atlas'],
+    setupSteps: [
+      'Connect the workspace through Google OAuth.',
+      'Grant Drive read access so the linked account can be verified.',
+      'Re-test whenever the connected account changes.',
+    ],
+    setupLinks: [
+      {
+        label: 'OAuth clients',
+        href: 'https://console.cloud.google.com/apis/credentials',
+        description: 'Create or manage the Google OAuth client.',
+      },
+      {
+        label: 'Credentials guide',
+        href: 'https://developers.google.com/workspace/guides/create-credentials',
+        description: 'Create OAuth credentials for Google Workspace APIs.',
+      },
+    ],
+  },
+  onedrive: {
+    name: 'OneDrive',
+    section: 'files',
+    category: 'Files',
+    color: '#0a5bd3',
+    icon: 'OD',
+    description: 'Verify OneDrive access and keep a trusted Microsoft file account linked to the organisation.',
+    authMode: 'manual_token',
+    capabilities: ['file_account_link', 'storage_access'],
+    agentIds: ['lore', 'atlas'],
+    setupSteps: [
+      'Create a delegated Microsoft Graph token with file access.',
+      'Paste it into Prymal to verify the drive and lock it to the org.',
+      'Use the connection health check whenever permissions rotate.',
+    ],
+    setupLinks: [
+      {
+        label: 'App registration guide',
+        href: 'https://learn.microsoft.com/entra/identity-platform/quickstart-register-app',
+        description: 'Register the Microsoft app that will issue your token.',
+      },
+      {
+        label: 'Azure portal',
+        href: 'https://portal.azure.com/',
+        description: 'Open Microsoft Entra and manage app registrations.',
+      },
+    ],
+  },
+  dropbox: {
+    name: 'Dropbox',
+    section: 'files',
+    category: 'Files',
+    color: '#0061ff',
+    icon: 'DB',
+    description: 'Link Dropbox credentials so Prymal can verify the workspace account and keep it org-scoped.',
+    authMode: 'manual_token',
+    capabilities: ['file_account_link', 'storage_access'],
+    agentIds: ['lore', 'atlas'],
+    setupSteps: [
+      'Generate a Dropbox user access token.',
+      'Paste it into Prymal and verify the account owner.',
+      'Keep the link healthy so workflows know which storage account is trusted.',
+    ],
+    setupLinks: [
+      {
+        label: 'Dropbox app console',
+        href: 'https://www.dropbox.com/developers/apps',
+        description: 'Create the Dropbox app and manage tokens.',
+      },
+      {
+        label: 'Getting started',
+        href: 'https://www.dropbox.com/developers/reference/getting-started',
+        description: 'Official setup guide for Dropbox developer apps.',
+      },
+    ],
+  },
+  box: {
+    name: 'Box',
+    section: 'files',
+    category: 'Files',
+    color: '#0a66ff',
+    icon: 'BX',
+    description: 'Verify Box account access and preserve that file source inside Prymal’s integration layer.',
+    authMode: 'manual_token',
+    capabilities: ['file_account_link', 'storage_access'],
+    agentIds: ['lore', 'atlas'],
+    setupSteps: [
+      'Generate a Box access token for the correct workspace.',
+      'Paste it into Prymal and confirm the connected user.',
+      'Use the saved account as a trusted file source for later workflows.',
+    ],
+    setupLinks: [
+      {
+        label: 'Developer console',
+        href: 'https://app.box.com/developers/console',
+        description: 'Open the Box Developer Console.',
+      },
+      {
+        label: 'Box platform guide',
+        href: 'https://developer.box.com/platform/box-platform-101',
+        description: 'Official Box setup and platform overview.',
+      },
+    ],
   },
   notion: {
     name: 'Notion',
+    section: 'knowledge',
     category: 'Knowledge',
     color: '#111827',
     icon: 'NO',
-    description: 'Sync plans, documents, and structured notes into the Prymal knowledge layer.',
+    description: 'Keep a trusted Notion workspace linked to the organisation for future knowledge workflows.',
+    authMode: 'oauth',
+    capabilities: ['workspace_account_link', 'knowledge_account'],
     agentIds: ['lore', 'atlas', 'sage'],
+    setupSteps: [
+      'Launch the Notion OAuth flow from an owner or admin seat.',
+      'Approve the workspace account Prymal should keep linked.',
+      'Reconnect whenever the authorised workspace changes.',
+    ],
+    setupLinks: [
+      {
+        label: 'Integration guide',
+        href: 'https://developers.notion.com/docs/create-a-notion-integration',
+        description: 'Create and configure a Notion integration.',
+      },
+      {
+        label: 'Developer hub',
+        href: 'https://developers.notion.com/',
+        description: 'Notion API docs and integration resources.',
+      },
+    ],
   },
   slack: {
     name: 'Slack',
+    section: 'messaging',
     category: 'Communication',
     color: '#4a154b',
     icon: 'SL',
-    description: 'Route workflow alerts and operational handoffs into team channels.',
-    agentIds: ['nexus', 'atlas', 'wren'],
+    description: 'Route workflow alerts, operational handoffs, and social drops into team channels.',
+    authMode: 'oauth',
+    capabilities: ['workflow_alerts', 'team_handoffs', 'autopost'],
+    agentIds: ['nexus', 'atlas', 'wren', 'echo'],
+    setupSteps: [
+      'Start the Slack OAuth flow from the target workspace.',
+      'Save a default channel ID for alerts and live post tests.',
+      'Use the test action to verify the bot can post cleanly.',
+    ],
+    setupLinks: [
+      {
+        label: 'Slack apps',
+        href: 'https://api.slack.com/apps',
+        description: 'Create or manage the Slack app installation.',
+      },
+      {
+        label: 'Getting started',
+        href: 'https://api.slack.com/start/apps',
+        description: 'Official Slack app setup guide.',
+      },
+    ],
+  },
+  discord: {
+    name: 'Discord',
+    section: 'socials',
+    category: 'Community',
+    color: '#5865f2',
+    icon: 'DC',
+    description: 'Push launch notes, community updates, and support drops into Discord channels.',
+    authMode: 'manual_token',
+    capabilities: ['community_posts', 'autopost', 'delivery_feedback'],
+    agentIds: ['echo', 'nexus', 'wren'],
+    setupSteps: [
+      'Create a Discord bot and invite it to the right server.',
+      'Paste the bot token and save a default channel ID.',
+      'Run a health check before enabling live launch or support drops.',
+    ],
+    setupLinks: [
+      {
+        label: 'Developer portal',
+        href: 'https://discord.com/developers/applications',
+        description: 'Create the Discord application and bot.',
+      },
+    ],
+  },
+  telegram: {
+    name: 'Telegram',
+    section: 'messaging',
+    category: 'Messaging',
+    color: '#229ed9',
+    icon: 'TG',
+    description: 'Broadcast updates or image-led drops through Telegram bots, groups, and channels.',
+    authMode: 'manual_token',
+    capabilities: ['broadcasts', 'autopost', 'delivery_feedback'],
+    agentIds: ['echo', 'nexus', 'herald'],
+    setupSteps: [
+      'Create a Telegram bot and capture its bot token.',
+      'Save the target chat ID or channel username you want to use by default.',
+      'Use the publish panel to test text and image-led drops.',
+    ],
+    setupLinks: [
+      {
+        label: 'BotFather',
+        href: 'https://t.me/BotFather',
+        description: 'Create or manage the Telegram bot token.',
+      },
+      {
+        label: 'Bot tutorial',
+        href: 'https://core.telegram.org/bots/tutorial',
+        description: 'Official Telegram bot setup tutorial.',
+      },
+    ],
+  },
+  x: {
+    name: 'X',
+    section: 'socials',
+    category: 'Social',
+    color: '#111111',
+    icon: 'X',
+    description: 'Publish short-form drops and threaded updates to X with a user access token.',
+    authMode: 'manual_token',
+    capabilities: ['social_posts', 'autopost', 'delivery_feedback'],
+    agentIds: ['echo', 'forge', 'herald'],
+    setupSteps: [
+      'Create a user-context X access token with tweet permissions.',
+      'Paste it into Prymal and verify the connected profile.',
+      'Run live post tests from the publish panel before automating the lane.',
+    ],
+    setupLinks: [
+      {
+        label: 'Developer portal',
+        href: 'https://developer.x.com/en/portal/dashboard',
+        description: 'Manage your X developer app and keys.',
+      },
+      {
+        label: 'Portal help',
+        href: 'https://developer.x.com/en/support/twitter-api/developer-account1',
+        description: 'Official guidance on accessing the developer portal.',
+      },
+    ],
+  },
+  mastodon: {
+    name: 'Mastodon',
+    section: 'socials',
+    category: 'Social',
+    color: '#563acc',
+    icon: 'MD',
+    description: 'Publish authenticated updates to any Mastodon instance with a user token and instance URL.',
+    authMode: 'manual_token',
+    capabilities: ['social_posts', 'autopost', 'delivery_feedback'],
+    agentIds: ['echo', 'forge'],
+    setupSteps: [
+      'Generate a Mastodon user token from the correct instance.',
+      'Paste the token and save the full instance URL in Prymal.',
+      'Choose a default visibility level before turning on live posting.',
+    ],
+    setupLinks: [
+      {
+        label: 'Token docs',
+        href: 'https://docs.joinmastodon.org/client/token/',
+        description: 'Official guide for creating and using Mastodon tokens.',
+      },
+      {
+        label: 'OAuth tokens',
+        href: 'https://docs.joinmastodon.org/api/oauth-tokens/',
+        description: 'Understand the token type and scope you need.',
+      },
+    ],
+  },
+  linkedin: {
+    name: 'LinkedIn',
+    section: 'socials',
+    category: 'Social',
+    color: '#0a66c2',
+    icon: 'LI',
+    description: 'Push founder or company posts to LinkedIn using member or organisation access tokens.',
+    authMode: 'manual_token',
+    capabilities: ['social_posts', 'autopost', 'delivery_feedback'],
+    agentIds: ['echo', 'forge', 'vance'],
+    setupSteps: [
+      'Create a LinkedIn access token with the right post scopes.',
+      'Save the matching member or organisation author URN.',
+      'Run a health check before scheduling founder or company posts.',
+    ],
+    setupLinks: [
+      {
+        label: 'LinkedIn apps',
+        href: 'https://www.linkedin.com/developers/apps',
+        description: 'Create or manage the LinkedIn developer app.',
+      },
+      {
+        label: 'Developer hub',
+        href: 'https://developer.linkedin.com/',
+        description: 'Official LinkedIn API and app resources.',
+      },
+    ],
+  },
+  custom_webhook: {
+    name: 'Custom Webhook',
+    section: 'custom',
+    category: 'Custom',
+    color: '#f97316',
+    icon: 'WH',
+    description: 'POST Prymal outputs into any external system or internal automation endpoint.',
+    authMode: 'manual_token',
+    capabilities: ['external_system_sync', 'autopost', 'delivery_feedback'],
+    agentIds: ['nexus', 'atlas', 'echo'],
+    setupSteps: [
+      'Paste the endpoint URL and add a bearer token only if the endpoint requires it.',
+      'Choose the request method and auth header format once per org.',
+      'Use live publish tests to confirm the receiving system accepts Prymal payloads.',
+    ],
+    setupLinks: [],
   },
 };
 
@@ -745,116 +1129,6 @@ export const INTERNAL_PLAN_META = {
   teams: PLAN_LIBRARY.find((plan) => plan.id === 'teams'),
   agency: PLAN_LIBRARY.find((plan) => plan.id === 'agency'),
 };
-
-export const WORKFLOW_TEMPLATES = [
-  {
-    name: 'Weekly Client Report',
-    description: 'CIPHER analyses metrics, LEDGER writes the narrative, and HERALD formats the send.',
-    triggerType: 'schedule',
-    triggerConfig: { cron: '0 8 * * 1' },
-    nodes: [
-      {
-        id: 'cipher_metrics',
-        agentId: 'cipher',
-        outputVar: 'metrics_summary',
-        label: 'Analyse metrics',
-        prompt: 'Analyse the latest weekly metrics and produce an executive summary with highlights, risks, and unusual changes.',
-      },
-      {
-        id: 'ledger_report',
-        agentId: 'ledger',
-        outputVar: 'report_narrative',
-        label: 'Write report',
-        prompt: 'Turn the metrics summary into a client-ready plain-English weekly report.',
-      },
-      {
-        id: 'herald_delivery',
-        agentId: 'herald',
-        outputVar: 'delivery_email',
-        label: 'Format delivery',
-        prompt: 'Format the weekly report as a polished stakeholder email with a clear subject line and CTA.',
-      },
-    ],
-    edges: [
-      { from: 'cipher_metrics', to: 'ledger_report' },
-      { from: 'ledger_report', to: 'herald_delivery' },
-    ],
-  },
-  {
-    name: 'Content Signal to Campaign',
-    description: 'SCOUT finds the opening, ORACLE refines the search angle, FORGE writes, and ECHO repurposes.',
-    triggerType: 'manual',
-    triggerConfig: {},
-    nodes: [
-      {
-        id: 'scout_research',
-        agentId: 'scout',
-        outputVar: 'market_signal',
-        label: 'Research market signal',
-        prompt: 'Identify one strong content opportunity in our niche and explain why it matters now.',
-      },
-      {
-        id: 'oracle_brief',
-        agentId: 'oracle',
-        outputVar: 'seo_brief',
-        label: 'Shape search brief',
-        prompt: 'Build a concise SEO brief from the market signal with target keyword, intent, and key sections.',
-      },
-      {
-        id: 'forge_article',
-        agentId: 'forge',
-        outputVar: 'article_draft',
-        label: 'Draft article',
-        prompt: 'Write a premium first draft based on the SEO brief in a sharp B2B SaaS tone.',
-      },
-      {
-        id: 'echo_social',
-        agentId: 'echo',
-        outputVar: 'social_assets',
-        label: 'Repurpose campaign',
-        prompt: 'Repurpose the article into platform-native social assets with distinct hooks.',
-      },
-    ],
-    edges: [
-      { from: 'scout_research', to: 'oracle_brief' },
-      { from: 'oracle_brief', to: 'forge_article' },
-      { from: 'forge_article', to: 'echo_social' },
-    ],
-  },
-  {
-    name: 'Lead Intake and Follow-Up',
-    description: 'VANCE scores the lead, SAGE pressure-tests the opportunity, and HERALD drafts the outreach.',
-    triggerType: 'manual',
-    triggerConfig: {},
-    nodes: [
-      {
-        id: 'vance_score',
-        agentId: 'vance',
-        outputVar: 'lead_score',
-        label: 'Score opportunity',
-        prompt: 'Score the incoming lead against our ICP and summarise the strongest buying signals.',
-      },
-      {
-        id: 'sage_risk',
-        agentId: 'sage',
-        outputVar: 'deal_risk',
-        label: 'Assess strategy',
-        prompt: 'Review the scored opportunity and highlight strategic upside, risk, and deal posture.',
-      },
-      {
-        id: 'herald_followup',
-        agentId: 'herald',
-        outputVar: 'outreach_email',
-        label: 'Draft response',
-        prompt: 'Draft a follow-up email that advances the conversation with confidence and clarity.',
-      },
-    ],
-    edges: [
-      { from: 'vance_score', to: 'sage_risk' },
-      { from: 'sage_risk', to: 'herald_followup' },
-    ],
-  },
-];
 
 export const POWERUP_LIBRARY = [
   { agentId: 'forge', slug: 'ab-headlines', name: '5 A/B Headlines', description: 'Generate five headline variants with distinct angles for any topic or campaign.', prompt: 'Generate 5 A/B test headline variants for: {{topic}}. Give each one a distinct angle.' },

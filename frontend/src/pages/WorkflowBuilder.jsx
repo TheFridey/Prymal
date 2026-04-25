@@ -15,10 +15,13 @@ import 'reactflow/dist/style.css';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { AGENT_LIBRARY } from '../lib/constants';
+import { WORKFLOW_TEMPLATES } from '../lib/workflow-templates';
 import { Button, InlineNotice, SectionLabel, TextArea, TextInput } from '../components/ui';
 import { usePrymalReducedMotion } from '../components/motion';
 import { useAppStore } from '../stores/useAppStore';
 import { getErrorMessage } from '../lib/utils';
+import WorkflowTemplateCard from '../features/workspace/workflows/WorkflowTemplateCard';
+import { getTriggerConfigError, getWorkflowDraftValidation, humaniseCron } from '../features/workspace/workflows/workflow-builder-utils';
 
 const NODE_STATE_META = {
   idle: { label: 'Standby', tint: 'rgba(160, 184, 215, 0.82)' },
@@ -65,25 +68,7 @@ const OPERATOR_OPTIONS = [
   { value: 'not_empty', label: 'is not empty' },
 ];
 
-const CRON_HUMANISE = {
-  '0 9 * * 1': 'Every Monday at 09:00',
-  '0 9 * * 1-5': 'Weekdays at 09:00',
-  '0 9 * * *': 'Every day at 09:00',
-  '0 * * * *': 'Every hour',
-  '*/15 * * * *': 'Every 15 minutes',
-  '0 0 * * *': 'Every day at midnight',
-  '0 0 1 * *': 'First of each month at midnight',
-};
-
 let nodeCounter = 0;
-
-function humaniseCron(expr) {
-  return CRON_HUMANISE[expr?.trim()] ?? null;
-}
-
-function isValidCron(expr) {
-  return /^(\S+ ){4}\S+$/.test((expr ?? '').trim());
-}
 
 function generateWebhookSecret() {
   const bytes = new Uint8Array(12);
@@ -289,7 +274,37 @@ function AgentNode({ data, selected }) {
 const nodeTypes = { agentNode: AgentNode };
 const edgeTypes = { workflowEdge: WorkflowStateEdge };
 
-export default function WorkflowBuilder({ onClose }) {
+function buildTemplateNodes(template) {
+  return (template?.nodes ?? []).map((node, index) => {
+    const agent = AGENT_LIBRARY.find((entry) => entry.id === node.agentId);
+
+    return {
+      id: node.id,
+      type: 'agentNode',
+      position: node.position ?? { x: 64 + (index * 210), y: 64 },
+      data: withExecutionDefaults({
+        agentId: node.agentId,
+        agentName: agent?.name ?? node.agentId,
+        color: agent?.color ?? '#7FE0FF',
+        label: node.label ?? agent?.name ?? 'Untitled step',
+        prompt: node.prompt ?? agent?.prompts?.[0] ?? '',
+        outputVar: node.outputVar ?? `${node.agentId}_output_${index + 1}`,
+        conditions: node.conditions ?? [],
+      }),
+    };
+  });
+}
+
+function buildTemplateEdges(template) {
+  return (template?.edges ?? []).map((edge) => createWorkflowEdge({
+    id: `${edge.from}-${edge.to}`,
+    source: edge.from,
+    target: edge.to,
+    label: edge.condition ?? undefined,
+  }));
+}
+
+export default function WorkflowBuilder({ onClose, initialTemplate = null }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [workflowName, setWorkflowName] = useState('');
@@ -303,14 +318,22 @@ export default function WorkflowBuilder({ onClose }) {
   const wrapperRef = useRef(null);
   const simulationRunRef = useRef(0);
   const pendingTimersRef = useRef([]);
+  const appliedTemplateSlugRef = useRef(null);
   const notify = useAppStore((state) => state.addNotification);
   const queryClient = useQueryClient();
 
   const selectedNode = nodes.find((node) => node.id === selectedId) ?? null;
+  const selectedAgent = AGENT_LIBRARY.find((agent) => agent.id === selectedNode?.data?.agentId) ?? null;
   const triggerConfigError = getTriggerConfigError(triggerType, triggerConfig);
+  const draftValidation = useMemo(
+    () => getWorkflowDraftValidation({ triggerType, triggerConfig, nodes, edges }),
+    [edges, nodes, triggerConfig, triggerType],
+  );
 
-  useEffect(() => () => {
-    stopSimulation();
+  const stopSimulation = useCallback(() => {
+    simulationRunRef.current += 1;
+    pendingTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+    pendingTimersRef.current = [];
   }, []);
 
   const queueDelay = useCallback((ms) => new Promise((resolve) => {
@@ -414,11 +437,52 @@ export default function WorkflowBuilder({ onClose }) {
     setSimulationLog([]);
   }, [setEdges, setNodes]);
 
-  function stopSimulation() {
-    simulationRunRef.current += 1;
-    pendingTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
-    pendingTimersRef.current = [];
-  }
+  const loadTemplate = useCallback((template) => {
+    if (!template) {
+      return;
+    }
+
+    stopSimulation();
+    const nextNodes = buildTemplateNodes(template);
+    const nextEdges = buildTemplateEdges(template);
+    setNodes(nextNodes);
+    setEdges(nextEdges);
+    setWorkflowName(template.name);
+    setTriggerType(template.triggerType);
+    setTriggerConfig(template.triggerConfig ?? {});
+    setSelectedId(nextNodes[0]?.id ?? null);
+    setSaveFeedback({
+      message: `${template.name} was loaded into the canvas. Adjust the prompts, trigger, or graph before saving if you want a custom version.`,
+      showWebhookTip: false,
+    });
+    resetExecutionStory();
+    appliedTemplateSlugRef.current = template.slug;
+  }, [resetExecutionStory, setEdges, setNodes, stopSimulation]);
+
+  const startBlankWorkflow = useCallback(() => {
+    stopSimulation();
+    setNodes([]);
+    setEdges([]);
+    setWorkflowName('');
+    setTriggerType('manual');
+    setTriggerConfig({});
+    setSelectedId(null);
+    setSaveFeedback(null);
+    resetExecutionStory();
+    appliedTemplateSlugRef.current = null;
+  }, [resetExecutionStory, setEdges, setNodes, stopSimulation]);
+
+  useEffect(() => () => {
+    stopSimulation();
+  }, [stopSimulation]);
+
+  useEffect(() => {
+    if (!initialTemplate?.slug || appliedTemplateSlugRef.current === initialTemplate.slug) {
+      return;
+    }
+
+    loadTemplate(initialTemplate);
+  }, [initialTemplate, loadTemplate]);
 
   const runSimulation = useCallback(async (mode) => {
     if (nodes.length === 0) {
@@ -572,8 +636,8 @@ export default function WorkflowBuilder({ onClose }) {
           agentId,
           agentName: agent.name,
           color: agent.color,
-          label: '',
-          prompt: '',
+          label: agent.name,
+          prompt: agent.prompts?.[0] ?? '',
           outputVar: `${agentId}_output_${nodeCounter}`,
           conditions: [],
         }),
@@ -671,6 +735,49 @@ export default function WorkflowBuilder({ onClose }) {
         </div>
       ) : null}
 
+      <div className="workflow-builder__startup">
+        <div className="workflow-builder__startup-head">
+          <div>
+            <SectionLabel>Start from a proven workflow or build your own</SectionLabel>
+            <p>
+              Prymal now ships ten strong default workflows. Load one to get a usable graph instantly, or drag agents onto the canvas for a custom lane.
+            </p>
+          </div>
+          {(nodes.length > 0 || appliedTemplateSlugRef.current) ? (
+            <Button tone="ghost" onClick={startBlankWorkflow}>
+              Start blank
+            </Button>
+          ) : null}
+        </div>
+
+        <div className="workflow-builder__checklist">
+          <div className="workflow-builder__checklist-item">
+            <strong>{nodes.length > 0 ? 'Ready' : 'Next'}</strong>
+            <span>{nodes.length > 0 ? 'A graph is on the canvas.' : 'Load a default workflow or drag your first agent into the canvas.'}</span>
+          </div>
+          <div className="workflow-builder__checklist-item">
+            <strong>{triggerConfigError ? 'Needs input' : 'Trigger'}</strong>
+            <span>{triggerType === 'manual' ? 'Manual trigger is already valid.' : triggerConfigError ?? 'Trigger details are valid.'}</span>
+          </div>
+          <div className="workflow-builder__checklist-item">
+            <strong>{draftValidation.blockingIssues.length > 0 ? 'Fix before save' : 'Prompts'}</strong>
+            <span>{draftValidation.nextStep}</span>
+          </div>
+        </div>
+
+        <div className="workflow-builder__template-strip">
+          {WORKFLOW_TEMPLATES.map((template) => (
+            <WorkflowTemplateCard
+              key={template.slug}
+              template={template}
+              compact
+              primaryActionLabel={appliedTemplateSlugRef.current === template.slug ? 'Reload template' : 'Load template'}
+              onPrimaryAction={loadTemplate}
+            />
+          ))}
+        </div>
+      </div>
+
       <div className="workflow-builder__header">
         <TextInput
           placeholder="Workflow name"
@@ -700,9 +807,9 @@ export default function WorkflowBuilder({ onClose }) {
         <Button
           tone="accent"
           onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending || nodes.length === 0 || Boolean(triggerConfigError)}
+          disabled={saveMutation.isPending || !draftValidation.readyToSave}
         >
-          {saveMutation.isPending ? 'Saving…' : 'Save workflow'}
+          {saveMutation.isPending ? 'Saving...' : 'Save workflow'}
         </Button>
 
         {onClose ? (
@@ -713,6 +820,24 @@ export default function WorkflowBuilder({ onClose }) {
       </div>
 
       {renderTriggerCard(triggerType, triggerConfig, triggerConfigError, setTriggerConfig, setSaveFeedback)}
+
+      {draftValidation.blockingIssues.length > 0 ? (
+        <InlineNotice tone="warning">
+          <ul className="workflow-builder__validation-list">
+            {draftValidation.blockingIssues.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        </InlineNotice>
+      ) : draftValidation.guidance.length > 0 ? (
+        <InlineNotice tone="default">
+          <ul className="workflow-builder__validation-list">
+            {draftValidation.guidance.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        </InlineNotice>
+      ) : null}
 
       <div className="workflow-builder__simulation">
         <div>
@@ -853,6 +978,22 @@ export default function WorkflowBuilder({ onClose }) {
                     rows={4}
                   />
 
+                  <div className="workflow-builder__inspector-actions">
+                    {selectedAgent?.prompts?.[0] ? (
+                      <Button
+                        tone="ghost"
+                        onClick={() => updateNodeData('prompt', selectedAgent.prompts[0])}
+                      >
+                        Use starter prompt
+                      </Button>
+                    ) : null}
+                    {selectedAgent?.prompts?.[0] ? (
+                      <p className="workflow-builder__starter-prompt">
+                        Starter: {selectedAgent.prompts[0]}
+                      </p>
+                    ) : null}
+                  </div>
+
                   <div>
                     <div className="workflow-builder__condition-head">
                       <SectionLabel>Conditions</SectionLabel>
@@ -969,24 +1110,6 @@ function removeCondition(selectedNode, index, updateNodeData) {
   const conditions = [...(selectedNode?.data.conditions ?? [])];
   conditions.splice(index, 1);
   updateNodeData('conditions', conditions);
-}
-
-function getTriggerConfigError(triggerType, triggerConfig) {
-  if (triggerType === 'schedule') {
-    if (!triggerConfig.cron?.trim()) return 'Cron expression is required for scheduled workflows.';
-    if (!isValidCron(triggerConfig.cron)) return 'Cron expression must have 5 fields (e.g. "0 9 * * 1").';
-  }
-
-  if (triggerType === 'webhook') {
-    if (!triggerConfig.webhookSecret?.trim()) return 'Webhook secret is required.';
-    if (triggerConfig.webhookSecret.length < 8) return 'Webhook secret must be at least 8 characters.';
-  }
-
-  if (triggerType === 'event') {
-    if (!triggerConfig.eventType?.trim()) return 'Event type is required.';
-  }
-
-  return null;
 }
 
 function renderTriggerCard(triggerType, triggerConfig, triggerConfigError, setTriggerConfig, setSaveFeedback) {

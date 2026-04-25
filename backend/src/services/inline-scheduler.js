@@ -6,8 +6,9 @@
 // ─────────────────────────────────────────────────────────────────
 
 import cron from 'node-cron';
-import { eq, and } from 'drizzle-orm';
-import { workflows } from '../db/schema.js';
+import { and, eq } from 'drizzle-orm';
+import { organisations, workflowRuns, workflows } from '../db/schema.js';
+import { getBillingSnapshotForOrg } from './billing-engine.js';
 
 // Map of workflowId → { task: cron.ScheduledTask, cronExpression: string, registeredAt: Date }
 const registry = new Map();
@@ -71,6 +72,80 @@ export function getRegisteredSchedules() {
   }));
 }
 
+export async function buildScheduledWorkflowOrgContext(workflow, runtimeDb, options = {}) {
+  const organisation = await runtimeDb.query.organisations.findFirst({
+    where: eq(organisations.id, workflow.orgId),
+  });
+
+  if (!organisation) {
+    throw new Error(`Organisation ${workflow.orgId} was not found for scheduled workflow ${workflow.id}.`);
+  }
+
+  const loadBillingSnapshot = options.getBillingSnapshotForOrg ?? getBillingSnapshotForOrg;
+  const billingSnapshot = await loadBillingSnapshot(organisation.id).catch((error) => {
+    console.error('[SCHEDULER] Failed to load billing snapshot for scheduled workflow:', error.message);
+    return null;
+  });
+
+  return {
+    userId: null,
+    orgId: organisation.id,
+    orgPlan: organisation.plan,
+    orgName: organisation.name,
+    credits: billingSnapshot?.credits ?? {
+      execution: {
+        available: Math.max((organisation.monthlyCreditLimit ?? 0) - (organisation.creditsUsed ?? 0), 0),
+        committedThisCycle: organisation.creditsUsed ?? 0,
+        includedAvailable: Math.max((organisation.monthlyCreditLimit ?? 0) - (organisation.creditsUsed ?? 0), 0),
+        purchasedAvailable: 0,
+        reserved: 0,
+      },
+      video: {
+        available: 0,
+        committedThisCycle: 0,
+        includedAvailable: 0,
+        purchasedAvailable: 0,
+        reserved: 0,
+      },
+    },
+  };
+}
+
+export function createScheduledWorkflowRunHandler(workflow, options = {}) {
+  return async () => {
+    const runtimeDb = options.runtimeDb ?? (await import('../db/index.js')).db;
+    const dispatchWorkflowRun =
+      options.dispatchWorkflowRun ?? (await import('../queue/trigger.js')).dispatchWorkflowRun;
+
+    const [run] = await runtimeDb
+      .insert(workflowRuns)
+      .values({
+        workflowId: workflow.id,
+        orgId: workflow.orgId,
+        triggeredBy: 'schedule',
+        status: 'queued',
+        triggerSource: 'schedule',
+        nodeOutputs: {},
+        runLog: [],
+      })
+      .returning();
+
+    const orgContext = await buildScheduledWorkflowOrgContext(workflow, runtimeDb, {
+      getBillingSnapshotForOrg: options.getBillingSnapshotForOrg,
+    });
+    const dispatch = await dispatchWorkflowRun({
+      runId: run.id,
+      workflow,
+      orgContext,
+    });
+
+    await runtimeDb
+      .update(workflowRuns)
+      .set({ executionMode: dispatch.mode })
+      .where(eq(workflowRuns.id, run.id));
+  };
+}
+
 /**
  * Boot the inline scheduler: load all active scheduled workflows from DB
  * and register their cron handlers.
@@ -86,7 +161,7 @@ export async function startInlineScheduler(db) {
     scheduledWorkflows = await db.query.workflows.findMany({
       where: and(
         eq(workflows.triggerType, 'schedule'),
-        eq(workflows.enabled, true),
+        eq(workflows.isActive, true),
       ),
     });
   } catch (error) {
@@ -102,31 +177,7 @@ export async function startInlineScheduler(db) {
       continue;
     }
 
-    registerSchedule(workflow.id, cronExpression, async () => {
-      try {
-        // Lazy import to avoid circular deps during boot
-        const { dispatchWorkflowRun } = await import('../queue/trigger.js');
-        const { db: runtimeDb } = await import('../db/index.js');
-
-        // Create a fresh run record
-        const { workflowRuns } = await import('../db/schema.js');
-        const [run] = await runtimeDb.insert(workflowRuns).values({
-          workflowId: workflow.id,
-          orgId: workflow.orgId,
-          status: 'queued',
-          nodeOutputs: {},
-          runLog: [],
-        }).returning();
-
-        await dispatchWorkflowRun({
-          runId: run.id,
-          workflow,
-          orgContext: { orgId: workflow.orgId, orgPlan: 'teams', userId: null },
-        });
-      } catch (error) {
-        console.error(`[SCHEDULER] Failed to dispatch scheduled run for workflow ${workflow.id}:`, error.message);
-      }
-    });
+    registerSchedule(workflow.id, cronExpression, createScheduledWorkflowRunHandler(workflow, { runtimeDb: db }));
 
     registered += 1;
   }

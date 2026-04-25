@@ -268,7 +268,7 @@ export default function Landing() {
     <div ref={scopeRef} className="marketing-page prymal-marketing prymal-marketing--home">
       <PageMeta
         title="Prymal | The premium AI operating system for business execution"
-        description="15 specialist AI agents, grounded retrieval, workflow orchestration, realtime voice, and an operator-grade control plane in one premium operating system."
+        description="14 user-facing specialist agents, SENTINEL QA, grounded retrieval, workflow orchestration, configurable voice, and an operator-grade control plane in one premium operating system."
         canonicalPath="/"
       />
       <JsonLd
@@ -280,7 +280,7 @@ export default function Landing() {
           applicationCategory: 'BusinessApplication',
           operatingSystem: 'Web',
           description:
-            'Prymal is a premium AI operating system with 15 specialist agents, hybrid RAG, workflow orchestration, and an operator-grade SaaS control plane.',
+            'Prymal is a premium AI operating system with 14 user-facing specialist agents, SENTINEL QA, hybrid RAG, workflow orchestration, and an operator-grade SaaS control plane.',
           offers: [
             { '@type': 'Offer', name: freePlan.name, price: '0', priceCurrency: 'GBP' },
             ...PLAN_LIBRARY.map((plan) => ({

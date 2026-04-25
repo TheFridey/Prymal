@@ -8,9 +8,7 @@ import { enforceAgentToolPolicy, isSideEffectTool } from '../agents/runtime.js';
 import { getAgentMemory } from './memory.js';
 import { ragSearch } from './rag.js';
 import { fetchLiveWebContext } from './web-research.js';
-import { db } from '../db/index.js';
-import { integrations } from '../db/schema.js';
-import { and, eq } from 'drizzle-orm';
+import { getAccessToken } from '../routes/integrations.js';
 
 export const KNOWN_TOOLS = new Set([
   'lore_search',
@@ -285,23 +283,16 @@ async function handleEmailSend({ toolInput, orgId }) {
     throw new Error('email_send requires "to", "subject", and "body" fields.');
   }
 
-  // Look up the org's Gmail integration credentials
-  const integration = await db.query.integrations.findFirst({
-    where: and(
-      eq(integrations.orgId, orgId),
-      eq(integrations.service, 'gmail'),
-      eq(integrations.isActive, true),
-    ),
-  });
+  let accessToken;
 
-  if (!integration) {
+  try {
+    accessToken = await getAccessToken(orgId, 'gmail');
+  } catch {
     throw Object.assign(
       new Error('Gmail integration is not connected for this organisation. Connect it in Integrations first.'),
       { code: 'GMAIL_NOT_CONNECTED' },
     );
   }
-
-  const accessToken = integration.accessToken;
 
   const rfcMessage = [
     `To: ${to}`,

@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -15,25 +15,28 @@ import { BrandMark, Button, InlineNotice, LoadingPanel, ThemeToggle } from './co
 import { MotionPage, MotionPresence } from './components/motion';
 import { ThemeProvider, getClerkAppearance, useTheme } from './components/theme';
 import { api, configureApi } from './lib/api';
+import { lazyWithRetry } from './lib/lazyWithRetry';
 import { useAppStore } from './stores/useAppStore';
 
-const Admin = lazy(() => import('./pages/Admin'));
-const AgentChat = lazy(() => import('./pages/AgentChat'));
-const AgentProfile = lazy(() => import('./pages/AgentProfile'));
-const Changelog = lazy(() => import('./pages/Changelog'));
-const Cookies = lazy(() => import('./pages/Cookies'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const ForAgencies = lazy(() => import('./pages/ForAgencies'));
-const ForSmallBusiness = lazy(() => import('./pages/ForSmallBusiness'));
-const Integrations = lazy(() => import('./pages/Integrations'));
-const Landing = lazy(() => import('./pages/Landing'));
-const Lore = lazy(() => import('./pages/Lore'));
-const Onboarding = lazy(() => import('./pages/Onboarding'));
-const Privacy = lazy(() => import('./pages/Privacy'));
-const Pricing = lazy(() => import('./pages/Pricing'));
-const Settings = lazy(() => import('./pages/Settings'));
-const Terms = lazy(() => import('./pages/Terms'));
-const Workflows = lazy(() => import('./pages/Workflows'));
+const lazyPage = (importer, key) => lazyWithRetry(importer, `route:${key}`);
+
+const Admin = lazyPage(() => import('./pages/Admin'), 'admin');
+const AgentChat = lazyPage(() => import('./pages/AgentChat'), 'agent-chat');
+const AgentProfile = lazyPage(() => import('./pages/AgentProfile'), 'agent-profile');
+const Changelog = lazyPage(() => import('./pages/Changelog'), 'changelog');
+const Cookies = lazyPage(() => import('./pages/Cookies'), 'cookies');
+const Dashboard = lazyPage(() => import('./pages/Dashboard'), 'dashboard');
+const ForAgencies = lazyPage(() => import('./pages/ForAgencies'), 'for-agencies');
+const ForSmallBusiness = lazyPage(() => import('./pages/ForSmallBusiness'), 'for-small-business');
+const Integrations = lazyPage(() => import('./pages/Integrations'), 'integrations');
+const Landing = lazyPage(() => import('./pages/Landing'), 'landing');
+const Lore = lazyPage(() => import('./pages/Lore'), 'lore');
+const Onboarding = lazyPage(() => import('./pages/Onboarding'), 'onboarding');
+const Privacy = lazyPage(() => import('./pages/Privacy'), 'privacy');
+const Pricing = lazyPage(() => import('./pages/Pricing'), 'pricing');
+const Settings = lazyPage(() => import('./pages/Settings'), 'settings');
+const Terms = lazyPage(() => import('./pages/Terms'), 'terms');
+const Workflows = lazyPage(() => import('./pages/Workflows'), 'workflows');
 
 const queryClient = new QueryClient({
   defaultOptions: {

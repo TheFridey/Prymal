@@ -13,6 +13,7 @@
     "test": "node --test \"src/**/*.test.js\"",
     "test:ci": "node --test \"src/**/*.test.js\"",
     "env:validate": "node scripts/validate-env.mjs --scope backend --mode production",
+    "schema:check": "node scripts/check-schema-drift.mjs",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",

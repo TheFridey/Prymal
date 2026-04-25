@@ -118,6 +118,11 @@ test('validateRuntimeEnv blocks live video environments from using local media s
   const result = validateRuntimeEnv(
     {
       DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/prymal',
+      CLERK_PUBLISHABLE_KEY: 'pk_test_prymaltestkey',
+      CLERK_SECRET_KEY: 'sk_test_prymaltestkey',
+      FRONTEND_URL: 'http://localhost:5173',
+      API_URL: 'http://localhost:3001',
+      NODE_ENV: 'production',
       OPENAI_API_KEY: 'sk-real-ish-openai-key',
       ANTHROPIC_API_KEY: 'sk-ant-real-ish-key',
       GEMINI_API_KEY: 'AIza-real-ish-key',

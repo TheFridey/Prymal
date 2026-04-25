@@ -7,7 +7,8 @@ import { organisations, workflowRuns, workflows, workflowWebhooks } from '../db/
 import { requireOrg, requireRole } from '../middleware/auth.js';
 import { planAwareRateLimit } from '../middleware/rateLimit.js';
 import { getBillingSnapshotForOrg } from '../services/billing-engine.js';
-import { dispatchWorkflowRun, hasTriggerDevConfig, registerCron, unregisterCron } from '../queue/trigger.js';
+import { dispatchWorkflowRun, registerCron, unregisterCron } from '../queue/trigger.js';
+import { createScheduledWorkflowRunHandler } from '../services/inline-scheduler.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
 import { validateWorkflowDefinition } from '../services/workflow-engine.js';
 
@@ -327,15 +328,6 @@ router.patch('/:id/toggle', requireOrg, requireRole('owner', 'admin'), async (co
     return context.json({ error: 'Workflow not found.' }, 404);
   }
 
-  if (!workflow.isActive && workflow.triggerType === 'schedule' && !hasTriggerDevConfig()) {
-    return context.json(
-      {
-        error: 'Trigger.dev is required to activate scheduled workflows.',
-      },
-      400,
-    );
-  }
-
   const [updated] = await db
     .update(workflows)
     .set({
@@ -347,7 +339,11 @@ router.patch('/:id/toggle', requireOrg, requireRole('owner', 'admin'), async (co
 
   if (updated.triggerType === 'schedule') {
     if (updated.isActive) {
-      await registerCron(updated.id, updated.triggerConfig?.cron);
+      await registerCron(
+        updated.id,
+        updated.triggerConfig?.cron,
+        createScheduledWorkflowRunHandler(updated, { runtimeDb: db }),
+      );
     } else {
       await unregisterCron(updated.id);
     }

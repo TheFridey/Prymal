@@ -1,6 +1,8 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../lib/api';
+import WorkflowTemplateCard from './WorkflowTemplateCard';
+import { WORKFLOW_TEMPLATES, createWorkflowTemplatePayload } from '../../../lib/workflow-templates';
 import { formatDateTime, formatNumber, getErrorMessage, truncate } from '../../../lib/utils';
 import {
   Button,
@@ -12,6 +14,7 @@ import {
   SurfaceCard,
 } from '../../../components/ui';
 import { MotionList, MotionListItem, MotionModal, MotionPresence, MotionSection } from '../../../components/motion';
+import { useAppStore } from '../../../stores/useAppStore';
 
 const WorkflowBuilder = lazy(() => import('../../../pages/WorkflowBuilder'));
 const WebhookSubscriptionsPanel = lazy(() => import('./WebhookSubscriptionsPanel'));
@@ -81,6 +84,8 @@ export default function WorkflowPanel() {
   const [expandedWebhookPanels, setExpandedWebhookPanels] = useState({});
   const [logRun, setLogRun] = useState(null);
   const [builderOpen, setBuilderOpen] = useState(false);
+  const [builderTemplate, setBuilderTemplate] = useState(null);
+  const notify = useAppStore((state) => state.addNotification);
 
   const workflowsQuery = useQuery({
     queryKey: ['workspace-workflows'],
@@ -122,6 +127,11 @@ export default function WorkflowPanel() {
     [workflows],
   );
 
+  const openBuilder = (template = null) => {
+    setBuilderTemplate(template);
+    setBuilderOpen(true);
+  };
+
   const runMutation = useMutation({
     mutationFn: (workflowId) =>
       api.post(`/workflows/${workflowId}/run`, null, {
@@ -155,6 +165,29 @@ export default function WorkflowPanel() {
         setExpandedWorkflowId(null);
       }
       await queryClient.invalidateQueries({ queryKey: ['workspace-workflows'] });
+    },
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: (template) => api.post('/workflows', createWorkflowTemplatePayload(template)),
+    onSuccess: async (result) => {
+      setExpandedWorkflowId(result.workflow.id);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['workspace-workflows'] }),
+        queryClient.invalidateQueries({ queryKey: ['workflows'] }),
+      ]);
+      notify({
+        type: 'success',
+        title: 'Workflow created',
+        message: 'A default workflow blueprint was added to this workspace.',
+      });
+    },
+    onError: (error) => {
+      notify({
+        type: 'error',
+        title: 'Template failed',
+        message: getErrorMessage(error),
+      });
     },
   });
 
@@ -216,13 +249,38 @@ export default function WorkflowPanel() {
         </div>
 
         <SurfaceCard
+          title="Default workflow blueprints"
+          subtitle="10 strong starting points with visual flow maps"
+          accent="#4CC9F0"
+          className="workspace-workflow-panel__surface"
+        >
+          <div className="workflow-template-grid">
+            {WORKFLOW_TEMPLATES.map((template) => (
+              <WorkflowTemplateCard
+                key={template.slug}
+                template={template}
+                compact
+                primaryActionLabel="Open in builder"
+                secondaryActionLabel="Create now"
+                onPrimaryAction={openBuilder}
+                onSecondaryAction={(selected) => createTemplateMutation.mutate(selected)}
+              />
+            ))}
+          </div>
+
+          {createTemplateMutation.isError ? (
+            <InlineNotice tone="danger">{getErrorMessage(createTemplateMutation.error)}</InlineNotice>
+          ) : null}
+        </SurfaceCard>
+
+        <SurfaceCard
           title="Workflow inventory"
           subtitle={`${workflows.length} configured`}
           accent="#F72585"
           className="workspace-workflow-panel__surface"
         >
           <div className="workspace-workflow-panel__actions">
-            <Button tone="accent" onClick={() => setBuilderOpen(true)}>
+            <Button tone="accent" onClick={() => openBuilder(null)}>
               Open workflow builder
             </Button>
           </div>
@@ -235,11 +293,11 @@ export default function WorkflowPanel() {
             <MotionSection reveal={{ y: 20, blur: 8 }}>
               <EmptyState
                 title="No workflows yet"
-                description="Create a first workflow in the builder, then manage runs and logs from this panel without leaving the workspace."
+                description="Start from a default blueprint above or create a custom workflow in the builder, then manage runs and logs from this panel without leaving the workspace."
                 accent="#F72585"
                 action={
-                  <Button tone="accent" onClick={() => setBuilderOpen(true)}>
-                    Open WorkflowBuilder
+                  <Button tone="accent" onClick={() => openBuilder(null)}>
+                    Open workflow builder
                   </Button>
                 }
               />
@@ -427,7 +485,10 @@ export default function WorkflowPanel() {
       {builderOpen ? (
         <MotionModal
           open={builderOpen}
-          onClose={() => setBuilderOpen(false)}
+          onClose={() => {
+            setBuilderOpen(false);
+            setBuilderTemplate(null);
+          }}
           className="workspace-modal workspace-workflow-panel__builder-modal"
           backdropClassName="workspace-modal-backdrop"
           backdropLabel="Close workflow builder"
@@ -438,10 +499,25 @@ export default function WorkflowPanel() {
                 <div className="workspace-modal__eyebrow">Workflow builder</div>
                 <h2 className="workspace-modal__title">Create a new workflow</h2>
               </div>
-              <Button tone="ghost" onClick={() => setBuilderOpen(false)}>Close</Button>
+              <Button
+                tone="ghost"
+                onClick={() => {
+                  setBuilderOpen(false);
+                  setBuilderTemplate(null);
+                }}
+              >
+                Close
+              </Button>
             </div>
             <Suspense fallback={<LoadingPanel label="Loading workflow builder..." />}>
-              <WorkflowBuilder onClose={() => setBuilderOpen(false)} />
+              <WorkflowBuilder
+                key={builderTemplate?.slug ?? 'workspace-builder'}
+                initialTemplate={builderTemplate}
+                onClose={() => {
+                  setBuilderOpen(false);
+                  setBuilderTemplate(null);
+                }}
+              />
             </Suspense>
         </MotionModal>
       ) : null}

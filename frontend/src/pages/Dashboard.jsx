@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
-import { AgentAvatar, Button, EmptyState, PageShell } from '../components/ui';
+import { AgentAvatar, EmptyState, PageShell } from '../components/ui';
 import { MotionSection, usePrymalReducedMotion } from '../components/motion';
 import {
   AGENT_UI_LAYERS,
@@ -11,6 +11,8 @@ import {
   getWorkspacePlanMeta,
   sortAgentsByUiHierarchy,
 } from '../lib/constants';
+import WorkflowTemplateCard from '../features/workspace/workflows/WorkflowTemplateCard';
+import { getFeaturedWorkflowTemplates } from '../lib/workflow-templates';
 import { api } from '../lib/api';
 import '../styles/app-rebuild.css';
 
@@ -167,6 +169,7 @@ export default function Dashboard() {
   const workflows = workflowsQuery.data?.workflows ?? [];
   const activeWorkflows = workflows.filter((workflow) => workflow.isActive);
   const latestConversation = recentConversations[0] ?? null;
+  const featuredWorkflowTemplates = useMemo(() => getFeaturedWorkflowTemplates(4), []);
 
   const recentConversationAgents = useMemo(
     () => recentConversations.map((conv) => getAgentMeta(conv.agentId)).filter(Boolean),
@@ -224,6 +227,13 @@ export default function Dashboard() {
       navigate('/app/workflows');
     },
     [commandDraft, navigate],
+  );
+
+  const handleOpenWorkflowTemplate = useCallback(
+    (template) => {
+      navigate(`/app/workflows?view=builder&template=${encodeURIComponent(template.slug)}`);
+    },
+    [navigate],
   );
 
   const heroPrimaryAction = latestConversation
@@ -319,10 +329,10 @@ export default function Dashboard() {
               </div>
 
               <div className="pm-dash__trust">
-                <span className="pm-dash__trust-chip">SENTINEL gated</span>
+                <span className="pm-dash__trust-chip">SENTINEL QA</span>
                 <span className="pm-dash__trust-chip">LORE grounded</span>
-                <span className="pm-dash__trust-chip">Voice ready</span>
-                <span className="pm-dash__trust-chip">Webhook receipts</span>
+                <span className="pm-dash__trust-chip">Voice when configured</span>
+                <span className="pm-dash__trust-chip">Webhook-ready</span>
               </div>
             </MotionSection>
 
@@ -393,6 +403,33 @@ export default function Dashboard() {
 
             <MotionSection delay={0.12} reveal={{ y: 20, blur: 8 }} className="pm-dash__flow-section">
               <DashWorkflowPlate workflows={workflows} highlightAgentId={latestConversation?.agentId} />
+            </MotionSection>
+
+            <MotionSection delay={0.13} reveal={{ y: 18, blur: 8 }} className="pm-dash__workflow-blueprints">
+              <div className="pm-dash__workflow-blueprints-head">
+                <div>
+                  <div className="pm-dash__flow-eyebrow">Workflow blueprints</div>
+                  <h2 className="pm-dash__workflow-blueprints-title">Start from a proven operating lane</h2>
+                  <p className="pm-dash__workflow-blueprints-copy">
+                    These default workflows give teams strong first use cases without asking them to invent the graph structure from scratch.
+                  </p>
+                </div>
+                <button type="button" className="pm-btn pm-btn--ghost" onClick={() => navigate('/app/workflows')}>
+                  Open full library
+                </button>
+              </div>
+
+              <div className="workflow-template-grid">
+                {featuredWorkflowTemplates.map((template) => (
+                  <WorkflowTemplateCard
+                    key={template.slug}
+                    template={template}
+                    compact
+                    primaryActionLabel="Open in builder"
+                    onPrimaryAction={handleOpenWorkflowTemplate}
+                  />
+                ))}
+              </div>
             </MotionSection>
 
             <MotionSection className="pm-dash__posture pm-dash__posture--wide" delay={0.14} reveal={{ y: 14, blur: 6 }}>

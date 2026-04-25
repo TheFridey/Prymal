@@ -1,8 +1,8 @@
 # Prymal
 
-Prymal is a multi-agent AI platform that gives businesses an orchestrated team of 15 specialist AI agents — each with defined contracts, output schemas, and a SENTINEL QA layer — backed by a hybrid RAG knowledge base, automated workflow engine, and a full SaaS control plane.
+Prymal is a multi-agent AI platform that gives businesses an orchestrated team of 14 user-facing specialist AI agents plus the internal SENTINEL QA layer — each with defined contracts and output schemas — backed by a hybrid RAG knowledge base, automated workflow engine, and a full SaaS control plane.
 
-- 15 named agents: CIPHER, HERALD, LORE, FORGE, ATLAS, ECHO, ORACLE, VANCE, WREN, LEDGER, NEXUS, SCOUT, SAGE, PIXEL, SENTINEL
+- 14 user-facing agents: CIPHER, HERALD, LORE, FORGE, ATLAS, ECHO, ORACLE, VANCE, WREN, LEDGER, NEXUS, SCOUT, SAGE, PIXEL; SENTINEL runs internally as the QA gate
 - Hybrid RAG search with authority scoring, freshness decay, and contradiction detection
 - SENTINEL output review: PASS / REPAIR / HOLD verdicts with hard enforcement
 - Multi-provider LLM routing: Anthropic + OpenAI + Google Gemini with policy-based fallback chains
@@ -53,12 +53,12 @@ Prymal/
 - Hybrid RAG search: 58% semantic + 14% lexical + 14% freshness + 14% authority scoring, with `computeFreshnessScore`, `computeAuthorityScore`, `computeContradictionSignals`, `detectKnowledgeGap`, and `checkForContradictions`
 - LORE ingest, search, reindex, delete, contradiction scanning, knowledge-gap detection, and retrieval diagnostics
 - Runtime contract system in `agents/runtime.js` with `getRuntimeAgentContract`, `validateContractToolUsage`, `buildRuntimeContractSummary`, and `HIGH_VALUE_AGENT_IDS`
-- Output schema enforcement for all 15 agents via `SCHEMA_ENFORCED_AGENTS` in `output-schemas.js`, plus validator repair prompts/defaults
+- Output schema enforcement for runtime agents, including SENTINEL, via `SCHEMA_ENFORCED_AGENTS` in `output-schemas.js`, plus validator repair prompts/defaults
 - SENTINEL HOLD gate with PASS / REPAIR / HOLD verdicts, hard response suppression on HOLD, `hold` SSE events, and `outcomeStatus: 'held'` trace recording
 - Workflow create, update, toggle, run, replay, retry classification, timeout handling, idempotency, and run history routes
 - Outbound workflow webhook delivery for `workflow.completed`, `workflow.failed`, `workflow.node.completed`, and `workflow.node.failed` with HMAC-SHA256 signing
 - Plan-aware rate limiting on agent chat, LORE ingest, and workflow run endpoints
-- OAuth integrations for Gmail, Google Drive, Notion, and Slack
+- OAuth account linking for Gmail, Google Drive, Notion, and Slack, plus manual-token lanes for Outlook, OneDrive, Dropbox, Box, Discord, Telegram, X, Mastodon, LinkedIn, and custom webhooks
 - Invitation email delivery and waitlist batch invite dispatch through `email_queue`
 - Stripe checkout, portal, usage stats, and webhook sync
 - Deterministic execution/video credit burn with append-only ledgers, threshold tracking, top-up packs, and server-authoritative entitlement enforcement
@@ -196,7 +196,7 @@ Backend env loading is now split into:
 
 - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, plan price IDs, execution/video top-up price IDs, and `STRIPE_PRICE_SEAT_ADDON`
 - Trigger.dev: `TRIGGER_API_KEY`, optional `TRIGGER_API_URL`
-- Integrations: Google, Notion, and Slack OAuth credentials
+- Integrations: Google, Notion, and Slack OAuth credentials, plus manual-token linking for the expanded integrations catalog
 - Secure OAuth callback state: `INTEGRATION_STATE_SECRET`
 - Invitations: `RESEND_API_KEY`, `EMAIL_FROM`, optional `INVITE_EMAIL_REPLY_TO`
 - Tiered internal staff access: `STAFF_SUPPORT_*`, `STAFF_OPS_*`, `STAFF_FINANCE_*`, `STAFF_SUPERADMIN_*`

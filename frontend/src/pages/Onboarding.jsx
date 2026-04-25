@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { getRecommendedAgentsForWorkspaceProfile, WORKFLOW_TEMPLATES } from '../lib/constants';
+import { getRecommendedAgentsForWorkspaceProfile } from '../lib/constants';
+import { getRecommendedWorkflowTemplateForProfile } from '../lib/workflow-templates';
 import { getErrorMessage } from '../lib/utils';
 import { BrandMark, Button, InlineNotice, TextInput, ThemeToggle } from '../components/ui';
 import { usePrymalReducedMotion } from '../components/motion';
@@ -83,15 +84,7 @@ export default function Onboarding() {
   );
 
   const recommendedWorkflow = useMemo(() => {
-    if (primaryGoal.toLowerCase().includes('support')) {
-      return WORKFLOW_TEMPLATES[0];
-    }
-
-    if (primaryGoal.toLowerCase().includes('report') || primaryGoal.toLowerCase().includes('data')) {
-      return WORKFLOW_TEMPLATES[2];
-    }
-
-    return workspaceFocus === 'agency' ? WORKFLOW_TEMPLATES[1] : WORKFLOW_TEMPLATES[0];
+    return getRecommendedWorkflowTemplateForProfile({ primaryGoal, workspaceFocus });
   }, [primaryGoal, workspaceFocus]);
 
   const recommendedFirstAgentId = recommendedAgents[0]?.id ?? 'cipher';
@@ -117,7 +110,7 @@ export default function Onboarding() {
           onboardingWorkspaceProfile: workspaceProfile,
           recommendedAgentIds: recommendedAgents.map((agent) => agent.id),
           recommendedFirstAgentId,
-          recommendedWorkflowName: recommendedWorkflow.name,
+          recommendedWorkflowName: recommendedWorkflow?.name ?? 'Weekly Client Report',
         },
       });
     },
@@ -268,8 +261,8 @@ export default function Onboarding() {
                   <div className="pm-onboarding__summary-title">Suggested workflow after the first chat</div>
                   <div className="pm-onboarding__summary-body">This step is intentionally deferred. Land the first output first, then turn it into a repeatable workflow.</div>
                 </div>
-                <div style={{ fontSize: '16px', marginBottom: '6px', color: '#fff', fontWeight: 700 }}>{recommendedWorkflow.name}</div>
-                <div style={{ color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>{recommendedWorkflow.description}</div>
+                <div style={{ fontSize: '16px', marginBottom: '6px', color: '#fff', fontWeight: 700 }}>{recommendedWorkflow?.name ?? 'Weekly Client Report'}</div>
+                <div style={{ color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>{recommendedWorkflow?.description ?? 'A default workflow blueprint will be suggested from your first-win goal.'}</div>
               </div>
 
               <InlineNotice tone="success">

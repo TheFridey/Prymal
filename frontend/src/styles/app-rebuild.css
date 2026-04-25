@@ -262,6 +262,33 @@
   width: 100%;
 }
 
+.pm-dash__workflow-blueprints {
+  display: grid;
+  gap: 16px;
+}
+
+.pm-dash__workflow-blueprints-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.pm-dash__workflow-blueprints-title {
+  margin: 6px 0 8px;
+  font-size: clamp(1.4rem, 2.2vw, 2rem);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+}
+
+.pm-dash__workflow-blueprints-copy {
+  margin: 0;
+  max-width: 720px;
+  color: var(--muted, rgba(255, 255, 255, 0.45));
+  line-height: 1.7;
+}
+
 .pm-dash__flow-plate {
   padding: 20px 22px;
   border-radius: 22px;
