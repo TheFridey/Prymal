@@ -28,7 +28,6 @@ export class CloudinaryStorage {
     buffer,
     base64,
     mimeType = 'image/webp',
-    outputFormat = 'webp',
     orgId = null,
     conversationId = null,
     messageId = null,
@@ -39,7 +38,8 @@ export class CloudinaryStorage {
       resource_type: 'image',
       folder: `${this.folder}/generated-images/${sanitizePathSegment(orgId || 'public')}`,
       public_id: buildPublicId(conversationId || messageId || 'image'),
-      format: outputFormat,
+      format: 'webp',
+      quality: 'auto',
       tags: buildAssetTags({ orgId, conversationId, messageId, kind: 'generated-image' }),
       context: buildCloudinaryContext({
         orgId,
@@ -92,6 +92,8 @@ export class CloudinaryStorage {
       resource_type: 'image',
       folder: `${this.folder}/video-reference-images/${sanitizePathSegment(orgId || 'public')}/${sanitizePathSegment(videoJobId || 'job')}`,
       public_id: buildPublicId(`${index + 1}-${originalName || 'reference'}`),
+      format: 'webp',
+      quality: 'auto',
       tags: buildAssetTags({ orgId, videoJobId, kind: 'video-reference-image' }),
       context: buildCloudinaryContext({
         orgId,
@@ -103,7 +105,7 @@ export class CloudinaryStorage {
 
     return {
       ...normalizeCloudinaryAsset(result),
-      mimeType,
+      mimeType: 'image/webp',
       originalName: String(originalName ?? '').trim() || null,
       cleanupStatus: 'pending',
     };

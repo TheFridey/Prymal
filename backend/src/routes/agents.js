@@ -48,6 +48,14 @@ const chatSchema = z.object({
     base64: z.string().max(15_000_000),
     mediaType: z.string().max(80),
     name: z.string().max(255),
+  }).superRefine((attachment, ctx) => {
+    if (attachment.mediaType.startsWith('image/') && attachment.mediaType !== 'image/webp') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Image attachments must be converted to WEBP before upload.',
+        path: ['mediaType'],
+      });
+    }
   })).max(4).optional(),
   preferences: z
     .object({
@@ -68,7 +76,7 @@ const imageGenerationSchema = z.object({
   conversationId: z.string().uuid().optional(),
   size: z.enum(['1024x1024', '1536x1024', '1024x1536', 'auto']).optional().default('1024x1024'),
   quality: z.enum(['low', 'medium', 'high', 'auto']).optional().default('medium'),
-  outputFormat: z.enum(['png', 'webp', 'jpeg']).optional().default('webp'),
+  outputFormat: z.enum(['webp']).optional().default('webp'),
   background: z.enum(['transparent', 'opaque', 'auto']).optional().default('auto'),
 });
 

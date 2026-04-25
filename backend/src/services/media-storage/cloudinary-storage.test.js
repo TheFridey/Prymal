@@ -59,3 +59,95 @@ test('Cloudinary storage uploads generated videos with the expected payload', as
   assert.equal(asset.publicId, 'prymal/generated-videos/org_1/job_1');
   assert.equal(asset.deliveryUrl, asset.secureUrl);
 });
+
+test('Cloudinary storage converts generated images to WEBP', async () => {
+  const uploads = [];
+  const client = {
+    config: () => {},
+    uploader: {
+      upload: async (source, options) => {
+        uploads.push({ source, options });
+        return {
+          public_id: 'prymal/generated-images/org_1/image_1',
+          resource_type: 'image',
+          secure_url: 'https://res.cloudinary.com/demo/image/upload/v1/prymal/generated-images/org_1/image_1.webp',
+          bytes: 1234,
+          format: 'webp',
+          width: 1024,
+          height: 1024,
+          original_filename: 'image_1',
+          created_at: '2026-04-24T12:00:00Z',
+        };
+      },
+      destroy: async () => ({ result: 'ok' }),
+    },
+  };
+
+  const storage = new CloudinaryStorage({
+    cloudName: 'demo',
+    apiKey: '123456',
+    apiSecret: 'secret',
+    folder: 'prymal',
+    client,
+  });
+
+  const asset = await storage.uploadGeneratedImage({
+    buffer: Buffer.from('image-bytes'),
+    mimeType: 'image/png',
+    orgId: 'org_1',
+    conversationId: 'conv_1',
+  });
+
+  assert.equal(uploads[0].options.resource_type, 'image');
+  assert.equal(uploads[0].options.format, 'webp');
+  assert.equal(uploads[0].options.quality, 'auto');
+  assert.match(uploads[0].options.folder, /generated-images\/org_1$/);
+  assert.equal(asset.format, 'webp');
+  assert.equal(asset.storageProvider, 'cloudinary');
+});
+
+test('Cloudinary storage converts video reference images to WEBP', async () => {
+  const uploads = [];
+  const client = {
+    config: () => {},
+    uploader: {
+      upload: async (source, options) => {
+        uploads.push({ source, options });
+        return {
+          public_id: 'prymal/video-reference-images/org_1/job_1/reference_1',
+          resource_type: 'image',
+          secure_url: 'https://res.cloudinary.com/demo/image/upload/v1/prymal/video-reference-images/org_1/job_1/reference_1.webp',
+          bytes: 1234,
+          format: 'webp',
+          width: 1024,
+          height: 1024,
+          original_filename: 'reference_1',
+          created_at: '2026-04-24T12:00:00Z',
+        };
+      },
+      destroy: async () => ({ result: 'ok' }),
+    },
+  };
+
+  const storage = new CloudinaryStorage({
+    cloudName: 'demo',
+    apiKey: '123456',
+    apiSecret: 'secret',
+    folder: 'prymal',
+    client,
+  });
+
+  const asset = await storage.uploadVideoReferenceImage({
+    buffer: Buffer.from('image-bytes'),
+    mimeType: 'image/png',
+    originalName: 'brief.png',
+    orgId: 'org_1',
+    videoJobId: 'job_1',
+  });
+
+  assert.equal(uploads[0].options.format, 'webp');
+  assert.equal(uploads[0].options.quality, 'auto');
+  assert.match(uploads[0].options.folder, /video-reference-images\/org_1\/job_1$/);
+  assert.equal(asset.mimeType, 'image/webp');
+  assert.equal(asset.format, 'webp');
+});

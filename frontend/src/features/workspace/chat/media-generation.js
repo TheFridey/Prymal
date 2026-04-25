@@ -19,8 +19,6 @@ export const IMAGE_SIZE_OPTIONS = [
 
 export const IMAGE_OUTPUT_FORMAT_OPTIONS = [
   { value: 'webp', label: 'WEBP' },
-  { value: 'png', label: 'PNG' },
-  { value: 'jpeg', label: 'JPEG' },
 ];
 
 export const IMAGE_BACKGROUND_OPTIONS = [

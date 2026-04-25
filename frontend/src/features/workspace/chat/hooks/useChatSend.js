@@ -10,6 +10,7 @@ import {
   getVoiceReplyRate,
 } from '../../composer/voice';
 import { getSpeechPreviewText } from '../messagePresentation';
+import { convertImageFileToWebpPayload } from '../imageUpload';
 
 function summarizeStreamingInput(value) {
   return String(value ?? '')
@@ -557,19 +558,26 @@ export function useChatSend({
         return;
       }
 
-      const reader = new FileReader();
-
       if (isImage) {
-        reader.onload = (e) => {
-          const dataUrl = e.target?.result ?? '';
-          const base64 = dataUrl.split(',')[1] ?? '';
-          setAttachedFiles((current) => {
-            if (current.some((f) => f.name === file.name)) return current;
-            return [...current, { name: file.name, type: file.type, base64, mediaType: file.type, isImage: true, previewUrl: dataUrl }];
+        convertImageFileToWebpPayload(file)
+          .then((payload) => {
+            setAttachedFiles((current) => {
+              if (current.some((f) => f.name === payload.name)) return current;
+              return [...current, {
+                name: payload.name,
+                type: payload.mimeType,
+                base64: payload.base64,
+                mediaType: payload.mediaType,
+                isImage: true,
+                previewUrl: payload.previewUrl,
+              }];
+            });
+          })
+          .catch(() => {
+            notify({ type: 'error', title: 'Image conversion failed', message: `${file.name} could not be converted to WEBP.` });
           });
-        };
-        reader.readAsDataURL(file);
       } else if (isPdf) {
+        const reader = new FileReader();
         reader.onload = (e) => {
           const buffer = e.target?.result;
           const bytes = new Uint8Array(buffer);
@@ -583,6 +591,7 @@ export function useChatSend({
         };
         reader.readAsArrayBuffer(file);
       } else {
+        const reader = new FileReader();
         reader.onload = (e) => {
           const content = e.target?.result ?? '';
           setAttachedFiles((current) => {

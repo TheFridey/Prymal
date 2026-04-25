@@ -2,14 +2,13 @@ import OpenAI from 'openai';
 import { getMediaStorage } from './media-storage/index.js';
 
 const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL?.trim() || 'gpt-image-1.5';
-const ALLOWED_FORMATS = new Set(['png', 'webp', 'jpeg']);
+const REQUIRED_IMAGE_FORMAT = 'webp';
 
 export async function generateImageAsset({
   prompt,
   agent = null,
   size = '1024x1024',
   quality = 'medium',
-  outputFormat = 'webp',
   background = 'auto',
   orgId = null,
   conversationId = null,
@@ -32,7 +31,6 @@ export async function generateImageAsset({
     throw error;
   }
 
-  const normalizedFormat = ALLOWED_FORMATS.has(outputFormat) ? outputFormat : 'webp';
   const client = new OpenAI({ apiKey });
   const finalPrompt = buildImagePrompt({ prompt, agent });
 
@@ -43,7 +41,7 @@ export async function generateImageAsset({
       size,
       quality,
       background,
-      output_format: normalizedFormat,
+      output_format: REQUIRED_IMAGE_FORMAT,
     });
 
     const base64 = response.data?.[0]?.b64_json;
@@ -59,8 +57,8 @@ export async function generateImageAsset({
     const mediaStorage = getMediaStorage();
     const storedAsset = await mediaStorage.uploadGeneratedImage({
       buffer: fileBuffer,
-      outputFormat: normalizedFormat,
-      mimeType: `image/${normalizedFormat === 'jpg' ? 'jpeg' : normalizedFormat}`,
+      outputFormat: REQUIRED_IMAGE_FORMAT,
+      mimeType: 'image/webp',
       orgId,
       conversationId,
       metadata: {
@@ -76,7 +74,7 @@ export async function generateImageAsset({
       model: IMAGE_MODEL,
       size,
       quality,
-      outputFormat: normalizedFormat,
+      outputFormat: REQUIRED_IMAGE_FORMAT,
       background,
       url: storedAsset.deliveryUrl ?? storedAsset.secureUrl ?? null,
       fileName: storedAsset.fileName ?? storedAsset.publicId ?? null,
@@ -88,7 +86,7 @@ export async function generateImageAsset({
       bytes: storedAsset.bytes ?? fileBuffer.length,
       width: storedAsset.width ?? null,
       height: storedAsset.height ?? null,
-      format: storedAsset.format ?? normalizedFormat,
+      format: storedAsset.format ?? REQUIRED_IMAGE_FORMAT,
       cleanupStatus: storedAsset.cleanupStatus ?? 'retained',
     };
   } catch (error) {

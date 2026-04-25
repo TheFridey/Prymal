@@ -3,7 +3,6 @@ import { Button, InlineNotice } from '../../../components/ui';
 import { CloseIcon } from './icons';
 import {
   IMAGE_BACKGROUND_OPTIONS,
-  IMAGE_OUTPUT_FORMAT_OPTIONS,
   IMAGE_QUALITY_OPTIONS,
   IMAGE_SIZE_OPTIONS,
   VIDEO_MODE_OPTIONS,
@@ -16,6 +15,7 @@ import {
   getVideoModeConfig,
   shouldConfirmVideoRender,
 } from './media-generation';
+import { convertImageFileToWebpPayload } from './imageUpload';
 
 const MAX_REFERENCE_IMAGES = 3;
 const MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -152,19 +152,9 @@ export default function MediaGenerationModal({
               return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (loadEvent) => {
-              const dataUrl = String(loadEvent.target?.result ?? '');
-              const base64 = dataUrl.split(',')[1] ?? '';
-              resolve({
-                name: file.name,
-                mimeType: file.type,
-                base64,
-                previewUrl: dataUrl,
-              });
-            };
-            reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
-            reader.readAsDataURL(file);
+            convertImageFileToWebpPayload(file)
+              .then((payload) => resolve(payload))
+              .catch(() => reject(new Error(`Could not convert ${file.name} to WEBP.`)));
           }),
       ),
     )
@@ -377,21 +367,6 @@ export default function MediaGenerationModal({
               </label>
             )}
 
-            {!isVideo ? (
-              <label className="workspace-modal__field">
-                <span>Output format</span>
-                <select
-                  value={draft.outputFormat}
-                  onChange={(event) => updateDraft({ outputFormat: event.target.value })}
-                  className="field"
-                >
-                  {IMAGE_OUTPUT_FORMAT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-
             <label className="workspace-modal__field workspace-modal__field--full">
               <span>{isVideo ? 'Video brief' : 'Image brief'}</span>
               <textarea
@@ -437,7 +412,7 @@ export default function MediaGenerationModal({
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-strong)' }}>Reference images</div>
                     <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>
-                      Reference images require Standard mode and an 8 second render. Upload up to 3 PNG, JPEG, or WEBP images to guide the render.
+                      Reference images require Standard mode and an 8 second render. PNG, JPEG, and WEBP uploads are converted to WEBP before rendering.
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>

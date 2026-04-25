@@ -8,6 +8,8 @@ const ALLOWED_REFERENCE_IMAGE_TYPES = new Map([
   ['image/jpeg', 'jpg'],
   ['image/webp', 'webp'],
 ]);
+const PERSISTED_REFERENCE_IMAGE_MIME_TYPE = 'image/webp';
+const PERSISTED_REFERENCE_IMAGE_FORMAT = 'webp';
 const MAX_REFERENCE_IMAGES = 3;
 const MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024;
 
@@ -65,9 +67,9 @@ export async function persistVideoReferenceImages(
     });
 
     persisted.push({
-      name: uploaded.originalName ?? (String(referenceImage?.name ?? '').trim() || uploaded.fileName),
+      name: normalizeWebpName(uploaded.originalName ?? (String(referenceImage?.name ?? '').trim() || uploaded.fileName)),
       originalName: uploaded.originalName ?? (String(referenceImage?.name ?? '').trim() || null),
-      mimeType,
+      mimeType: uploaded.mimeType ?? PERSISTED_REFERENCE_IMAGE_MIME_TYPE,
       referenceType: 'ASSET',
       storageProvider: uploaded.storageProvider,
       publicId: uploaded.publicId ?? null,
@@ -77,13 +79,24 @@ export async function persistVideoReferenceImages(
       relativePath: uploaded.relativePath ?? null,
       localPath: uploaded.localPath ?? null,
       bytes: uploaded.bytes ?? buffer.length,
-      format: uploaded.format ?? extension,
+      format: uploaded.format ?? PERSISTED_REFERENCE_IMAGE_FORMAT,
       uploadedAt: uploaded.uploadedAt ?? new Date().toISOString(),
       cleanupStatus: uploaded.cleanupStatus ?? 'pending',
     });
   }
 
   return persisted;
+}
+
+function normalizeWebpName(name) {
+  const baseName = String(name ?? 'reference')
+    .trim()
+    .replace(/\.[a-z0-9]+$/i, '')
+    .replace(/[^a-z0-9._-]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'reference';
+
+  return `${baseName}.webp`;
 }
 
 export async function loadVideoReferenceImages(
