@@ -12,13 +12,16 @@ import {
 import { useAppStore } from '../stores/useAppStore';
 import {
   EMPTY_DASHBOARD,
+  ADMIN_NAV_GROUPS,
   PLAN_OPTIONS,
+  PRIMARY_ADMIN_TABS,
   ROLE_OPTIONS,
   TABS,
 } from '../features/admin/constants';
 import {
   flattenMeta,
   formatCurrency,
+  displayEmail,
   displayName,
   getOrganisationAttentionScore,
   getPercent,
@@ -583,6 +586,9 @@ export default function Admin() {
     null;
 
   const syncLabel = formatDateTime(new Date().toISOString());
+  const tabById = useMemo(() => new Map(TABS.map((tab) => [tab.id, tab])), []);
+  const primaryTabs = useMemo(() => PRIMARY_ADMIN_TABS.map((id) => tabById.get(id)).filter(Boolean), [tabById]);
+  const activeTabLabel = tabById.get(activeTab)?.label ?? humanize(activeTab);
 
   useEffect(() => {
     if (selectedTimelineOrgId) {
@@ -683,19 +689,39 @@ export default function Admin() {
           syncLabel={syncLabel}
         />
 
-        <div className="staff-admin__tabs">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              className={`staff-admin__tab${activeTab === tab.id ? ' is-active' : ''}`}
-              onClick={() => startTransition(() => setActiveTab(tab.id))}
-              data-testid={`admin-tab-${tab.id}`}
+        <nav className="staff-admin__nav-shell" aria-label="Admin sections">
+          <div className="staff-admin__tabs">
+            {primaryTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`staff-admin__tab${activeTab === tab.id ? ' is-active' : ''}`}
+                onClick={() => startTransition(() => setActiveTab(tab.id))}
+                data-testid={`admin-tab-${tab.id}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <label className="staff-admin__nav-select-wrap">
+            <span className="staff-admin__nav-current">Current: {activeTabLabel}</span>
+            <select
+              className="staff-admin__nav-select"
+              value={activeTab}
+              onChange={(event) => startTransition(() => setActiveTab(event.target.value))}
+              aria-label="Open admin section"
             >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+              {ADMIN_NAV_GROUPS.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.tabs.map((id) => {
+                    const tab = tabById.get(id);
+                    return tab ? <option key={tab.id} value={tab.id}>{tab.label}</option> : null;
+                  })}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+        </nav>
 
         <ErrorBoundary key={activeTab} label={`${activeTab} tab`}>
         <MotionPresence mode="wait" initial={false}>
@@ -809,7 +835,7 @@ export default function Admin() {
                     <div className="staff-admin__entity-head">
                       <div>
                         <strong>{displayName(user)}</strong>
-                        <span>{user.email}</span>
+                        <span>{displayEmail(user)}</span>
                       </div>
                       <span className={`staff-admin__badge staff-admin__badge--${getRoleTone(user.role)}`}>
                         {humanize(user.role)}

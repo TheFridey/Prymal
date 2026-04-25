@@ -1,8 +1,11 @@
-import { truncate } from '../../lib/utils';
+import { formatUserHandle, getUserDisplayName, truncate } from '../../lib/utils';
 
 export function displayName(user) {
-  const name = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
-  return name || user.email || user.id;
+  return getUserDisplayName(user);
+}
+
+export function displayEmail(user) {
+  return formatUserHandle(user);
 }
 
 export function matchesSearch(query, fields) {

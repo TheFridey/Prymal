@@ -94,6 +94,11 @@ export function ActionReceiptDrawer({ receiptQuery, onClose }) {
 
           <section className="staff-admin__drawer-section">
             <div className="staff-admin__surface-label">Attached metadata</div>
+            <p className="staff-admin__drawer-copy">
+              {changes.length > 0
+                ? `${changes.length} field${changes.length === 1 ? '' : 's'} changed. Open technical details only when you need the raw receipt.`
+                : 'No field-level changes were attached to this receipt.'}
+            </p>
             <JsonBlock value={receipt.metadata} />
           </section>
         </div>

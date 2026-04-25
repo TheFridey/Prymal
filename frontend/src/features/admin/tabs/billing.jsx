@@ -1,6 +1,6 @@
 // features/admin/tabs/billing.jsx
 import { useState } from 'react';
-import { formatDate, formatNumber } from '../../../lib/utils';
+import { formatDate, formatNumber, formatUserHandle } from '../../../lib/utils';
 import { InlineNotice, LoadingPanel } from '../../../components/ui';
 import { formatCurrency, humanize, getPlanTone } from '../utils';
 import { MotionList, MotionListItem } from '../../../components/motion';
@@ -147,7 +147,7 @@ export function BillingTab({ data, billingTotals, videoJobsQuery }) {
               <MotionListItem key={job.id} className="staff-admin__ledger-row" reveal={{ y: 10, blur: 3 }}>
                 <div>
                   <strong>{job.orgName ?? 'Unknown organisation'}</strong>
-                  <span>{job.userEmail ?? job.userId ?? 'No user attached'}</span>
+                  <span>{job.userEmail ? formatUserHandle(job.userEmail, job.userId) : job.userId ?? 'No user attached'}</span>
                 </div>
                 <div>
                   <strong>{humanize(job.status)}</strong>

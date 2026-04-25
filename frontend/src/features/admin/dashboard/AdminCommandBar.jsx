@@ -14,7 +14,7 @@ export function AdminCommandBar({
   return (
     <section className="staff-admin__command-bar">
       <label className="staff-admin__field staff-admin__field--search">
-        <span className="staff-admin__field-label">Global search</span>
+        <span className="staff-admin__field-label">Search</span>
         <TextInput
           value={commandQuery}
           onChange={(event) => onCommandQueryChange(event.target.value)}
@@ -23,7 +23,7 @@ export function AdminCommandBar({
       </label>
 
       <label className="staff-admin__field">
-        <span className="staff-admin__field-label">Plan lens</span>
+        <span className="staff-admin__field-label">Plan</span>
         <select
           className="staff-admin__select"
           value={planFilter}
@@ -38,7 +38,7 @@ export function AdminCommandBar({
       </label>
 
       <label className="staff-admin__field">
-        <span className="staff-admin__field-label">Role lens</span>
+        <span className="staff-admin__field-label">Role</span>
         <select
           className="staff-admin__select"
           value={roleFilter}

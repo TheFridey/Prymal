@@ -88,6 +88,7 @@ CREATE TABLE subscriptions (
   video_reserved_balance         INTEGER NOT NULL DEFAULT 0,
   cumulative_revenue_gbp         REAL NOT NULL DEFAULT 0,
   cumulative_estimated_cost_usd  REAL NOT NULL DEFAULT 0,
+  cumulative_estimated_cost_gbp  REAL NOT NULL DEFAULT 0,
   cost_guard_state               TEXT NOT NULL DEFAULT 'normal',
   metadata                       JSONB NOT NULL DEFAULT '{}',
   created_at                     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -164,6 +165,7 @@ CREATE TABLE execution_usage_event (
   completion_tokens         INTEGER,
   total_tokens              INTEGER,
   estimated_cost_usd        REAL,
+  estimated_cost_gbp        REAL,
   revenue_contribution_gbp  REAL,
   cost_guard_triggered      BOOLEAN NOT NULL DEFAULT false,
   heavy_usage_flagged       BOOLEAN NOT NULL DEFAULT false,
@@ -541,6 +543,30 @@ CREATE TABLE workflow_webhooks (
 CREATE INDEX workflow_webhooks_org_idx ON workflow_webhooks(org_id);
 CREATE INDEX workflow_webhooks_workflow_idx ON workflow_webhooks(workflow_id);
 
+CREATE TABLE workflow_templates (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id             UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  source_workflow_id UUID REFERENCES workflows(id) ON DELETE SET NULL,
+  created_by         TEXT REFERENCES users(id) ON DELETE SET NULL,
+  name               TEXT NOT NULL,
+  description        TEXT,
+  parameters         JSONB NOT NULL DEFAULT '{}',
+  trigger_type       trigger_type NOT NULL DEFAULT 'manual',
+  trigger_config     JSONB NOT NULL DEFAULT '{}',
+  nodes              JSONB NOT NULL DEFAULT '[]',
+  edges              JSONB NOT NULL DEFAULT '[]',
+  is_public          BOOLEAN NOT NULL DEFAULT false,
+  share_id           TEXT NOT NULL UNIQUE,
+  usage_count        INTEGER NOT NULL DEFAULT 0,
+  metadata           JSONB NOT NULL DEFAULT '{}',
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX workflow_templates_org_idx ON workflow_templates(org_id);
+CREATE UNIQUE INDEX workflow_templates_share_idx ON workflow_templates(share_id);
+CREATE INDEX workflow_templates_public_idx ON workflow_templates(is_public);
+
 CREATE TABLE workflow_runs (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workflow_id  UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
@@ -593,6 +619,7 @@ CREATE TABLE llm_execution_traces (
   completion_tokens INTEGER,
   total_tokens      INTEGER,
   estimated_cost_usd REAL,
+  estimated_cost_gbp REAL,
   tools_used        TEXT[] NOT NULL DEFAULT '{}',
   lore_chunk_ids    UUID[],
   lore_document_ids UUID[],
@@ -610,6 +637,56 @@ CREATE INDEX llm_traces_model_idx ON llm_execution_traces(model);
 CREATE INDEX llm_traces_conversation_idx ON llm_execution_traces(conversation_id);
 CREATE INDEX llm_traces_workflow_run_idx ON llm_execution_traces(workflow_run_id);
 CREATE INDEX llm_traces_created_idx ON llm_execution_traces(created_at);
+
+CREATE TABLE content_assets (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id              UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  message_id          UUID REFERENCES messages(id) ON DELETE SET NULL,
+  conversation_id     UUID REFERENCES conversations(id) ON DELETE SET NULL,
+  workflow_id         UUID REFERENCES workflows(id) ON DELETE SET NULL,
+  workflow_run_id     UUID REFERENCES workflow_runs(id) ON DELETE SET NULL,
+  source_agent        agent_id NOT NULL,
+  content_type        TEXT NOT NULL DEFAULT 'agent_output',
+  title               TEXT,
+  body                TEXT,
+  parent_content_id   UUID REFERENCES content_assets(id) ON DELETE SET NULL,
+  derived_content_ids UUID[] NOT NULL DEFAULT '{}',
+  delivery_status     TEXT NOT NULL DEFAULT 'draft',
+  delivered_at        TIMESTAMPTZ,
+  result_metadata     JSONB NOT NULL DEFAULT '{}',
+  metadata            JSONB NOT NULL DEFAULT '{}',
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX content_assets_org_idx ON content_assets(org_id);
+CREATE UNIQUE INDEX content_assets_message_idx ON content_assets(message_id);
+CREATE INDEX content_assets_parent_idx ON content_assets(parent_content_id);
+CREATE INDEX content_assets_workflow_idx ON content_assets(workflow_id);
+CREATE INDEX content_assets_source_idx ON content_assets(source_agent);
+CREATE INDEX content_assets_created_idx ON content_assets(created_at);
+
+CREATE TABLE lore_feedback (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  content_id      UUID REFERENCES content_assets(id) ON DELETE SET NULL,
+  outcome_type    TEXT NOT NULL CHECK (outcome_type IN ('success', 'failure', 'partial')),
+  outcome_metric  TEXT NOT NULL,
+  notes           TEXT,
+  source_agent    agent_id,
+  workflow_id     UUID REFERENCES workflows(id) ON DELETE SET NULL,
+  workflow_run_id UUID REFERENCES workflow_runs(id) ON DELETE SET NULL,
+  value           REAL,
+  metadata        JSONB NOT NULL DEFAULT '{}',
+  recorded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX lore_feedback_org_idx ON lore_feedback(org_id);
+CREATE INDEX lore_feedback_content_idx ON lore_feedback(content_id);
+CREATE INDEX lore_feedback_agent_idx ON lore_feedback(source_agent);
+CREATE INDEX lore_feedback_metric_idx ON lore_feedback(outcome_metric);
+CREATE INDEX lore_feedback_recorded_idx ON lore_feedback(recorded_at);
 
 CREATE TABLE power_ups (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -705,6 +782,8 @@ CREATE TRIGGER memory_updated_at BEFORE UPDATE ON agent_memory FOR EACH ROW EXEC
 CREATE TRIGGER integ_updated_at BEFORE UPDATE ON integrations FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER workflow_updated_at BEFORE UPDATE ON workflows FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER workflow_webhooks_updated_at BEFORE UPDATE ON workflow_webhooks FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER workflow_templates_updated_at BEFORE UPDATE ON workflow_templates FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER content_assets_updated_at BEFORE UPDATE ON content_assets FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER api_keys_updated_at BEFORE UPDATE ON api_keys FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER organisation_invitations_updated_at BEFORE UPDATE ON organisation_invitations FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER subscriptions_updated_at BEFORE UPDATE ON subscriptions FOR EACH ROW EXECUTE FUNCTION update_updated_at();

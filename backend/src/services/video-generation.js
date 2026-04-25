@@ -25,6 +25,7 @@ import {
   loadVideoReferenceImages,
 } from './video-reference-images.js';
 import { recordProductEvent } from './telemetry.js';
+import { sanitizeAgentOutputText } from './llm.js';
 
 const PROCESSING_JOBS = new Set();
 const TEMP_VIDEO_DIR = path.join(os.tmpdir(), 'prymal-video-jobs');
@@ -586,7 +587,7 @@ async function createAssistantMessageForVideo(job, { outputUrl, outputFileName, 
 }
 
 function buildVideoMessage(agentName, prompt) {
-  return `Generated a video concept with ${agentName}. Review the first render, then iterate if you want a different camera move, tone, or pacing.\n\nPrompt: ${prompt}`;
+  return sanitizeAgentOutputText(`Generated a video concept with ${agentName}. Review the first render, then iterate if you want a different camera move, tone, or pacing.\n\nPrompt: ${prompt}`);
 }
 
 function buildConversationTitle(message) {

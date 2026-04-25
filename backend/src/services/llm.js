@@ -33,6 +33,7 @@ import {
 } from './model-policy.js';
 import { ragSearch } from './rag.js';
 import { fetchLiveWebContext } from './web-research.js';
+import { buildSuccessfulPatternsPrompt, getSuccessfulPatterns } from './moat-feedback.js';
 
 const ANTHROPIC_MODELS = getAnthropicModels();
 const OPENAI_MODELS = getOpenAIModels();
@@ -41,6 +42,11 @@ const GEMINI_MODELS = getGeminiModels();
 const MAX_CONTEXT_TOKENS = 160_000;
 const MAX_RESPONSE_TOKENS = 8192;
 const MAX_LORE_CHUNKS = 4;
+const NO_EM_DASH_OUTPUT_RULE = [
+  'PUNCTUATION RULE',
+  'Never use Unicode U+2014 em dash in any agent output, generated copy, JSON string value, email, post, report, plan, or workflow result.',
+  'Use commas, colons, parentheses, periods, or a standard hyphen instead.',
+].join('\n');
 
 // Adaptive retrieval — research agents (deep grounding) need a wider net.
 // Map: contextBudget -> { baseLimit, hardCap }. Research agents add a bonus.
@@ -52,6 +58,18 @@ const RETRIEVAL_BUDGETS = {
 const RESEARCH_AGENT_IDS = new Set(['lore', 'oracle', 'scout', 'sage']);
 const RETRIEVAL_HIGH_CONFIDENCE_FLOOR = 0.62;
 const RETRIEVAL_MIN_CONFIDENT_HITS = 2;
+
+export function sanitizeAgentOutputText(value) {
+  return typeof value === 'string' ? value.replace(/\u2014/g, '-') : value;
+}
+
+function sanitizeProviderResponse(response) {
+  if (!response || typeof response.text !== 'string') return response;
+  return {
+    ...response,
+    text: sanitizeAgentOutputText(response.text),
+  };
+}
 
 /**
  * Decide how many LORE chunks to fetch for this agent on this query.
@@ -309,7 +327,7 @@ export async function* streamAgentResponse({
           attachments,
         });
 
-        yield { type: 'text', chunk: response.text };
+        yield { type: 'text', chunk: sanitizeAgentOutputText(response.text) };
         yield {
           type: 'done',
           totalTokens: response.totalTokens,
@@ -373,8 +391,13 @@ export async function* streamAgentResponse({
       let emittedDone = false;
 
       for await (const event of generator) {
-        if (event.type === 'text' && needsValidation) {
-          accumulatedText += event.chunk;
+        if (event.type === 'text') {
+          const sanitizedChunk = sanitizeAgentOutputText(event.chunk);
+          if (needsValidation) {
+            accumulatedText += sanitizedChunk;
+          }
+          yield { ...event, chunk: sanitizedChunk };
+          continue;
         }
 
         if (event.type === 'done') {
@@ -408,14 +431,12 @@ export async function* streamAgentResponse({
             schemaValidation,
             repairedText:
               schemaValidation?.verdict === 'repaired'
-                ? formatStructuredOutput(schemaValidation.parsed)
+                ? sanitizeAgentOutputText(formatStructuredOutput(schemaValidation.parsed))
                 : null,
           };
           emittedDone = true;
           return;
         }
-
-        yield event;
       }
 
       if (!emittedDone) {
@@ -557,6 +578,7 @@ export async function runAgentNode({ agentId, orgId, orgPlan = 'free', prompt, c
 
       return {
         ...response,
+        text: sanitizeAgentOutputText(response.text),
         trace: {
           policyKey: plan.policyKey,
           toolsUsed,
@@ -636,28 +658,28 @@ async function runProviderResponse({
   attachments = [],
 }) {
   if (plan.provider === 'openai') {
-    return runOpenAIResponse({
+    return sanitizeProviderResponse(await runOpenAIResponse({
       plan,
       systemPrompt,
       messages,
       userMessage,
       maxTokens,
       attachments,
-    });
+    }));
   }
 
   if (plan.provider === 'google') {
-    return runGeminiResponse({
+    return sanitizeProviderResponse(await runGeminiResponse({
       plan,
       contract,
       systemPrompt,
       messages,
       userMessage,
       maxTokens,
-    });
+    }));
   }
 
-  return runAnthropicResponse({
+  return sanitizeProviderResponse(await runAnthropicResponse({
     plan,
     agent,
     systemPrompt,
@@ -665,7 +687,7 @@ async function runProviderResponse({
     userMessage,
     maxTokens,
     attachments,
-  });
+  }));
 }
 
 async function runStructuredResponseWithRepair({
@@ -698,7 +720,7 @@ async function runStructuredResponseWithRepair({
   if (validation.verdict !== 'failed') {
     return {
       ...initialResponse,
-      text: validation.verdict === 'repaired' ? formatStructuredOutput(validation.parsed) : initialResponse.text,
+      text: sanitizeAgentOutputText(validation.verdict === 'repaired' ? formatStructuredOutput(validation.parsed) : initialResponse.text),
       schemaValidation: validation,
       schemaRepair: {
         stage: 'initial',
@@ -726,7 +748,7 @@ async function runStructuredResponseWithRepair({
   if (validation.verdict !== 'failed') {
     return {
       ...retryResponse,
-      text: validation.verdict === 'repaired' ? formatStructuredOutput(validation.parsed) : retryResponse.text,
+      text: sanitizeAgentOutputText(validation.verdict === 'repaired' ? formatStructuredOutput(validation.parsed) : retryResponse.text),
       schemaValidation: validation,
       schemaRepair: {
         stage: 'retry',
@@ -775,7 +797,7 @@ async function runStructuredResponseWithRepair({
 
   return {
     ...repairResponse,
-    text: validation.verdict === 'repaired' ? formatStructuredOutput(validation.parsed) : repairResponse.text,
+    text: sanitizeAgentOutputText(validation.verdict === 'repaired' ? formatStructuredOutput(validation.parsed) : repairResponse.text),
     schemaValidation: validation,
     schemaRepair: {
       stage: 'repair',
@@ -1131,6 +1153,7 @@ async function buildSystemPrompt({
   const sections = [
     agent.systemPrompt,
     'You may receive LIVE WEB CONTEXT for public URLs or search results. When that context is present, use it confidently and cite the source title or URL. Never say you cannot browse the web if LIVE WEB CONTEXT is available. If live fetching fails, explain that failure plainly.',
+    NO_EM_DASH_OUTPUT_RULE,
   ];
   const sources = [];
   const loreChunkIds = [];
@@ -1335,6 +1358,19 @@ async function buildSystemPrompt({
           )
           .join('\n\n'),
       );
+    }
+  }
+
+  if (orgId) {
+    try {
+      const patterns = await getSuccessfulPatterns({ orgId, agentId: agent.id, limit: 3 });
+      const successPrompt = buildSuccessfulPatternsPrompt(patterns);
+      if (successPrompt) {
+        toolsUsed.add('lore_feedback');
+        sections.push(successPrompt);
+      }
+    } catch (error) {
+      console.warn('[LLM] Skipping LORE feedback patterns:', error.message);
     }
   }
 

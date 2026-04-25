@@ -133,6 +133,160 @@ function mergeUniqueAgents(agentLists, limit = 6) {
   return merged;
 }
 
+const EMPTY_LEARNING_SIGNALS = {
+  patternsLearned: {
+    value: 0,
+    label: 'Business patterns learned',
+    trend: 'flat',
+    explanation: 'Prymal will learn patterns as you generate, publish, and give feedback.',
+  },
+  workflowsReusedThisWeek: {
+    value: 0,
+    label: 'Workflows reused this week',
+    trend: 'flat',
+    explanation: 'Reusable workflow signals appear once you run again, replay, clone, or import workflow templates.',
+  },
+  topPerformingContentFormat: {
+    value: null,
+    label: 'Top performing format',
+    confidence: 'low',
+    explanation: 'No winning format yet. Publish outputs or record feedback to build this signal.',
+  },
+  brandVoiceConfidence: {
+    value: 0,
+    previousValue: null,
+    trend: 'flat',
+    explanation: 'Confidence increases as you add brand context, generate content, publish outputs, and give feedback.',
+  },
+  recentSignals: [],
+};
+
+function normaliseLearningSignals(signals) {
+  return {
+    patternsLearned: { ...EMPTY_LEARNING_SIGNALS.patternsLearned, ...(signals?.patternsLearned ?? {}) },
+    workflowsReusedThisWeek: { ...EMPTY_LEARNING_SIGNALS.workflowsReusedThisWeek, ...(signals?.workflowsReusedThisWeek ?? {}) },
+    topPerformingContentFormat: { ...EMPTY_LEARNING_SIGNALS.topPerformingContentFormat, ...(signals?.topPerformingContentFormat ?? {}) },
+    brandVoiceConfidence: { ...EMPTY_LEARNING_SIGNALS.brandVoiceConfidence, ...(signals?.brandVoiceConfidence ?? {}) },
+    recentSignals: Array.isArray(signals?.recentSignals) ? signals.recentSignals : [],
+  };
+}
+
+export function isLearningSignalsEmpty(signals) {
+  const safe = normaliseLearningSignals(signals);
+  return Number(safe.patternsLearned.value ?? 0) === 0
+    && Number(safe.workflowsReusedThisWeek.value ?? 0) === 0
+    && !safe.topPerformingContentFormat.value
+    && Number(safe.brandVoiceConfidence.value ?? 0) === 0
+    && safe.recentSignals.length === 0;
+}
+
+function TrendPill({ trend, confidence }) {
+  const safeTrend = ['up', 'flat', 'down'].includes(trend) ? trend : 'flat';
+  const label = confidence
+    ? `${confidence} confidence`
+    : safeTrend === 'up'
+      ? 'Growing'
+      : safeTrend === 'down'
+        ? 'Cooling'
+        : 'Stable';
+  return <span className={`pm-learning__pill pm-learning__pill--${safeTrend}`}>{label}</span>;
+}
+
+function LearningMetricCard({ metric, value, suffix = '', isFormat = false }) {
+  const displayValue = isFormat && !value ? 'Not enough data' : `${value ?? 0}${suffix}`;
+  return (
+    <article className="pm-learning__metric">
+      <div className="pm-learning__metric-top">
+        <span>{metric.label}</span>
+        <TrendPill trend={metric.trend} confidence={metric.confidence} />
+      </div>
+      <strong className={isFormat && !value ? 'is-muted' : undefined}>{displayValue}</strong>
+      <p>{metric.explanation}</p>
+    </article>
+  );
+}
+
+function signalTypeLabel(type) {
+  if (type === 'brand_voice') return 'Brand voice';
+  if (type === 'workflow') return 'Workflow';
+  if (type === 'feedback') return 'Feedback';
+  if (type === 'delivery') return 'Delivery';
+  return 'Content';
+}
+
+export function LearningSignalsSection({ signals, isLoading = false }) {
+  const safe = normaliseLearningSignals(signals);
+  const empty = !isLoading && isLearningSignalsEmpty(safe);
+  const recentSignals = safe.recentSignals.slice(0, 5);
+
+  return (
+    <section className="pm-learning" aria-labelledby="learning-signals-title">
+      <div className="pm-learning__head">
+        <div>
+          <div className="pm-dash__flow-eyebrow">Learning signals</div>
+          <h2 id="learning-signals-title">Prymal is learning your business</h2>
+          <p>Signals from your workflows, content, feedback, and brand context.</p>
+        </div>
+        <Link to="/app/workflows" className="pm-learning__action">Start a workflow</Link>
+      </div>
+
+      {empty ? (
+        <div className="pm-learning__empty">
+          <div>
+            <strong>Your learning layer is just getting started</strong>
+            <p>Generate content, run workflows, publish outputs, or give feedback to help Prymal learn what works for your business.</p>
+          </div>
+          <div className="pm-learning__empty-actions">
+            <Link to="/app/workflows" className="pm-btn pm-btn--primary">Start a workflow</Link>
+            <Link to="/app/agents/nexus" className="pm-btn pm-btn--ghost">Open agents</Link>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="pm-learning__grid" aria-busy={isLoading ? 'true' : 'false'}>
+            <LearningMetricCard metric={safe.patternsLearned} value={safe.patternsLearned.value} />
+            <LearningMetricCard metric={safe.workflowsReusedThisWeek} value={safe.workflowsReusedThisWeek.value} />
+            <LearningMetricCard
+              metric={safe.topPerformingContentFormat}
+              value={safe.topPerformingContentFormat.value}
+              isFormat
+            />
+            <LearningMetricCard
+              metric={safe.brandVoiceConfidence}
+              value={safe.brandVoiceConfidence.value}
+              suffix="%"
+            />
+          </div>
+
+          {recentSignals.length > 0 ? (
+            <div className="pm-learning__recent">
+              <div className="pm-learning__recent-head">
+                <strong>Recent learning events</strong>
+                <span>Newest first</span>
+              </div>
+              <ul>
+                {recentSignals.map((signal) => (
+                  <li key={signal.id}>
+                    <span className={`pm-learning__dot pm-learning__dot--${signal.type}`} aria-hidden="true" />
+                    <div>
+                      <div className="pm-learning__signal-title">
+                        <span>{signalTypeLabel(signal.type)}</span>
+                        <strong>{signal.title}</strong>
+                      </div>
+                      <p>{signal.description}</p>
+                    </div>
+                    <time dateTime={signal.createdAt}>{timeAgo(signal.createdAt)}</time>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function Dashboard() {
   const { viewer, agents } = useOutletContext();
   const location = useLocation();
@@ -165,8 +319,21 @@ export default function Dashboard() {
     queryFn: () => api.get('/workflows'),
   });
 
+  const learningQuery = useQuery({
+    queryKey: ['dashboard-learning-metrics'],
+    queryFn: () => api.get('/org/context/metrics'),
+  });
+
+  const learningSignalsQuery = useQuery({
+    queryKey: ['dashboard-learning-signals'],
+    queryFn: () => api.get('/org/learning-signals'),
+  });
+
   const recentConversations = conversationsQuery.data?.conversations ?? [];
   const workflows = workflowsQuery.data?.workflows ?? [];
+  const learning = learningQuery.data?.learning ?? {};
+  const learningSignals = learningSignalsQuery.data ?? null;
+  const trainedOnRuns = Number(learning.trainedOnRuns ?? viewer?.stats?.trainedOnRuns ?? 0);
   const activeWorkflows = workflows.filter((workflow) => workflow.isActive);
   const latestConversation = recentConversations[0] ?? null;
   const featuredWorkflowTemplates = useMemo(() => getFeaturedWorkflowTemplates(4), []);
@@ -325,14 +492,14 @@ export default function Dashboard() {
                 <div className="pm-dash__stat"><span>Conversations</span><strong>{conversationCount}</strong></div>
                 <div className="pm-dash__stat"><span>Workflows</span><strong>{workflows.length}</strong></div>
                 <div className="pm-dash__stat"><span>Active</span><strong>{activeWorkflows.length}</strong></div>
-                <div className="pm-dash__stat"><span>Plan</span><strong>{planMeta?.name ?? currentPlan}</strong></div>
+                <div className="pm-dash__stat"><span>Runs tracked</span><strong>{trainedOnRuns}</strong></div>
               </div>
 
               <div className="pm-dash__trust">
                 <span className="pm-dash__trust-chip">SENTINEL QA</span>
                 <span className="pm-dash__trust-chip">LORE grounded</span>
+                <span className="pm-dash__trust-chip">Learning over time</span>
                 <span className="pm-dash__trust-chip">Voice when configured</span>
-                <span className="pm-dash__trust-chip">Webhook-ready</span>
               </div>
             </MotionSection>
 
@@ -430,6 +597,10 @@ export default function Dashboard() {
                   />
                 ))}
               </div>
+            </MotionSection>
+
+            <MotionSection delay={0.135} reveal={{ y: 18, blur: 8 }}>
+              <LearningSignalsSection signals={learningSignals} isLoading={learningSignalsQuery.isLoading} />
             </MotionSection>
 
             <MotionSection className="pm-dash__posture pm-dash__posture--wide" delay={0.14} reveal={{ y: 14, blur: 6 }}>

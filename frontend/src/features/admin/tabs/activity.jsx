@@ -158,9 +158,7 @@ export function AuditLogsTab({ query }) {
                   {log.actorUserId ? ` · actor: ${truncate(log.actorUserId, 24)}` : ''}
                   {log.orgId ? ` · org: ${truncate(log.orgId, 24)}` : ''}
                 </p>
-                {Object.keys(log.metadata ?? {}).length > 0 ? (
-                  <small style={{ wordBreak: 'break-all' }}>{JSON.stringify(log.metadata)}</small>
-                ) : null}
+                {Object.keys(log.metadata ?? {}).length > 0 ? <small>{summarizeMeta(log.metadata)}</small> : null}
               </article>
             ))}
           </div>
@@ -243,9 +241,7 @@ export function ProductEventsTab({ query }) {
                   {event.orgId ? `org: ${truncate(event.orgId, 24)}` : 'No org'}
                   {event.userId ? ` · user: ${truncate(event.userId, 24)}` : ''}
                 </p>
-                {Object.keys(event.metadata ?? {}).length > 0 ? (
-                  <small style={{ wordBreak: 'break-all' }}>{JSON.stringify(event.metadata)}</small>
-                ) : null}
+                {Object.keys(event.metadata ?? {}).length > 0 ? <small>{summarizeMeta(event.metadata)}</small> : null}
               </article>
             ))}
           </div>

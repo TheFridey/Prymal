@@ -7,6 +7,7 @@ import { ActivityTrendChart, DonutChart } from '../components/charts';
 import { MotionList, MotionListItem, MotionSection } from '../../../components/motion';
 import {
   describeActivity,
+  displayEmail,
   formatCurrency,
   getActivityHighlights,
   getActivityTitle,
@@ -406,7 +407,7 @@ export function UserInspector({ user, organisations, onSave, isSaving }) {
       </div>
 
       <div className="staff-admin__detail-list">
-        <div><span>Email</span><strong>{user.email}</strong></div>
+        <div><span>Email</span><strong>{displayEmail(user)}</strong></div>
         <div><span>User ID</span><strong>{user.id}</strong></div>
         <div><span>Updated</span><strong>{formatDateTime(user.updatedAt)}</strong></div>
       </div>

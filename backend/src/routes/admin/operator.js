@@ -399,6 +399,57 @@ export function buildOperatorDashboard({
   };
 }
 
+router.get('/cost-risk', requireStaff, requireStaffPermission('admin.billing.read'), async (context) => {
+  const [orgRows, subscriptionRows, usageRows] = await Promise.all([
+    db.query.organisations.findMany(),
+    db.query.subscriptions.findMany(),
+    db.query.executionUsageEvents.findMany(),
+  ]);
+
+  const subscriptionByOrg = new Map(subscriptionRows.map((subscription) => [subscription.orgId, subscription]));
+  const usageByOrg = usageRows.reduce((acc, row) => {
+    const current = acc.get(row.orgId) ?? { costUsd: 0, costGbp: 0, revenueGbp: 0, credits: 0, events: 0 };
+    current.costUsd += Number(row.estimatedCostUsd ?? 0);
+    current.costGbp += Number(row.estimatedCostGbp ?? ((Number(row.estimatedCostUsd ?? 0)) * USD_TO_GBP));
+    current.revenueGbp += Number(row.revenueContributionGbp ?? 0);
+    current.credits += Number(row.creditsCommitted ?? 0);
+    current.events += 1;
+    acc.set(row.orgId, current);
+    return acc;
+  }, new Map());
+
+  const rows = orgRows.map((organisation) => {
+    const subscription = subscriptionByOrg.get(organisation.id);
+    const usage = usageByOrg.get(organisation.id) ?? { costUsd: 0, costGbp: 0, revenueGbp: 0, credits: 0, events: 0 };
+    const revenueGbp = Number(subscription?.cumulativeRevenueGbp ?? 0) + usage.revenueGbp;
+    const costGbp = Number(subscription?.cumulativeEstimatedCostGbp ?? 0) || usage.costGbp;
+    const costUsd = Number(subscription?.cumulativeEstimatedCostUsd ?? 0) || usage.costUsd;
+    const costToRevenueRatio = revenueGbp > 0 ? costGbp / revenueGbp : (costGbp > 0 ? 1 : 0);
+    const riskLevel = costToRevenueRatio > 0.5 ? 'highRisk' : costToRevenueRatio > 0.35 ? 'watch' : 'normal';
+
+    return {
+      orgId: organisation.id,
+      orgName: organisation.name,
+      plan: subscription?.plan ?? organisation.plan,
+      status: subscription?.status ?? 'unknown',
+      totalCostThisCycleGbp: round(costGbp, 4),
+      totalCostThisCycleUsd: round(costUsd, 4),
+      totalRevenueContributionGbp: round(revenueGbp, 4),
+      costToRevenueRatio: round(costToRevenueRatio, 4),
+      riskLevel,
+      usageEvents: usage.events,
+      creditsCommitted: usage.credits,
+    };
+  }).sort((a, b) => b.costToRevenueRatio - a.costToRevenueRatio || b.totalCostThisCycleGbp - a.totalCostThisCycleGbp);
+
+  return context.json({
+    generatedAt: new Date().toISOString(),
+    highRisk: rows.filter((row) => row.riskLevel === 'highRisk'),
+    watch: rows.filter((row) => row.riskLevel === 'watch'),
+    organisations: rows,
+  });
+});
+
 router.get('/operator-dashboard', requireStaff, requireStaffPermission('admin.billing.read'), async (context) => {
   const days = getWindowDays(context, 30);
   const since = getSinceDate(days);

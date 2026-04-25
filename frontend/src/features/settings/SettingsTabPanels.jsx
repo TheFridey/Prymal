@@ -8,7 +8,7 @@ import {
   getNextPlanId,
   getPlanPrice,
 } from '../../lib/constants';
-import { formatDate, formatDateTime, getErrorMessage } from '../../lib/utils';
+import { formatDate, formatDateTime, getErrorMessage, getUserDisplayName, formatUserHandle } from '../../lib/utils';
 import {
   createGlassPanelStyle,
   createLabeledRowStyle,
@@ -119,8 +119,8 @@ export function AccountSettingsTab({ user, viewer, signOut }) {
             )}
           </div>
           <div>
-            <div style={{ fontSize: '20px', marginBottom: '4px' }}>{user?.fullName ?? viewer?.user?.email ?? 'Prymal User'}</div>
-            <div style={{ color: 'var(--muted)' }}>{viewer?.user?.email ?? user?.primaryEmailAddress?.emailAddress}</div>
+            <div style={{ fontSize: '20px', marginBottom: '4px' }}>{user?.fullName ?? getUserDisplayName(viewer?.user)}</div>
+            <div style={{ color: 'var(--muted)' }}>{formatUserHandle(viewer?.user ?? user?.primaryEmailAddress?.emailAddress)}</div>
             <div style={{ color: 'var(--muted-2)', marginTop: '4px' }}>Role: {viewer?.user?.role ?? 'member'}</div>
           </div>
         </div>
@@ -607,12 +607,10 @@ export function TeamSettingsTab({
               <div style={rowStyle}>
               <div>
                 <div style={{ fontSize: '15px', marginBottom: '4px' }}>
-                  {member.firstName || member.lastName
-                    ? `${member.firstName ?? ''} ${member.lastName ?? ''}`.trim()
-                    : member.email}
+                  {getUserDisplayName(member)}
                 </div>
                 <div style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
-                  {member.email} | last seen {formatDateTime(member.lastSeenAt)}
+                  {formatUserHandle(member)} | last seen {formatDateTime(member.lastSeenAt)}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -654,7 +652,7 @@ export function TeamSettingsTab({
               <option value="">Choose new owner</option>
               {ownerCandidates.map((member) => (
                 <option key={member.id} value={member.id}>
-                  {member.email} ({member.role})
+                  {formatUserHandle(member)} ({member.role})
                 </option>
               ))}
             </select>

@@ -1,9 +1,10 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
+import { and, desc, eq, or, sql } from 'drizzle-orm';
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/index.js';
-import { organisations, workflowRuns, workflows, workflowWebhooks } from '../db/schema.js';
+import { organisations, workflowRuns, workflows, workflowTemplates, workflowWebhooks } from '../db/schema.js';
 import { requireOrg, requireRole } from '../middleware/auth.js';
 import { planAwareRateLimit } from '../middleware/rateLimit.js';
 import { getBillingSnapshotForOrg } from '../services/billing-engine.js';
@@ -44,6 +45,21 @@ const updateWorkflowWebhookSchema = z
     (value) => value.url !== undefined || value.events !== undefined || value.enabled !== undefined,
     'Provide at least one field to update.',
   );
+const workflowTemplateSchema = z.object({
+  workflowId: z.string().uuid().optional(),
+  name: z.string().trim().min(1).max(160),
+  description: z.string().trim().max(1000).optional(),
+  parameters: z.record(z.unknown()).optional().default({}),
+  triggerType: z.enum(['manual', 'schedule', 'webhook', 'event']).optional(),
+  triggerConfig: z.record(z.unknown()).optional(),
+  nodes: z.array(z.unknown()).optional(),
+  edges: z.array(z.unknown()).optional(),
+  isPublic: z.boolean().optional().default(false),
+  metadata: z.record(z.unknown()).optional().default({}),
+});
+const runAgainSchema = z.object({
+  input: z.unknown().optional(),
+});
 
 router.get('/', requireOrg, async (context) => {
   const org = context.get('org');
@@ -76,6 +92,184 @@ router.get('/', requireOrg, async (context) => {
   });
 
   return context.json({ workflows: hydrated });
+});
+
+router.get('/templates', requireOrg, async (context) => {
+  const org = context.get('org');
+  const templates = await db.query.workflowTemplates.findMany({
+    where: or(eq(workflowTemplates.orgId, org.orgId), eq(workflowTemplates.isPublic, true)),
+    orderBy: [desc(workflowTemplates.updatedAt)],
+    limit: 100,
+  });
+
+  return context.json({ templates: templates.map((template) => serializeWorkflowTemplate(template, org.orgId)) });
+});
+
+router.post('/templates', requireOrg, requireRole('owner', 'admin'), zValidator('json', workflowTemplateSchema), async (context) => {
+  const org = context.get('org');
+  const payload = context.req.valid('json');
+  let sourceWorkflow = null;
+
+  if (payload.workflowId) {
+    sourceWorkflow = await db.query.workflows.findFirst({
+      where: and(eq(workflows.id, payload.workflowId), eq(workflows.orgId, org.orgId)),
+    });
+    if (!sourceWorkflow) {
+      return context.json({ error: 'Workflow not found.' }, 404);
+    }
+  }
+
+  const templateDefinition = sourceWorkflow
+    ? {
+      name: payload.name,
+      description: payload.description ?? sourceWorkflow.description ?? null,
+      triggerType: payload.triggerType ?? sourceWorkflow.triggerType,
+      triggerConfig: payload.triggerConfig ?? sourceWorkflow.triggerConfig ?? {},
+      nodes: payload.nodes ?? sourceWorkflow.nodes ?? [],
+      edges: payload.edges ?? sourceWorkflow.edges ?? [],
+    }
+    : {
+      name: payload.name,
+      description: payload.description ?? null,
+      triggerType: payload.triggerType ?? 'manual',
+      triggerConfig: payload.triggerConfig ?? {},
+      nodes: payload.nodes ?? [],
+      edges: payload.edges ?? [],
+    };
+
+  validateWorkflowDefinition(templateDefinition);
+
+  const [template] = await db
+    .insert(workflowTemplates)
+    .values({
+      orgId: org.orgId,
+      sourceWorkflowId: sourceWorkflow?.id ?? null,
+      createdBy: org.userId,
+      name: templateDefinition.name,
+      description: templateDefinition.description,
+      parameters: payload.parameters ?? {},
+      triggerType: templateDefinition.triggerType,
+      triggerConfig: templateDefinition.triggerConfig,
+      nodes: templateDefinition.nodes,
+      edges: templateDefinition.edges,
+      isPublic: payload.isPublic,
+      shareId: createTemplateShareId(),
+      metadata: payload.metadata ?? {},
+    })
+    .returning();
+
+  await recordProductEvent({
+    orgId: org.orgId,
+    userId: org.userId,
+    eventName: 'workflow_template.created',
+    metadata: { templateId: template.id, isPublic: template.isPublic },
+  });
+
+  return context.json({ template: serializeWorkflowTemplate(template, org.orgId) }, 201);
+});
+
+router.get('/templates/:id/public', async (context) => {
+  const { id } = context.req.param();
+  const template = await db.query.workflowTemplates.findFirst({
+    where: and(
+      eq(workflowTemplates.isPublic, true),
+      templateLookup(id),
+    ),
+  });
+
+  if (!template) {
+    return context.json({ error: 'Public template not found.' }, 404);
+  }
+
+  return context.json({ template: serializePublicWorkflowTemplate(template) });
+});
+
+router.post('/templates/:id/import', requireOrg, requireRole('owner', 'admin'), async (context) => {
+  const org = context.get('org');
+  const { id } = context.req.param();
+  const source = await db.query.workflowTemplates.findFirst({
+    where: or(
+      and(eq(workflowTemplates.orgId, org.orgId), templateLookup(id)),
+      and(eq(workflowTemplates.isPublic, true), templateLookup(id)),
+    ),
+  });
+
+  if (!source) {
+    return context.json({ error: 'Template not found.' }, 404);
+  }
+
+  const [template] = await db
+    .insert(workflowTemplates)
+    .values({
+      orgId: org.orgId,
+      sourceWorkflowId: source.sourceWorkflowId ?? null,
+      createdBy: org.userId,
+      name: source.name,
+      description: source.description,
+      parameters: source.parameters ?? {},
+      triggerType: source.triggerType,
+      triggerConfig: source.triggerConfig ?? {},
+      nodes: source.nodes ?? [],
+      edges: source.edges ?? [],
+      isPublic: false,
+      shareId: createTemplateShareId(),
+      usageCount: 0,
+      metadata: { ...(source.metadata ?? {}), importedFromTemplateId: source.id },
+    })
+    .returning();
+
+  await db
+    .update(workflowTemplates)
+    .set({ usageCount: sql`${workflowTemplates.usageCount} + 1`, updatedAt: new Date() })
+    .where(eq(workflowTemplates.id, source.id));
+
+  return context.json({ template: serializeWorkflowTemplate(template, org.orgId) }, 201);
+});
+
+router.post('/templates/:id/clone', requireOrg, requireRole('owner', 'admin'), async (context) => {
+  const org = context.get('org');
+  const { id } = context.req.param();
+  const template = await db.query.workflowTemplates.findFirst({
+    where: or(
+      and(eq(workflowTemplates.orgId, org.orgId), templateLookup(id)),
+      and(eq(workflowTemplates.isPublic, true), templateLookup(id)),
+    ),
+  });
+
+  if (!template) {
+    return context.json({ error: 'Template not found.' }, 404);
+  }
+
+  const payload = validateWorkflowDefinition({
+    name: template.name,
+    description: template.description ?? undefined,
+    triggerType: template.triggerType,
+    triggerConfig: template.triggerConfig ?? {},
+    nodes: template.nodes ?? [],
+    edges: template.edges ?? [],
+  });
+
+  const [workflow] = await db
+    .insert(workflows)
+    .values({
+      orgId: org.orgId,
+      createdBy: org.userId,
+      name: payload.name,
+      description: payload.description ?? null,
+      triggerType: payload.triggerType,
+      triggerConfig: payload.triggerConfig,
+      nodes: payload.nodes,
+      edges: payload.edges,
+      isActive: false,
+    })
+    .returning();
+
+  await db
+    .update(workflowTemplates)
+    .set({ usageCount: sql`${workflowTemplates.usageCount} + 1`, updatedAt: new Date() })
+    .where(eq(workflowTemplates.id, template.id));
+
+  return context.json({ workflow }, 201);
 });
 
 router.get('/webhooks', requireOrg, requireRole('owner', 'admin'), async (context) => {
@@ -487,6 +681,57 @@ router.post('/:id/run', requireOrg, planAwareRateLimit({
   );
 });
 
+router.post('/:id/run-again', requireOrg, requireRole('owner', 'admin'), zValidator('json', runAgainSchema), async (context) => {
+  const org = context.get('org');
+  const { id } = context.req.param();
+  const payload = context.req.valid('json');
+  const workflow = await db.query.workflows.findFirst({
+    where: and(eq(workflows.id, id), eq(workflows.orgId, org.orgId)),
+  });
+
+  if (!workflow) {
+    return context.json({ error: 'Workflow not found.' }, 404);
+  }
+
+  const runInput = payload.input ?? {};
+  const workflowForRun = appendRunAgainInput(workflow, runInput);
+  const [run] = await db
+    .insert(workflowRuns)
+    .values({
+      workflowId: workflow.id,
+      orgId: workflow.orgId,
+      triggeredBy: org.userId,
+      status: 'queued',
+      triggerSource: 'run_again',
+      runLog: [{
+        type: 'run_again_input',
+        input: runInput,
+        timestamp: new Date().toISOString(),
+      }],
+    })
+    .returning();
+
+  const dispatch = await dispatchWorkflowRun({
+    runId: run.id,
+    workflow: workflowForRun,
+    orgContext: org,
+  });
+
+  await db
+    .update(workflowRuns)
+    .set({ executionMode: dispatch.mode })
+    .where(eq(workflowRuns.id, run.id));
+
+  await recordProductEvent({
+    orgId: org.orgId,
+    userId: org.userId,
+    eventName: 'workflow.run_again_queued',
+    metadata: { workflowId: workflow.id, executionMode: dispatch.mode },
+  });
+
+  return context.json({ runId: run.id, status: 'queued', executionMode: dispatch.mode }, 202);
+});
+
 router.post('/webhook/:id/:secret', async (context) => {
   const { id, secret } = context.req.param();
   const idempotencyKey = context.req.header('Idempotency-Key')?.trim() || context.req.header('X-Prymal-Idempotency-Key')?.trim() || null;
@@ -648,6 +893,71 @@ router.post('/runs/:runId/replay', requireOrg, requireRole('owner', 'admin'), as
 });
 
 export default router;
+
+function createTemplateShareId() {
+  return `wft_${randomUUID().replace(/-/g, '').slice(0, 20)}`;
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function templateLookup(id) {
+  return isUuid(id) ? or(eq(workflowTemplates.shareId, id), eq(workflowTemplates.id, id)) : eq(workflowTemplates.shareId, id);
+}
+
+function serializeWorkflowTemplate(template, orgId) {
+  return {
+    id: template.id,
+    orgId: template.orgId,
+    sourceWorkflowId: template.sourceWorkflowId,
+    name: template.name,
+    description: template.description,
+    parameters: template.parameters ?? {},
+    triggerType: template.triggerType,
+    triggerConfig: template.triggerConfig ?? {},
+    nodes: template.nodes ?? [],
+    edges: template.edges ?? [],
+    isPublic: template.isPublic,
+    shareId: template.orgId === orgId || template.isPublic ? template.shareId : null,
+    usageCount: template.usageCount ?? 0,
+    ownedByOrg: template.orgId === orgId,
+    createdAt: template.createdAt,
+    updatedAt: template.updatedAt,
+  };
+}
+
+function serializePublicWorkflowTemplate(template) {
+  return {
+    id: template.id,
+    shareId: template.shareId,
+    name: template.name,
+    description: template.description,
+    parameters: template.parameters ?? {},
+    triggerType: template.triggerType,
+    triggerConfig: template.triggerConfig ?? {},
+    nodes: template.nodes ?? [],
+    edges: template.edges ?? [],
+    createdBy: template.createdBy ?? null,
+    usageCount: template.usageCount ?? 0,
+    createdAt: template.createdAt,
+  };
+}
+
+function appendRunAgainInput(workflow, runInput) {
+  if (runInput == null || (typeof runInput === 'object' && Object.keys(runInput).length === 0)) {
+    return workflow;
+  }
+
+  const inputText = typeof runInput === 'string' ? runInput : JSON.stringify(runInput, null, 2);
+  return {
+    ...workflow,
+    nodes: (workflow.nodes ?? []).map((node) => ({
+      ...node,
+      prompt: [node.prompt, 'RUN AGAIN INPUT', inputText].filter(Boolean).join('\n\n'),
+    })),
+  };
+}
 
 function serializeWorkflowWebhook(entry) {
   return {

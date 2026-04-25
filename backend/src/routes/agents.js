@@ -29,10 +29,12 @@ import {
 } from '../services/llm-observability.js';
 import { deleteMemory } from '../services/memory.js';
 import { hasUsableOpenAIKey } from '../services/model-policy.js';
+import { recordContentAsset, recordDeliveryOutcome } from '../services/moat-feedback.js';
 import { createRealtimeSessionToken, OPENAI_REALTIME_MODEL } from '../services/openai-realtime.js';
 import { recordProductEvent } from '../services/telemetry.js';
 import { transcribeAudioFile } from '../services/transcription.js';
 import { runAgentChat } from '../services/agent-runner.js';
+import { sanitizeAgentOutputText } from '../services/llm.js';
 import { detectEscalationTrigger, dispatchWrenEscalation } from '../services/wren-escalation.js';
 import { buildConversationAgentMismatchResponse } from './agent-conversation-utils.js';
 
@@ -415,6 +417,21 @@ router.post('/chat', requireOrg, planAwareRateLimit({
             })
             .where(eq(conversations.id, conversation.id));
 
+          await recordContentAsset({
+            orgId: org.orgId,
+            userId: org.userId,
+            message: savedMessage,
+            conversation,
+            sourceAgent: payload.agentId,
+            contentType: payload.agentId === 'echo' ? 'social_post' : payload.agentId === 'herald' ? 'email' : 'agent_output',
+            metadata: {
+              route: '/agents/chat',
+              usedLore: payload.useLore,
+              model: event.model ?? null,
+              provider: event.provider ?? null,
+            },
+          });
+
           await Promise.all([
             recordProductEvent({
               orgId: org.orgId,
@@ -724,6 +741,19 @@ router.post('/generate-image', requireOrg, mediaGenerationRateLimit, zValidator(
         totalTokens: conversation.totalTokens ?? 0,
       })
       .where(eq(conversations.id, conversation.id));
+
+    await recordContentAsset({
+      orgId: org.orgId,
+      userId: org.userId,
+      message: assistantMessage,
+      conversation,
+      sourceAgent: payload.agentId,
+      contentType: 'image',
+      metadata: {
+        route: '/agents/generate-image',
+        generatedImages: [generatedImage],
+      },
+    });
 
     await Promise.all([
       recordProductEvent({
@@ -1437,7 +1467,7 @@ function getImageCreditCost(quality) {
 }
 
 function buildImageMessage(agentName, prompt) {
-  return `Generated a visual concept with ${agentName}. Use it as a draft asset, then refine or iterate if you want a tighter direction.\n\nPrompt: ${prompt}`;
+  return sanitizeAgentOutputText(`Generated a visual concept with ${agentName}. Use it as a draft asset, then refine or iterate if you want a tighter direction.\n\nPrompt: ${prompt}`);
 }
 
 // ─── Herald: send via Gmail ──────────────────────────────────────────────────
@@ -1446,11 +1476,13 @@ const heraldSendEmailSchema = z.object({
   to: z.string().email(),
   subject: z.string().trim().min(1).max(500),
   body: z.string().trim().min(1).max(100_000),
+  messageId: z.string().uuid().optional(),
+  contentId: z.string().uuid().optional(),
 });
 
 router.post('/herald/send-email', requireOrg, zValidator('json', heraldSendEmailSchema), async (context) => {
   const org = context.get('org');
-  const { to, subject, body } = context.req.valid('json');
+  const { to, subject, body, messageId, contentId } = context.req.valid('json');
 
   let accessToken;
 
@@ -1483,8 +1515,35 @@ router.post('/herald/send-email', requireOrg, zValidator('json', heraldSendEmail
 
   if (!gmailResponse.ok) {
     const message = gmailData?.error?.message || 'Gmail send failed.';
+    await recordDeliveryOutcome({
+      orgId: org.orgId,
+      userId: org.userId,
+      contentId: contentId ?? null,
+      messageId: messageId ?? null,
+      sourceAgent: 'herald',
+      contentType: 'email',
+      delivered: false,
+      metadata: { provider: 'gmail', to, subject, error: message },
+    });
     return context.json({ error: message }, 502);
   }
+
+  await recordDeliveryOutcome({
+    orgId: org.orgId,
+    userId: org.userId,
+    contentId: contentId ?? null,
+    messageId: messageId ?? null,
+    sourceAgent: 'herald',
+    contentType: 'email',
+    delivered: true,
+    metadata: {
+      provider: 'gmail',
+      providerMessageId: gmailData.id ?? null,
+      to,
+      subject,
+      deliveredAt: new Date().toISOString(),
+    },
+  });
 
   return context.json({ success: true, messageId: gmailData.id ?? null });
 });

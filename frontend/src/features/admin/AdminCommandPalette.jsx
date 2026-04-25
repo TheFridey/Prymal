@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CommandPaletteDialog } from '../../components/CommandPaletteDialog';
 import { api } from '../../lib/api';
-import { humanize } from './utils';
+import { displayEmail, displayName, humanize } from './utils';
 
 const TAB_COMMANDS = [
   { id: 'overview', label: 'Overview dashboard' },
@@ -96,12 +96,13 @@ export function AdminCommandPalette({
           ) + 6,
       })),
       ...users.map((user) => {
-        const name = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.email;
+        const name = displayName(user);
+        const email = displayEmail(user);
         return {
           kind: 'user',
           id: user.id,
           title: name,
-          subtitle: `${user.email} | ${humanize(user.role)}`,
+          subtitle: `${email} | ${humanize(user.role)}`,
           score:
             Math.max(
               scoreMatch(name, trimmedQuery),

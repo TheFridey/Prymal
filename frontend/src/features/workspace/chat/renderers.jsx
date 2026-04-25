@@ -642,7 +642,7 @@ export function StudioMessage({ message, agent, streaming = false, streamingTask
         {sources.length === 0 && presentation?.traceSources?.length ? (
           <ResearchTrace sources={presentation.traceSources} />
         ) : null}
-        {isHeraldDraft ? <HeraldEmailSend content={message.content} /> : null}
+        {isHeraldDraft ? <HeraldEmailSend content={message.content} messageId={message.id} /> : null}
         {isAtlasSummary ? <AtlasNotionExport content={message.content} /> : null}
         {!isUser && !streaming && onHandoff ? (
           <HandoffSuggestions
@@ -741,7 +741,7 @@ function HandoffSuggestions({ sourceAgentId, messageContent, onHandoff }) {
   );
 }
 
-function HeraldEmailSend({ content }) {
+function HeraldEmailSend({ content, messageId }) {
   const [open, setOpen] = useState(false);
   const [to, setTo] = useState('');
   const [status, setStatus] = useState('idle');
@@ -756,7 +756,7 @@ function HeraldEmailSend({ content }) {
     setStatus('sending');
     setErrorMsg('');
     try {
-      await api.post('/agents/herald/send-email', { to: to.trim(), subject, body });
+      await api.post('/agents/herald/send-email', { to: to.trim(), subject, body, messageId });
       setStatus('sent');
     } catch (err) {
       setStatus('error');

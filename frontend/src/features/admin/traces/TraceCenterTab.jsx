@@ -2,8 +2,8 @@ import { useMemo } from 'react';
 import { Button, InlineNotice, LoadingPanel, TextInput } from '../../../components/ui';
 import { formatDateTime, formatNumber, truncate } from '../../../lib/utils';
 import { AGENT_ID_OPTIONS } from '../constants';
-import { humanize } from '../utils';
-import { AdminDetailDrawer, AdminPaginationControls, DetailBlock, JsonBlock, formatRate } from '../runtime/shared';
+import { displayEmail, humanize } from '../utils';
+import { AdminDetailDrawer, AdminPaginationControls, DetailBlock, formatRate } from '../runtime/shared';
 import { MotionList, MotionListItem, MotionSection } from '../../../components/motion';
 
 export function TraceCenterTab({
@@ -500,7 +500,7 @@ function TraceDetailContent({ detail, onOpenWorkflowRun, onOpenReceipt }) {
           <div className="staff-admin__surface-label">Linked context</div>
           <div className="staff-admin__runtime-stat-list">
             <TraceSummaryRow label="Workspace" value={organisation?.name ?? truncate(trace.orgId, 12)} />
-            <TraceSummaryRow label="User" value={user?.email ?? truncate(trace.userId, 12)} />
+            <TraceSummaryRow label="User" value={user ? displayEmail(user) : truncate(trace.userId, 12)} />
             <TraceSummaryRow label="Workflow run" value={workflowRun ? truncate(workflowRun.id, 12) : 'n/a'} />
             <TraceSummaryRow label="Conversation" value={conversation ? truncate(conversation.id, 12) : 'n/a'} />
             <TraceSummaryRow label="Mode" value={trace.mode ? humanize(trace.mode) : 'Standard'} />
@@ -511,7 +511,7 @@ function TraceDetailContent({ detail, onOpenWorkflowRun, onOpenReceipt }) {
       <div className="staff-admin__drawer-grid">
         <DetailBlock label="Trace ID">{trace.id}</DetailBlock>
         <DetailBlock label="Workspace">{organisation?.name ?? truncate(trace.orgId, 12)}</DetailBlock>
-        <DetailBlock label="User">{user?.email ?? truncate(trace.userId, 12)}</DetailBlock>
+        <DetailBlock label="User">{user ? displayEmail(user) : truncate(trace.userId, 12)}</DetailBlock>
         <DetailBlock label="Agent">{humanize(trace.agentId)}</DetailBlock>
         <DetailBlock label="Provider">{trace.provider}</DetailBlock>
         <DetailBlock label="Model">{trace.model}</DetailBlock>
@@ -535,7 +535,6 @@ function TraceDetailContent({ detail, onOpenWorkflowRun, onOpenReceipt }) {
           {routing.reasoningTier ? <span className="staff-admin__chip">Reasoning {humanize(routing.reasoningTier)}</span> : null}
           {routing.fastLane ? <span className="staff-admin__chip">Fast lane {humanize(routing.fastLane)}</span> : null}
         </div>
-        {trace.routing ? <JsonBlock value={trace.routing} /> : null}
       </section>
 
       {hasRepairLoop ? (

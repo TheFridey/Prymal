@@ -93,6 +93,7 @@ export const subscriptions = pgTable(
     videoReservedBalance: integer('video_reserved_balance').notNull().default(0),
     cumulativeRevenueGbp: real('cumulative_revenue_gbp').notNull().default(0),
     cumulativeEstimatedCostUsd: real('cumulative_estimated_cost_usd').notNull().default(0),
+    cumulativeEstimatedCostGbp: real('cumulative_estimated_cost_gbp').notNull().default(0),
     costGuardState: text('cost_guard_state').notNull().default('normal'),
     metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -200,6 +201,7 @@ export const executionUsageEvents = pgTable(
     completionTokens: integer('completion_tokens'),
     totalTokens: integer('total_tokens'),
     estimatedCostUsd: real('estimated_cost_usd'),
+    estimatedCostGbp: real('estimated_cost_gbp'),
     revenueContributionGbp: real('revenue_contribution_gbp'),
     costGuardTriggered: boolean('cost_guard_triggered').notNull().default(false),
     heavyUsageFlagged: boolean('heavy_usage_flagged').notNull().default(false),
@@ -666,6 +668,34 @@ export const workflowWebhooks = pgTable(
   }),
 );
 
+export const workflowTemplates = pgTable(
+  'workflow_templates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').references(() => organisations.id, { onDelete: 'cascade' }),
+    sourceWorkflowId: uuid('source_workflow_id').references(() => workflows.id, { onDelete: 'set null' }),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    parameters: jsonb('parameters').notNull().default(sql`'{}'::jsonb`),
+    triggerType: triggerTypeEnum('trigger_type').notNull().default('manual'),
+    triggerConfig: jsonb('trigger_config').notNull().default(sql`'{}'::jsonb`),
+    nodes: jsonb('nodes').notNull().default(sql`'[]'::jsonb`),
+    edges: jsonb('edges').notNull().default(sql`'[]'::jsonb`),
+    isPublic: boolean('is_public').notNull().default(false),
+    shareId: text('share_id').notNull().unique(),
+    usageCount: integer('usage_count').notNull().default(0),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index('workflow_templates_org_idx').on(table.orgId),
+    shareIdx: uniqueIndex('workflow_templates_share_idx').on(table.shareId),
+    publicIdx: index('workflow_templates_public_idx').on(table.isPublic),
+  }),
+);
+
 export const workflowRuns = pgTable(
   'workflow_runs',
   {
@@ -720,6 +750,7 @@ export const llmExecutionTraces = pgTable(
     completionTokens: integer('completion_tokens'),
     totalTokens: integer('total_tokens'),
     estimatedCostUsd: real('estimated_cost_usd'),
+    estimatedCostGbp: real('estimated_cost_gbp'),
     toolsUsed: text('tools_used').array().notNull().default(sql`'{}'::text[]`),
     loreChunkIds: uuid('lore_chunk_ids').array(),
     loreDocumentIds: uuid('lore_document_ids').array(),
@@ -737,6 +768,64 @@ export const llmExecutionTraces = pgTable(
     conversationIdx: index('llm_traces_conversation_idx').on(table.conversationId),
     workflowRunIdx: index('llm_traces_workflow_run_idx').on(table.workflowRunId),
     createdIdx: index('llm_traces_created_idx').on(table.createdAt),
+  }),
+);
+
+export const contentAssets = pgTable(
+  'content_assets',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organisations.id, { onDelete: 'cascade' }),
+    messageId: uuid('message_id').references(() => messages.id, { onDelete: 'set null' }),
+    conversationId: uuid('conversation_id').references(() => conversations.id, { onDelete: 'set null' }),
+    workflowId: uuid('workflow_id').references(() => workflows.id, { onDelete: 'set null' }),
+    workflowRunId: uuid('workflow_run_id').references(() => workflowRuns.id, { onDelete: 'set null' }),
+    sourceAgent: agentIdEnum('source_agent').notNull(),
+    contentType: text('content_type').notNull().default('agent_output'),
+    title: text('title'),
+    body: text('body'),
+    parentContentId: uuid('parent_content_id'),
+    derivedContentIds: uuid('derived_content_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    deliveryStatus: text('delivery_status').notNull().default('draft'),
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    resultMetadata: jsonb('result_metadata').notNull().default(sql`'{}'::jsonb`),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index('content_assets_org_idx').on(table.orgId),
+    messageIdx: uniqueIndex('content_assets_message_idx').on(table.messageId),
+    parentIdx: index('content_assets_parent_idx').on(table.parentContentId),
+    workflowIdx: index('content_assets_workflow_idx').on(table.workflowId),
+    sourceIdx: index('content_assets_source_idx').on(table.sourceAgent),
+    createdIdx: index('content_assets_created_idx').on(table.createdAt),
+  }),
+);
+
+export const loreFeedback = pgTable(
+  'lore_feedback',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organisations.id, { onDelete: 'cascade' }),
+    contentId: uuid('content_id').references(() => contentAssets.id, { onDelete: 'set null' }),
+    outcomeType: text('outcome_type').notNull(),
+    outcomeMetric: text('outcome_metric').notNull(),
+    notes: text('notes'),
+    sourceAgent: agentIdEnum('source_agent'),
+    workflowId: uuid('workflow_id').references(() => workflows.id, { onDelete: 'set null' }),
+    workflowRunId: uuid('workflow_run_id').references(() => workflowRuns.id, { onDelete: 'set null' }),
+    value: real('value'),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index('lore_feedback_org_idx').on(table.orgId),
+    contentIdx: index('lore_feedback_content_idx').on(table.contentId),
+    agentIdx: index('lore_feedback_agent_idx').on(table.sourceAgent),
+    metricIdx: index('lore_feedback_metric_idx').on(table.outcomeMetric),
+    recordedIdx: index('lore_feedback_recorded_idx').on(table.recordedAt),
   }),
 );
 

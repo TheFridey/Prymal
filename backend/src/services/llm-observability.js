@@ -51,6 +51,14 @@ export async function recordLLMExecutionTrace({
   }
 
   try {
+    const estimatedCostUsd = estimateModelCostUsd({
+      provider,
+      model,
+      promptTokens,
+      completionTokens,
+    });
+    const estimatedCostGbp = Number((estimatedCostUsd * 0.79).toFixed(4));
+
     await db.insert(llmExecutionTraces).values({
       orgId,
       userId,
@@ -67,12 +75,8 @@ export async function recordLLMExecutionTrace({
       promptTokens,
       completionTokens,
       totalTokens,
-      estimatedCostUsd: estimateModelCostUsd({
-        provider,
-        model,
-        promptTokens,
-        completionTokens,
-      }),
+      estimatedCostUsd,
+      estimatedCostGbp,
       toolsUsed,
       loreChunkIds,
       loreDocumentIds,

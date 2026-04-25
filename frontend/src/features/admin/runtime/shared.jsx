@@ -58,10 +58,17 @@ export function DetailBlock({ label, children }) {
 }
 
 export function JsonBlock({ value }) {
+  const keys = value && typeof value === 'object' ? Object.keys(value).slice(0, 4) : [];
   return (
-    <pre className="staff-admin__json-block">
-      {JSON.stringify(value ?? {}, null, 2)}
-    </pre>
+    <details className="staff-admin__json-details">
+      <summary>
+        <span>Technical details</span>
+        {keys.length > 0 ? <small>{keys.map(humanize).join(' / ')}</small> : <small>No payload fields</small>}
+      </summary>
+      <pre className="staff-admin__json-block">
+        {JSON.stringify(value ?? {}, null, 2)}
+      </pre>
+    </details>
   );
 }
 

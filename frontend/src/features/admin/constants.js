@@ -22,6 +22,27 @@ export const TABS = [
   { id: 'growth', label: 'Growth' },
 ];
 
+export const PRIMARY_ADMIN_TABS = ['overview', 'operator', 'organisations', 'users', 'billing', 'activity'];
+
+export const ADMIN_NAV_GROUPS = [
+  {
+    label: 'Command',
+    tabs: ['overview', 'operator', 'organisations', 'users', 'activity'],
+  },
+  {
+    label: 'Revenue',
+    tabs: ['billing', 'revenue', 'referrals', 'credit-usage'],
+  },
+  {
+    label: 'Runtime',
+    tabs: ['traces', 'evals', 'workflow-ops', 'model-usage', 'scorecards', 'model-policy'],
+  },
+  {
+    label: 'Support',
+    tabs: ['product-events', 'audit-logs', 'waitlist', 'email-queue', 'powerups', 'growth'],
+  },
+];
+
 export const PLAN_OPTIONS = ['all', 'free', 'solo', 'pro', 'teams', 'agency'];
 export const ROLE_OPTIONS = ['all', 'owner', 'admin', 'member'];
 export const RUN_STATUS_OPTIONS = ['all', 'running', 'queued', 'failed', 'completed'];

@@ -28,6 +28,7 @@ import {
   serializeBillingCatalog,
   validateVideoGenerationRequest,
 } from './billing-catalog.js';
+import { recordProductEvent } from './telemetry.js';
 
 const CREDIT_FIELD_MAP = {
   [CREDIT_TYPES.execution]: {
@@ -273,6 +274,12 @@ export async function commitExecutionUsage({
     const { organisation, subscription } = await ensureSubscriptionForOrg(usageEvent.orgId, { tx });
     const balances = getAvailableBalances(subscription, CREDIT_TYPES.execution);
     const reservedBalanceAfter = Math.max(balances.reserved - (usageEvent.creditsReserved ?? 0), 0);
+    const finalEstimatedCostUsd = estimatedCostUsd ?? usageEvent.estimatedCostUsd ?? 0;
+    const costGuardSnapshot = evaluateCostGuard({
+      creditType: CREDIT_TYPES.execution,
+      credits: usageEvent.creditsReserved ?? usageEvent.creditsCommitted ?? 0,
+      estimatedCostUsd: finalEstimatedCostUsd,
+    });
 
     const [updatedEvent] = await tx
       .update(executionUsageEvents)
@@ -283,7 +290,8 @@ export async function commitExecutionUsage({
         promptTokens,
         completionTokens,
         totalTokens,
-        estimatedCostUsd: estimatedCostUsd ?? usageEvent.estimatedCostUsd,
+        estimatedCostUsd: finalEstimatedCostUsd,
+        estimatedCostGbp: costGuardSnapshot.estimatedCostGbp,
         creditsCommitted: usageEvent.creditsReserved,
         completedAt: new Date(),
         updatedAt: new Date(),
@@ -299,7 +307,8 @@ export async function commitExecutionUsage({
       .update(subscriptions)
       .set({
         executionReservedBalance: reservedBalanceAfter,
-        cumulativeEstimatedCostUsd: sql`${subscriptions.cumulativeEstimatedCostUsd} + ${estimatedCostUsd ?? usageEvent.estimatedCostUsd ?? 0}`,
+        cumulativeEstimatedCostUsd: sql`${subscriptions.cumulativeEstimatedCostUsd} + ${finalEstimatedCostUsd}`,
+        cumulativeEstimatedCostGbp: sql`${subscriptions.cumulativeEstimatedCostGbp} + ${costGuardSnapshot.estimatedCostGbp}`,
         costGuardState: updatedEvent.costGuardTriggered ? 'throttled' : subscription.costGuardState,
         updatedAt: new Date(),
       })
@@ -320,7 +329,8 @@ export async function commitExecutionUsage({
         promptTokens,
         completionTokens,
         totalTokens,
-        estimatedCostUsd: estimatedCostUsd ?? usageEvent.estimatedCostUsd ?? null,
+        estimatedCostUsd: finalEstimatedCostUsd || null,
+        estimatedCostGbp: costGuardSnapshot.estimatedCostGbp || null,
       },
     });
 
@@ -330,6 +340,22 @@ export async function commitExecutionUsage({
       subscription: nextSubscription,
       creditType: CREDIT_TYPES.execution,
     });
+
+    if (updatedEvent.costGuardTriggered || updatedEvent.heavyUsageFlagged) {
+      await recordProductEvent({
+        orgId: usageEvent.orgId,
+        userId: usageEvent.userId,
+        eventName: updatedEvent.costGuardTriggered ? 'cost_guard_triggered' : 'high_usage_warning',
+        metadata: {
+          usageEventId: usageEvent.id,
+          agentId: usageEvent.agentId,
+          estimatedCostUsd: finalEstimatedCostUsd,
+          estimatedCostGbp: costGuardSnapshot.estimatedCostGbp,
+          revenueContributionGbp: updatedEvent.revenueContributionGbp ?? null,
+          heavyUsageFlagged: updatedEvent.heavyUsageFlagged,
+        },
+      });
+    }
 
     return { usageEvent: updatedEvent, threshold, subscription: nextSubscription };
   });
@@ -495,6 +521,7 @@ export async function reserveVideoCredits({
           referenceImageCount: referenceImages.length,
           reservationSplit: reserved.split,
           estimatedCostUsd,
+          estimatedCostGbp: costGuard.estimatedCostGbp,
           costGuard,
         },
       })
@@ -538,6 +565,22 @@ export async function reserveVideoCredits({
       subscription: nextSubscription,
       creditType: CREDIT_TYPES.video,
     });
+
+    if (costGuard.triggered || heavyUsage.flagged) {
+      await recordProductEvent({
+        orgId,
+        userId,
+        eventName: costGuard.triggered ? 'cost_guard_triggered' : 'high_usage_warning',
+        metadata: {
+          usageEventId: job.id,
+          creditType: CREDIT_TYPES.video,
+          estimatedCostUsd,
+          estimatedCostGbp: costGuard.estimatedCostGbp,
+          revenueContributionGbp: costGuard.revenueContributionGbp,
+          heavyUsageFlagged: heavyUsage.flagged,
+        },
+      });
+    }
 
     return {
       job,
@@ -624,12 +667,14 @@ export async function commitVideoJob({
       resolution: job.resolution,
       mode: job.providerMetadata?.mode,
     }));
+    const estimatedCostGbp = Number(job.providerMetadata?.estimatedCostGbp ?? (estimatedCostUsd * 0.79).toFixed(4));
 
     const [nextSubscription] = await tx
       .update(subscriptions)
       .set({
         videoReservedBalance: reservedBalanceAfter,
         cumulativeEstimatedCostUsd: sql`${subscriptions.cumulativeEstimatedCostUsd} + ${estimatedCostUsd}`,
+        cumulativeEstimatedCostGbp: sql`${subscriptions.cumulativeEstimatedCostGbp} + ${estimatedCostGbp}`,
         costGuardState: job.providerMetadata?.costGuard?.triggered ? 'throttled' : subscription.costGuardState,
         updatedAt: new Date(),
       })
@@ -652,6 +697,8 @@ export async function commitVideoJob({
         outputUrl,
         outputFileName,
         referenceImageCount: Number(job.providerMetadata?.referenceImageCount ?? 0),
+        estimatedCostUsd,
+        estimatedCostGbp,
       },
     });
 

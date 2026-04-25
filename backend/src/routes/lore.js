@@ -2,6 +2,7 @@ import { zValidator } from '@hono/zod-validator';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { AGENT_IDS } from '../agents/config.js';
 import { db } from '../db/index.js';
 import { loreChunks, loreDocuments } from '../db/schema.js';
 import { requireOrg } from '../middleware/auth.js';
@@ -15,6 +16,7 @@ import {
   ingestDocument,
   ragSearch,
 } from '../services/rag.js';
+import { recordLoreFeedback } from '../services/moat-feedback.js';
 
 const router = new Hono();
 
@@ -28,6 +30,19 @@ const uploadTextSchema = z.object({
 const crawlSchema = z.object({
   url: z.string().url(),
   title: z.string().max(200).optional(),
+});
+
+const feedbackSchema = z.object({
+  orgId: z.string().uuid().optional(),
+  contentId: z.string().uuid(),
+  outcomeType: z.enum(['success', 'failure', 'partial']),
+  outcomeMetric: z.string().trim().min(1).max(80),
+  notes: z.string().trim().max(2000).optional(),
+  sourceAgent: z.enum(AGENT_IDS).optional(),
+  workflowId: z.string().uuid().optional(),
+  workflowRunId: z.string().uuid().optional(),
+  value: z.number().finite().optional(),
+  metadata: z.record(z.unknown()).optional().default({}),
 });
 
 const loreIngestRateLimit = planAwareRateLimit({
@@ -60,6 +75,35 @@ router.get('/', requireOrg, async (context) => {
     totalChunks: chunkCount[0]?.count ?? 0,
     acceptedUploads: SUPPORTED_UPLOAD_ACCEPT,
   });
+});
+
+router.post('/feedback', requireOrg, zValidator('json', feedbackSchema), async (context) => {
+  const org = context.get('org');
+  const payload = context.req.valid('json');
+
+  if (payload.orgId && payload.orgId !== org.orgId) {
+    return context.json({ error: 'Feedback must be recorded for the authenticated organisation.' }, 403);
+  }
+
+  try {
+    const { feedback, asset } = await recordLoreFeedback({
+      orgId: org.orgId,
+      userId: org.userId,
+      contentId: payload.contentId,
+      outcomeType: payload.outcomeType,
+      outcomeMetric: payload.outcomeMetric,
+      notes: payload.notes ?? null,
+      sourceAgent: payload.sourceAgent ?? null,
+      workflowId: payload.workflowId ?? null,
+      workflowRunId: payload.workflowRunId ?? null,
+      value: payload.value ?? null,
+      metadata: payload.metadata ?? {},
+    });
+
+    return context.json({ feedback, content: asset }, 201);
+  } catch (error) {
+    return context.json({ error: error.message || 'Feedback could not be recorded.' }, 404);
+  }
 });
 
 router.post('/text', requireOrg, loreIngestRateLimit, zValidator('json', uploadTextSchema), async (context) => {

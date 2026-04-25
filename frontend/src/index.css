@@ -9805,8 +9805,8 @@ body::after {
 
 .staff-admin__command-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(180px, 0.48fr)) auto;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1.7fr) repeat(2, minmax(150px, 0.38fr)) auto;
+  gap: 10px;
   align-items: end;
 }
 
@@ -9816,15 +9816,15 @@ body::after {
 }
 
 .staff-admin__field--search .field {
-  min-height: 52px;
+  min-height: 44px;
 }
 
 .staff-admin__select,
 .staff-admin .field {
   width: 100%;
   min-width: 0;
-  min-height: 52px;
-  border-radius: 18px;
+  min-height: 44px;
+  border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--line) 84%, rgba(255, 255, 255, 0.08));
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-strong);
@@ -9835,10 +9835,11 @@ body::after {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  min-height: 52px;
-  padding: 0 18px;
-  border-radius: 18px;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
   color: var(--text-strong);
+  font-size: 0.88rem;
 }
 
 .staff-admin__sync-dot {
@@ -9850,17 +9851,29 @@ body::after {
   animation: staffAdminPulse 2.2s ease-in-out infinite;
 }
 
+.staff-admin__nav-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, rgba(255, 255, 255, 0.08));
+  border-radius: 20px;
+  background: rgba(4, 9, 20, 0.44);
+}
+
 .staff-admin__tabs {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .staff-admin__tab {
-  min-height: 48px;
-  padding: 0 18px;
-  border-radius: 999px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
   color: var(--muted);
+  font-size: 0.9rem;
   transition: transform 180ms ease, border-color 180ms ease, color 180ms ease, background 180ms ease;
 }
 
@@ -9872,6 +9885,43 @@ body::after {
     linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent), transparent 62%),
     rgba(255, 255, 255, 0.07);
   transform: translateY(-1px);
+}
+
+.staff-admin__nav-select-wrap {
+  display: grid;
+  gap: 5px;
+}
+
+.staff-admin__nav-current {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.staff-admin__nav-select {
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--line) 84%, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-strong);
+  padding: 0 12px;
+}
+
+.staff-admin__select option,
+.staff-admin__nav-select option,
+.staff-admin__select optgroup,
+.staff-admin__nav-select optgroup {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.staff-admin__select option:checked,
+.staff-admin__nav-select option:checked {
+  background: #1d4ed8;
+  color: #ffffff;
 }
 
 .staff-admin__metric-grid {
@@ -10818,6 +10868,45 @@ body::after {
   overflow: auto;
 }
 
+.staff-admin__json-details {
+  border: 1px solid color-mix(in srgb, var(--line) 80%, rgba(255, 255, 255, 0.08));
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  overflow: hidden;
+}
+
+.staff-admin__json-details summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  color: var(--text-strong);
+  cursor: pointer;
+  list-style: none;
+}
+
+.staff-admin__json-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.staff-admin__json-details summary span {
+  font-weight: 700;
+}
+
+.staff-admin__json-details summary small {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.staff-admin__json-details .staff-admin__json-block {
+  border-width: 1px 0 0;
+  border-radius: 0;
+}
+
 @keyframes staffAdminPulse {
   0%, 100% {
     transform: scale(0.96);
@@ -10917,6 +11006,10 @@ body::after {
     grid-template-columns: 1fr 1fr;
   }
 
+  .staff-admin__nav-shell {
+    grid-template-columns: 1fr;
+  }
+
   .staff-admin__field--search {
     grid-column: 1 / -1;
   }
@@ -10989,7 +11082,7 @@ body::after {
 @media (max-width: 640px) {
   .staff-admin__tabs {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .staff-admin__tab {

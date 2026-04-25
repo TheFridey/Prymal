@@ -14,6 +14,23 @@ import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
 
 const router = new Hono();
 
+function isPlaceholderEmail(email) {
+  return /@placeholder\.invalid$/i.test(String(email ?? ''));
+}
+
+function formatUserHandle(user) {
+  if (!user?.email) {
+    return user?.id ? `Prymal user ${String(user.id).slice(-6).toUpperCase()}` : 'Prymal user';
+  }
+  if (!isPlaceholderEmail(user.email)) return user.email;
+  const suffix = String(user.id ?? user.email.split('@')[0]).replace(/^user_/i, '').slice(-6).toUpperCase();
+  return `Prymal user ${suffix}`;
+}
+
+function formatUserName(user) {
+  return [user.firstName, user.lastName].filter(Boolean).join(' ') || formatUserHandle(user);
+}
+
 function buildIdLike(column, query) {
   return sql`${column}::text ilike ${`%${query}%`}`;
 }
@@ -126,8 +143,8 @@ router.get('/search', requireStaff, requireStaffPermission('admin.view'), async 
     ...userRows.map((row) => ({
       kind: 'user',
       id: row.id,
-      title: [row.firstName, row.lastName].filter(Boolean).join(' ') || row.email,
-      subtitle: `${row.email} | ${row.role}`,
+      title: formatUserName(row),
+      subtitle: `${formatUserHandle(row)} | ${row.role}`,
       targetTab: 'users',
       userId: row.id,
     })),

@@ -9,6 +9,7 @@ import { apiKeys, conversations, emailQueue, organisationInvitations, organisati
 import { requireOrg, requireRole } from '../middleware/auth.js';
 import { sendInvitationEmail, sendWelcomeEmail } from '../services/email.js';
 import { getPlanConfig } from '../services/entitlements.js';
+import { getOrgLearningSnapshot } from '../services/moat-feedback.js';
 import { normalizeOrgAiControls } from '../services/model-policy.js';
 import { getStaffRole, isStaffUser, listStaffPermissions } from '../services/staff.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
@@ -301,7 +302,18 @@ router.post('/invitations/accept', zValidator('json', invitationAcceptSchema), a
 
 router.get('/me', requireOrg, async (context) => {
   const org = context.get('org');
-  const [user, organisation, seatSummary, conversationStats] = await Promise.all([
+  const learningFallback = {
+    trainedOnRuns: 0,
+    feedbackEvents: 0,
+    contentAssets: 0,
+    workflowTemplates: 0,
+  };
+  const learningPromise = getOrgLearningSnapshot({ orgId: org.orgId }).catch((error) => {
+    console.warn('[AUTH] Skipping learning metrics for /me:', error.message);
+    return learningFallback;
+  });
+
+  const [user, organisation, seatSummary, conversationStats, learning] = await Promise.all([
     db.query.users.findFirst({
       where: and(eq(users.id, org.userId), eq(users.orgId, org.orgId)),
     }),
@@ -313,6 +325,7 @@ router.get('/me', requireOrg, async (context) => {
       .select({ count: count() })
       .from(conversations)
       .where(and(eq(conversations.orgId, org.orgId), eq(conversations.userId, org.userId))),
+    learningPromise,
   ]);
 
   if (user) {
@@ -353,6 +366,10 @@ router.get('/me', requireOrg, async (context) => {
     },
     stats: {
       conversationCount: Number(conversationStats[0]?.count ?? 0),
+      trainedOnRuns: learning.trainedOnRuns,
+      feedbackEvents: learning.feedbackEvents,
+      contentAssets: learning.contentAssets,
+      workflowTemplates: learning.workflowTemplates,
     },
     credits: org.credits,
   });

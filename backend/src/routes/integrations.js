@@ -6,6 +6,7 @@ import { db } from '../db/index.js';
 import { integrations } from '../db/schema.js';
 import { hasConfiguredEnvValue } from '../env.js';
 import { requireOrg, requireRole } from '../middleware/auth.js';
+import { recordDeliveryOutcome } from '../services/moat-feedback.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
 import {
   buildDeliveryMeta,
@@ -74,6 +75,8 @@ const publishPayloadSchema = z.object({
   linkUrl: optionalUrl(2000),
   imageUrl: optionalUrl(4000),
   targetId: optionalTrimmedString(255),
+  messageId: z.string().uuid().optional(),
+  contentId: z.string().uuid().optional(),
   metadata: z
     .object({
       madeWithAi: z.boolean().optional(),
@@ -540,6 +543,20 @@ router.post(
         connection,
       });
     } catch (error) {
+      await recordDeliveryOutcome({
+        orgId: org.orgId,
+        userId: org.userId,
+        contentId: payload.contentId ?? null,
+        messageId: payload.messageId ?? null,
+        sourceAgent: 'echo',
+        contentType: 'social_post',
+        delivered: false,
+        metadata: {
+          service,
+          targetId: payload.targetId ?? null,
+          error: error.message || 'Publish failed.',
+        },
+      });
       return context.json({ error: error.message || 'Publish failed.' }, 400);
     }
 
@@ -558,6 +575,22 @@ router.post(
       })
       .where(eq(integrations.id, connection.id))
       .returning();
+
+    await recordDeliveryOutcome({
+      orgId: org.orgId,
+      userId: org.userId,
+      contentId: payload.contentId ?? null,
+      messageId: payload.messageId ?? null,
+      sourceAgent: 'echo',
+      contentType: 'social_post',
+      delivered: true,
+      metadata: {
+        service,
+        target: delivery.target ?? null,
+        providerMessageId: delivery.providerMessageId ?? null,
+        deliveredAt: delivery.publishedAt ?? new Date().toISOString(),
+      },
+    });
 
     await Promise.all([
       recordAuditLog({
