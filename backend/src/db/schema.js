@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -48,7 +49,27 @@ export const sourceTypeEnum = pgEnum('source_type', [
 export const docStatusEnum = pgEnum('doc_status', ['pending', 'indexing', 'indexed', 'failed']);
 export const triggerTypeEnum = pgEnum('trigger_type', ['manual', 'schedule', 'webhook', 'event']);
 export const runStatusEnum = pgEnum('run_status', ['queued', 'running', 'completed', 'failed', 'cancelled']);
-export const memoryTypeEnum = pgEnum('memory_type', ['preference', 'fact', 'instruction', 'pattern']);
+export const memoryTypeEnum = pgEnum('memory_type', [
+  'preference',
+  'fact',
+  'instruction',
+  'pattern',
+  'user_preference',
+  'business_fact',
+  'project_fact',
+  'brand_voice',
+  'task_state',
+  'workflow_state',
+  'decision',
+  'contact_fact',
+  'document_fact',
+  'integration_fact',
+  'agent_observation',
+  'correction',
+  'warning',
+  'episodic_event',
+  'system_note',
+]);
 export const memoryScopeEnum = pgEnum('memory_scope', [
   'org',
   'user',
@@ -57,7 +78,28 @@ export const memoryScopeEnum = pgEnum('memory_scope', [
   'workflow_run',
   'temporary_session',
 ]);
+export const memoryItemStatusEnum = pgEnum('memory_item_status', [
+  'active',
+  'pending_review',
+  'conflicted',
+  'expired',
+  'archived',
+  'deleted',
+  'rejected',
+]);
+export const memoryVisibilityEnum = pgEnum('memory_visibility', [
+  'org_shared',
+  'user_private',
+  'agent_private_visible',
+  'restricted_visible',
+]);
 export const invitationStatusEnum = pgEnum('invitation_status', ['pending', 'accepted', 'revoked', 'expired']);
+export const foundingAccessClaimStatusEnum = pgEnum('founding_access_claim_status', [
+  'claimed',
+  'active',
+  'cancelled',
+  'revoked',
+]);
 
 export const organisations = pgTable('organisations', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -106,6 +148,23 @@ export const subscriptions = pgTable(
   }),
 );
 
+export const offerConfigs = pgTable(
+  'offer_configs',
+  {
+    offerKey: text('offer_key').primaryKey(),
+    maxPaidClaims: integer('max_paid_claims').notNull().default(25),
+    isEnabled: boolean('is_enabled').notNull().default(true),
+    startsAt: timestamp('starts_at', { withTimezone: true }),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    enabledIdx: index('offer_configs_enabled_idx').on(table.isEnabled),
+  }),
+);
+
 export const users = pgTable(
   'users',
   {
@@ -122,6 +181,51 @@ export const users = pgTable(
   },
   (table) => ({
     orgIdx: index('users_org_idx').on(table.orgId),
+  }),
+);
+
+export const foundingAccessClaims = pgTable(
+  'founding_access_claims',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    offerKey: text('offer_key').notNull().default('FOUNDING_ACCESS').references(() => offerConfigs.offerKey),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    orgId: uuid('organisation_id').references(() => organisations.id, { onDelete: 'cascade' }),
+    stripeCustomerId: text('stripe_customer_id'),
+    stripeSubscriptionId: text('stripe_subscription_id'),
+    planId: planEnum('plan_id').notNull(),
+    status: foundingAccessClaimStatusEnum('status').notNull().default('claimed'),
+    firstMonthCreditBoostAppliedAt: timestamp('first_month_credit_boost_applied_at', { withTimezone: true }),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }).notNull().defaultNow(),
+    activatedAt: timestamp('activated_at', { withTimezone: true }),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    offerStatusIdx: index('founding_access_claims_offer_status_idx').on(table.offerKey, table.status),
+    orgIdx: index('founding_access_claims_org_idx').on(table.orgId),
+    userIdx: index('founding_access_claims_user_idx').on(table.userId),
+    subscriptionUnique: uniqueIndex('founding_access_claims_subscription_unique').on(table.stripeSubscriptionId),
+    orgOfferUnique: uniqueIndex('founding_access_claims_org_offer_unique').on(table.offerKey, table.orgId),
+  }),
+);
+
+export const foundingAccessLeads = pgTable(
+  'founding_access_leads',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull(),
+    source: text('source').notNull().default('pricing_banner'),
+    convertedUserId: text('converted_user_id').references(() => users.id, { onDelete: 'set null' }),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    emailUnique: uniqueIndex('founding_access_leads_email_unique').on(table.email),
+    sourceIdx: index('founding_access_leads_source_idx').on(table.source),
+    createdIdx: index('founding_access_leads_created_idx').on(table.createdAt),
   }),
 );
 
@@ -393,6 +497,21 @@ export const messages = pgTable(
   }),
 );
 
+export const memoryContradictionGroups = pgTable(
+  'memory_contradiction_groups',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organisations.id, { onDelete: 'cascade' }),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    winningMemoryId: uuid('winning_memory_id'),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index('memory_contradiction_groups_org_idx').on(table.orgId),
+  }),
+);
+
 export const agentMemory = pgTable(
   'agent_memory',
   {
@@ -407,15 +526,39 @@ export const agentMemory = pgTable(
     memoryType: memoryTypeEnum('memory_type').notNull(),
     key: text('key').notNull(),
     value: text('value').notNull(),
+    title: text('title'),
+    content: text('content'),
+    summary: text('summary'),
     provenanceKind: text('provenance_kind').notNull().default('confirmed'),
     sourceRef: text('source_ref'),
+    memorySourceKind: text('memory_source_kind').notNull().default('conversation'),
+    sourceAgent: agentIdEnum('source_agent'),
+    sourceMessageId: uuid('source_message_id').references(() => messages.id, { onDelete: 'set null' }),
+    sourceDocumentId: uuid('source_document_id').references(() => loreDocuments.id, { onDelete: 'set null' }),
     metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
     version: integer('version').notNull().default(1),
     confidence: real('confidence').notNull().default(0.5),
+    importanceScore: real('importance_score').notNull().default(0.5),
+    authorityScore: real('authority_score').notNull().default(0.5),
+    freshnessScore: real('freshness_score').notNull().default(0.5),
     usageCount: integer('usage_count').notNull().default(0),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
+    promotedAt: timestamp('promoted_at', { withTimezone: true }),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    memoryItemStatus: memoryItemStatusEnum('memory_item_status').notNull().default('active'),
+    visibility: memoryVisibilityEnum('visibility').notNull().default('org_shared'),
+    contradictionGroupId: uuid('contradiction_group_id').references(() => memoryContradictionGroups.id, {
+      onDelete: 'set null',
+    }),
+    parentMemoryId: uuid('parent_memory_id'),
+    pinned: boolean('pinned').notNull().default(false),
+    alwaysInclude: boolean('always_include').notNull().default(false),
+    neverForget: boolean('never_forget').notNull().default(false),
+    userLocked: boolean('user_locked').notNull().default(false),
+    confidenceUpdatedAt: timestamp('confidence_updated_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -424,7 +567,72 @@ export const agentMemory = pgTable(
     userScopeIdx: index('memory_user_scope_idx').on(table.orgId, table.userId, table.agentId),
     workflowRunIdx: index('memory_workflow_run_idx').on(table.workflowRunId),
     expiresIdx: index('memory_expires_idx').on(table.expiresAt),
+    orgStatusIdx: index('memory_org_status_idx').on(table.orgId, table.memoryItemStatus),
+    contradictionIdx: index('memory_contradiction_group_idx').on(table.contradictionGroupId),
     uniqueMemKey: uniqueIndex('memory_unique_key').on(table.orgId, table.agentId, table.scope, table.scopeKey, table.key),
+  }),
+);
+
+export const memoryEvents = pgTable(
+  'memory_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organisations.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    agentId: agentIdEnum('agent_id'),
+    workflowRunId: uuid('workflow_run_id').references(() => workflowRuns.id, { onDelete: 'set null' }),
+    eventType: text('event_type').notNull(),
+    title: text('title').notNull(),
+    description: text('description'),
+    importanceScore: real('importance_score').notNull().default(0.5),
+    sourceType: text('source_type').notNull().default('system'),
+    sourceRef: text('source_ref'),
+    dailyBucket: date('daily_bucket').notNull().default(sql`CURRENT_DATE`),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgCreatedIdx: index('memory_events_org_created_idx').on(table.orgId, table.createdAt),
+    orgDailyIdx: index('memory_events_org_daily_idx').on(table.orgId, table.dailyBucket),
+  }),
+);
+
+export const memoryPromotionEvents = pgTable(
+  'memory_promotion_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organisations.id, { onDelete: 'cascade' }),
+    candidateMemoryId: uuid('candidate_memory_id').references(() => agentMemory.id, { onDelete: 'set null' }),
+    shouldPromote: boolean('should_promote').notNull(),
+    targetScope: text('target_scope'),
+    targetType: text('target_type'),
+    confidenceScore: real('confidence_score'),
+    importanceScore: real('importance_score'),
+    reason: text('reason'),
+    reviewRequired: boolean('review_required').notNull().default(false),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index('memory_promotion_events_org_idx').on(table.orgId, table.createdAt),
+  }),
+);
+
+export const memoryRetrievalTraces = pgTable(
+  'memory_retrieval_traces',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organisations.id, { onDelete: 'cascade' }),
+    agentId: agentIdEnum('agent_id'),
+    workflowRunId: uuid('workflow_run_id').references(() => workflowRuns.id, { onDelete: 'set null' }),
+    conversationId: uuid('conversation_id'),
+    policySnapshot: jsonb('policy_snapshot').notNull().default(sql`'{}'::jsonb`),
+    selectedIds: uuid('selected_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    retrievalItems: jsonb('retrieval_items').notNull().default(sql`'[]'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index('memory_retrieval_traces_org_idx').on(table.orgId, table.createdAt),
   }),
 );
 

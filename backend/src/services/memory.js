@@ -1,10 +1,18 @@
-import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNull, not, or, sql } from 'drizzle-orm';
 import { getRuntimeAgentContract } from '../agents/runtime.js';
+import { getMemorySessionTtlHours, getMemoryWorkflowTtlHours } from '../env.js';
 import { db } from '../db/index.js';
 import { agentMemory } from '../db/schema.js';
+import { reviewMemoryCandidate } from './memory-safety.js';
+import { getMemoryPolicyForAgent } from './memory-policies.js';
+import { insertMemoryEvent } from './memory-events.js';
+import { evaluateMemoryPromotion, recordPromotionEvaluation } from './memory-promotion.js';
+import { processContradictionsAfterUpsert } from './memory-contradictions.js';
+import { calculateMemoryDecay } from './memory-decay.js';
+import { confirmMemoryConfidence } from './memory-confidence.js';
+import { detectDuplicateMemories, mergeMemoryIntoExisting } from './memory-duplicates.js';
+import { enforceMemoryCapsForBucket } from './memory-caps.js';
 
-const MAX_MEMORIES_PER_SCOPE = 50;
-const MEMORY_DECAY_WINDOW_DAYS = 45;
 const MEMORY_FRESH_DAYS = 14;
 const MEMORY_AGING_DAYS = 30;
 const MEMORY_STALE_DAYS = 60;
@@ -20,6 +28,31 @@ const MEMORY_SCOPE_PRIORITY = {
 };
 const SENSITIVE_WRITE_SCOPES = new Set(['restricted', 'org', 'workflow_run']);
 
+function visibilityForScope(scope) {
+  switch (scope) {
+    case 'user':
+      return 'user_private';
+    case 'agent_private':
+      return 'agent_private_visible';
+    case 'restricted':
+      return 'restricted_visible';
+    default:
+      return 'org_shared';
+  }
+}
+
+function resolveExpiresAtForScope(normalizedScope, expiresAt) {
+  if (expiresAt) {
+    return new Date(expiresAt);
+  }
+
+  if (normalizedScope === 'workflow_run') {
+    return new Date(Date.now() + getMemoryWorkflowTtlHours() * 60 * 60 * 1000);
+  }
+
+  return null;
+}
+
 const scopeEq = (value) => sql`${agentMemory.scope}::text = ${value}`;
 
 export async function getAgentMemory({
@@ -30,6 +63,7 @@ export async function getAgentMemory({
   sessionKey = null,
   limit = 20,
   contract = getRuntimeAgentContract(agentId),
+  retrievalPolicy = null,
 }) {
   const scopePredicates = buildReadableScopePredicates({
     orgId,
@@ -44,6 +78,15 @@ export async function getAgentMemory({
     return [];
   }
 
+  const rp = retrievalPolicy ?? getMemoryPolicyForAgent(agentId);
+  const allowedStatuses = ['active', 'pending_review'];
+  if (rp.includeConflicted !== false) {
+    allowedStatuses.push('conflicted');
+  }
+  if (rp.includeExpired) {
+    allowedStatuses.push('expired');
+  }
+
   const now = new Date();
   let memories = [];
   try {
@@ -51,7 +94,8 @@ export async function getAgentMemory({
       where: and(
         eq(agentMemory.orgId, orgId),
         or(...scopePredicates),
-        or(isNull(agentMemory.expiresAt), gt(agentMemory.expiresAt, now)),
+        ...(rp.includeExpired ? [] : [or(isNull(agentMemory.expiresAt), gt(agentMemory.expiresAt, now))]),
+        inArray(agentMemory.memoryItemStatus, allowedStatuses),
       ),
       orderBy: [desc(agentMemory.updatedAt)],
       limit: Math.max(limit * 3, limit),
@@ -74,30 +118,23 @@ export async function getAgentMemory({
           contract,
         }),
       )
-      .map((entry) => ({
-        ...entry,
-        effectiveConfidence: applyMemoryDecay(entry),
-        status: getMemoryStatus(entry),
-        provenanceLabel: getProvenanceLabel(entry),
-        displaySource: getDisplaySource(entry),
-      }))
+      .map((entry) => {
+        const { decayFactor, reason } = calculateMemoryDecay(entry, now);
+        const baseConf = entry.confidence ?? 0.5;
+        const effectiveConfidence = Number(Math.min(1, Math.max(0.05, baseConf * decayFactor)).toFixed(4));
+        return {
+          ...entry,
+          decayFactor,
+          decayReason: reason,
+          effectiveConfidence,
+          status: getMemoryStatus(entry),
+          provenanceLabel: getProvenanceLabel(entry),
+          displaySource: getDisplaySource(entry),
+        };
+      })
       .sort(compareMemoryPriority),
     limit,
   );
-
-  if (scopedMemories.length > 0) {
-    const memoryIds = scopedMemories.map((memory) => memory.id);
-
-    db.update(agentMemory)
-      .set({
-        lastUsedAt: now,
-        usageCount: sql`${agentMemory.usageCount} + 1`,
-      })
-      .where(inArray(agentMemory.id, memoryIds))
-      .catch((error) => {
-        console.error('[MEMORY] Failed to update usage:', error.message);
-      });
-  }
 
   return scopedMemories;
 }
@@ -141,6 +178,87 @@ export function isMemoryEntryReadableByAgent({
   }
 }
 
+async function runMemoryPostWriteHooks({ orgId, agentId, memoryId, normalizedScope, operation }) {
+  const memoryFeedback = [];
+
+  memoryFeedback.push({
+    type: operation === 'update' ? 'updated' : 'saved',
+    message: operation === 'update' ? 'Updated memory' : 'Saved to memory',
+  });
+
+  try {
+    const row = await db.query.agentMemory.findFirst({
+      where: and(eq(agentMemory.orgId, orgId), eq(agentMemory.id, memoryId)),
+    });
+
+    if (!row || row.memoryItemStatus === 'rejected') {
+      return { memoryFeedback };
+    }
+
+    if (normalizedScope === 'temporary_session') {
+      const decision = evaluateMemoryPromotion(
+        {
+          scope: row.scope,
+          memoryType: row.memoryType,
+          confidence: row.confidence,
+        },
+        {
+          repetitionCount: 0,
+          explicitUserInstruction: false,
+          workflowRunId: row.workflowRunId,
+        },
+      );
+
+      await recordPromotionEvaluation(orgId, decision, row.id, { source: 'chat_upsert' }).catch(() => {});
+
+      if (decision.shouldPromote) {
+        memoryFeedback.push({
+          type: 'promoted',
+          message: 'Promoted to long-term memory',
+          detail: decision.reason,
+        });
+
+        await insertMemoryEvent({
+          orgId,
+          userId: row.userId ?? null,
+          agentId: row.agentId ?? null,
+          workflowRunId: row.workflowRunId ?? null,
+          eventType: 'memory_promoted',
+          title: 'Promoted to long-term memory',
+          description: decision.reason,
+          importanceScore: 0.58,
+          sourceType: 'memory_promotion',
+          sourceRef: row.id,
+          metadata: { evaluation: decision },
+        }).catch(() => {});
+      }
+
+      return { memoryFeedback };
+    }
+
+    await insertMemoryEvent({
+      orgId,
+      userId: row.userId ?? null,
+      agentId: row.agentId ?? null,
+      workflowRunId: row.workflowRunId ?? null,
+      eventType: 'memory_saved',
+      title: 'Memory saved',
+      description: `${row.memoryType ?? 'memory'} · ${String(row.value ?? '').slice(0, 120)}`,
+      importanceScore: 0.42,
+      sourceType: 'memory_pipeline',
+      sourceRef: row.id,
+      metadata: { memoryType: row.memoryType, memoryId: row.id, scope: row.scope },
+    }).catch(() => {});
+
+    const { feedback = [] } = await processContradictionsAfterUpsert({ orgId, memoryRow: row, agentId });
+    memoryFeedback.push(...feedback);
+    return { memoryFeedback };
+  } catch (error) {
+    console.warn('[MEMORY] Post-write hooks failed:', error.message);
+    return { memoryFeedback };
+  }
+}
+
 export async function upsertMemory({
   orgId,
   userId = null,
@@ -175,6 +293,28 @@ export async function upsertMemory({
     workflowRunId,
     sessionKey,
   });
+
+  const safety = reviewMemoryCandidate({
+    content: value,
+    title: key,
+    memorySourceKind: metadata.memorySourceKind ?? 'conversation',
+    authorityHint: metadata.authorityHint,
+  });
+
+  if (safety.status === 'rejected') {
+    console.warn('[MEMORY] Candidate rejected', safety.reasons);
+    return {
+      id: null,
+      key,
+      scope: normalizedScope,
+      skipped: true,
+      rejected: true,
+      reasons: safety.reasons,
+      memoryFeedback: [],
+    };
+  }
+
+  const resolvedStatus = safety.status === 'pending_review' ? 'pending_review' : 'active';
 
   const existing = await db.query.agentMemory.findFirst({
     where: and(
@@ -214,12 +354,19 @@ export async function upsertMemory({
         sourceRef: sourceRef ?? existing.sourceRef,
         provenanceKind: nextProvenanceKind,
         confidence: nextConfidence,
+        content: value,
+        title: metadata.title ?? existing.title ?? key,
         version: (existing.version ?? 1) + 1,
         confirmedAt:
           nextProvenanceKind === 'confirmed'
             ? existing.confirmedAt ?? now
             : existing.confirmedAt,
-        expiresAt: expiresAt ? new Date(expiresAt) : existing.expiresAt,
+        expiresAt:
+          expiresAt != null
+            ? new Date(expiresAt)
+            : normalizedScope === 'workflow_run'
+              ? resolveExpiresAtForScope(normalizedScope, null)
+              : existing.expiresAt,
         updatedAt: now,
       })
       .where(eq(agentMemory.id, existing.id));
@@ -234,6 +381,14 @@ export async function upsertMemory({
       action: 'update',
     });
 
+    const postUpdate = await runMemoryPostWriteHooks({
+      orgId,
+      agentId,
+      memoryId: existing.id,
+      normalizedScope,
+      operation: 'update',
+    });
+
     return {
       id: existing.id,
       key,
@@ -242,7 +397,48 @@ export async function upsertMemory({
       created: false,
       conflict: existing.value !== value,
       provenanceKind: nextProvenanceKind,
+      memoryFeedback: postUpdate.memoryFeedback,
     };
+  }
+
+  try {
+    const dupes = await detectDuplicateMemories(
+      {
+        value,
+        scope: normalizedScope,
+        scopeKey: scopeIdentity.scopeKey,
+        memoryType,
+        key,
+      },
+      orgId,
+      agentId,
+    );
+
+    const best = dupes.find((d) => d.mergeRecommended && (d.similarityScore ?? 0) >= 0.75);
+    if (best) {
+      const merged = await mergeMemoryIntoExisting({
+        orgId,
+        agentId,
+        existingMemoryId: best.memoryId,
+        candidate: { value, sourceRef, metadata },
+      });
+
+      if (merged.merged) {
+        return {
+          id: best.memoryId,
+          key,
+          scope: normalizedScope,
+          scopeKey: scopeIdentity.scopeKey,
+          created: false,
+          merged: true,
+          conflict: false,
+          provenanceKind: nextProvenanceKind,
+          memoryFeedback: merged.memoryFeedback ?? [],
+        };
+      }
+    }
+  } catch (dupErr) {
+    console.warn('[MEMORY] Duplicate merge skipped:', dupErr.message);
   }
 
   const [created] = await db
@@ -258,6 +454,8 @@ export async function upsertMemory({
       memoryType,
       key,
       value,
+      content: value,
+      title: metadata.title ?? key,
       metadata: {
         ...metadata,
         scope: normalizedScope,
@@ -266,16 +464,20 @@ export async function upsertMemory({
       sourceRef,
       confidence: nextConfidence,
       confirmedAt: nextProvenanceKind === 'confirmed' ? now : null,
-      expiresAt: expiresAt ? new Date(expiresAt) : null,
+      expiresAt: resolveExpiresAtForScope(normalizedScope, expiresAt),
+      memoryItemStatus: resolvedStatus,
+      visibility: visibilityForScope(normalizedScope),
     })
     .returning({ id: agentMemory.id });
 
-  await pruneMemories({
+  await enforceMemoryCapsForBucket({
     orgId,
     agentId,
     scope: normalizedScope,
     scopeKey: scopeIdentity.scopeKey,
-  });
+    memoryType,
+    userId,
+  }).catch((err) => console.warn('[MEMORY] Cap enforcement skipped:', err.message));
 
   recordSensitiveMemoryWrite({
     orgId,
@@ -287,6 +489,14 @@ export async function upsertMemory({
     action: 'create',
   });
 
+  const postCreate = await runMemoryPostWriteHooks({
+    orgId,
+    agentId,
+    memoryId: created.id,
+    normalizedScope,
+    operation: 'create',
+  });
+
   return {
     id: created.id,
     key,
@@ -295,19 +505,12 @@ export async function upsertMemory({
     created: true,
     conflict: false,
     provenanceKind: nextProvenanceKind,
+    memoryFeedback: postCreate.memoryFeedback,
   };
 }
 
-export async function confirmMemory(memoryId) {
-  await db
-    .update(agentMemory)
-    .set({
-      confidence: 1,
-      provenanceKind: 'confirmed',
-      confirmedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(agentMemory.id, memoryId));
+export async function confirmMemory(memoryId, options = {}) {
+  await confirmMemoryConfidence(memoryId, options);
 }
 
 export async function deleteMemory(memoryId) {
@@ -417,7 +620,7 @@ export async function extractMemoryFromTurn({
             sourceRef: memory.sourceRef,
             expiresAt:
               memory.scope === 'temporary_session'
-                ? new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString()
+                ? new Date(Date.now() + getMemorySessionTtlHours() * 60 * 60 * 1000)
                 : null,
           })
         : Promise.resolve({
@@ -427,6 +630,7 @@ export async function extractMemoryFromTurn({
             created: false,
             conflict: false,
             skipped: true,
+            memoryFeedback: [],
           }),
     ),
   );
@@ -437,6 +641,7 @@ export async function extractMemoryFromTurn({
     memoryWriteKey: writes[index]?.key ?? memory.key,
     created: writes[index]?.created ?? false,
     conflict: writes[index]?.conflict ?? false,
+    memoryFeedback: writes[index]?.memoryFeedback ?? [],
   }));
 }
 
@@ -505,32 +710,6 @@ function buildReadableScopePredicates({ orgId, userId, agentId, workflowRunId, s
   return predicates;
 }
 
-async function pruneMemories({ orgId, agentId, scope, scopeKey }) {
-  const memories = await db.query.agentMemory.findMany({
-    where: and(
-      eq(agentMemory.orgId, orgId),
-      eq(agentMemory.agentId, agentId),
-      eq(agentMemory.scope, scope),
-      eq(agentMemory.scopeKey, scopeKey),
-    ),
-    orderBy: [asc(agentMemory.confidence), asc(agentMemory.lastUsedAt)],
-  });
-
-  if (memories.length <= MAX_MEMORIES_PER_SCOPE) {
-    return;
-  }
-
-  const toDelete = memories
-    .filter((memory) => (memory.provenanceKind ?? 'inferred') !== 'confirmed')
-    .slice(0, memories.length - MAX_MEMORIES_PER_SCOPE);
-
-  if (toDelete.length === 0) {
-    return;
-  }
-
-  await db.delete(agentMemory).where(inArray(agentMemory.id, toDelete.map((memory) => memory.id)));
-}
-
 function mergeMemoryScopes(memories, limit) {
   const seenKeys = new Set();
   const ordered = [];
@@ -561,29 +740,20 @@ function compareMemoryPriority(left, right) {
     return rightPriority - leftPriority;
   }
 
+  if (Boolean(right.alwaysInclude) !== Boolean(left.alwaysInclude)) {
+    return right.alwaysInclude ? 1 : -1;
+  }
+
+  if (Boolean(right.pinned) !== Boolean(left.pinned)) {
+    return right.pinned ? 1 : -1;
+  }
+
   if (right.effectiveConfidence !== left.effectiveConfidence) {
     return right.effectiveConfidence - left.effectiveConfidence;
   }
 
   return new Date(right.lastUsedAt ?? right.updatedAt ?? right.createdAt ?? 0).getTime()
     - new Date(left.lastUsedAt ?? left.updatedAt ?? left.createdAt ?? 0).getTime();
-}
-
-function applyMemoryDecay(entry) {
-  const baseConfidence = entry.confidence ?? 0.5;
-  const referenceDate = entry.lastUsedAt ?? entry.updatedAt ?? entry.createdAt;
-
-  if (!referenceDate) {
-    return baseConfidence;
-  }
-
-  const ageMs = Date.now() - new Date(referenceDate).getTime();
-  const ageDays = Math.max(ageMs / (1000 * 60 * 60 * 24), 0);
-  const decay = (entry.provenanceKind ?? 'inferred') === 'confirmed'
-    ? Math.min(ageDays / (MEMORY_DECAY_WINDOW_DAYS * 2), 0.2)
-    : Math.min(ageDays / MEMORY_DECAY_WINDOW_DAYS, 0.35);
-
-  return Number(Math.max(baseConfidence - decay, 0.05).toFixed(4));
 }
 
 function canWriteMemoryScope(contract, scope) {

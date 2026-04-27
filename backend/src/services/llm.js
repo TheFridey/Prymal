@@ -14,7 +14,7 @@ import {
   getRuntimeAgentContract,
   validateContractToolUsage,
 } from '../agents/runtime.js';
-import { getAgentMemory } from './memory.js';
+import { retrieveRankedMemories, buildMemoryClientPreview } from './memory-retrieval.js';
 import {
   applyOrgBudgetCap,
   buildModelOverridesFromAiControls,
@@ -129,17 +129,23 @@ function selectAdaptiveChunks(chunks, budget) {
 }
 
 function formatMemoryEntryForPrompt(entry) {
-  const status = entry?.status ?? 'fresh';
-  const provenance = entry?.provenanceLabel ?? entry?.provenanceKind ?? 'inferred';
+  const row = entry?.memory ?? entry;
+  const status = row?.status ?? 'fresh';
+  const provenance = row?.provenanceLabel ?? row?.provenanceKind ?? 'inferred';
   const tags = [];
   if (status !== 'fresh') tags.push(status);
   if (provenance !== 'confirmed') tags.push(provenance);
-  if (entry?.scope === 'restricted' || entry?.scope === 'agent_private') {
-    tags.push(entry.scope);
+  if (row?.scope === 'restricted' || row?.scope === 'agent_private') {
+    tags.push(row.scope);
   }
   const tagSuffix = tags.length > 0 ? ` [${tags.join(' · ')}]` : '';
-  const source = entry?.displaySource ? ` (source: ${entry.displaySource})` : '';
-  return `- ${entry.key}: ${entry.value}${tagSuffix}${source}`;
+  const source = row?.displaySource ? ` (source: ${row.displaySource})` : '';
+  const rid = row?.id ? ` id=${row.id}` : '';
+  const score =
+    entry?.retrievalScore != null && typeof entry.retrievalScore === 'number'
+      ? ` score=${entry.retrievalScore}`
+      : '';
+  return `- ${row.key}: ${row.value}${tagSuffix}${source}${rid}${score}`;
 }
 
 function applyAnthropicMaxTokensHeadroom(maxTokens) {
@@ -219,6 +225,7 @@ export async function* streamAgentResponse({
   orgMetadata = {},
   userId = null,
   conversationId = null,
+  workflowRunId = null,
   taskType = null,
   policyOverride = null,
   providerOverride = null,
@@ -244,6 +251,7 @@ export async function* streamAgentResponse({
     orgId,
     userId,
     conversationId,
+    workflowRunId,
     userMessage,
     useLore,
     useMemory,
@@ -351,7 +359,9 @@ export async function* streamAgentResponse({
             schemaRepair: response.schemaRepair ?? null,
             retrievalDecision: systemPrompt.retrievalDecision ?? null,
             memorySummary: systemPrompt.memorySummary ?? null,
+            usedMemories: systemPrompt.usedMemoriesClient ?? [],
           },
+          usedMemories: systemPrompt.usedMemoriesClient ?? [],
           schemaValidation: response.schemaValidation,
           geminiGrounding: response.geminiGrounding ?? null,
         };
@@ -427,7 +437,10 @@ export async function* streamAgentResponse({
               contract: buildRuntimeContractSummary(agentId),
               toolValidation,
               retrievalDecision: systemPrompt.retrievalDecision ?? null,
+              memorySummary: systemPrompt.memorySummary ?? null,
+              usedMemories: systemPrompt.usedMemoriesClient ?? [],
             },
+            usedMemories: systemPrompt.usedMemoriesClient ?? [],
             schemaValidation,
             repairedText:
               schemaValidation?.verdict === 'repaired'
@@ -593,6 +606,7 @@ export async function runAgentNode({ agentId, orgId, orgPlan = 'free', prompt, c
             schemaRepair: response.schemaRepair ?? null,
             retrievalDecision: systemPrompt.retrievalDecision ?? null,
             memorySummary: systemPrompt.memorySummary ?? null,
+            usedMemories: systemPrompt.usedMemoriesClient ?? [],
           },
           schemaValidation: response.schemaValidation ?? null,
         },
@@ -1159,6 +1173,7 @@ async function buildSystemPrompt({
   const loreChunkIds = [];
   const loreDocumentIds = new Set();
   const memoryReadIds = [];
+  let usedMemoriesClient = [];
   const toolsUsed = new Set();
 
   if (userMessage) {
@@ -1284,17 +1299,32 @@ async function buildSystemPrompt({
   }
 
   if (useMemory && orgId && (contract?.allowedTools?.includes('memory_read') || (contract?.memoryReadScopes?.length ?? 0) > 0)) {
-    const memory = await getAgentMemory({
+    const envelopes = await retrieveRankedMemories({
       orgId,
       userId,
       agentId: agent.id,
       workflowRunId,
       sessionKey: conversationId ? `conversation:${conversationId}` : null,
-      limit: 10,
+      userMessage,
+      conversationId,
       contract,
+      traceRecord: true,
     });
 
-    if (memory.length > 0) {
+    const memory = envelopes.map((e) => ({
+      ...e.memory,
+      retrievalScore: e.retrievalScore,
+      selectedBecause: e.selectedBecause,
+      matchedBy: e.matchedBy,
+      tokenEstimate: e.tokenEstimate,
+      decayFactor: e.decayFactor,
+      decayReason: e.decayReason,
+      effectiveScore: e.effectiveScore,
+    }));
+
+    usedMemoriesClient = buildMemoryClientPreview(envelopes, { agentId: agent.id });
+
+    if (envelopes.length > 0) {
       toolsUsed.add('memory_read');
       memoryReadIds.push(...memory.map((entry) => entry.id));
       memorySummary = {
@@ -1318,31 +1348,38 @@ async function buildSystemPrompt({
           .map((entry) => entry.key)
           .slice(0, 10),
         restrictedEntryCount: memory.filter((entry) => entry.scope === 'restricted').length,
+        injectionProvenance: envelopes.map((e) => ({
+          memoryId: e.memory.id,
+          retrievalScore: e.retrievalScore,
+          matchedBy: e.matchedBy,
+          selectedBecause: e.selectedBecause,
+          tokenEstimate: e.tokenEstimate,
+        })),
       };
       const memorySections = [
         {
           title: 'Organisation context:',
-          rows: memory.filter((entry) => entry.scope === 'org'),
+          rows: envelopes.filter((entry) => entry.memory.scope === 'org'),
         },
         {
           title: 'User preferences:',
-          rows: memory.filter((entry) => entry.scope === 'user'),
+          rows: envelopes.filter((entry) => entry.memory.scope === 'user'),
         },
         {
           title: 'Restricted context:',
-          rows: memory.filter((entry) => entry.scope === 'restricted'),
+          rows: envelopes.filter((entry) => entry.memory.scope === 'restricted'),
         },
         {
           title: 'Agent-private context:',
-          rows: memory.filter((entry) => entry.scope === 'agent_private'),
+          rows: envelopes.filter((entry) => entry.memory.scope === 'agent_private'),
         },
         {
           title: 'Workflow-run context:',
-          rows: memory.filter((entry) => entry.scope === 'workflow_run'),
+          rows: envelopes.filter((entry) => entry.memory.scope === 'workflow_run'),
         },
         {
           title: 'Temporary session context:',
-          rows: memory.filter((entry) => entry.scope === 'temporary_session'),
+          rows: envelopes.filter((entry) => entry.memory.scope === 'temporary_session'),
         },
       ].filter((section) => section.rows.length > 0);
 
@@ -1450,6 +1487,7 @@ async function buildSystemPrompt({
     toolsUsed: [...toolsUsed],
     retrievalDecision,
     memorySummary,
+    usedMemoriesClient,
   };
 }
 

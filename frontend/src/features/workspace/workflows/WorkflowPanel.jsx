@@ -19,6 +19,8 @@ import { useAppStore } from '../../../stores/useAppStore';
 const WorkflowBuilder = lazy(() => import('../../../pages/WorkflowBuilder'));
 const WebhookSubscriptionsPanel = lazy(() => import('./WebhookSubscriptionsPanel'));
 
+import { useAppStore } from '../../../stores/useAppStore';
+
 const TRIGGER_META = {
   manual: { label: 'manual', color: '#4CC9F0' },
   schedule: { label: 'schedule', color: '#C77DFF' },
@@ -80,6 +82,7 @@ function summarizeRunEntry(entry) {
 
 export default function WorkflowPanel() {
   const queryClient = useQueryClient();
+  const setActiveWorkflowRun = useAppStore((state) => state.setActiveWorkflowRun);
   const [expandedWorkflowId, setExpandedWorkflowId] = useState(null);
   const [expandedWebhookPanels, setExpandedWebhookPanels] = useState({});
   const [logRun, setLogRun] = useState(null);
@@ -117,6 +120,17 @@ export default function WorkflowPanel() {
   });
 
   const expandedRuns = runsQuery.data?.runs?.slice(0, 10) ?? [];
+
+  const activeWorkflowRunId = useAppStore((state) => state.activeWorkflowRunId);
+  const clearActiveWorkflowRun = useAppStore((state) => state.clearActiveWorkflowRun);
+
+  useEffect(() => {
+    if (!activeWorkflowRunId) return;
+    const match = expandedRuns.find((run) => run.id === activeWorkflowRunId);
+    if (match && ['completed', 'failed', 'cancelled'].includes(match.status)) {
+      clearActiveWorkflowRun();
+    }
+  }, [activeWorkflowRunId, clearActiveWorkflowRun, expandedRuns]);
 
   const workflowSummary = useMemo(
     () => ({
@@ -425,6 +439,16 @@ export default function WorkflowPanel() {
                                   <Button tone="ghost" onClick={() => setLogRun(run)}>
                                     View log
                                   </Button>
+                                  {isRunLive ? (
+                                    <Button
+                                      tone="accent"
+                                      onClick={() =>
+                                        setActiveWorkflowRun({ runId: run.id, status: run.status ?? 'running' })
+                                      }
+                                    >
+                                      Use in chat
+                                    </Button>
+                                  ) : null}
                                 </MotionListItem>
                               );
                             })}

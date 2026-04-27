@@ -66,6 +66,7 @@ const chatSchema = z.object({
       customInstructions: z.string().trim().max(1000).optional(),
     })
     .optional(),
+  workflowRunId: z.string().uuid().optional(),
 });
 
 const renameConversationSchema = z.object({
@@ -95,6 +96,7 @@ const videoGenerationSchema = z.object({
     mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
     name: z.string().max(255),
   })).max(3).optional(),
+  useNegativePrompt: z.boolean().optional().default(true),
 });
 const mediaGenerationRateLimit = planAwareRateLimit({
   free: 4,
@@ -342,6 +344,7 @@ router.post('/chat', requireOrg, planAwareRateLimit({
       attachments,
       mode: 'chat',
       requestId: context.get('requestId') ?? null,
+      workflowRunId: payload.workflowRunId ?? null,
     });
 
     await stream.writeSSE({
@@ -497,6 +500,8 @@ router.post('/chat', requireOrg, planAwareRateLimit({
               geminiGrounding: event.geminiGrounding ?? null,
               escalated: escalationResult.triggered,
               escalationReason: escalationResult.triggerReason ?? null,
+              memoryEvents: event.memoryEvents ?? [],
+              usedMemories: event.usedMemories ?? [],
             }),
           });
         } else if (event.type === 'hold') {
@@ -550,6 +555,8 @@ router.post('/chat', requireOrg, planAwareRateLimit({
               sentinelHoldReason: event.sentinelHoldReason ?? null,
               sentinelRiskScore: event.sentinelRiskScore ?? null,
               enforcementSummary: event.enforcementSummary ?? null,
+              memoryEvents: event.memoryEvents ?? [],
+              usedMemories: event.usedMemories ?? [],
             }),
           });
         } else if (event.type === 'error') {
@@ -884,6 +891,7 @@ router.post('/generate-video', requireOrg, mediaGenerationRateLimit, zValidator(
     aspectRatio: payload.aspectRatio,
     mode: payload.mode,
     referenceImages: payload.referenceImages ?? [],
+    useNegativePrompt: payload.useNegativePrompt,
     metadata: {
       route: '/agents/generate-video',
       agentId: payload.agentId,

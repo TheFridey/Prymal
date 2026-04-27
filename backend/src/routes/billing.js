@@ -23,6 +23,13 @@ import {
   updateSubscriptionBillingStatus,
 } from '../services/billing-engine.js';
 import { getPlanConfig } from '../services/entitlements.js';
+import {
+  FOUNDING_ACCESS_OFFER_KEY,
+  activateFoundingAccessClaim,
+  cancelFoundingAccessClaim,
+  claimFoundingAccess,
+  getFoundingAccessEligibilityForOrg,
+} from '../services/founding-access.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
 import { getSeatSnapshot } from '../services/team.js';
 
@@ -51,6 +58,34 @@ const PRICE_IDS = {
   },
 };
 
+const FOUNDING_PRICE_IDS = {
+  solo: {
+    monthly: process.env.STRIPE_PRICE_FOUNDING_SOLO,
+    quarterly: process.env.STRIPE_PRICE_FOUNDING_SOLO_QUARTERLY,
+    yearly: process.env.STRIPE_PRICE_FOUNDING_SOLO_YEARLY,
+  },
+  pro: {
+    monthly: process.env.STRIPE_PRICE_FOUNDING_PRO,
+    quarterly: process.env.STRIPE_PRICE_FOUNDING_PRO_QUARTERLY,
+    yearly: process.env.STRIPE_PRICE_FOUNDING_PRO_YEARLY,
+  },
+  teams: {
+    monthly: process.env.STRIPE_PRICE_FOUNDING_TEAMS,
+    quarterly: process.env.STRIPE_PRICE_FOUNDING_TEAMS_QUARTERLY,
+    yearly: process.env.STRIPE_PRICE_FOUNDING_TEAMS_YEARLY,
+  },
+  agency: {
+    monthly: process.env.STRIPE_PRICE_FOUNDING_AGENCY,
+    quarterly: process.env.STRIPE_PRICE_FOUNDING_AGENCY_QUARTERLY,
+    yearly: process.env.STRIPE_PRICE_FOUNDING_AGENCY_YEARLY,
+  },
+};
+
+const checkoutSchema = z.object({
+  plan: z.enum(['solo', 'pro', 'teams', 'agency']),
+  interval: z.enum(['monthly', 'quarterly', 'yearly']).optional().default('monthly'),
+});
+
 const creditPackCheckoutSchema = z.object({
   creditType: z.enum(['execution', 'video']),
   packId: z.string().trim().min(1).max(64),
@@ -65,23 +100,22 @@ function getStripe() {
   }
 
   return new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2024-09-30.acacia',
+    apiVersion: '2026-02-25.clover',
   });
 }
 
 router.post('/checkout', requireOrg, requireRole('owner', 'admin'), async (context) => {
   const stripe = getStripe();
   const org = context.get('org');
-  const { plan, interval = 'monthly' } = await context.req.json();
-  const priceId = PRICE_IDS[plan]?.[interval];
+  const parsed = checkoutSchema.safeParse(await context.req.json());
 
-  if (!PRICE_IDS[plan]) {
-    return context.json({ error: 'Invalid plan.' }, 400);
+  if (!parsed.success) {
+    return context.json({ error: 'Invalid checkout payload.', details: parsed.error.flatten() }, 400);
   }
 
-  if (!['monthly', 'quarterly', 'yearly'].includes(interval)) {
-    return context.json({ error: 'Invalid billing interval.' }, 400);
-  }
+  const { plan, interval } = parsed.data;
+  const priceSelection = await selectCheckoutPrice({ orgId: org.orgId, plan, interval });
+  const priceId = priceSelection.priceId;
 
   if (!priceId) {
     return context.json({ error: 'Selected billing interval is not configured.' }, 400);
@@ -114,9 +148,25 @@ router.post('/checkout', requireOrg, requireRole('owner', 'admin'), async (conte
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${process.env.FRONTEND_URL}/app/settings?billing=success`,
     cancel_url: `${process.env.FRONTEND_URL}/app/settings?billing=cancelled`,
-    metadata: { orgId: org.orgId, plan, interval },
+    metadata: {
+      orgId: org.orgId,
+      userId: org.userId,
+      plan,
+      interval,
+      offerKey: priceSelection.offerApplied ? FOUNDING_ACCESS_OFFER_KEY : '',
+      offerApplied: priceSelection.offerApplied ? 'true' : 'false',
+      offerUnavailableReason: priceSelection.offerUnavailableReason ?? '',
+    },
     subscription_data: {
-      metadata: { orgId: org.orgId, plan, interval },
+      metadata: {
+        orgId: org.orgId,
+        userId: org.userId,
+        plan,
+        interval,
+        offerKey: priceSelection.offerApplied ? FOUNDING_ACCESS_OFFER_KEY : '',
+        foundingAccess: priceSelection.offerApplied ? 'true' : 'false',
+        priorityAccess: priceSelection.offerApplied ? 'true' : 'false',
+      },
     },
   });
 
@@ -124,10 +174,22 @@ router.post('/checkout', requireOrg, requireRole('owner', 'admin'), async (conte
     orgId: org.orgId,
     userId: org.userId,
     eventName: 'billing.checkout_started',
-    metadata: { plan, interval },
+    metadata: {
+      plan,
+      interval,
+      offerKey: priceSelection.offerApplied ? FOUNDING_ACCESS_OFFER_KEY : null,
+      offerApplied: priceSelection.offerApplied,
+      offerUnavailableReason: priceSelection.offerUnavailableReason,
+    },
   });
 
-  return context.json({ url: session.url });
+  return context.json({
+    url: session.url,
+    offerApplied: priceSelection.offerApplied,
+    message: priceSelection.offerUnavailableReason
+      ? 'Founding Access is no longer available. Standard pricing has been applied.'
+      : null,
+  });
 });
 
 router.post('/packs/checkout', requireOrg, requireRole('owner', 'admin'), async (context) => {
@@ -322,6 +384,8 @@ router.get('/stats', requireOrg, async (context) => {
     loreDocuments: documentTotals[0]?.count ?? 0,
     resetsAt: billingSnapshot.subscription.currentPeriodEnd,
     credits,
+    foundingAccess: billingSnapshot.subscription.metadata?.foundingAccess ?? null,
+    entitlements: billingSnapshot.subscription.metadata?.entitlements ?? {},
     catalog: getBillingCatalog(),
     executionCredits: {
       ...execution,
@@ -423,7 +487,20 @@ router.post('/webhook/stripe', async (context) => {
           stripeEventCreated: event.created,
           stripeSubscriptionId: typeof session.subscription === 'string' ? session.subscription : null,
           source: 'checkout.session.completed',
+          offer: session.metadata.offerApplied === 'true' ? buildFoundingAccessSubscriptionMetadata() : null,
         });
+
+        if (session.metadata.offerApplied === 'true') {
+          await claimFoundingAccess({
+            orgId: session.metadata.orgId,
+            userId: session.metadata.userId ?? null,
+            planId: session.metadata.plan,
+            stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null,
+            stripeSubscriptionId: typeof session.subscription === 'string' ? session.subscription : null,
+            stripeCheckoutSessionId: session.id,
+            stripeEventId: event.id,
+          });
+        }
 
         if (!sync.skipped) {
           await db
@@ -443,6 +520,7 @@ router.post('/webhook/stripe', async (context) => {
               interval: session.metadata.interval ?? 'monthly',
               source: 'checkout.session.completed',
               stripeEventId: event.id,
+              offerKey: session.metadata.offerApplied === 'true' ? FOUNDING_ACCESS_OFFER_KEY : null,
             },
           });
         }
@@ -482,6 +560,7 @@ router.post('/webhook/stripe', async (context) => {
           stripeEventCreated: event.created,
           stripeSubscriptionId: subscription.id,
           source: 'customer.subscription.updated',
+          offer: resolvedPlan.offerKey === FOUNDING_ACCESS_OFFER_KEY ? buildFoundingAccessSubscriptionMetadata() : null,
         });
 
         if (!sync.skipped) {
@@ -519,6 +598,12 @@ router.post('/webhook/stripe', async (context) => {
           source: 'customer.subscription.deleted',
         });
 
+        await cancelFoundingAccessClaim({
+          orgId,
+          stripeSubscriptionId: subscription.id,
+          stripeEventId: event.id,
+        });
+
         if (!sync.skipped) {
           await db
             .update(organisations)
@@ -543,7 +628,15 @@ router.post('/webhook/stripe', async (context) => {
       const customer = await stripe.customers.retrieve(String(invoice.customer));
       const orgId = customer.deleted ? null : customer.metadata?.orgId;
 
-      if (orgId && invoice.billing_reason === 'subscription_cycle') {
+      if (orgId && ['subscription_create', 'subscription_cycle'].includes(invoice.billing_reason)) {
+        const invoiceSubscriptionId = typeof invoice.subscription === 'string'
+          ? invoice.subscription
+          : invoice.subscription?.id ?? null;
+        const invoiceLinePriceId =
+          invoice.lines?.data?.[0]?.price?.id
+          ?? invoice.lines?.data?.[0]?.pricing?.price_details?.price
+          ?? null;
+        const resolvedPlan = planFromPriceId(invoiceLinePriceId);
         const [organisation, existingSubscription] = await Promise.all([
           db.query.organisations.findFirst({
             where: eq(organisations.id, orgId),
@@ -556,23 +649,39 @@ router.post('/webhook/stripe', async (context) => {
         if (organisation) {
           const sync = await setSubscriptionPlan({
             orgId,
-            planId: organisation.plan,
-            billingInterval: existingSubscription?.billingInterval ?? 'monthly',
+            planId: resolvedPlan?.plan ?? organisation.plan,
+            billingInterval: resolvedPlan?.interval ?? existingSubscription?.billingInterval ?? 'monthly',
             status: 'active',
             stripeEventId: event.id,
             stripeEventCreated: event.created,
-            stripeSubscriptionId: typeof invoice.subscription === 'string' ? invoice.subscription : existingSubscription?.metadata?.stripe?.subscriptionId ?? null,
+            stripeSubscriptionId: invoiceSubscriptionId ?? existingSubscription?.metadata?.stripe?.subscriptionId ?? null,
             source: 'invoice.paid',
+            offer: resolvedPlan?.offerKey === FOUNDING_ACCESS_OFFER_KEY || existingSubscription?.metadata?.foundingAccess?.offerKey === FOUNDING_ACCESS_OFFER_KEY
+              ? buildFoundingAccessSubscriptionMetadata()
+              : null,
           });
+
+          if (invoice.billing_reason === 'subscription_create') {
+            await activateFoundingAccessClaim({
+              orgId,
+              stripeSubscriptionId: invoiceSubscriptionId ?? existingSubscription?.metadata?.stripe?.subscriptionId ?? null,
+              stripeCustomerId: typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? null,
+              stripeInvoiceId: invoice.id,
+              stripeEventId: event.id,
+            });
+          }
 
           await recordBillingSyncOutcome({
             orgId,
             event,
-            eventName: 'billing.subscription_cycle_paid',
+            eventName: invoice.billing_reason === 'subscription_create'
+              ? 'billing.subscription_create_paid'
+              : 'billing.subscription_cycle_paid',
             sync,
             metadata: {
               invoiceId: invoice.id,
               billingReason: invoice.billing_reason,
+              offerKey: resolvedPlan?.offerKey ?? null,
             },
           });
         }
@@ -667,7 +776,47 @@ function planFromPriceId(priceId) {
     }
   }
 
+  for (const [plan, intervals] of Object.entries(FOUNDING_PRICE_IDS)) {
+    const intervalEntry = Object.entries(intervals).find(([, value]) => value === priceId);
+    if (intervalEntry) {
+      return { plan, interval: intervalEntry[0], offerKey: FOUNDING_ACCESS_OFFER_KEY };
+    }
+  }
+
   return null;
+}
+
+async function selectCheckoutPrice({ orgId, plan, interval }) {
+  const standardPriceId = PRICE_IDS[plan]?.[interval];
+  const founderPriceId = FOUNDING_PRICE_IDS[plan]?.[interval];
+  const eligibility = await getFoundingAccessEligibilityForOrg(orgId);
+
+  return resolveCheckoutPriceSelection({ standardPriceId, founderPriceId, eligibility });
+}
+
+export function resolveCheckoutPriceSelection({ standardPriceId, founderPriceId, eligibility }) {
+  if (eligibility.eligible && founderPriceId) {
+    return {
+      priceId: founderPriceId,
+      offerApplied: true,
+      offerUnavailableReason: null,
+    };
+  }
+
+  return {
+    priceId: standardPriceId,
+    offerApplied: false,
+    offerUnavailableReason: eligibility.eligible ? 'founder_price_not_configured' : eligibility.reason,
+  };
+}
+
+function buildFoundingAccessSubscriptionMetadata() {
+  return {
+    offerKey: FOUNDING_ACCESS_OFFER_KEY,
+    priorityAccess: true,
+    priorityFeatureAccess: true,
+    founderBadge: true,
+  };
 }
 
 async function recordBillingSyncOutcome({

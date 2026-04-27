@@ -265,6 +265,7 @@ export async function processQueuedVideoJob(jobId, options = {}) {
           aspectRatio: job.aspectRatio,
           mode: job.providerMetadata?.mode ?? 'lite',
           referenceImages,
+          useNegativePrompt: job.providerMetadata?.useNegativePrompt !== false,
         });
         const startedAt = deps.now();
 

@@ -13,6 +13,7 @@ import '../styles/app-rebuild.css';
 
 const BASE_RAIL_ITEMS = [
   { to: '/app/dashboard', label: 'Dashboard', short: 'DB', icon: 'dashboard' },
+  { to: '/app/memory', label: 'Memory', short: 'ME', icon: 'knowledge' },
   { to: '/app/lore', label: 'LORE', short: 'LO', icon: 'knowledge' },
   { to: '/app/workflows', label: 'NEXUS', short: 'NX', icon: 'workflow' },
   { to: '/app/integrations', label: 'Integrations', short: 'IO', icon: 'integrations' },

@@ -543,6 +543,24 @@ async function embedBatch(texts) {
   return embeddings;
 }
 
+/**
+ * Embeddings for memory contradiction detection. Returns null when OpenAI is unavailable
+ * so callers can fall back to rule-based checks only.
+ */
+export async function embedTextsForMemoryContrast(texts) {
+  const trimmed = texts.map((t) => normalizeText(String(t ?? '')).slice(0, 8000)).filter(Boolean);
+  if (trimmed.length === 0) {
+    return [];
+  }
+
+  try {
+    return await embedBatch(trimmed);
+  } catch (error) {
+    console.warn('[RAG] Memory contrast embeddings skipped:', error.message);
+    return null;
+  }
+}
+
 export function normalizeExecuteRows(result) {
   if (Array.isArray(result?.rows)) {
     return result.rows;

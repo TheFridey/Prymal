@@ -9,6 +9,7 @@ export function BillingTab({ data, billingTotals, videoJobsQuery }) {
   const invoices = data.billing.invoices ?? [];
   const subscriptions = data.billing.subscriptions ?? [];
   const videoJobs = videoJobsQuery?.data?.jobs ?? [];
+  const foundingAccess = data.billing.foundingAccess ?? null;
 
   return (
     <div className="staff-admin__billing-grid">
@@ -49,8 +50,49 @@ export function BillingTab({ data, billingTotals, videoJobsQuery }) {
             <strong>{formatNumber(billingTotals.activeSubscriptions)}</strong>
             <small>{formatNumber(billingTotals.cancelingSubscriptions)} set to cancel at period end</small>
           </MotionListItem>
+          <MotionListItem className="staff-admin__metric staff-admin__metric--mint" reveal={{ y: 14, blur: 4 }}>
+            <span className="staff-admin__metric-label">Founding Access</span>
+            <strong>{foundingAccess?.active ? 'Open' : 'Closed'}</strong>
+            <small>{formatNumber(foundingAccess?.paidClaimsCount ?? 0)} paid claims | {formatNumber(foundingAccess?.leadCount ?? 0)} leads</small>
+          </MotionListItem>
         </MotionList>
       </section>
+
+      {foundingAccess ? (
+        <section className="staff-admin__surface">
+          <div className="staff-admin__surface-head">
+            <div>
+              <div className="staff-admin__surface-label">Offer visibility</div>
+              <h2>Founding Access</h2>
+            </div>
+            <div className="staff-admin__surface-meta">
+              {foundingAccess.active ? 'Active' : 'Inactive'}
+            </div>
+          </div>
+          <MotionList className="staff-admin__ledger">
+            {(foundingAccess.recentClaims ?? []).length === 0 ? (
+              <div className="staff-admin__empty">No Founding Access claims have been recorded yet.</div>
+            ) : (
+              foundingAccess.recentClaims.map((claim) => (
+                <MotionListItem key={claim.id} className="staff-admin__ledger-row" reveal={{ y: 10, blur: 3 }}>
+                  <div>
+                    <strong>{claim.planId}</strong>
+                    <span>{claim.organisationId ?? claim.orgId ?? 'No organisation'}</span>
+                  </div>
+                  <div>
+                    <strong>{humanize(claim.status)}</strong>
+                    <span>{claim.stripeSubscriptionId ?? 'Subscription pending'}</span>
+                  </div>
+                  <div>
+                    <strong>{formatDate(claim.claimedAt)}</strong>
+                    <span>{claim.firstMonthCreditBoostAppliedAt ? 'Credit boost applied' : 'Credit boost pending'}</span>
+                  </div>
+                </MotionListItem>
+              ))
+            )}
+          </MotionList>
+        </section>
+      ) : null}
 
       <section className="staff-admin__surface">
         <div className="staff-admin__surface-head">

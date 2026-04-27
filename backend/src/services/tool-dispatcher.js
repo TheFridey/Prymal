@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 import { enforceAgentToolPolicy, isSideEffectTool } from '../agents/runtime.js';
-import { getAgentMemory } from './memory.js';
+import { retrieveRankedMemories } from './memory-retrieval.js';
 import { ragSearch } from './rag.js';
 import { fetchLiveWebContext } from './web-research.js';
 import { getAccessToken } from '../routes/integrations.js';
@@ -232,26 +232,31 @@ async function handleLoreSearch({ toolInput, orgId }) {
 
 async function handleMemoryRead({ toolInput, agentId, orgId, userId, conversationId, workflowRunId }) {
   const limit = Math.min(Math.max(Number(toolInput?.limit ?? 10), 1), 50);
-  const sessionKey = conversationId ? `conversation:${conversationId}` : null;
 
-  const memories = await getAgentMemory({
+  const envelopes = await retrieveRankedMemories({
     orgId,
     userId,
     agentId,
     workflowRunId: workflowRunId ?? null,
-    sessionKey,
-    limit,
+    sessionKey: conversationId ? `conversation:${conversationId}` : null,
+    userMessage: String(toolInput?.query ?? toolInput?.q ?? ''),
+    conversationId,
+    traceRecord: false,
   });
 
+  const memories = envelopes.slice(0, limit).map((envelope) => ({
+    id: envelope.memory.id,
+    scope: envelope.memory.scope,
+    memoryType: envelope.memory.memoryType,
+    key: envelope.memory.key,
+    value: envelope.memory.value,
+    confidence: envelope.memory.confidence,
+    retrievalScore: envelope.retrievalScore,
+    selectedBecause: envelope.selectedBecause,
+  }));
+
   return {
-    memories: memories.map((entry) => ({
-      id: entry.id,
-      scope: entry.scope,
-      memoryType: entry.memoryType,
-      key: entry.key,
-      value: entry.value,
-      confidence: entry.confidence,
-    })),
+    memories,
     count: memories.length,
   };
 }

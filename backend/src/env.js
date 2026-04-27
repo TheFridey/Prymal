@@ -15,6 +15,7 @@ export {
   hasConfiguredStripeWebhook,
   hasValidEncryptionKey,
   getMemorySessionTtlHours,
+  getMemoryWorkflowTtlHours,
   isStrictRuntimeValidationEnabled,
   isPlaceholderEnvValue,
   resetRuntimeEnvBootstrapForTests,

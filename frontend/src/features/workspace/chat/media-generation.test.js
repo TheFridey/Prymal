@@ -73,6 +73,25 @@ describe('media-generation helpers', () => {
       resolution: '720p',
       aspectRatio: '16:9',
       referenceImages: [],
+      useNegativePrompt: true,
     });
+  });
+
+  test('forces useNegativePrompt off when reference images are attached', () => {
+    const draft = createVideoGenerationDraft({
+      mode: 'standard',
+      durationSeconds: 8,
+      referenceImages: [
+        { name: 'a.webp', base64: '...', mimeType: 'image/webp' },
+      ],
+      useNegativePrompt: true,
+    });
+    expect(draft.useNegativePrompt).toBe(false);
+    expect(draft.referenceImages).toHaveLength(1);
+  });
+
+  test('respects an explicit useNegativePrompt:false override even without references', () => {
+    const draft = createVideoGenerationDraft({ mode: 'lite', useNegativePrompt: false });
+    expect(draft.useNegativePrompt).toBe(false);
   });
 });

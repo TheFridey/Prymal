@@ -15,6 +15,7 @@ const CORE_PLACEHOLDER_GUARDED_KEYS = [
   'OPENAI_API_KEY',
 ];
 const DEFAULT_MEMORY_SESSION_TTL_HOURS = 24;
+const DEFAULT_MEMORY_WORKFLOW_TTL_HOURS = 168;
 
 let lastBootstrapResult = null;
 
@@ -40,6 +41,16 @@ export function getMemorySessionTtlHours(env = process.env) {
 
   if (!Number.isFinite(parsed) || parsed <= 0) {
     return DEFAULT_MEMORY_SESSION_TTL_HOURS;
+  }
+
+  return parsed;
+}
+
+export function getMemoryWorkflowTtlHours(env = process.env) {
+  const parsed = Number.parseInt(String(env.MEMORY_WORKFLOW_TTL_HOURS ?? ''), 10);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_MEMORY_WORKFLOW_TTL_HOURS;
   }
 
   return parsed;

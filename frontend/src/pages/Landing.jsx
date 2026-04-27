@@ -16,6 +16,8 @@ import { MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
+import { FoundingAccessPopup } from '../features/marketing/FoundingAccessPopup';
+import { useFoundingAccessOffer } from '../features/marketing/founding-access';
 import '../styles/landing-rebuild.css';
 
 const PARADE_EXCLUDE = new Set(['sentinel', ...AGENT_UI_LAYERS.core]);
@@ -95,6 +97,7 @@ const EXECUTION_STEPS = [
 export default function Landing() {
   const reducedMotion = usePrymalReducedMotion();
   const { isSignedIn } = useAuth();
+  const foundingOffer = useFoundingAccessOffer();
   const [email, setEmail] = useState('');
   const [waitlistResult, setWaitlistResult] = useState(null);
   const [specialistsOpen, setSpecialistsOpen] = useState(false);
@@ -652,6 +655,7 @@ export default function Landing() {
 
         <PublicPageFooter />
       </div>
+      <FoundingAccessPopup offer={foundingOffer} surface="landing" />
     </div>
   );
 }

@@ -4,6 +4,15 @@ export const useAppStore = create((set, get) => ({
   org: null,
   credits: null,
   notifications: [],
+  /** When set, chat streams attach workflow-scoped memory for this run. Cleared when run completes client-side. */
+  activeWorkflowRunId: null,
+  activeWorkflowRunStatus: null,
+  setActiveWorkflowRun: ({ runId = null, status = null } = {}) =>
+    set({
+      activeWorkflowRunId: runId,
+      activeWorkflowRunStatus: status,
+    }),
+  clearActiveWorkflowRun: () => set({ activeWorkflowRunId: null, activeWorkflowRunStatus: null }),
   setSession: (viewer) =>
     set({
       org: viewer?.organisation ?? null,

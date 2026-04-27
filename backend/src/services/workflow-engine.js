@@ -17,6 +17,7 @@ import {
 } from './llm-observability.js';
 import { deliverWorkflowWebhook } from './webhook-delivery.js';
 import { estimateTokens, runAgentNode } from './llm.js';
+import { emitWorkflowTimelineEvent } from './memory-events.js';
 
 const WORKFLOW_NODE_TIMEOUT_MS = Number(process.env.WORKFLOW_NODE_TIMEOUT_MS ?? 90_000);
 const WORKFLOW_RUN_TIMEOUT_MS = Number(process.env.WORKFLOW_RUN_TIMEOUT_MS ?? 15 * 60_000);
@@ -205,6 +206,18 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
   }
 
   try {
+    await emitWorkflowTimelineEvent({
+      orgId: workflow.orgId,
+      userId: orgContext.userId ?? null,
+      workflowRunId: runId,
+      agentId: null,
+      eventType: 'workflow_started',
+      title: 'Workflow started',
+      description: workflow.name ?? String(workflow.id),
+      importanceScore: 0.62,
+      metadata: { workflowId: workflow.id, nodeCount: sortedNodes.length },
+    }).catch(() => {});
+
     for (const node of sortedNodes) {
       activeNode = node;
       assertRunNotTimedOut(timeoutAt);
@@ -268,6 +281,23 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
           `${node.label ?? node.id} exceeded the node timeout.`,
         );
       } catch (nodeError) {
+        await emitWorkflowTimelineEvent({
+          orgId: workflow.orgId,
+          userId: orgContext.userId ?? null,
+          workflowRunId: runId,
+          agentId: node.agentId,
+          eventType: 'workflow_node_failed',
+          title: `Step failed: ${node.label ?? node.id}`,
+          description: nodeError.message?.slice(0, 220) ?? 'Node error',
+          importanceScore: 0.52,
+          metadata: {
+            workflowId: workflow.id,
+            nodeId: node.id,
+            nodeType: 'agent',
+            outputStatus: 'error',
+            errorCode: nodeError.code ?? 'NODE_ERROR',
+          },
+        }).catch(() => {});
         await releaseExecutionUsage({
           usageEventId: currentReservation.usageEvent.id,
           reason: nodeError.message,
@@ -317,6 +347,24 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
         creditsUsed: nodeCreditCost,
         durationMs: Date.now() - nodeStartedAt,
       });
+
+      await emitWorkflowTimelineEvent({
+        orgId: workflow.orgId,
+        userId: orgContext.userId ?? null,
+        workflowRunId: runId,
+        agentId: node.agentId,
+        eventType: 'workflow_node_completed',
+        title: `Step completed: ${node.label ?? node.id}`,
+        description: `${node.agentId} · ${result.totalTokens ?? 0} tokens`,
+        importanceScore: 0.4,
+        metadata: {
+          workflowId: workflow.id,
+          nodeId: node.id,
+          nodeType: 'agent',
+          durationMs: Date.now() - nodeStartedAt,
+          outputStatus: 'ok',
+        },
+      }).catch(() => {});
 
       const evaluation = evaluateAgentOutput({
         agentId: node.agentId,
@@ -416,6 +464,18 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
         nodeOutputs,
       },
     }).catch((err) => console.error('[WEBHOOK] Delivery error:', err.message));
+
+    await emitWorkflowTimelineEvent({
+      orgId: workflow.orgId,
+      userId: orgContext.userId ?? null,
+      workflowRunId: runId,
+      agentId: null,
+      eventType: 'workflow_completed',
+      title: 'Workflow completed',
+      description: `${totalCredits} credit${totalCredits === 1 ? '' : 's'} used`,
+      importanceScore: 0.58,
+      metadata: { workflowId: workflow.id, creditsUsed: totalCredits, outputStatus: 'completed' },
+    }).catch(() => {});
 
     await db
       .update(workflows)
@@ -523,6 +583,23 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
         failureClass,
       },
     }).catch((err) => console.error('[WEBHOOK] Delivery error:', err.message));
+
+    await emitWorkflowTimelineEvent({
+      orgId: orgContext.orgId,
+      userId: orgContext.userId ?? null,
+      workflowRunId: runId,
+      agentId: activeNode?.agentId ?? null,
+      eventType: 'workflow_failed',
+      title: 'Workflow failed',
+      description: error.message?.slice(0, 240) ?? 'Workflow error',
+      importanceScore: 0.65,
+      metadata: {
+        workflowId: workflow.id,
+        nodeId: activeNode?.id ?? null,
+        failureClass,
+        outputStatus: 'failed',
+      },
+    }).catch(() => {});
 
     if (error.llmMeta) {
       await recordLLMExecutionTrace({

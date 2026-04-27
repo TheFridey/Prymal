@@ -1017,6 +1017,7 @@ export const PLAN_LIBRARY = [
     id: 'solo',
     name: 'Solo',
     monthlyPrice: 49.99,
+    foundingMonthlyPrice: 39,
     credits: 500,
     seats: 1,
     description: 'For individuals getting started — core operators plus LORE for grounded answers from your knowledge.',
@@ -1031,6 +1032,7 @@ export const PLAN_LIBRARY = [
     id: 'pro',
     name: 'Pro',
     monthlyPrice: 99,
+    foundingMonthlyPrice: 79,
     credits: 2000,
     seats: 1,
     description: 'For growing businesses and creators — full specialist roster, video allowance, and room to run real workflows.',
@@ -1046,6 +1048,7 @@ export const PLAN_LIBRARY = [
     id: 'teams',
     name: 'Teams',
     monthlyPrice: 179,
+    foundingMonthlyPrice: 149,
     credits: 6000,
     seats: 5,
     additionalSeatPrice: 25,
@@ -1062,6 +1065,7 @@ export const PLAN_LIBRARY = [
     id: 'agency',
     name: 'Agency',
     monthlyPrice: 249,
+    foundingMonthlyPrice: 199,
     credits: 10000,
     seats: 25,
     description: 'For high-scale operations — API keys, maximum included credits, and room for many seats.',
@@ -1121,7 +1125,7 @@ export const INTERNAL_PLAN_META = {
     name: 'Offer Access',
     credits: 50,
     seats: 1,
-    description: 'Internal fallback access used for invite-only offers, discounts, and local setup.',
+    description: 'Internal fallback access used for invite-only offers, early-access grants, and local setup.',
     features: ['Offer-gated access', 'Foundational agent set', 'Limited monthly credits'],
   },
   solo: PLAN_LIBRARY.find((plan) => plan.id === 'solo'),
@@ -1308,4 +1312,11 @@ export function getPlanPrice(plan, intervalId = 'monthly') {
     monthlyListDisplay: formatPlanGbp(monthlyPrice),
     savingsDisplay: savingsAmount > 0 ? formatPlanGbp(savingsAmount) : null,
   };
+}
+
+export function getFoundingPlanPrice(plan, intervalId = 'monthly') {
+  return getPlanPrice({
+    ...plan,
+    monthlyPrice: plan?.foundingMonthlyPrice ?? plan?.monthlyPrice ?? 0,
+  }, intervalId);
 }

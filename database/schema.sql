@@ -31,13 +31,30 @@ BEGIN
     CREATE TYPE run_status AS ENUM ('queued','running','completed','failed','cancelled');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'memory_type') THEN
-    CREATE TYPE memory_type AS ENUM ('preference','fact','instruction','pattern');
+    CREATE TYPE memory_type AS ENUM (
+      'preference','fact','instruction','pattern',
+      'user_preference','business_fact','project_fact','brand_voice','task_state','workflow_state','decision',
+      'contact_fact','document_fact','integration_fact','agent_observation','correction','warning','episodic_event','system_note'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'memory_item_status') THEN
+    CREATE TYPE memory_item_status AS ENUM (
+      'active','pending_review','conflicted','expired','archived','deleted','rejected'
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'memory_visibility') THEN
+    CREATE TYPE memory_visibility AS ENUM (
+      'org_shared','user_private','agent_private_visible','restricted_visible'
+    );
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'memory_scope') THEN
     CREATE TYPE memory_scope AS ENUM ('org','user','agent_private','restricted','workflow_run','temporary_session');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'invitation_status') THEN
     CREATE TYPE invitation_status AS ENUM ('pending','accepted','revoked','expired');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'founding_access_claim_status') THEN
+    CREATE TYPE founding_access_claim_status AS ENUM ('claimed','active','cancelled','revoked');
   END IF;
 END $$;
 
@@ -98,6 +115,65 @@ CREATE TABLE subscriptions (
 
 CREATE INDEX subscriptions_plan_idx ON subscriptions(plan);
 CREATE INDEX subscriptions_period_idx ON subscriptions(current_period_end);
+
+CREATE TABLE offer_configs (
+  offer_key       TEXT PRIMARY KEY,
+  max_paid_claims INTEGER NOT NULL DEFAULT 25,
+  is_enabled      BOOLEAN NOT NULL DEFAULT TRUE,
+  starts_at       TIMESTAMPTZ,
+  ends_at         TIMESTAMPTZ,
+  metadata        JSONB NOT NULL DEFAULT '{}',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX offer_configs_enabled_idx ON offer_configs(is_enabled);
+
+INSERT INTO offer_configs (offer_key, max_paid_claims, is_enabled, metadata)
+VALUES (
+  'FOUNDING_ACCESS',
+  25,
+  TRUE,
+  '{"headline":"Founding Access is open"}'::jsonb
+)
+ON CONFLICT (offer_key) DO NOTHING;
+
+CREATE TABLE founding_access_claims (
+  id                                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  offer_key                           TEXT NOT NULL DEFAULT 'FOUNDING_ACCESS' REFERENCES offer_configs(offer_key),
+  user_id                             TEXT REFERENCES users(id) ON DELETE SET NULL,
+  organisation_id                     UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  stripe_customer_id                  TEXT,
+  stripe_subscription_id              TEXT,
+  plan_id                             plan NOT NULL,
+  status                              founding_access_claim_status NOT NULL DEFAULT 'claimed',
+  first_month_credit_boost_applied_at TIMESTAMPTZ,
+  claimed_at                          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  activated_at                        TIMESTAMPTZ,
+  cancelled_at                        TIMESTAMPTZ,
+  metadata                            JSONB NOT NULL DEFAULT '{}',
+  created_at                          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX founding_access_claims_offer_status_idx ON founding_access_claims(offer_key, status);
+CREATE INDEX founding_access_claims_org_idx ON founding_access_claims(organisation_id);
+CREATE INDEX founding_access_claims_user_idx ON founding_access_claims(user_id);
+CREATE UNIQUE INDEX founding_access_claims_subscription_unique ON founding_access_claims(stripe_subscription_id);
+CREATE UNIQUE INDEX founding_access_claims_org_offer_unique ON founding_access_claims(offer_key, organisation_id);
+
+CREATE TABLE founding_access_leads (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email             TEXT NOT NULL,
+  source            TEXT NOT NULL DEFAULT 'pricing_banner',
+  converted_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  metadata          JSONB NOT NULL DEFAULT '{}',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX founding_access_leads_email_unique ON founding_access_leads(email);
+CREATE INDEX founding_access_leads_source_idx ON founding_access_leads(source);
+CREATE INDEX founding_access_leads_created_idx ON founding_access_leads(created_at);
 
 CREATE TABLE credit_ledger_execution (
   id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -327,6 +403,17 @@ CREATE TABLE messages (
 
 CREATE INDEX messages_conv_idx ON messages(conversation_id);
 
+CREATE TABLE memory_contradiction_groups (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  resolved_at       TIMESTAMPTZ,
+  winning_memory_id UUID,
+  metadata          JSONB NOT NULL DEFAULT '{}',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX memory_contradiction_groups_org_idx ON memory_contradiction_groups(org_id);
+
 CREATE TABLE agent_memory (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id       UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
@@ -339,24 +426,57 @@ CREATE TABLE agent_memory (
   memory_type  memory_type NOT NULL,
   key          TEXT NOT NULL,
   value        TEXT NOT NULL,
+  title        TEXT,
+  content      TEXT,
+  summary      TEXT,
   provenance_kind TEXT NOT NULL DEFAULT 'confirmed',
   source_ref   TEXT,
+  memory_source_kind TEXT NOT NULL DEFAULT 'conversation',
+  source_agent agent_id,
+  source_message_id UUID REFERENCES messages(id) ON DELETE SET NULL,
+  source_document_id UUID REFERENCES lore_documents(id) ON DELETE SET NULL,
   metadata     JSONB NOT NULL DEFAULT '{}',
   version      INTEGER NOT NULL DEFAULT 1,
   confidence   REAL NOT NULL DEFAULT 0.5,
+  importance_score REAL NOT NULL DEFAULT 0.5,
+  authority_score REAL NOT NULL DEFAULT 0.5,
+  freshness_score REAL NOT NULL DEFAULT 0.5,
   usage_count  INTEGER NOT NULL DEFAULT 0,
   last_used_at TIMESTAMPTZ,
   confirmed_at TIMESTAMPTZ,
   expires_at   TIMESTAMPTZ,
+  promoted_at  TIMESTAMPTZ,
+  archived_at  TIMESTAMPTZ,
+  deleted_at   TIMESTAMPTZ,
+  memory_item_status memory_item_status NOT NULL DEFAULT 'active',
+  visibility memory_visibility NOT NULL DEFAULT 'org_shared',
+  contradiction_group_id UUID REFERENCES memory_contradiction_groups(id) ON DELETE SET NULL,
+  parent_memory_id UUID,
+  pinned BOOLEAN NOT NULL DEFAULT FALSE,
+  always_include BOOLEAN NOT NULL DEFAULT FALSE,
+  never_forget BOOLEAN NOT NULL DEFAULT FALSE,
+  user_locked BOOLEAN NOT NULL DEFAULT FALSE,
+  confidence_updated_at TIMESTAMPTZ,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (org_id, agent_id, scope, scope_key, key)
 );
 
+ALTER TABLE memory_contradiction_groups
+  ADD CONSTRAINT memory_contradiction_groups_winning_fkey
+  FOREIGN KEY (winning_memory_id) REFERENCES agent_memory(id) ON DELETE SET NULL;
+
+ALTER TABLE agent_memory
+  ADD CONSTRAINT agent_memory_parent_memory_id_fkey
+  FOREIGN KEY (parent_memory_id) REFERENCES agent_memory(id) ON DELETE SET NULL;
+
 CREATE INDEX memory_org_agent_idx ON agent_memory(org_id, agent_id);
 CREATE INDEX memory_user_scope_idx ON agent_memory(org_id, user_id, agent_id);
 CREATE INDEX memory_workflow_run_idx ON agent_memory(workflow_run_id);
 CREATE INDEX memory_expires_idx ON agent_memory(expires_at);
+CREATE INDEX memory_org_status_idx ON agent_memory(org_id, memory_item_status);
+CREATE INDEX memory_contradiction_group_idx ON agent_memory(contradiction_group_id);
+CREATE INDEX memory_pinned_idx ON agent_memory(org_id, pinned);
 
 CREATE TABLE organisation_invitations (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -601,6 +721,57 @@ ALTER TABLE agent_memory
   ADD CONSTRAINT agent_memory_workflow_run_id_fkey
   FOREIGN KEY (workflow_run_id) REFERENCES workflow_runs(id) ON DELETE SET NULL;
 
+CREATE TABLE memory_events (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id           UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  user_id          TEXT REFERENCES users(id) ON DELETE SET NULL,
+  agent_id         agent_id,
+  workflow_run_id  UUID REFERENCES workflow_runs(id) ON DELETE SET NULL,
+  event_type       TEXT NOT NULL,
+  title            TEXT NOT NULL,
+  description      TEXT,
+  importance_score REAL NOT NULL DEFAULT 0.5,
+  source_type      TEXT NOT NULL DEFAULT 'system',
+  source_ref       TEXT,
+  daily_bucket     DATE NOT NULL DEFAULT (timezone('UTC', now()))::date,
+  metadata         JSONB NOT NULL DEFAULT '{}',
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX memory_events_org_created_idx ON memory_events(org_id, created_at DESC);
+CREATE INDEX memory_events_org_daily_idx ON memory_events(org_id, daily_bucket DESC);
+
+CREATE TABLE memory_promotion_events (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id           UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  candidate_memory_id UUID REFERENCES agent_memory(id) ON DELETE SET NULL,
+  should_promote   BOOLEAN NOT NULL,
+  target_scope     TEXT,
+  target_type      TEXT,
+  confidence_score REAL,
+  importance_score REAL,
+  reason           TEXT,
+  review_required  BOOLEAN NOT NULL DEFAULT FALSE,
+  metadata         JSONB NOT NULL DEFAULT '{}',
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX memory_promotion_events_org_idx ON memory_promotion_events(org_id, created_at DESC);
+
+CREATE TABLE memory_retrieval_traces (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id           UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  agent_id         agent_id,
+  workflow_run_id  UUID REFERENCES workflow_runs(id) ON DELETE SET NULL,
+  conversation_id  UUID,
+  policy_snapshot  JSONB NOT NULL DEFAULT '{}',
+  selected_ids     UUID[] NOT NULL DEFAULT '{}',
+  retrieval_items  JSONB NOT NULL DEFAULT '[]',
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX memory_retrieval_traces_org_idx ON memory_retrieval_traces(org_id, created_at DESC);
+
 CREATE TABLE llm_execution_traces (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id            UUID REFERENCES organisations(id) ON DELETE CASCADE,
@@ -774,6 +945,8 @@ DROP TRIGGER IF EXISTS execution_usage_event_updated_at ON execution_usage_event
 DROP TRIGGER IF EXISTS video_generation_event_updated_at ON video_generation_event;
 DROP TRIGGER IF EXISTS credit_purchase_updated_at ON credit_purchase;
 DROP TRIGGER IF EXISTS threshold_state_updated_at ON threshold_state;
+DROP TRIGGER IF EXISTS offer_configs_updated_at ON offer_configs;
+DROP TRIGGER IF EXISTS founding_access_claims_updated_at ON founding_access_claims;
 
 CREATE TRIGGER orgs_updated_at BEFORE UPDATE ON organisations FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -791,3 +964,5 @@ CREATE TRIGGER execution_usage_event_updated_at BEFORE UPDATE ON execution_usage
 CREATE TRIGGER video_generation_event_updated_at BEFORE UPDATE ON video_generation_event FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER credit_purchase_updated_at BEFORE UPDATE ON credit_purchase FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER threshold_state_updated_at BEFORE UPDATE ON threshold_state FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER offer_configs_updated_at BEFORE UPDATE ON offer_configs FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER founding_access_claims_updated_at BEFORE UPDATE ON founding_access_claims FOR EACH ROW EXECUTE FUNCTION update_updated_at();

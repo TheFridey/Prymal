@@ -5,7 +5,7 @@ const VEO_MODELS = {
   lite: process.env.GEMINI_MODEL_VEO?.trim() || 'veo-3.1-lite-generate-preview',
   standard: process.env.GEMINI_MODEL_VEO_STANDARD?.trim() || 'veo-3.1-generate-preview',
 };
-const DEFAULT_VEO_NEGATIVE_PROMPT = [
+export const DEFAULT_VEO_NEGATIVE_PROMPT = [
   'dense typography',
   'tiny unreadable text',
   'garbled lettering',
@@ -48,18 +48,23 @@ export class VeoVideoProvider extends VideoProvider {
     aspectRatio,
     mode = 'lite',
     referenceImages = [],
+    useNegativePrompt = true,
   }) {
     const model = getVeoVideoModel(mode);
     const finalPrompt = buildVeoVideoPrompt(prompt);
+    const hasReferenceImages = Array.isArray(referenceImages) && referenceImages.length > 0;
     const config = {
       durationSeconds,
       resolution,
       aspectRatio,
       numberOfVideos: 1,
-      negativePrompt: DEFAULT_VEO_NEGATIVE_PROMPT,
     };
 
-    if (Array.isArray(referenceImages) && referenceImages.length > 0) {
+    if (useNegativePrompt && !hasReferenceImages) {
+      config.negativePrompt = DEFAULT_VEO_NEGATIVE_PROMPT;
+    }
+
+    if (hasReferenceImages) {
       config.referenceImages = referenceImages;
     }
 

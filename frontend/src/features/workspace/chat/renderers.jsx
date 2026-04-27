@@ -586,6 +586,20 @@ export function StudioMessage({ message, agent, streaming = false, streamingTask
           <StreamingStatusMeta agent={agent} streamingTask={streamingTask} content={message.content} />
         ) : null}
         {message.tokensUsed ? <div className="workspace-studio__bubble-meta">{formatNumber(message.tokensUsed)} tokens</div> : null}
+        {!isUser && !streaming && (message.metadata?.usedMemories?.length ?? 0) > 0 ? (
+          <details className="workspace-studio__memory-used">
+            <summary>Memory used in this reply</summary>
+            <ul className="workspace-studio__memory-used-list">
+              {(message.metadata?.usedMemories ?? []).map((m) => (
+                <li key={m.id}>
+                  <div className="workspace-studio__memory-used-title">{m.title}</div>
+                  <div className="workspace-studio__bubble-meta">{m.selectedBecause}</div>
+                  {m.redacted ? <div className="workspace-studio__bubble-meta">Label redacted for privacy</div> : null}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
         <MotionPresence initial={false}>
           {schemaValidation ? (
             <MotionSection key="schema-badge" delay={0.15} reveal={{ y: 0, blur: 0 }}>

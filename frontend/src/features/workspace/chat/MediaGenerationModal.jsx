@@ -61,6 +61,8 @@ export default function MediaGenerationModal({
       && videoMode.referenceImagesRequireDuration
       && Number(draft.durationSeconds) !== Number(videoMode.referenceImagesRequireDuration),
   );
+  const negativePromptLocked = Boolean(isVideo && (draft.referenceImages?.length ?? 0) > 0);
+  const negativePromptEnabled = isVideo && !negativePromptLocked && draft.useNegativePrompt !== false;
 
   const submitDisabled = isSubmitting
     || !String(draft.prompt ?? '').trim()
@@ -98,20 +100,24 @@ export default function MediaGenerationModal({
 
   function handleVideoModeChange(nextMode) {
     const nextConfig = getVideoModeConfig(nextMode);
-    setDraft((current) => ({
-      ...current,
-      mode: nextMode,
-      durationSeconds: nextConfig.supportedDurations.includes(Number(current.durationSeconds))
-        ? Number(current.durationSeconds)
-        : nextConfig.supportedDurations[0],
-      resolution: nextConfig.supportedResolutions.includes(current.resolution)
-        ? current.resolution
-        : nextConfig.supportedResolutions[0],
-      aspectRatio: nextConfig.supportedAspectRatios.includes(current.aspectRatio)
-        ? current.aspectRatio
-        : nextConfig.supportedAspectRatios[0],
-      referenceImages: nextConfig.supportsReferenceImages ? current.referenceImages : [],
-    }));
+    setDraft((current) => {
+      const nextReferenceImages = nextConfig.supportsReferenceImages ? current.referenceImages : [];
+      return {
+        ...current,
+        mode: nextMode,
+        durationSeconds: nextConfig.supportedDurations.includes(Number(current.durationSeconds))
+          ? Number(current.durationSeconds)
+          : nextConfig.supportedDurations[0],
+        resolution: nextConfig.supportedResolutions.includes(current.resolution)
+          ? current.resolution
+          : nextConfig.supportedResolutions[0],
+        aspectRatio: nextConfig.supportedAspectRatios.includes(current.aspectRatio)
+          ? current.aspectRatio
+          : nextConfig.supportedAspectRatios[0],
+        referenceImages: nextReferenceImages,
+        useNegativePrompt: nextReferenceImages.length > 0 ? false : current.useNegativePrompt,
+      };
+    });
     setReferenceError('');
   }
 
@@ -159,10 +165,14 @@ export default function MediaGenerationModal({
       ),
     )
       .then((images) => {
-        setDraft((current) => ({
-          ...current,
-          referenceImages: [...(current.referenceImages ?? []), ...images],
-        }));
+        setDraft((current) => {
+          const nextReferenceImages = [...(current.referenceImages ?? []), ...images];
+          return {
+            ...current,
+            referenceImages: nextReferenceImages,
+            useNegativePrompt: nextReferenceImages.length > 0 ? false : current.useNegativePrompt,
+          };
+        });
         setReferenceError('');
       })
       .catch((error) => {
@@ -190,6 +200,7 @@ export default function MediaGenerationModal({
       prompt: String(draft.prompt ?? '').trim(),
       durationSeconds: Number(draft.durationSeconds),
       referenceImages: draft.referenceImages ?? [],
+      useNegativePrompt: isVideo ? negativePromptEnabled : undefined,
     });
   }
 
@@ -486,6 +497,48 @@ export default function MediaGenerationModal({
                 {requiresEightSecondReferenceRender ? (
                   <InlineNotice tone="warning">
                     Reference images require an 8 second Standard render. Adjust the duration before generating.
+                  </InlineNotice>
+                ) : null}
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gap: '10px',
+                  padding: '16px 18px',
+                  borderRadius: '18px',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.03)',
+                  opacity: negativePromptLocked ? 0.75 : 1,
+                }}
+              >
+                <label
+                  style={{
+                    display: 'flex',
+                    gap: '12px',
+                    alignItems: 'flex-start',
+                    cursor: negativePromptLocked ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={negativePromptEnabled}
+                    disabled={negativePromptLocked}
+                    onChange={(event) => updateDraft({ useNegativePrompt: event.target.checked })}
+                    style={{ marginTop: 4 }}
+                  />
+                  <div style={{ display: 'grid', gap: '4px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-strong)' }}>
+                      Quality guardrails (negative prompt)
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>
+                      Steers Veo away from cluttered UI, garbled text, mascots, glitch effects, and other low-quality looks. Recommended on for promo renders.
+                    </span>
+                  </div>
+                </label>
+                {negativePromptLocked ? (
+                  <InlineNotice tone="warning">
+                    Negative prompts are not supported by Veo when reference images are attached. Remove the references to re-enable guardrails.
                   </InlineNotice>
                 ) : null}
               </div>

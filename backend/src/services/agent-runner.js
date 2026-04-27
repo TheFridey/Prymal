@@ -12,6 +12,7 @@ import { evaluateAgentOutput } from './evals.js';
 import { streamAgentResponse } from './llm.js';
 import { classifyLLMFailure, recordLLMExecutionTrace } from './llm-observability.js';
 import { extractMemoryFromTurn } from './memory.js';
+import { insertMemoryEvent } from './memory-events.js';
 import { EXTENDED_THINKING_PLANS } from './model-policy.js';
 import { reviewAgentOutputWithSentinel, shouldRunSentinelReview } from './sentinel-review.js';
 
@@ -90,6 +91,7 @@ export async function* runAgentChat({
       orgMetadata,
       userId,
       conversationId,
+      workflowRunId,
       taskType,
       policyOverride,
       providerOverride,
@@ -160,6 +162,8 @@ export async function* runAgentChat({
       }
     }
 
+    let memoryEvents = dedupeMemoryFeedbackEvents(memoryWrites.flatMap((w) => w.memoryFeedback ?? []));
+
     // Determine outcome status — HOLD verdict means the response is withheld.
     const sentinelVerdict = sentinelReview?.verdict ?? 'skipped';
     const outcomeStatus = sentinelVerdict === 'HOLD' ? 'held' : 'succeeded';
@@ -216,6 +220,27 @@ export async function* runAgentChat({
 
     // SENTINEL HOLD gate: withhold the response from the client.
     if (sentinelVerdict === 'HOLD') {
+      if (orgId) {
+        await insertMemoryEvent({
+          orgId,
+          userId,
+          agentId,
+          workflowRunId,
+          eventType: 'output_held',
+          title: 'Output held for review',
+          description: String(sentinelReview?.hold_reason ?? '').slice(0, 280) || 'Sentinel quality gate',
+          importanceScore: 0.78,
+          sourceType: 'sentinel',
+          sourceRef: conversationId,
+          metadata: { sentinelRiskScore: sentinelReview?.riskScore ?? null },
+        }).catch(() => {});
+      }
+
+      memoryEvents = dedupeMemoryFeedbackEvents([
+        ...memoryEvents,
+        { type: 'held', message: 'Held for review before delivery' },
+      ]);
+
       yield {
         type: 'hold',
         message: 'This response has been held for quality review by SENTINEL.',
@@ -226,8 +251,45 @@ export async function* runAgentChat({
         enforcementSummary,
         conversationId,
         agentId,
+        memoryEvents,
       };
       return;
+    }
+
+    if (sentinelVerdict === 'REPAIR' && orgId) {
+      await insertMemoryEvent({
+        orgId,
+        userId,
+        agentId,
+        workflowRunId,
+        eventType: 'output_repaired',
+        title: 'Output refined',
+        description:
+          (sentinelReview?.repair_actions ?? []).slice(0, 3).join('; ')
+          || 'Minor adjustments flagged during automated review',
+        importanceScore: 0.52,
+        sourceType: 'sentinel',
+        sourceRef: conversationId,
+        metadata: {},
+      }).catch(() => {});
+      memoryEvents.push({ type: 'repaired', message: 'Response refined after automated review' });
+      memoryEvents = dedupeMemoryFeedbackEvents(memoryEvents);
+    }
+
+    if (orgId) {
+      await insertMemoryEvent({
+        orgId,
+        userId,
+        agentId,
+        workflowRunId,
+        eventType: 'agent_response',
+        title: `${agent.name} responded`,
+        description: summarizeAgentTurn(assistantText, userMessage),
+        importanceScore: 0.48,
+        sourceType: 'agent_runner',
+        sourceRef: conversationId,
+        metadata: { mode },
+      }).catch(() => {});
     }
 
     if (bufferUntilSentinelVerdict && assistantText) {
@@ -263,6 +325,8 @@ export async function* runAgentChat({
       sentinelRepairSummary: sentinelVerdict === 'REPAIR'
         ? (sentinelReview?.repair_actions?.join('; ') ?? null)
         : null,
+      memoryEvents,
+      usedMemories: lastDoneEvent?.usedMemories ?? lastDoneEvent?.selectionDetails?.usedMemories ?? [],
     };
   } catch (error) {
     // Record the failure trace
@@ -309,6 +373,30 @@ export async function* runAgentChat({
       upgrade: Boolean(error.upgrade),
     };
   }
+}
+
+function summarizeAgentTurn(assistantText, userMessage) {
+  const trimmed = String(assistantText ?? '').trim();
+  if (trimmed.length > 0) {
+    return trimmed.slice(0, 220);
+  }
+  return `Answered request: ${String(userMessage ?? '').trim().slice(0, 120)}`;
+}
+
+function dedupeMemoryFeedbackEvents(events) {
+  const priority = { conflict: 5, held: 4, repaired: 3, promoted: 2, updated: 1, saved: 0 };
+  const sorted = [...events].sort((a, b) => (priority[b.type] ?? 0) - (priority[a.type] ?? 0));
+  const seen = new Set();
+  const out = [];
+
+  for (const ev of sorted) {
+    const key = `${ev.type}:${ev.message}:${ev.detail ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(ev);
+  }
+
+  return out;
 }
 
 /**

@@ -31,6 +31,7 @@ const ForSmallBusiness = lazyPage(() => import('./pages/ForSmallBusiness'), 'for
 const Integrations = lazyPage(() => import('./pages/Integrations'), 'integrations');
 const Landing = lazyPage(() => import('./pages/Landing'), 'landing');
 const Lore = lazyPage(() => import('./pages/Lore'), 'lore');
+const Memory = lazyPage(() => import('./pages/Memory'), 'memory');
 const Onboarding = lazyPage(() => import('./pages/Onboarding'), 'onboarding');
 const Privacy = lazyPage(() => import('./pages/Privacy'), 'privacy');
 const Pricing = lazyPage(() => import('./pages/Pricing'), 'pricing');
@@ -154,6 +155,7 @@ function AppRoutes() {
             <Route path="admin" element={<LazyPage label="Loading admin console..."><Admin /></LazyPage>} />
             <Route path="agents/:agentId" element={<LazyPage label="Loading agent workspace..."><AgentChat /></LazyPage>} />
             <Route path="lore" element={<LazyPage label="Loading LORE workspace..."><Lore /></LazyPage>} />
+            <Route path="memory" element={<LazyPage label="Loading Memory Centre..."><Memory /></LazyPage>} />
             <Route path="workflows" element={<LazyPage label="Loading workflows..."><Workflows /></LazyPage>} />
             <Route path="integrations" element={<LazyPage label="Loading integrations..."><Integrations /></LazyPage>} />
             <Route path="settings" element={<LazyPage label="Loading settings..."><Settings /></LazyPage>} />

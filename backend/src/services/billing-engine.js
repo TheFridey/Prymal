@@ -1,4 +1,4 @@
-import { and, eq, gte, lt, sql } from 'drizzle-orm';
+import { and, eq, gte, lt, notInArray, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   creditLedgerExecution,
@@ -445,6 +445,7 @@ export async function reserveVideoCredits({
   aspectRatio,
   mode = 'lite',
   referenceImages = [],
+  useNegativePrompt = true,
   metadata = {},
 }) {
   return db.transaction(async (tx) => {
@@ -519,6 +520,7 @@ export async function reserveVideoCredits({
           mode: videoMode.id,
           providerLabel: videoMode.providerLabel,
           referenceImageCount: referenceImages.length,
+          useNegativePrompt: referenceImages.length > 0 ? false : Boolean(useNegativePrompt),
           reservationSplit: reserved.split,
           estimatedCostUsd,
           estimatedCostGbp: costGuard.estimatedCostGbp,
@@ -994,6 +996,7 @@ export async function setSubscriptionPlan({
   stripeEventCreated = null,
   stripeSubscriptionId = null,
   source = 'manual',
+  offer = null,
 }) {
   return db.transaction(async (tx) => {
     const organisation = await tx.query.organisations.findFirst({
@@ -1036,7 +1039,7 @@ export async function setSubscriptionPlan({
       stripeStatus: status,
       source,
       syncedAt: now,
-    });
+    }, offer);
 
     if (!shouldResetSubscriptionEntitlements({
       organisation,
@@ -1479,6 +1482,8 @@ async function refreshThresholdState(tx, { orgId, subscription, creditType }) {
   return summary.threshold;
 }
 
+export const VIDEO_DAILY_CAP_EXCLUDED_STATUSES = ['released', 'failed'];
+
 export async function getConsumedVideoCreditsForCurrentDay(tx, orgId) {
   const start = startOfUtcDay(new Date());
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
@@ -1491,7 +1496,7 @@ export async function getConsumedVideoCreditsForCurrentDay(tx, orgId) {
       eq(videoGenerationEvents.orgId, orgId),
       gte(videoGenerationEvents.createdAt, start),
       lt(videoGenerationEvents.createdAt, end),
-      sql`${videoGenerationEvents.status} <> 'released'`,
+      notInArray(videoGenerationEvents.status, VIDEO_DAILY_CAP_EXCLUDED_STATUSES),
     ));
 
   return Number(total);
@@ -1635,8 +1640,8 @@ function buildBillingSyncMetadata(existingMetadata = {}, {
   stripeStatus = null,
   source = 'manual',
   syncedAt = new Date(),
-} = {}) {
-  if (!stripeEventId && stripeEventCreated == null && !stripeSubscriptionId && !stripeStatus) {
+} = {}, offer = null) {
+  if (!stripeEventId && stripeEventCreated == null && !stripeSubscriptionId && !stripeStatus && !offer) {
     return existingMetadata ?? {};
   }
 
@@ -1666,6 +1671,20 @@ function buildBillingSyncMetadata(existingMetadata = {}, {
   return {
     ...(existingMetadata ?? {}),
     stripe: stripeMetadata,
+    ...(offer
+      ? {
+          foundingAccess: {
+            ...(existingMetadata?.foundingAccess ?? {}),
+            ...offer,
+          },
+          entitlements: {
+            ...(existingMetadata?.entitlements ?? {}),
+            priorityAccess: Boolean(offer.priorityAccess),
+            priorityFeatureAccess: Boolean(offer.priorityFeatureAccess),
+            founderBadge: Boolean(offer.founderBadge),
+          },
+        }
+      : {}),
   };
 }
 

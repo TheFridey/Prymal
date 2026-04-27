@@ -92,6 +92,14 @@ export default function Settings() {
   const checkoutMutation = useMutation({
     mutationFn: (payload) => api.post('/billing/checkout', payload),
     onSuccess: (result) => {
+      if (result.message) {
+        notify({ type: 'info', title: 'Pricing updated', message: result.message });
+        window.setTimeout(() => {
+          window.location.href = result.url;
+        }, 900);
+        return;
+      }
+
       window.location.href = result.url;
     },
     onError: (error) => {

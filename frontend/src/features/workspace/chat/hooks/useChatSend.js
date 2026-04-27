@@ -11,6 +11,42 @@ import {
 } from '../../composer/voice';
 import { getSpeechPreviewText } from '../messagePresentation';
 import { convertImageFileToWebpPayload } from '../imageUpload';
+import { useAppStore } from '../../../../stores/useAppStore';
+
+const WORKFLOW_RUN_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function resolveWorkflowRunIdForChat(runId, status) {
+  if (!runId || typeof runId !== 'string') return undefined;
+  const trimmed = runId.trim();
+  if (!WORKFLOW_RUN_UUID.test(trimmed)) return undefined;
+  if (status && !['queued', 'running'].includes(status)) return undefined;
+  return trimmed;
+}
+
+function notifyMemoryFeedbackEvents(memoryEvents, notifyFn) {
+  if (!Array.isArray(memoryEvents) || memoryEvents.length === 0 || !notifyFn) {
+    return;
+  }
+
+  const rank = (t) =>
+    ({ conflict: 5, held: 4, repaired: 3, promoted: 2, updated: 1, saved: 0 }[t] ?? -1);
+
+  const primary = [...memoryEvents].sort((a, b) => rank(b.type) - rank(a.type))[0];
+  const tone =
+    primary.type === 'conflict' || primary.type === 'held'
+      ? 'warning'
+      : primary.type === 'repaired'
+        ? 'info'
+        : 'success';
+
+  notifyFn({
+    type: tone,
+    title: primary.message ?? 'Memory update',
+    message: primary.detail ? String(primary.detail).slice(0, 140) : undefined,
+    duration: 4000,
+  });
+}
 
 function summarizeStreamingInput(value) {
   return String(value ?? '')
@@ -71,6 +107,8 @@ export function useChatSend({
   setDraft,
   fileInputRef,
 }) {
+  const activeWorkflowRunId = useAppStore((state) => state.activeWorkflowRunId);
+  const activeWorkflowRunStatus = useAppStore((state) => state.activeWorkflowRunStatus);
   const [streamingText, setStreamingText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingTask, setStreamingTask] = useState(null);
@@ -193,6 +231,7 @@ export function useChatSend({
     aspectRatio = '16:9',
     mode = 'lite',
     referenceImages = [],
+    useNegativePrompt = true,
   }) {
     setDraft('');
     setStreamingText('');
@@ -217,6 +256,7 @@ export function useChatSend({
         aspectRatio,
         mode,
         referenceImages,
+        useNegativePrompt: referenceImages.length > 0 ? false : Boolean(useNegativePrompt),
       });
 
       if (targetAgent.id === activeAgentRef.current?.id) {
@@ -380,6 +420,7 @@ export function useChatSend({
             tone: settings.tone,
             customInstructions: settings.customInstructions,
           },
+          workflowRunId: resolveWorkflowRunIdForChat(activeWorkflowRunId, activeWorkflowRunStatus),
         },
       });
 
@@ -419,6 +460,7 @@ export function useChatSend({
               },
             },
           ]);
+          notifyMemoryFeedbackEvents(event.memoryEvents, notify);
           if (targetAgent.id === activeAgentRef.current?.id) {
             afterSendUpdate(targetAgent.id, event.conversationId);
           }
@@ -446,9 +488,12 @@ export function useChatSend({
                 sentinelReview: event.sentinelReview ?? null,
                 enforcementSummary: event.enforcementSummary ?? null,
                 geminiGrounding: event.geminiGrounding ?? null,
+                usedMemories: event.usedMemories ?? [],
               },
             },
           ]);
+
+          notifyMemoryFeedbackEvents(event.memoryEvents, notify);
 
           if (targetAgent.id === activeAgentRef.current?.id) {
             afterSendUpdate(targetAgent.id, event.conversationId);

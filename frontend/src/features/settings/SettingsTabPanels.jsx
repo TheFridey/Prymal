@@ -167,6 +167,7 @@ export function BillingSettingsTab({
 }) {
   const executionCredits = billingQuery.data?.executionCredits ?? billingQuery.data?.credits?.execution ?? null;
   const videoCredits = billingQuery.data?.videoCredits ?? billingQuery.data?.credits?.video ?? null;
+  const foundingAccess = billingQuery.data?.foundingAccess ?? null;
   const creditPacks = billingQuery.data?.catalog?.packs ?? [];
   const executionPercent = executionCredits?.percentUsed ?? creditPercent;
   const videoPercent = videoCredits?.percentUsed ?? 0;
@@ -222,6 +223,12 @@ export function BillingSettingsTab({
         <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '6px' }}>
           Reset cycle: {resetLabel}
         </div>
+        {foundingAccess?.offerKey === 'FOUNDING_ACCESS' ? (
+          <InlineNotice tone="success" style={{ marginBottom: '12px' }}>
+            Founding Access is active on this workspace. Your reduced rate stays active while your subscription remains active,
+            with priority access to selected new Prymal features.
+          </InlineNotice>
+        ) : null}
         {(showExecutionWarning || showVideoWarning) ? (
           <InlineNotice tone="warning" style={{ marginBottom: '12px' }}>
             {showExecutionWarning && showVideoWarning
@@ -431,6 +438,9 @@ export function BillingSettingsTab({
                   ) : (
                     <span style={chipStyle}>Video via upgrade</span>
                   )}
+                  {foundingAccess?.offerKey === 'FOUNDING_ACCESS' ? (
+                    <span style={chipStyle}>Priority access to new agent capabilities</span>
+                  ) : null}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   {plan.features.map((feature) => (

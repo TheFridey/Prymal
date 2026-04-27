@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
-import { BILLING_INTERVALS, PLAN_ENTITLEMENTS, PLAN_LIBRARY, getPlanPrice } from '../../lib/constants';
+import {
+  BILLING_INTERVALS,
+  PLAN_ENTITLEMENTS,
+  PLAN_LIBRARY,
+  getFoundingPlanPrice,
+  getPlanPrice,
+} from '../../lib/constants';
 
 const PERSONA_LINE = {
   solo: 'For individuals getting started',
@@ -44,9 +50,10 @@ function scrollToPricingGrid() {
   document.getElementById('pricing-plans')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-export function PricingPageContent() {
+export function PricingPageContent({ foundingOffer = null }) {
   const [billingInterval, setBillingInterval] = useState(BILLING_INTERVALS[0]?.id ?? 'monthly');
   const activeInterval = BILLING_INTERVALS.find((i) => i.id === billingInterval) ?? BILLING_INTERVALS[0];
+  const foundingAccessActive = Boolean(foundingOffer?.active);
 
   return (
     <>
@@ -82,6 +89,21 @@ export function PricingPageContent() {
         </div>
       </section>
 
+      {foundingAccessActive ? (
+        <section className="pricing-founding-banner" aria-labelledby="founding-access-heading">
+          <div>
+            <div className="pricing-founding-banner__eyebrow">Limited founding accounts</div>
+            <h2 id="founding-access-heading">Founding Access is open</h2>
+            <p>
+              Lock in early pricing, receive 2x credits for your first month, and get priority access to new Prymal capabilities.
+            </p>
+          </div>
+          <button type="button" className="button button--accent" onClick={scrollToPricingGrid}>
+            Claim Founding Access
+          </button>
+        </section>
+      ) : null}
+
       <div className="pricing-intervals">
         <div className="pricing-intervals__inner" role="tablist" aria-label="Billing period">
           {BILLING_INTERVALS.map((interval) => (
@@ -110,23 +132,31 @@ export function PricingPageContent() {
         {PLAN_LIBRARY.map((plan) => {
           const ent = PLAN_ENTITLEMENTS[plan.id];
           const price = getPlanPrice(plan, activeInterval.id);
+          const foundingPrice = getFoundingPlanPrice(plan, activeInterval.id);
+          const displayedPrice = foundingAccessActive ? foundingPrice : price;
           const isPro = plan.id === 'pro';
           return (
             <article
               key={plan.id}
-              className={`pricing-card${isPro ? ' pricing-card--pro' : ''}`}
+              className={`pricing-card${isPro ? ' pricing-card--pro' : ''}${foundingAccessActive ? ' pricing-card--founding' : ''}`}
               aria-label={`${plan.name} plan`}
             >
-              {isPro ? (
+              {foundingAccessActive ? (
+                <div className="pricing-card__badge pricing-card__badge--founding">Founding Access</div>
+              ) : isPro ? (
                 <div className="pricing-card__badge">Most popular</div>
               ) : null}
               <h2 className="pricing-card__name">{plan.name}</h2>
               <p className="pricing-card__persona">{PERSONA_LINE[plan.id]}</p>
               <div className="pricing-card__price">
-                {price.display}
-                <small> / {price.suffix}</small>
+                {displayedPrice.display}
+                <small> / {displayedPrice.suffix}</small>
               </div>
-              {price.hasPeriodDiscount ? (
+              {foundingAccessActive ? (
+                <p className="pricing-card__period-note">
+                  Early pricing locked while your subscription remains active
+                </p>
+              ) : price.hasPeriodDiscount ? (
                 <p className="pricing-card__period-note">
                   {price.monthlyEquivalent} · {price.discountLabel ?? 'Longer commitment'}
                 </p>
@@ -143,6 +173,8 @@ export function PricingPageContent() {
                     : 'AI video credits via upgrade'}
                 </li>
                 <li>AI agents &amp; automations</li>
+                {foundingAccessActive ? <li>Includes 2x first-month credits</li> : null}
+                {foundingAccessActive ? <li>Priority access to new agent capabilities</li> : null}
                 <li>
                   {ent.concurrencyExecution > 1
                     ? `Run up to ${ent.concurrencyExecution} AI tasks at once`
@@ -151,16 +183,19 @@ export function PricingPageContent() {
               </ul>
               <div className="pricing-card__cta">
                 <SignedOut>
-                  <Link to="/signup" className={isPro ? 'button button--accent button--block' : 'button button--ghost button--block'}>
-                    {isPro ? 'Start on Pro' : 'Start now'}
+                  <Link
+                    to={foundingAccessActive ? '/signup?offer=founding-access' : '/signup'}
+                    className={(isPro || foundingAccessActive) ? 'button button--accent button--block' : 'button button--ghost button--block'}
+                  >
+                    {foundingAccessActive ? 'Claim Founding Access' : isPro ? 'Start on Pro' : 'Start now'}
                   </Link>
                 </SignedOut>
                 <SignedIn>
                   <Link
-                    to="/app/settings?tab=Billing"
-                    className={isPro ? 'button button--accent button--block' : 'button button--ghost button--block'}
+                    to={foundingAccessActive ? '/app/settings?tab=Billing&offer=founding-access' : '/app/settings?tab=Billing'}
+                    className={(isPro || foundingAccessActive) ? 'button button--accent button--block' : 'button button--ghost button--block'}
                   >
-                    {isPro ? 'Upgrade to Pro' : 'Choose plan'}
+                    {foundingAccessActive ? 'Claim Founding Access' : isPro ? 'Upgrade to Pro' : 'Choose plan'}
                   </Link>
                 </SignedIn>
               </div>

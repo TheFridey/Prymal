@@ -18,6 +18,7 @@ import {
 } from '../../db/schema.js';
 import { hasConfiguredStripe } from '../../env.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
+import { getFoundingAccessAdminSnapshot } from '../../services/founding-access.js';
 import { buildActivitySeries, countBy, countEventName } from './helpers.js';
 
 const router = new Hono();
@@ -157,6 +158,7 @@ router.get('/overview', requireStaff, requireStaffPermission('admin.view'), asyn
     }));
 
   const billing = await buildBillingSnapshot({ organisations: organisationRows });
+  billing.foundingAccess = await getFoundingAccessAdminSnapshot();
 
   const recentActivity = [
     ...adminActionRows.slice(0, 20).map((entry) => ({

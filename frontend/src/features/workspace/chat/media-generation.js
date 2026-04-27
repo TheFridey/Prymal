@@ -154,6 +154,9 @@ export function createVideoGenerationDraft(overrides = {}) {
       ? overrides.referenceImages.slice(0, 3)
       : []
     : [];
+  const useNegativePrompt = referenceImages.length > 0
+    ? false
+    : overrides.useNegativePrompt !== false;
 
   return {
     ...overrides,
@@ -163,5 +166,6 @@ export function createVideoGenerationDraft(overrides = {}) {
     resolution,
     aspectRatio,
     referenceImages,
+    useNegativePrompt,
   };
 }

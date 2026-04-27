@@ -1,12 +1,15 @@
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import { PageShell } from '../components/ui';
+import { FoundingAccessPopup } from '../features/marketing/FoundingAccessPopup';
 import { PricingPageContent } from '../features/marketing/PricingPageContent';
+import { useFoundingAccessOffer } from '../features/marketing/founding-access';
 import { PLAN_LIBRARY, getWorkspacePlanMeta } from '../lib/constants';
 import '../styles/landing-rebuild.css';
 import '../styles/pricing-page.css';
 
 export default function Pricing() {
   const freePlan = getWorkspacePlanMeta('free');
+  const foundingOffer = useFoundingAccessOffer();
 
   return (
     <div className="marketing-page prymal-marketing pricing-page">
@@ -39,12 +42,13 @@ export default function Pricing() {
 
         <PageShell width="100%" flushMobile>
           <div className="pricing-page__shell">
-            <PricingPageContent />
+            <PricingPageContent foundingOffer={foundingOffer} />
           </div>
         </PageShell>
 
         <PublicPageFooter />
       </div>
+      <FoundingAccessPopup offer={foundingOffer} surface="pricing" />
     </div>
   );
 }

@@ -15,6 +15,27 @@
       "when": 1776902400000,
       "tag": "0002_billing_credit_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777161600000,
+      "tag": "0003_founding_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777248000000,
+      "tag": "0004_memory_architecture",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777334400000,
+      "tag": "0005_memory_hardening",
+      "breakpoints": true
     }
   ]
 }

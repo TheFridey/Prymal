@@ -9,7 +9,7 @@ setupTestEnv();
 process.env.STRIPE_SECRET_KEY = 'sk_test_dummy_billing_test_key_000000000000';
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_dummysecretfortests';
 
-const { default: billingRouter } = await import('./billing.js');
+const { default: billingRouter, resolveCheckoutPriceSelection } = await import('./billing.js');
 
 // ── Webhook — invalid signature ────────────────────────────────────────────────
 
@@ -64,4 +64,32 @@ test('valid billing intervals are monthly, quarterly, and yearly', () => {
   assert.ok(validIntervals.includes('yearly'));
   assert.ok(!validIntervals.includes('weekly'));
   assert.ok(!validIntervals.includes('annual'));
+});
+
+test('checkout uses Founding Access price only when eligibility is active', () => {
+  assert.deepEqual(
+    resolveCheckoutPriceSelection({
+      standardPriceId: 'price_standard',
+      founderPriceId: 'price_founder',
+      eligibility: { eligible: true },
+    }),
+    {
+      priceId: 'price_founder',
+      offerApplied: true,
+      offerUnavailableReason: null,
+    },
+  );
+
+  assert.deepEqual(
+    resolveCheckoutPriceSelection({
+      standardPriceId: 'price_standard',
+      founderPriceId: 'price_founder',
+      eligibility: { eligible: false, reason: 'offer_inactive' },
+    }),
+    {
+      priceId: 'price_standard',
+      offerApplied: false,
+      offerUnavailableReason: 'offer_inactive',
+    },
+  );
 });
