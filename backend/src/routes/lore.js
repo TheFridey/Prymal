@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, count, desc, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { AGENT_IDS } from '../agents/config.js';
@@ -17,6 +17,8 @@ import {
   ragSearch,
 } from '../services/rag.js';
 import { recordLoreFeedback } from '../services/moat-feedback.js';
+
+import { recordProductEventOnce } from '../services/telemetry.js';
 
 const router = new Hono();
 
@@ -44,6 +46,22 @@ const feedbackSchema = z.object({
   value: z.number().finite().optional(),
   metadata: z.record(z.unknown()).optional().default({}),
 });
+
+async function maybeRecordFirstLoreDocument({ orgId, userId, documentId, source }) {
+  const [{ docCount }] = await db
+    .select({ docCount: count() })
+    .from(loreDocuments)
+    .where(eq(loreDocuments.orgId, orgId));
+  if (docCount !== 1) {
+    return;
+  }
+  await recordProductEventOnce({
+    orgId,
+    userId,
+    eventName: 'first_lore_document_added',
+    metadata: { documentId, source },
+  });
+}
 
 const loreIngestRateLimit = planAwareRateLimit({
   free: 5,
@@ -145,6 +163,13 @@ router.post('/text', requireOrg, loreIngestRateLimit, zValidator('json', uploadT
     console.error('[LORE] Text ingest failed:', error.message);
   });
 
+  await maybeRecordFirstLoreDocument({
+    orgId: org.orgId,
+    userId: org.userId,
+    documentId: document.id,
+    source: 'text',
+  });
+
   return context.json(
     {
       document,
@@ -207,6 +232,13 @@ router.post('/upload', requireOrg, loreIngestRateLimit, async (context) => {
     metadata: parsed.metadata,
   }).catch((error) => {
     console.error('[LORE] Upload ingest failed:', error.message);
+  });
+
+  await maybeRecordFirstLoreDocument({
+    orgId: org.orgId,
+    userId: org.userId,
+    documentId: document.id,
+    source: 'upload',
   });
 
   return context.json(
@@ -280,6 +312,13 @@ router.post('/crawl', requireOrg, loreIngestRateLimit, zValidator('json', crawlS
     content: normalized,
   }).catch((error) => {
     console.error('[LORE] URL ingest failed:', error.message);
+  });
+
+  await maybeRecordFirstLoreDocument({
+    orgId: org.orgId,
+    userId: org.userId,
+    documentId: document.id,
+    source: 'crawl',
   });
 
   return context.json({ document, contradictions, message: 'URL queued for indexing.' }, 201);

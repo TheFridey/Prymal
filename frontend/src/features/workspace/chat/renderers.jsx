@@ -12,6 +12,7 @@ import {
   SourceCard,
   TrustGrammarPanel,
 } from './MessageArtifacts';
+import AgentMessageFeedback from './AgentMessageFeedback';
 import { buildMessagePresentation } from './messagePresentation';
 import { getAgentHandoffs } from '../../../lib/agentHandoffs';
 import { getAgentMeta } from '../../../lib/constants';
@@ -528,7 +529,15 @@ function ResearchTrace({ sources }) {
   );
 }
 
-export function StudioMessage({ message, agent, streaming = false, streamingTask = null, onHandoff = null }) {
+export function StudioMessage({
+  message,
+  agent,
+  streaming = false,
+  streamingTask = null,
+  onHandoff = null,
+  conversationId = '',
+  onInsertDraft,
+}) {
   const reducedMotion = usePrymalReducedMotion();
   const isUser = message.role === 'user';
   const sources = message.metadata?.sources ?? [];
@@ -663,6 +672,14 @@ export function StudioMessage({ message, agent, streaming = false, streamingTask
             sourceAgentId={agent?.id}
             messageContent={message.content}
             onHandoff={onHandoff}
+          />
+        ) : null}
+        {!isUser && !streaming && conversationId && message.id ? (
+          <AgentMessageFeedback
+            agentId={agent?.id}
+            conversationId={conversationId}
+            messageId={message.id}
+            onInsertDraft={onInsertDraft}
           />
         ) : null}
       </div>

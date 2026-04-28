@@ -1,4 +1,12 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import dotenv from 'dotenv';
 import { defineConfig } from '@playwright/test';
+
+const configDir = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(configDir, '.env'), quiet: true });
+dotenv.config({ path: path.join(configDir, '.env.local'), override: true, quiet: true });
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173';
 

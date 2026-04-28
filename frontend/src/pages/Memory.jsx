@@ -41,6 +41,7 @@ export default function Memory() {
       const suffix = params.toString();
       return api.get(`/memory${suffix ? `?${suffix}` : ''}`);
     },
+    retry: false,
   });
 
   const explainQuery = useQuery({
@@ -52,6 +53,7 @@ export default function Memory() {
   const capsQuery = useQuery({
     queryKey: ['memory-caps-stats'],
     queryFn: () => api.get('/memory/caps-stats'),
+    retry: false,
   });
 
   const timelineQuery = useQuery({
@@ -132,7 +134,10 @@ export default function Memory() {
 
           <SurfaceCard className="memory-page__list">
             {rows.length === 0 ? (
-              <EmptyState title="No memories yet" body="Chat preferences and durable facts appear here with provenance." />
+              <EmptyState
+                title="No memories visible yet"
+                description="Memory appears when Prymal learns durable preferences, facts, and workflow context. You can review, edit, lock, or forget memory at any time from here."
+              />
             ) : (
               <ul className="memory-page__items">
                 {rows.map((row) => (

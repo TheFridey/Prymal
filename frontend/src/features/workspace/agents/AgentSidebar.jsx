@@ -111,7 +111,14 @@ export default function AgentSidebar({
       <div className="workspace-studio__agent-hero">
         <div className="workspace-studio__agent-topbar">
           <div>
-            <div className="workspace-studio__agent-name">{activeAgent.name}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div className="workspace-studio__agent-name">{activeAgent.name}</div>
+              {activeAgent.recommendedStarter ? (
+                <span style={{ fontSize: '9px', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: '999px', border: '1px solid rgba(0,255,209,0.35)', color: '#00FFD1' }}>
+                  Starter path
+                </span>
+              ) : null}
+            </div>
             <div className="workspace-studio__agent-title">{activeAgent.title}</div>
           </div>
           <button type="button" className="workspace-studio__ghost-icon" onClick={onOpenSettings} aria-label="Open chat settings">
@@ -120,6 +127,45 @@ export default function AgentSidebar({
         </div>
         <AgentAvatar agent={activeAgent} size={120} active className="workspace-studio__hero-avatar" />
         <div className="workspace-studio__hero-description">{activeAgent.description}</div>
+        {activeAgent.bestFor ? (
+          <div
+            style={{
+              display: 'grid',
+              gap: '6px',
+              margin: '0 0 12px',
+              fontSize: '12px',
+              color: 'var(--muted)',
+              lineHeight: 1.55,
+            }}
+          >
+            <div>
+              <span style={{ color: 'var(--text)', fontWeight: 600 }}>Best for:</span> {activeAgent.bestFor}
+            </div>
+            {activeAgent.useWhen ? (
+              <div>
+                <span style={{ color: 'var(--text)', fontWeight: 600 }}>Use when:</span> {activeAgent.useWhen}
+              </div>
+            ) : null}
+            {activeAgent.exampleOutputChips?.length ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {(activeAgent.exampleOutputChips ?? []).map((chip) => (
+                  <span
+                    key={chip}
+                    style={{
+                      fontSize: '10px',
+                      padding: '3px 8px',
+                      borderRadius: '999px',
+                      border: '1px solid rgba(255,255,255,0.09)',
+                      color: 'var(--text)',
+                    }}
+                  >
+                    {chip}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <AgentCapabilityStrip agentId={activeAgent.id} />
         <div className="workspace-studio__hero-actions">
           <Button tone="accent" block onClick={onStartNewChat}>New chat</Button>

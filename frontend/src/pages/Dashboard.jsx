@@ -15,6 +15,7 @@ import WorkflowTemplateCard from '../features/workspace/workflows/WorkflowTempla
 import { getFeaturedWorkflowTemplates } from '../lib/workflow-templates';
 import { api } from '../lib/api';
 import '../styles/app-rebuild.css';
+import { enrichFirstWinPathsWithTemplates, DEMO_SCENARIOS } from '../lib/first-win-paths';
 
 const FIRST_WIN_LIBRARY = {
   nexus: {
@@ -337,6 +338,11 @@ export default function Dashboard() {
   const activeWorkflows = workflows.filter((workflow) => workflow.isActive);
   const latestConversation = recentConversations[0] ?? null;
   const featuredWorkflowTemplates = useMemo(() => getFeaturedWorkflowTemplates(4), []);
+  const firstWinPaths = useMemo(() => enrichFirstWinPathsWithTemplates(), []);
+  const hasMeaningfulProgress =
+    conversationCount >= 3
+    || workflows.some((w) => (Number(w.runCount ?? 0) > 0))
+    || trainedOnRuns > 2;
 
   const recentConversationAgents = useMemo(
     () => recentConversations.map((conv) => getAgentMeta(conv.agentId)).filter(Boolean),
@@ -417,6 +423,133 @@ export default function Dashboard() {
   return (
     <PageShell width="1260px">
       <div className="pm-dash">
+
+        {!hasMeaningfulProgress ? (
+          <MotionSection delay={0.01} reveal={{ y: 10, blur: 6 }}>
+            <section className="pm-dash__first-win" aria-labelledby="first-win-title">
+              <div className="pm-dash__first-win-head">
+                <div>
+                  <div className="pm-dash__flow-eyebrow">Get your first win</div>
+                  <h2 id="first-win-title" className="pm-dash__first-win-title">
+                    Prymal pairs specialist agents with LORE and NEXUS — pick one outcome and finish it in minutes.
+                  </h2>
+                  <p className="pm-dash__first-win-sub">
+                    Each path tells you what you will get, which agents to open, and prewrites a first prompt.
+                  </p>
+                </div>
+              </div>
+              <div className="pm-dash__first-win-grid">
+                {firstWinPaths.map((path) => (
+                  <article key={path.id} className="pm-dash__first-win-card">
+                    <div className="pm-dash__first-win-card-top">
+                      <strong>{path.title}</strong>
+                      <p>{path.promise}</p>
+                      <div className="pm-dash__first-win-agents">
+                        {(path.recommendedAgents ?? []).map((id) => (
+                          <span key={id}>{id.toUpperCase()}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="pm-dash__first-win-micro">{path.microcopy}</p>
+                    <div className="pm-dash__first-win-actions">
+                      {path.loreFirst ? (
+                        <>
+                          <button
+                            type="button"
+                            className="pm-btn pm-btn--primary"
+                            onClick={() => navigate('/app/lore')}
+                          >
+                            Add knowledge in LORE
+                          </button>
+                          <button
+                            type="button"
+                            className="pm-btn pm-btn--ghost"
+                            onClick={() => navigate(`/app/agents/lore?new=1&draft=${encodeURIComponent(path.starterPrompt)}`)}
+                          >
+                            Ask LORE a question
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="pm-btn pm-btn--primary"
+                          onClick={() =>
+                            navigate(`${path.ctaHref}${path.ctaHref.includes('?') ? '&' : '?'}new=1&draft=${encodeURIComponent(path.starterPrompt)}`)
+                          }
+                        >
+                          {path.id === 'workflow' ? 'Open workflow template' : 'Start with prepared prompt'}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          </MotionSection>
+        ) : (
+          <MotionSection delay={0.01} reveal={{ y: 8, blur: 4 }}>
+            <div className="pm-dash__continue-card">
+              <div>
+                <div className="pm-dash__flow-eyebrow">Continue where you left off</div>
+                <p>
+                  {latestConversation
+                    ? `Resume ${getAgentMeta(latestConversation.agentId)?.name ?? 'your last agent'} or push a workflow forward.`
+                    : 'Open a recommended agent or run a workflow template for the next outcome.'}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {latestConversation ? (
+                  <button
+                    type="button"
+                    className="pm-btn pm-btn--primary"
+                    onClick={() => navigate(`/app/agents/${latestConversation.agentId}?cid=${latestConversation.id}`)}
+                  >
+                    Resume latest thread
+                  </button>
+                ) : null}
+                <button type="button" className="pm-btn pm-btn--ghost" onClick={() => navigate('/app/workflows')}>
+                  Workflows
+                </button>
+                <button type="button" className="pm-btn pm-btn--ghost" onClick={() => navigate('/app/lore')}>
+                  LORE
+                </button>
+              </div>
+            </div>
+          </MotionSection>
+        )}
+
+        <MotionSection delay={0.02} reveal={{ y: 6, blur: 4 }}>
+          <div className="pm-dash__demo-scenarios" aria-label="Demo playbooks">
+            <div className="pm-dash__flow-eyebrow">Demo playbooks</div>
+            <p className="pm-dash__demo-scenarios-copy">
+              Labelled examples for founder-led demos — each maps to real templates or agent prompts (no fictional integrations).
+            </p>
+            <ul className="pm-dash__demo-scenarios-list">
+              {DEMO_SCENARIOS.map((demo) => (
+                <li key={demo.id}>
+                  <div>
+                    <strong>{demo.label}</strong>
+                    <span>{demo.audience}</span>
+                  </div>
+                  <span className="pm-dash__demo-outcome">{demo.outcome}</span>
+                  {demo.workflowSlug ? (
+                    <button
+                      type="button"
+                      className="pm-dash__demo-link"
+                      onClick={() => navigate(`/app/workflows?view=builder&template=${encodeURIComponent(demo.workflowSlug)}`)}
+                    >
+                      Open template
+                    </button>
+                  ) : (
+                    <button type="button" className="pm-dash__demo-link" onClick={() => navigate('/app/lore')}>
+                      Open LORE
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </MotionSection>
 
         {executionBalance || videoBalance ? (
           <MotionSection delay={0.02} reveal={{ y: 12, blur: 6 }}>
@@ -712,7 +845,7 @@ export default function Dashboard() {
               <Link to="/app/workflows" className="pm-dash__card-link">Open NEXUS →</Link>
             </div>
             {workflows.length === 0 ? (
-              <EmptyState title="No workflows configured" description="Build the first orchestration graph." accent="#ff8e6a" />
+              <EmptyState title="No workflows configured" description="Workflows let multiple agents complete a repeatable process together. Start from a template in NEXUS, run once, then tune the graph." accent="#ff8e6a" />
             ) : (
               <div className="pm-dash__workflows">
                 {workflows.slice(0, 4).map((workflow) => (

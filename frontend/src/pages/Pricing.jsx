@@ -2,14 +2,18 @@ import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../compone
 import { PageShell } from '../components/ui';
 import { FoundingAccessPopup } from '../features/marketing/FoundingAccessPopup';
 import { PricingPageContent } from '../features/marketing/PricingPageContent';
-import { useFoundingAccessOffer } from '../features/marketing/founding-access';
+import {
+  shouldShowFoundingPricingUi,
+  useFoundingAccessOffer,
+} from '../features/marketing/founding-access';
 import { PLAN_LIBRARY, getWorkspacePlanMeta } from '../lib/constants';
 import '../styles/landing-rebuild.css';
 import '../styles/pricing-page.css';
 
 export default function Pricing() {
   const freePlan = getWorkspacePlanMeta('free');
-  const foundingOffer = useFoundingAccessOffer();
+  const foundingAccessState = useFoundingAccessOffer();
+  const foundingPricingUi = shouldShowFoundingPricingUi(foundingAccessState);
 
   return (
     <div className="marketing-page prymal-marketing pricing-page">
@@ -30,7 +34,9 @@ export default function Pricing() {
             ...PLAN_LIBRARY.map((plan) => ({
               '@type': 'Offer',
               name: plan.name,
-              price: String(plan.monthlyPrice),
+              price: String(
+                foundingPricingUi ? (plan.foundingMonthlyPrice ?? plan.monthlyPrice) : plan.monthlyPrice,
+              ),
               priceCurrency: 'GBP',
             })),
           ],
@@ -42,13 +48,16 @@ export default function Pricing() {
 
         <PageShell width="100%" flushMobile>
           <div className="pricing-page__shell">
-            <PricingPageContent foundingOffer={foundingOffer} />
+            <PricingPageContent foundingAccessState={foundingAccessState} />
           </div>
         </PageShell>
 
         <PublicPageFooter />
       </div>
-      <FoundingAccessPopup offer={foundingOffer} surface="pricing" />
+      <FoundingAccessPopup
+        offer={foundingAccessState.status === 'ready' ? foundingAccessState.offer : null}
+        surface="pricing"
+      />
     </div>
   );
 }

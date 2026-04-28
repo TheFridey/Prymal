@@ -145,8 +145,8 @@ export default function Lore() {
         <SurfaceCard title="Document inventory" subtitle={`${documents.length} total`} accent="#C77DFF">
           {documents.length === 0 ? (
             <EmptyState
-              title="LORE is empty"
-              description="Add your best source material first: pricing notes, product documentation, onboarding docs, positioning, or support knowledge."
+              title="LORE is ready for your knowledge"
+              description="LORE is where Prymal learns from your business. Add a short company description, a PDF, or a URL, then ask source-backed questions in the LORE agent chat. Indexing finishes in the background."
               accent="#C77DFF"
             />
           ) : (

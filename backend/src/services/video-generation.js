@@ -24,7 +24,7 @@ import {
   cleanupVideoReferenceImages,
   loadVideoReferenceImages,
 } from './video-reference-images.js';
-import { recordProductEvent } from './telemetry.js';
+import { recordProductEvent, recordProductEventOnce } from './telemetry.js';
 import { sanitizeAgentOutputText } from './llm.js';
 
 const PROCESSING_JOBS = new Set();
@@ -397,6 +397,17 @@ export async function processQueuedVideoJob(jobId, options = {}) {
           }),
         });
 
+        await deps.recordProductEventOnce({
+          orgId: job.orgId,
+          userId: job.userId,
+          eventName: 'first_media_generation_completed',
+          metadata: {
+            kind: 'video',
+            jobId: job.id,
+            conversationId: job.conversationId,
+          },
+        });
+
         return committed.job;
       } catch (error) {
         lastFailure = classifyVideoJobFailure(error);
@@ -735,6 +746,7 @@ function buildVideoGenerationDeps(options = {}) {
     claimQueuedVideoJob: options.claimQueuedVideoJob ?? claimQueuedVideoJob,
     listStuckProcessingVideoJobs: options.listStuckProcessingVideoJobs ?? listStuckProcessingVideoJobs,
     recordProductEvent: options.recordProductEvent ?? recordProductEvent,
+    recordProductEventOnce: options.recordProductEventOnce ?? recordProductEventOnce,
   };
 }
 

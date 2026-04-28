@@ -12,6 +12,7 @@ import { buildMemoryExplanation } from '../services/memory-explain.js';
 import { insertMemoryEvent, groupEventsByDay, summarizeDailyEvents, listMemoryEventsTimeline } from '../services/memory-events.js';
 import { evaluateMemoryPromotion, recordPromotionEvaluation } from '../services/memory-promotion.js';
 import { reviewMemoryCandidate } from '../services/memory-safety.js';
+import { recordProductEventOnce } from '../services/telemetry.js';
 
 const router = new Hono();
 
@@ -39,40 +40,51 @@ router.get('/', requireOrg, async (context) => {
   const status = context.req.query('status');
   const q = context.req.query('q');
 
-  const clauses = [eq(agentMemory.orgId, org.orgId)];
+  try {
+    const clauses = [eq(agentMemory.orgId, org.orgId)];
 
-  if (scope) clauses.push(eq(agentMemory.scope, scope));
-  if (agentId) clauses.push(eq(agentMemory.agentId, agentId));
-  if (memoryType) clauses.push(eq(agentMemory.memoryType, memoryType));
-  if (status) clauses.push(eq(agentMemory.memoryItemStatus, status));
+    if (scope) clauses.push(eq(agentMemory.scope, scope));
+    if (agentId) clauses.push(eq(agentMemory.agentId, agentId));
+    if (memoryType) clauses.push(eq(agentMemory.memoryType, memoryType));
+    if (status) clauses.push(eq(agentMemory.memoryItemStatus, status));
 
-  if (q?.trim()) {
-    clauses.push(
-      or(
-        ilike(agentMemory.key, `%${q.trim()}%`),
-        ilike(agentMemory.value, `%${q.trim()}%`),
-        ilike(agentMemory.title, `%${q.trim()}%`),
-      ),
+    if (q?.trim()) {
+      clauses.push(
+        or(
+          ilike(agentMemory.key, `%${q.trim()}%`),
+          ilike(agentMemory.value, `%${q.trim()}%`),
+          ilike(agentMemory.title, `%${q.trim()}%`),
+        ),
+      );
+    }
+
+    const rows = await db.query.agentMemory.findMany({
+      where: and(...clauses),
+      orderBy: [desc(agentMemory.updatedAt)],
+      limit: 300,
+    });
+
+    const filtered = rows.filter((row) => {
+      if (row.scope === 'agent_private') {
+        return false;
+      }
+      if (row.scope === 'user' || row.scope === 'temporary_session') {
+        return row.userId === org.userId || org.userRole === 'owner' || org.userRole === 'admin';
+      }
+      return true;
+    });
+
+    return context.json({ memory: filtered });
+  } catch (error) {
+    console.error('[memory] GET / failed:', error?.message ?? error);
+    return context.json(
+      {
+        error: 'Memory inventory is unavailable. Ensure PostgreSQL is running and database migrations are applied.',
+        code: 'MEMORY_QUERY_FAILED',
+      },
+      503,
     );
   }
-
-  const rows = await db.query.agentMemory.findMany({
-    where: and(...clauses),
-    orderBy: [desc(agentMemory.updatedAt)],
-    limit: 300,
-  });
-
-  const filtered = rows.filter((row) => {
-    if (row.scope === 'agent_private') {
-      return false;
-    }
-    if (row.scope === 'user' || row.scope === 'temporary_session') {
-      return row.userId === org.userId || org.userRole === 'owner' || org.userRole === 'admin';
-    }
-    return true;
-  });
-
-  return context.json({ memory: filtered });
 });
 
 router.get('/timeline', requireOrg, async (context) => {
@@ -93,13 +105,25 @@ router.get('/timeline', requireOrg, async (context) => {
 
 router.get('/caps-stats', requireOrg, async (context) => {
   const org = context.get('org');
-  const counts = {};
 
-  for (const memoryType of Object.keys(MEMORY_CAPS_BY_TYPE)) {
-    counts[memoryType] = await countMemoryForOrgByType(org.orgId, memoryType);
+  try {
+    const counts = {};
+
+    for (const memoryType of Object.keys(MEMORY_CAPS_BY_TYPE)) {
+      counts[memoryType] = await countMemoryForOrgByType(org.orgId, memoryType);
+    }
+
+    return context.json({ caps: MEMORY_CAPS_BY_TYPE, counts });
+  } catch (error) {
+    console.error('[memory] GET /caps-stats failed:', error?.message ?? error);
+    return context.json(
+      {
+        error: 'Memory caps are unavailable. Ensure PostgreSQL is running and database migrations are applied.',
+        code: 'MEMORY_CAPS_FAILED',
+      },
+      503,
+    );
   }
-
-  return context.json({ caps: MEMORY_CAPS_BY_TYPE, counts });
 });
 
 router.get('/timeline/daily', requireOrg, async (context) => {
@@ -259,6 +283,17 @@ router.post('/', requireOrg, zValidator('json', upsertSchema), async (context) =
       title: payload.title,
     },
     confidence: payload.confidence ?? 0.75,
+  });
+
+  await recordProductEventOnce({
+    orgId: org.orgId,
+    userId: org.userId,
+    eventName: 'first_memory_saved',
+    metadata: {
+      memoryId: created.id,
+      agentId: payload.agentId,
+      scope: payload.scope,
+    },
   });
 
   return context.json({ memory: created });

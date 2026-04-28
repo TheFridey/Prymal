@@ -15,6 +15,7 @@ import {
   sanitizeIntegrationMeta,
   sanitizeIntegrationSettings,
 } from '../services/integration-catalog.js';
+import { dispatchRuntimePublish, dispatchRuntimeTest } from '../services/integration-runtime-handlers.js';
 
 const router = new Hono();
 
@@ -42,18 +43,35 @@ const optionalUrl = (max = 4000) =>
     z.string().url().max(max).optional(),
   );
 
-const manualSettingsSchema = z.object({
-  defaultChannelId: optionalTrimmedString(255),
-  defaultChatId: optionalTrimmedString(255),
-  defaultRecipientEmail: optionalTrimmedString(500),
-  authorUrn: optionalTrimmedString(255),
-  defaultVisibility: optionalTrimmedString(64),
-  instanceUrl: optionalUrl(2000),
-  endpointUrl: optionalUrl(2000),
-  method: optionalTrimmedString(16),
-  authHeaderName: optionalTrimmedString(120),
-  authScheme: optionalTrimmedString(32),
-});
+const manualSettingsSchema = z
+  .object({
+    defaultChannelId: optionalTrimmedString(255),
+    defaultChatId: optionalTrimmedString(255),
+    defaultRecipientEmail: optionalTrimmedString(500),
+    defaultFromEmail: optionalTrimmedString(500),
+    authorUrn: optionalTrimmedString(255),
+    defaultVisibility: optionalTrimmedString(64),
+    instanceUrl: optionalUrl(2000),
+    endpointUrl: optionalUrl(2000),
+    method: optionalTrimmedString(16),
+    authHeaderName: optionalTrimmedString(120),
+    authScheme: optionalTrimmedString(32),
+    blueskyIdentifier: optionalTrimmedString(320),
+    mailgunDomain: optionalTrimmedString(255),
+    mailgunRegion: optionalTrimmedString(8),
+    nextcloudUrl: optionalUrl(2000),
+    nextcloudUsername: optionalTrimmedString(255),
+    webdavUrl: optionalUrl(4000),
+    webdavUsername: optionalTrimmedString(255),
+    gitlabHost: optionalUrl(2000),
+    bitbucketUsername: optionalTrimmedString(255),
+    outlineBaseUrl: optionalUrl(2000),
+    atlassianSite: optionalTrimmedString(255),
+    atlassianEmail: optionalTrimmedString(320),
+    bookstackUrl: optionalUrl(2000),
+    mailjetApiKey: optionalTrimmedString(255),
+  })
+  .passthrough();
 
 const manualConnectionSchema = z.object({
   accessToken: z.string().trim().max(8192).default(''),
@@ -703,6 +721,17 @@ function getMissingRequiredSettings(integration, settings) {
 }
 
 async function testIntegrationConnection({ service, accessToken, settings = {}, connection = null }) {
+  const definition = getIntegrationDefinition(service);
+  const runtimeTest = await dispatchRuntimeTest(service, definition, {
+    service,
+    accessToken,
+    settings,
+    connection,
+  });
+  if (runtimeTest) {
+    return runtimeTest;
+  }
+
   if (service === 'gmail' || service === 'google_drive') {
     const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -1050,6 +1079,16 @@ async function testIntegrationConnection({ service, accessToken, settings = {}, 
 }
 
 async function publishIntegrationPayload({ service, accessToken, payload, settings = {} }) {
+  const definition = getIntegrationDefinition(service);
+  const runtimePublish = await dispatchRuntimePublish(service, definition, {
+    accessToken,
+    payload,
+    settings,
+  });
+  if (runtimePublish) {
+    return runtimePublish;
+  }
+
   const publishedAt = new Date().toISOString();
 
   if (service === 'outlook') {

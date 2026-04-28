@@ -18,6 +18,7 @@
     "db:studio": "drizzle-kit studio",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node src/db/migrate.js",
+    "staff:set-owner-agency": "node scripts/set-owner-agency.mjs",
     "worker": "node src/queue/worker.js",
     "worker:video": "node src/workers/video-worker.js"
   },

@@ -97,7 +97,7 @@ const EXECUTION_STEPS = [
 export default function Landing() {
   const reducedMotion = usePrymalReducedMotion();
   const { isSignedIn } = useAuth();
-  const foundingOffer = useFoundingAccessOffer();
+  const foundingAccessState = useFoundingAccessOffer();
   const [email, setEmail] = useState('');
   const [waitlistResult, setWaitlistResult] = useState(null);
   const [specialistsOpen, setSpecialistsOpen] = useState(false);
@@ -655,7 +655,10 @@ export default function Landing() {
 
         <PublicPageFooter />
       </div>
-      <FoundingAccessPopup offer={foundingOffer} surface="landing" />
+      <FoundingAccessPopup
+        offer={foundingAccessState.status === 'ready' ? foundingAccessState.offer : null}
+        surface="landing"
+      />
     </div>
   );
 }

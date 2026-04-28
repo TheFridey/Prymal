@@ -33,10 +33,10 @@ function SentinelHoldBlock({ holdData, onRequestReview }) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF3B6B" strokeWidth="2" style={{ flexShrink: 0 }}>
           <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
-        <strong style={{ color: '#FF3B6B', fontSize: '14px' }}>Response held by SENTINEL</strong>
+        <strong style={{ color: '#FF3B6B', fontSize: '14px' }}>Internal QA hold</strong>
       </div>
-      <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '0 0 10px' }}>
-        {holdData?.message ?? 'This response has been held for quality review.'}
+      <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '0 0 10px', lineHeight: 1.65 }}>
+        {holdData?.message ?? 'SENTINEL held this response until it clears review. Narrow the request, add clearer source material, or refine intent — then retry or request operator review.'}
       </p>
       {concerns.length > 0 ? (
         <ul style={{ margin: '0 0 10px', paddingLeft: '18px', color: 'var(--muted)', fontSize: '13px' }}>
@@ -79,7 +79,8 @@ function AgentErrorBlock({ errorData, onRetry }) {
         <strong style={{ color: '#f59e0b', fontSize: '14px' }}>Response could not be completed</strong>
       </div>
       <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '0 0 12px', lineHeight: 1.7 }}>
-        {errorData?.message ?? 'Prymal could not complete this response. No partial answer was saved.'}
+        {errorData?.message ??
+          'Prymal could not reach the model provider or the run stopped early. Wait a moment and try again — credits stay reserved until a successful completion.'}
       </p>
       {retryText ? (
         <Button tone="ghost" onClick={() => onRetry?.(retryText)}>
@@ -122,6 +123,9 @@ export default function ChatPanel({
   onRequestReview,
   onDismissFirstRunHint,
   onHandoff,
+
+  conversationId = '',
+  onInsertDraft = () => {},
 }) {
   return (
     <>
@@ -173,7 +177,11 @@ export default function ChatPanel({
           <MotionSection reveal={{ y: 20, blur: 8 }}>
             <EmptyState
               title={`Start a ${activeAgent.name} conversation`}
-              description="Ask me to generate content, automate a task, or analyse something. Prymal will stream the reply and show review, retry, or credit states clearly."
+              description={
+                activeAgent.useWhen
+                  ? `${activeAgent.useWhen} Prymal streams replies here — use starter prompts below or describe one concrete outcome.`
+                  : `Ask Prymal for one concrete outcome. Streams stay visible here — credits, retries, and holds surface clearly when something fails.`
+              }
               accent={activeAgent.color}
             />
           </MotionSection>
@@ -208,7 +216,14 @@ export default function ChatPanel({
                     />
                   </motion.div>
                 ) : (
-                  <StudioMessage key={message.id} message={message} agent={activeAgent} onHandoff={onHandoff} />
+                  <StudioMessage
+                    key={message.id}
+                    message={message}
+                    agent={activeAgent}
+                    onHandoff={onHandoff}
+                    conversationId={conversationId}
+                    onInsertDraft={onInsertDraft}
+                  />
                 ),
               )}
               {isStreaming ? (

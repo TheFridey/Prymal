@@ -13,6 +13,9 @@ import scoutAvatar from '../assets/agents/scout.webp';
 import sentinelAvatar from '../assets/agents/sentinel.webp';
 import vanceAvatar from '../assets/agents/vance.webp';
 import wrenAvatar from '../assets/agents/wren.webp';
+import { AGENT_SELECTION_META } from './agent-selection-meta';
+import { AGENT_STARTER_PROMPTS } from './agent-starter-prompts';
+
 export { WORKFLOW_TEMPLATES } from './workflow-templates';
 
 export const NAV_ITEMS = [
@@ -1156,7 +1159,11 @@ export const LORE_STATUS_META = {
 };
 
 export function getAgentMeta(agentId) {
-  return AGENT_LIBRARY.find((entry) => entry.id === agentId) ?? null;
+  const entry = AGENT_LIBRARY.find((item) => item.id === agentId) ?? null;
+  if (!entry) return null;
+  const prompts = AGENT_STARTER_PROMPTS[agentId] ?? entry.prompts;
+  const selection = AGENT_SELECTION_META[agentId] ?? {};
+  return { ...entry, prompts, ...selection };
 }
 
 export function findAgentByInvocation(input) {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSuccessfulPatternsPrompt } from './moat-feedback.js';
+import { buildSuccessfulPatternsPrompt } from './moat-feedback-patterns.js';
 
 test('buildSuccessfulPatternsPrompt returns null without history', () => {
   assert.equal(buildSuccessfulPatternsPrompt([]), null);

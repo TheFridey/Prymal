@@ -89,6 +89,7 @@ test('video auth failures release credits without scheduling retries', async () 
     recordProductEvent: async (event) => {
       events.push(event);
     },
+    recordProductEventOnce: async () => {},
     sleep: async () => {},
   });
 
@@ -143,7 +144,7 @@ test('video timeout releases credits with a timeout failure code', async () => {
       };
     },
     recordProductEvent: async () => {},
-    sleep: async () => {},
+    recordProductEventOnce: async () => {},
     now: () => nowValues.shift() ?? 6000,
     timeoutMs: 1000,
   });
@@ -205,6 +206,7 @@ test('successful uploads persist Cloudinary metadata into the committed video jo
       };
     },
     recordProductEvent: async () => {},
+    recordProductEventOnce: async () => {},
   });
 
   assert.equal(commitArgs.providerMetadata.storageProvider, 'cloudinary');

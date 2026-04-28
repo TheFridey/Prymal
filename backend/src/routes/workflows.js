@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { and, desc, eq, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, or, sql } from 'drizzle-orm';
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -10,7 +10,7 @@ import { planAwareRateLimit } from '../middleware/rateLimit.js';
 import { getBillingSnapshotForOrg } from '../services/billing-engine.js';
 import { dispatchWorkflowRun, registerCron, unregisterCron } from '../queue/trigger.js';
 import { createScheduledWorkflowRunHandler } from '../services/inline-scheduler.js';
-import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
+import { recordAuditLog, recordProductEvent, recordProductEventOnce } from '../services/telemetry.js';
 import { validateWorkflowDefinition } from '../services/workflow-engine.js';
 
 const router = new Hono();
@@ -428,6 +428,11 @@ router.get('/:id', requireOrg, async (context) => {
 router.post('/', requireOrg, requireRole('owner', 'admin'), async (context) => {
   const org = context.get('org');
   const payload = validateWorkflowDefinition(await context.req.json());
+  const [{ wfCount }] = await db
+    .select({ wfCount: count() })
+    .from(workflows)
+    .where(eq(workflows.orgId, org.orgId));
+
   const [workflow] = await db
     .insert(workflows)
     .values({
@@ -458,6 +463,14 @@ router.post('/', requireOrg, requireRole('owner', 'admin'), async (context) => {
       eventName: 'workflow.created',
       metadata: { triggerType: workflow.triggerType, name: workflow.name },
     }),
+    wfCount === 0
+      ? recordProductEventOnce({
+        orgId: org.orgId,
+        userId: org.userId,
+        eventName: 'first_workflow_created',
+        metadata: { workflowId: workflow.id, name: workflow.name },
+      })
+      : Promise.resolve(),
   ]);
 
   return context.json({ workflow }, 201);

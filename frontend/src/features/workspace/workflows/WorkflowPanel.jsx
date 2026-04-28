@@ -19,8 +19,6 @@ import { useAppStore } from '../../../stores/useAppStore';
 const WorkflowBuilder = lazy(() => import('../../../pages/WorkflowBuilder'));
 const WebhookSubscriptionsPanel = lazy(() => import('./WebhookSubscriptionsPanel'));
 
-import { useAppStore } from '../../../stores/useAppStore';
-
 const TRIGGER_META = {
   manual: { label: 'manual', color: '#4CC9F0' },
   schedule: { label: 'schedule', color: '#C77DFF' },

@@ -18,6 +18,7 @@ import {
 import { deliverWorkflowWebhook } from './webhook-delivery.js';
 import { estimateTokens, runAgentNode } from './llm.js';
 import { emitWorkflowTimelineEvent } from './memory-events.js';
+import { maybeRecordFirstWinAggregate, recordProductEvent, recordProductEventOnce } from './telemetry.js';
 
 const WORKFLOW_NODE_TIMEOUT_MS = Number(process.env.WORKFLOW_NODE_TIMEOUT_MS ?? 90_000);
 const WORKFLOW_RUN_TIMEOUT_MS = Number(process.env.WORKFLOW_RUN_TIMEOUT_MS ?? 15 * 60_000);
@@ -484,6 +485,32 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
         lastRunAt: new Date(),
       })
       .where(sql`${workflows.id} = ${workflow.id}`);
+
+    await recordProductEvent({
+      orgId: workflow.orgId,
+      userId: orgContext.userId ?? null,
+      eventName: 'workflow.run_completed',
+      metadata: {
+        workflowId: workflow.id,
+        runId,
+        creditsUsed: totalCredits,
+      },
+    });
+
+    if (orgContext.userId) {
+      await recordProductEventOnce({
+        orgId: workflow.orgId,
+        userId: orgContext.userId,
+        eventName: 'first_workflow_run_completed',
+        metadata: { workflowId: workflow.id, runId },
+      });
+      await maybeRecordFirstWinAggregate({
+        orgId: workflow.orgId,
+        userId: orgContext.userId,
+        pathKey: 'workflow',
+        metadata: { workflowId: workflow.id, runId },
+      });
+    }
 
     return {
       nodeOutputs,

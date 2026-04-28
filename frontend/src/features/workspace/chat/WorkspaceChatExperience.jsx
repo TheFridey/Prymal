@@ -24,9 +24,9 @@ import { useChatSend } from './hooks/useChatSend';
 import { useVoiceInput } from './hooks/useVoiceInput';
 
 const FIRST_USER_PROMPTS = [
-  'Write 5 social posts for my business',
-  'Create a marketing plan',
-  'Generate a promo video',
+  'Create a 7-day content plan for my business · add your offer in the next message.',
+  'Summarise my business from LORE · add a short company note or doc first.',
+  'Design a simple workflow for weekly marketing · open NEXUS templates if unsure.',
 ];
 const FIRST_RUN_HINT_STORAGE_KEY = 'prymal:first-run-hint-seen';
 
@@ -552,6 +552,8 @@ export default function WorkspaceChatExperience({
               onRequestReview={chat.handleRequestReview}
               onDismissFirstRunHint={markFirstRunHintSeen}
               onHandoff={handleHandoff}
+              conversationId={conv.currentConversationId ?? ''}
+              onInsertDraft={setDraft}
             />
             <MessageInput
               activeAgent={activeAgent}

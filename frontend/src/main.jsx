@@ -30,6 +30,17 @@ if (typeof window !== 'undefined') {
   window.prymalTrack = trackPlausible;
 }
 
+/** Plausible loads only in production so local dev is not noisy when ad blockers block plausible.io (ERR_BLOCKED_BY_CLIENT). */
+if (import.meta.env.PROD) {
+  const domain = import.meta.env.VITE_PLAUSIBLE_DOMAIN?.trim() || 'prymal.io';
+  const s = document.createElement('script');
+  s.defer = true;
+  s.dataset.domain = domain;
+  s.src = 'https://plausible.io/js/script.js';
+  s.onerror = () => {};
+  document.head.appendChild(s);
+}
+
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,

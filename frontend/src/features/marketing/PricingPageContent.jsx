@@ -8,6 +8,7 @@ import {
   getFoundingPlanPrice,
   getPlanPrice,
 } from '../../lib/constants';
+import { shouldShowFoundingPricingUi } from './founding-access';
 
 const PERSONA_LINE = {
   solo: 'For individuals getting started',
@@ -50,10 +51,11 @@ function scrollToPricingGrid() {
   document.getElementById('pricing-plans')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-export function PricingPageContent({ foundingOffer = null }) {
+export function PricingPageContent({ foundingAccessState = { status: 'idle', offer: null } }) {
   const [billingInterval, setBillingInterval] = useState(BILLING_INTERVALS[0]?.id ?? 'monthly');
   const activeInterval = BILLING_INTERVALS.find((i) => i.id === billingInterval) ?? BILLING_INTERVALS[0];
-  const foundingAccessActive = Boolean(foundingOffer?.active);
+  const foundingAccessActive = shouldShowFoundingPricingUi(foundingAccessState);
+  const devPricingUnavailable = Boolean(foundingAccessState.offer?.devPricingUnavailable);
 
   return (
     <>
@@ -89,13 +91,21 @@ export function PricingPageContent({ foundingOffer = null }) {
         </div>
       </section>
 
+      {devPricingUnavailable ? (
+        <p className="pricing-dev-hint" role="status">
+          Development mode: founder prices are shown from the app catalog. Run the API (e.g. port 3001) with a connected database
+          so the live offer endpoint can confirm availability and Stripe checkout can apply founder price IDs.
+        </p>
+      ) : null}
+
       {foundingAccessActive ? (
         <section className="pricing-founding-banner" aria-labelledby="founding-access-heading">
           <div>
             <div className="pricing-founding-banner__eyebrow">Limited founding accounts</div>
             <h2 id="founding-access-heading">Founding Access is open</h2>
             <p>
-              Lock in early pricing, receive 2x credits for your first month, and get priority access to new Prymal capabilities.
+              Lock in reduced rates for the first paid cohort, receive 2x credits for your first month, and get priority access
+              to new Prymal capabilities. Applied at checkout while capacity remains.
             </p>
           </div>
           <button type="button" className="button button--accent" onClick={scrollToPricingGrid}>
@@ -149,7 +159,16 @@ export function PricingPageContent({ foundingOffer = null }) {
               <h2 className="pricing-card__name">{plan.name}</h2>
               <p className="pricing-card__persona">{PERSONA_LINE[plan.id]}</p>
               <div className="pricing-card__price">
-                {displayedPrice.display}
+                {foundingAccessActive ? (
+                  <div className="pricing-card__price-stack">
+                    <span className="pricing-card__price-was" aria-label={`Standard rate ${price.display}`}>
+                      {price.display}
+                    </span>
+                    <span className="pricing-card__price-now">{displayedPrice.display}</span>
+                  </div>
+                ) : (
+                  displayedPrice.display
+                )}
                 <small> / {displayedPrice.suffix}</small>
               </div>
               {foundingAccessActive ? (

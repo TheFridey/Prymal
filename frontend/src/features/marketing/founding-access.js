@@ -8,6 +8,28 @@ export const FOUNDING_ACCESS_STORAGE_KEYS = {
   submitted: 'prymal_founding_access_lead_submitted',
 };
 
+/** When true (build env), `/pricing` always shows founding-tier amounts from constants (checkout still validates server-side). */
+export function isFoundingPricingUiForced() {
+  return import.meta.env.VITE_FORCE_FOUNDING_PRICING_UI === 'true';
+}
+
+/**
+ * Whether the marketing site should render founding prices (cards, banner).
+ * In development, treats loading as founder-pricing-visible so localhost without a cold API does not flash list prices.
+ */
+export function shouldShowFoundingPricingUi({ status, offer }) {
+  if (import.meta.env.DEV && status === 'loading') {
+    return true;
+  }
+  if (status !== 'ready') {
+    return isFoundingPricingUiForced();
+  }
+  if (!offer) {
+    return isFoundingPricingUiForced();
+  }
+  return Boolean(offer.active) || isFoundingPricingUiForced();
+}
+
 export async function fetchFoundingAccessOffer({ getToken } = {}) {
   const headers = new Headers({ Accept: 'application/json' });
   const token = await getToken?.();
@@ -45,33 +67,51 @@ export async function submitFoundingAccessLead({ email, source }) {
 
 export function useFoundingAccessOffer() {
   const { getToken, isLoaded } = useAuth();
-  const [offer, setOffer] = useState(null);
+  const [state, setState] = useState({ status: 'idle', offer: null });
 
   useEffect(() => {
     if (!isLoaded) {
       return undefined;
     }
 
-    let active = true;
+    let cancelled = false;
+
+    setState({ status: 'loading', offer: null });
 
     fetchFoundingAccessOffer({ getToken })
       .then((result) => {
-        if (active) {
-          setOffer(result);
+        if (!cancelled) {
+          setState({ status: 'ready', offer: result });
         }
       })
       .catch(() => {
-        if (active) {
-          setOffer({ active: false, offerKey: 'FOUNDING_ACCESS' });
+        if (!cancelled) {
+          if (import.meta.env.DEV) {
+            setState({
+              status: 'ready',
+              offer: {
+                active: true,
+                offerKey: 'FOUNDING_ACCESS',
+                devPricingUnavailable: true,
+              },
+            });
+          } else {
+            setState({
+              status: 'ready',
+              offer: isFoundingPricingUiForced()
+                ? { active: true, offerKey: 'FOUNDING_ACCESS', pricingUiForced: true }
+                : { active: false, offerKey: 'FOUNDING_ACCESS' },
+            });
+          }
         }
       });
 
     return () => {
-      active = false;
+      cancelled = true;
     };
   }, [getToken, isLoaded]);
 
-  return offer;
+  return state;
 }
 
 export function shouldShowFoundingAccessPopup({
@@ -80,6 +120,10 @@ export function shouldShowFoundingAccessPopup({
   localStorageRef = localStorage,
 } = {}) {
   if (!offer?.active) {
+    return false;
+  }
+
+  if (offer.devPricingUnavailable) {
     return false;
   }
 

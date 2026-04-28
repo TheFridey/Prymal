@@ -1,10 +1,13 @@
 import { desc, eq } from 'drizzle-orm';
+import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { db } from '../db/index.js';
 import { contentAssets, loreDocuments, organisations, workflowTemplates, workflows } from '../db/schema.js';
 import { requireOrg } from '../middleware/auth.js';
 import { getLearningSignalsForOrg } from '../services/learning-signals.js';
 import { getOrgLearningSnapshot } from '../services/moat-feedback.js';
+import { recordProductEvent } from '../services/telemetry.js';
 
 const router = new Hono();
 
@@ -18,6 +21,37 @@ router.get('/learning-signals', requireOrg, async (context) => {
   const org = context.get('org');
   const learningSignals = await getLearningSignalsForOrg({ orgId: org.orgId });
   return context.json(learningSignals);
+});
+
+const clientProductEventSchema = z.object({
+  eventName: z.enum([
+    'output.feedback_useful',
+    'output.feedback_not_useful',
+    'output.feedback_save_intent',
+    'output.feedback_rerun',
+    'output.feedback_workflow_intent',
+    'output.feedback_improve',
+  ]),
+  metadata: z
+    .object({
+      agentId: z.string().optional(),
+      conversationId: z.string().uuid().optional(),
+      messageId: z.string().uuid().optional(),
+    })
+    .passthrough()
+    .optional(),
+});
+
+router.post('/product-events', requireOrg, zValidator('json', clientProductEventSchema), async (context) => {
+  const org = context.get('org');
+  const payload = context.req.valid('json');
+  await recordProductEvent({
+    orgId: org.orgId,
+    userId: org.userId,
+    eventName: payload.eventName,
+    metadata: { ...(payload.metadata ?? {}), surface: 'client' },
+  });
+  return context.json({ ok: true });
 });
 
 router.get('/context/export', requireOrg, async (context) => {

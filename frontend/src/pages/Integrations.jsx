@@ -24,6 +24,8 @@ const TARGET_SETTING_KEYS = [
   'authorUrn',
   'endpointUrl',
   'defaultRecipientEmail',
+  'defaultFromEmail',
+  'blueskyIdentifier',
 ];
 
 export default function Integrations() {
@@ -1231,8 +1233,8 @@ function setPublishDraft(service, nextDraft, setDrafts) {
 function createLogoBadgeVars(color, theme = {}) {
   return {
     '--integration-logo-accent': theme.iconColor ?? color,
-    background: theme.badgeBackground ?? `color-mix(in srgb, ${color} 12%, transparent)`,
-    borderColor: theme.badgeBorder ?? `color-mix(in srgb, ${color} 26%, transparent)`,
+    background: theme.badgeBackground ?? '#D8DEE9',
+    borderColor: theme.badgeBorder ?? 'rgba(255, 255, 255, 0.2)',
   };
 }
 

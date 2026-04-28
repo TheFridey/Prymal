@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGrowthSnapshot } from './growth.js';
+import { buildGrowthSnapshot } from './growth-snapshot.js';
 
 function date(value) {
   return new Date(value);

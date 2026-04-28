@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, inArray, isNull, not, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import { getRuntimeAgentContract } from '../agents/runtime.js';
 import { getMemorySessionTtlHours, getMemoryWorkflowTtlHours } from '../env.js';
 import { db } from '../db/index.js';

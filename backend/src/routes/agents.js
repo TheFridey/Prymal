@@ -1,5 +1,5 @@
 import { zValidator } from '@hono/zod-validator';
-import { and, asc, desc, eq, ilike, or } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, or, count } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
@@ -31,7 +31,7 @@ import { deleteMemory } from '../services/memory.js';
 import { hasUsableOpenAIKey } from '../services/model-policy.js';
 import { recordContentAsset, recordDeliveryOutcome } from '../services/moat-feedback.js';
 import { createRealtimeSessionToken, OPENAI_REALTIME_MODEL } from '../services/openai-realtime.js';
-import { recordProductEvent } from '../services/telemetry.js';
+import { recordProductEvent, recordProductEventOnce, maybeRecordFirstWinAggregate } from '../services/telemetry.js';
 import { transcribeAudioFile } from '../services/transcription.js';
 import { runAgentChat } from '../services/agent-runner.js';
 import { sanitizeAgentOutputText } from '../services/llm.js';
@@ -315,11 +315,32 @@ router.post('/chat', requireOrg, planAwareRateLimit({
     },
   });
 
+  const [{ priorUserCount }] = await db
+    .select({ priorUserCount: count() })
+    .from(messages)
+    .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+    .where(
+      and(
+        eq(conversations.orgId, org.orgId),
+        eq(conversations.userId, org.userId),
+        eq(messages.role, 'user'),
+      ),
+    );
+
   await db.insert(messages).values({
     conversationId: conversation.id,
     role: 'user',
     content: payload.message,
   });
+
+  if (priorUserCount === 0) {
+    void recordProductEventOnce({
+      orgId: org.orgId,
+      userId: org.userId,
+      eventName: 'first_agent_message_sent',
+      metadata: { agentId: payload.agentId, conversationId: conversation.id },
+    });
+  }
 
   return streamSSE(context, async (stream) => {
     const startedAt = Date.now();
@@ -458,6 +479,45 @@ router.post('/chat', requireOrg, planAwareRateLimit({
               },
             }),
           ]);
+
+          await recordProductEventOnce({
+            orgId: org.orgId,
+            userId: org.userId,
+            eventName: 'first_agent_response_completed',
+            metadata: {
+              agentId: payload.agentId,
+              conversationId: conversation.id,
+              messageId: savedMessage.id,
+            },
+          });
+
+          if (['forge', 'echo', 'herald'].includes(payload.agentId)) {
+            await maybeRecordFirstWinAggregate({
+              orgId: org.orgId,
+              userId: org.userId,
+              pathKey: 'content_plan',
+              metadata: { agentId: payload.agentId },
+            });
+          }
+
+          const sourceTotal = Array.isArray(event.sources) ? event.sources.length : 0;
+          if (payload.agentId === 'lore' && payload.useLore !== false && sourceTotal > 0) {
+            await recordProductEventOnce({
+              orgId: org.orgId,
+              userId: org.userId,
+              eventName: 'first_lore_question_asked',
+              metadata: {
+                conversationId: conversation.id,
+                sourceCount: sourceTotal,
+              },
+            });
+            await maybeRecordFirstWinAggregate({
+              orgId: org.orgId,
+              userId: org.userId,
+              pathKey: 'lore_qa',
+              metadata: { agentId: 'lore' },
+            });
+          }
 
           let escalationResult = { triggered: false, triggerReason: null };
 
@@ -698,6 +758,16 @@ router.post('/generate-image', requireOrg, mediaGenerationRateLimit, zValidator(
 
     await applyReservationThrottle(imageReservation);
 
+    await recordProductEventOnce({
+      orgId: org.orgId,
+      userId: org.userId,
+      eventName: 'first_media_generation_started',
+      metadata: {
+        kind: 'image',
+        conversationId: conversation.id,
+      },
+    });
+
     const generatedImage = await generateImageAsset({
       prompt: payload.prompt,
       agent,
@@ -784,6 +854,16 @@ router.post('/generate-image', requireOrg, mediaGenerationRateLimit, zValidator(
           agentId: payload.agentId,
           conversationId: conversation.id,
           outputType: 'generated_image',
+        },
+      }),
+      recordProductEventOnce({
+        orgId: org.orgId,
+        userId: org.userId,
+        eventName: 'first_media_generation_completed',
+        metadata: {
+          kind: 'image',
+          agentId: payload.agentId,
+          conversationId: conversation.id,
         },
       }),
     ]);
@@ -1018,6 +1098,17 @@ router.post('/generate-video', requireOrg, mediaGenerationRateLimit, zValidator(
       referenceImageCount: referenceAssets.length,
       creditsRequested: reservation.job.creditsRequested ?? reservation.burn.creditsUsed,
       storageProvider: reservation.job.providerMetadata?.storageProvider ?? null,
+    },
+  });
+
+  await recordProductEventOnce({
+    orgId: org.orgId,
+    userId: org.userId,
+    eventName: 'first_media_generation_started',
+    metadata: {
+      kind: 'video',
+      jobId: reservation.job.id,
+      conversationId: conversation.id,
     },
   });
 
