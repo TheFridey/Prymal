@@ -173,17 +173,56 @@ Configure:
 
 ## Step 3: Configure Stripe
 
+Prymal uses Stripe Billing + Checkout Sessions:
+
+- `POST /api/billing/checkout` creates subscription Checkout Sessions for Solo, Pro, Teams, and Agency.
+- `POST /api/billing/packs/checkout` creates one-time Checkout Sessions for execution and AI video packs.
+- `POST /api/billing/seat-addon` creates Teams seat add-on subscription Checkout Sessions.
+- `POST /api/billing/portal` opens the Stripe Customer Portal.
+- `POST /api/billing/webhook/stripe` syncs subscription state, founding discounts, pack purchases, seat add-ons, and failed-payment state.
+
+Use [docs/billing-pricing-audit.md](./docs/billing-pricing-audit.md) as the internal checklist whenever pricing, entitlements, or Stripe Price IDs change.
+
 ### Production
 
 1. Switch Stripe to live mode.
-2. Create recurring prices for:
-   - `solo`
-   - `pro`
-   - `teams`
-   - `agency`
-3. Create monthly, quarterly, and yearly prices for each plan.
-4. Create the recurring seat add-on price.
-5. Copy:
+2. Create subscription products/prices using Stripe Prices, not deprecated Plans.
+3. Create standard recurring prices for each plan and billing interval:
+
+   | Plan | Monthly | Quarterly | Yearly |
+   |---|---:|---:|---:|
+   | Solo | £49.99 | £131.97 | £455.91 |
+   | Pro | £99 | £261.36 | £902.88 |
+   | Teams | £179 | £472.56 | £1,632.48 |
+   | Agency | £299 | £789.36 | £2,726.88 |
+
+4. Create Founding Access recurring prices for the founding window. These are approximately 20% below list and use the same quarterly/yearly interval discounts:
+
+   | Plan | Monthly | Quarterly | Yearly |
+   |---|---:|---:|---:|
+   | Solo Founding | £39.99 | £105.57 | £364.71 |
+   | Pro Founding | £79 | £208.56 | £720.48 |
+   | Teams Founding | £149 | £393.36 | £1,358.88 |
+   | Agency Founding | £249 | £657.36 | £2,270.88 |
+
+5. Create one-time credit pack prices:
+
+   | Pack | Price | Credits |
+   |---|---:|---:|
+   | Execution Boost | £15 | 1,000 execution |
+   | Execution 100 | £10 | 100 execution |
+   | Execution 300 | £25 | 300 execution |
+   | Execution 700 | £50 | 700 execution |
+   | Video Pack Small | £20 | 10 AI video |
+   | Video Pack Pro | £50 | 30 AI video |
+   | Legacy video 15 | £5 | 15 AI video |
+   | Legacy video 30 | £10 | 30 AI video |
+   | Legacy video 100 | £25 | 100 AI video |
+
+6. Create the recurring Teams seat add-on price:
+   - `£25/mo` per extra seat.
+   - Quantity is controlled by `additionalSeats`.
+7. Copy:
    - `STRIPE_SECRET_KEY`
    - `STRIPE_PRICE_SOLO`
    - `STRIPE_PRICE_SOLO_QUARTERLY`
@@ -197,16 +236,45 @@ Configure:
    - `STRIPE_PRICE_AGENCY`
    - `STRIPE_PRICE_AGENCY_QUARTERLY`
    - `STRIPE_PRICE_AGENCY_YEARLY`
+   - `STRIPE_PRICE_AGENCY_LEGACY` / `_QUARTERLY` / `_YEARLY` only for grandfathered legacy Agency subscriptions; never point new checkout at these IDs
+   - `STRIPE_PRICE_FOUNDING_SOLO`
+   - `STRIPE_PRICE_FOUNDING_SOLO_QUARTERLY`
+   - `STRIPE_PRICE_FOUNDING_SOLO_YEARLY`
+   - `STRIPE_PRICE_FOUNDING_PRO`
+   - `STRIPE_PRICE_FOUNDING_PRO_QUARTERLY`
+   - `STRIPE_PRICE_FOUNDING_PRO_YEARLY`
+   - `STRIPE_PRICE_FOUNDING_TEAMS`
+   - `STRIPE_PRICE_FOUNDING_TEAMS_QUARTERLY`
+   - `STRIPE_PRICE_FOUNDING_TEAMS_YEARLY`
+   - `STRIPE_PRICE_FOUNDING_AGENCY`
+   - `STRIPE_PRICE_FOUNDING_AGENCY_QUARTERLY`
+   - `STRIPE_PRICE_FOUNDING_AGENCY_YEARLY`
+   - `STRIPE_PRICE_EXEC_BOOST_1000`
    - `STRIPE_PRICE_EXEC_100`
    - `STRIPE_PRICE_EXEC_300`
    - `STRIPE_PRICE_EXEC_700`
+   - `STRIPE_PRICE_VIDEO_PACK_SMALL`
+   - `STRIPE_PRICE_VIDEO_PACK_PRO`
    - `STRIPE_PRICE_VIDEO_15`
    - `STRIPE_PRICE_VIDEO_30`
    - `STRIPE_PRICE_VIDEO_100`
    - `STRIPE_PRICE_SEAT_ADDON`
-6. Configure the webhook:
+8. Configure the webhook:
    - `POST https://<backend-domain>/api/billing/webhook/stripe`
-7. Copy `STRIPE_WEBHOOK_SECRET`.
+9. Subscribe the webhook endpoint to:
+   - `checkout.session.completed`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+   - `invoice.paid`
+   - `invoice.payment_failed`
+10. Copy `STRIPE_WEBHOOK_SECRET`.
+11. Confirm Founding Access behaviour:
+   - eligible workspaces receive Founding Stripe price IDs at checkout
+   - ineligible workspaces fall back to standard price IDs
+   - after the founding window, webhook sync runs `enforceFounderStandardStripePricing` and moves subscriptions back to standard Stripe price IDs
+12. Confirm legacy Agency protection:
+   - new checkout blocks `STRIPE_PRICE_AGENCY_LEGACY*`
+   - webhook mapping still resolves legacy IDs for grandfathered subscriptions
 
 ### Staging
 
@@ -520,12 +588,15 @@ Do not treat a green static build as production readiness. Prymal’s release co
 Stripe remains intentionally deferred until the final pre-launch window. Before launch:
 
 - [ ] Create subscription prices for Solo, Pro, Teams, and Agency across monthly, quarterly, and yearly intervals
-- [ ] Create Stripe prices for execution credit packs
-- [ ] Create Stripe prices for AI video credit packs
+- [ ] Create Founding Access prices for Solo, Pro, Teams, and Agency across monthly, quarterly, and yearly intervals
+- [ ] Create Stripe prices for execution credit packs, including Execution Boost 1,000
+- [ ] Create Stripe prices for AI video packs, including Video Pack Small and Video Pack Pro
 - [ ] Create the Teams seat add-on recurring price
 - [ ] Set every `STRIPE_PRICE_*` env var
 - [ ] Configure the Stripe webhook endpoint and signing secret
 - [ ] Run one real checkout flow
 - [ ] Buy one credit pack
+- [ ] Test one Founding Access checkout and one standard-price checkout
+- [ ] Confirm legacy Agency price IDs are webhook-only and blocked from new checkout
 - [ ] Replay one webhook event safely
 - [ ] Verify entitlement sync and billing UI state after replay

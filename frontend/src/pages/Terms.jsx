@@ -28,10 +28,12 @@ const sections = [
   {
     heading: '4. Subscription plans, billing, and payment',
     paragraphs: [
-      'Prymal is available on several subscription plans: Free, Solo, Pro, Teams, and Agency. Each plan provides a defined number of monthly credits, seat allowances, and feature entitlements. Plan limits are enforced server-side.',
-      'Paid plans are billed on a monthly, quarterly, or yearly basis depending on the interval selected at checkout. Billing is processed by Stripe. By providing a payment method, you authorise Stripe to charge the applicable subscription fee on a recurring basis according to your selected interval, until you cancel.',
-      'Credits are the unit of consumption on Prymal. Each agent interaction, workflow run, and retrieval operation consumes a defined number of credits. Credits do not roll over between billing periods unless explicitly stated in your plan. If you exhaust your monthly credit allowance, some actions will be restricted until the next billing period or until you upgrade.',
-      'Prices are displayed inclusive of VAT where applicable to UK customers. We reserve the right to change pricing with reasonable notice. Continued use after a notified price change constitutes acceptance of the new pricing.',
+      'Prymal is available on Offer Access, Solo, Pro, Teams, and Agency tiers. Paid plans provide defined monthly execution credits, AI video credits, seat allowances, concurrency limits, and feature entitlements. Plan limits are enforced server-side.',
+      'Paid plans are billed on a monthly, quarterly, or yearly basis depending on the interval selected at checkout. Billing is processed by Stripe using subscription Prices. By providing a payment method, you authorise Stripe to charge the applicable subscription fee on a recurring basis according to your selected interval, until you cancel.',
+      'Credits are the unit of consumption on Prymal. Agent interactions, workflow runs, retrieval-heavy work, and other AI tasks consume execution credits. AI-generated video renders consume AI video credits, which are tracked separately. Included monthly credits refresh on your billing cycle and do not roll over unless explicitly stated in your plan.',
+      'Top-up packs may be available for execution or AI video credits. Packs are intended for short bursts or end-of-cycle gaps and do not remove plan caps, fair-use controls, concurrency limits, or product safety restrictions.',
+      'Founding Access, when available, provides discounted subscription pricing for the stated founding window plus onboarding benefits. Standard monthly usage limits still apply, and subscriptions renew at the standard catalog price after the founding window unless checkout or the Stripe billing portal states otherwise.',
+      'Prices are displayed in GBP and may be shown inclusive of VAT where applicable to UK customers. We reserve the right to change pricing with reasonable notice. Continued use after a notified price change constitutes acceptance of the new pricing.',
     ],
   },
   {
@@ -115,7 +117,7 @@ export default function Terms() {
       title="The commercial terms for using Prymal as a business AI platform."
       description="These terms cover account use, subscriptions, acceptable use, service changes, and the core legal framework for Prymal customers."
       sections={sections}
-      updated="5 April 2026"
+      updated="29 April 2026"
       pageTitle="Prymal Terms of Service | Commercial terms for UK AI SaaS"
       canonicalPath="/terms"
     />

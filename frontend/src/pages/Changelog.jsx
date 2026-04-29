@@ -8,6 +8,21 @@ import '../styles/changelog-premium.css';
 
 const CHANGELOG = [
   {
+    version: '1.0.2',
+    date: '2026-04-29',
+    tag: 'Update',
+    badge: 'Billing',
+    milestone: true,
+    title: 'Pricing + Entitlement Alignment',
+    impact: 'Public pricing, billing docs, and Stripe setup now match the current enforced plan catalog.',
+    entries: [
+      'Aligned public pricing copy around Solo, Pro, Teams, and Agency with execution credits, AI video credits, seats, and concurrency limits.',
+      'Documented Founding Access as a first-3-month subscription discount with standard usage limits and server-side eligibility enforcement.',
+      'Clarified that usage packs add short-burst execution or AI video capacity without removing fair-use, plan, or concurrency controls.',
+      'Updated Stripe setup notes for standard prices, Founding Access prices, credit-pack prices, Teams seat add-ons, and webhook events.',
+    ],
+  },
+  {
     version: '1.0.1',
     date: '2026-04-24',
     tag: 'Update',

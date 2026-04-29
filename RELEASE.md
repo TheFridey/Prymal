@@ -4,6 +4,9 @@ This repository currently ships from the `master` branch. CI and branch protecti
 
 ## Recent shipped updates
 
+- Pricing and entitlement docs now match the enforced billing catalog: Solo £49.99, Pro £99, Teams £179, Agency from £299, with separate execution and AI video credit balances.
+- Founding Access is documented as 20% off for the first 3 months with standard usage limits, server-side eligibility, and Stripe transition back to standard catalog prices after the founding window.
+- Stripe setup notes now cover standard subscription prices, Founding Access prices, one-time execution/video packs, Teams seat add-ons, and the billing webhook events used for entitlement sync.
 - Guided `/image` and `/video` builders now open modal-based brief composers instead of relying on long free-form slash commands.
 - Video generation now exposes two Veo lanes in-product: `Fast draft` (Veo 3.1 Lite) and `Cinematic` (Veo 3.1 Standard), with approximate prompt-token and credit estimates shown before submit.
 - Standard-mode video renders now support up to three reference images on 8 second jobs, while final validation, queueing, and credit burn remain server-side authoritative.

@@ -8,7 +8,6 @@ import { db } from '../../db/index.js';
 import {
   creditAdjustments,
   organisations,
-  subscriptions,
   videoGenerationEvents,
 } from '../../db/schema.js';
 import { hasConfiguredStripe } from '../../env.js';
@@ -31,7 +30,7 @@ const creditAdjustmentSchema = z.object({
 
 function getStripe() {
   if (!hasConfiguredStripe()) return null;
-  return new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-09-30.acacia' });
+  return new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-02-25.clover' });
 }
 
 router.get('/revenue', requireStaff, requireStaffPermission('admin.billing.read'), async (context) => {
@@ -84,12 +83,12 @@ router.get('/revenue', requireStaff, requireStaffPermission('admin.billing.read'
   if (stripe) {
     stripeConfigured = true;
     try {
-      const [subscriptions, invoices] = await Promise.all([
+      const [stripeSubscriptions, invoices] = await Promise.all([
         stripe.subscriptions.list({ limit: 100, status: 'active' }),
         stripe.invoices.list({ limit: 100, status: 'paid' }),
       ]);
 
-      for (const sub of subscriptions.data) {
+      for (const sub of stripeSubscriptions.data) {
         for (const item of sub.items.data) {
           const amount = item.plan?.amount ?? 0;
           const interval = item.plan?.interval ?? 'month';
@@ -148,7 +147,6 @@ router.get('/revenue', requireStaff, requireStaffPermission('admin.billing.read'
       burnByPlan,
       approxHeadroomToInternalCapGbp,
     },
-    economicsDashboard,
     stripeConfigured,
     stripeMrrGbp: stripeMrr,
     recentInvoices,

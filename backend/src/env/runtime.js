@@ -124,6 +124,24 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
     warnings.push('STRIPE_PRICE_SEAT_ADDON is not configured — Teams seat add-ons will return 503.');
   }
 
+  if (hasConfiguredStripe(env)) {
+    const missingPackPrices = [
+      'STRIPE_PRICE_EXEC_BOOST_1000',
+      'STRIPE_PRICE_EXEC_100',
+      'STRIPE_PRICE_EXEC_300',
+      'STRIPE_PRICE_EXEC_700',
+      'STRIPE_PRICE_VIDEO_PACK_SMALL',
+      'STRIPE_PRICE_VIDEO_PACK_PRO',
+      'STRIPE_PRICE_VIDEO_15',
+      'STRIPE_PRICE_VIDEO_30',
+      'STRIPE_PRICE_VIDEO_100',
+    ].filter((name) => !env[name]?.trim() || isPlaceholderEnvValue(env[name]));
+
+    if (missingPackPrices.length > 0) {
+      warnings.push(`Stripe credit-pack prices are incomplete (${missingPackPrices.join(', ')}) — affected pack checkout flows will return 503.`);
+    }
+  }
+
   if (!env.WREN_ESCALATION_EMAIL?.trim()) {
     warnings.push('WREN_ESCALATION_EMAIL is not set — WREN will silently skip escalation dispatch.');
   }
