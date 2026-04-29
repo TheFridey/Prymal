@@ -1,66 +1,95 @@
-# Prymal pre-launch QA checklist
+# Prymal Pre-Launch QA Checklist
 
-Run this before the first production launch (e.g. beta on 8 May). Auth flows need real Clerk keys unless noted.
+Run this before beta or investor demos. Authenticated paths require real Clerk test users and Stripe test-mode prices/webhooks.
 
-## Account and onboarding
+## Account And Auth
 
-- Sign up with a fresh email; complete email verification if required.
-- Sign in from a “new device” if applicable; complete Clerk OTP if enforced.
-- Complete `/app/onboarding`; confirm recommended agents look sensible for the answers you picked.
-- Confirm redirect lands on dashboard with no console errors.
+- Clerk normal user signs up or signs in successfully.
+- Clerk staff user signs in successfully and has the expected staff role.
+- `GET /api/auth/me` returns `200` after login with a Clerk Bearer token.
+- `GET /api/auth/me` returns `401` when unauthenticated.
+- Onboarding completes and redirects to `/app/dashboard`.
+- Team invite accept flow uses the invited email and cannot join the wrong org.
 
-## Billing (Stripe test mode locally; live mode in staging)
+## Billing And Entitlements
 
-- Start checkout from Settings → Billing; complete with a test card (`4242`… where supported).
-- Confirm plan and credits update in the UI after webhook sync (may take a refresh).
-- Open the customer portal (manage subscription / payment method) and return to the app without broken state.
-- Optional: purchase or verify a credit pack if that path is enabled for the org.
+- Standard Stripe checkout works for Solo, Pro, Teams, and Agency.
+- Founding Access checkout applies only inside the active founding window.
+- Founding Access grants no extra video credits and renews/enforces standard price after the founding period.
+- Stripe portal opens and returns to the app.
+- Subscription webhook resets included execution/video credits for the new billing period.
+- Duplicate/stale Stripe webhook events do not reset same-plan credits.
+- Add-on purchase works for `exec_boost_1000`, `video_pack_small`, and `video_pack_pro`.
+- Legacy Agency price IDs cannot start new checkout.
+- Legacy Agency price IDs still resolve for grandfathered webhook sync.
 
-## First agent response
+## Usage Controls
 
-- Open a recommended agent from the dashboard “Get your first win” or agent strip.
-- Send a short request; confirm streaming, then a completed assistant message.
-- Trigger an error (e.g. disconnect network mid-stream); confirm the inline error is readable and “Retry” behaves.
-- Optional: trigger a SENTINEL hold (sensitive or underspecified request); confirm hold copy and “Request review” path.
+- Execution credit burn reserves/commits/releases correctly.
+- Video credit reserve/commit/release works for success, provider failure, and user-facing retry.
+- Usage pressure warning appears at the warning band.
+- Usage pressure high state appears at the high band.
+- Usage pressure critical/modal appears before exhaustion.
+- Blocked state prevents new paid work when balances or fair-use gates require it.
+- Usage pressure suggestions promote preferred pack IDs only.
 
-## LORE
+## Product Workflows
 
-- Upload or paste a small text note; confirm “queued / indexing” status and eventual “Ready”.
-- Open the LORE agent; ask a question that should cite uploaded content; confirm sources appear when indexed.
-- Delete a document; confirm it disappears from inventory and search.
+- LORE pasted text upload, search, and delete work.
+- LORE `.txt`, `.md`, `.csv`, `.pdf`, and `.docx` ingestion paths are checked if enabled in the test environment.
+- Memory write, retrieve, edit, and forget/delete work.
+- Workflow create, manual run, failure, and replay work.
+- Scheduled workflow copy appears only when Trigger.dev or inline scheduling is actually configured.
+- Integration secrets save encrypted and test actions do not expose raw tokens.
 
-## Memory Centre
+## Media
 
-- Confirm at least one memory row appears after enough agent use (or save flow if exposed).
-- Edit a field; confirm success toast and persistence after refresh.
-- Use forget/delete on a non-critical memory; confirm it is removed.
+- Cloudinary is configured before staging/production video rollout.
+- Production/staging startup rejects local media storage unless the explicit break-glass override is set.
+- Generated image URLs are Cloudinary-hosted in staging/production.
+- Generated video URLs are Cloudinary-hosted in staging/production.
+- Video reference image uploads are Cloudinary-hosted in staging/production.
+- Failed provider behaviour releases reserved credits and shows safe user copy.
 
-## Workflows (NEXUS)
+## Admin And Operations
 
-- Open the workflow builder from a featured template.
-- Save a workflow; toggle active if you use schedules — note Trigger.dev is optional per `AGENTS.md`.
-- Queue a manual run; confirm run completes or fails with a clear message and credits behaviour.
+- Admin economics page is visible to staff only.
+- Admin economics shows current-cycle burn by plan and all-time burn separately.
+- Admin economics shows current cycle gross contribution estimate and burn-to-MRR ratio.
+- Admin economics shows top 10 orgs and top 10 users by cycle burn.
+- Admin economics shows video vs execution split for the current cycle.
+- Warning badges appear at >70%, >90%, and >100% of internal burn cap.
+- Admin trace drilldown works and does not leak cross-org data to normal users.
 
-## Media (plan-limited)
+## Responsive And Legal
 
-- **Image:** complete one guided image generation from the workspace (if your plan includes it).
-- **Video:** enqueue a short Veo job (4/6/8s as supported); poll until complete or failure; confirm messaging and credit release on failure.
+- Dashboard, chat, LORE, Memory, Workflows, Integrations, Settings, and Admin pass mobile responsive checks.
+- Top navigation and sidebar do not overlap content on desktop or mobile.
+- Privacy, Terms, Cookies, Pricing, and Changelog pages render.
+- Public pricing copy does not claim uncapped usage, rollover, or unsupported storage durability.
 
-## Mobile / responsive (Chrome devtools or real device)
+## Verification Commands
 
-- Dashboard, agent chat, Memory, LORE, workflows, settings: no clipped primary CTAs; chat composer usable.
+```bash
+cd backend
+npm run lint
+npm test
+npm run schema:check
+npm run env:validate
 
-## Failure and credit edge cases
+cd ../frontend
+npm run lint
+npm test
+npm run build
+npm run verify-build -- --clean
 
-- Force insufficient credits (or use a capped test org); confirm upgrade / top-up messaging without raw API errors.
-- Simulate or wait for provider outage; confirm user-facing message does not expose stack traces.
+npm run test:e2e -- tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
+```
 
-## Product events (optional operator check)
+Authenticated E2E, when staging credentials exist:
 
-- In admin or DB, confirm milestones such as `first_agent_message_sent`, `first_win.completed`, `workflow.run_completed` appear for test users (no PII in notes).
+```bash
+npm run test:e2e -- tests/authenticated-regression.spec.js tests/onboarding-regression.spec.js tests/invite-membership.spec.js tests/billing-portal.spec.js tests/admin-operator.spec.js tests/security-boundaries.spec.js
+```
 
-## Playwright (CI / local)
-
-- `cd frontend && npm exec playwright test` (requires built preview; see `playwright.config.js`). Unauthenticated marketing tests should pass without Clerk; authenticated tests need `PLAYWRIGHT_*` env from `tests/helpers/auth`.
-
-Document any environment-specific skips (e.g. Clerk CAPTCHA, Stripe live keys) in your deploy notes.
+Document any environment-specific skips, such as Clerk CAPTCHA, new-device OTP, Stripe live keys, or unavailable provider quotas.

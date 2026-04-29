@@ -171,7 +171,8 @@ Stripe uses recurring Prices for plan subscriptions and one-time Prices for cred
 
 - Standard subscription prices: `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_TEAMS`, `STRIPE_PRICE_AGENCY`, plus `_QUARTERLY` and `_YEARLY` variants.
 - Founding Access subscription prices: `STRIPE_PRICE_FOUNDING_SOLO`, `STRIPE_PRICE_FOUNDING_PRO`, `STRIPE_PRICE_FOUNDING_TEAMS`, `STRIPE_PRICE_FOUNDING_AGENCY`, plus `_QUARTERLY` and `_YEARLY` variants.
-- Credit packs: `STRIPE_PRICE_EXEC_BOOST_1000`, `STRIPE_PRICE_EXEC_100`, `STRIPE_PRICE_EXEC_300`, `STRIPE_PRICE_EXEC_700`, `STRIPE_PRICE_VIDEO_PACK_SMALL`, `STRIPE_PRICE_VIDEO_PACK_PRO`, `STRIPE_PRICE_VIDEO_15`, `STRIPE_PRICE_VIDEO_30`, and `STRIPE_PRICE_VIDEO_100`.
+- Preferred credit packs for new checkout: `STRIPE_PRICE_EXEC_BOOST_1000`, `STRIPE_PRICE_VIDEO_PACK_SMALL`, and `STRIPE_PRICE_VIDEO_PACK_PRO`.
+- Legacy credit-pack Price IDs (`STRIPE_PRICE_EXEC_100`, `STRIPE_PRICE_EXEC_300`, `STRIPE_PRICE_EXEC_700`, `STRIPE_PRICE_VIDEO_15`, `STRIPE_PRICE_VIDEO_30`, `STRIPE_PRICE_VIDEO_100`) may remain configured for historical webhook compatibility, but should not be promoted to new users.
 - Seat add-on: `STRIPE_PRICE_SEAT_ADDON` for Teams extra seats.
 - Legacy Agency prices may be mapped through `STRIPE_PRICE_AGENCY_LEGACY*` for webhook grandfathering only; they must not be used for new checkout.
 
@@ -187,6 +188,22 @@ The bundled pgvector database listens on `localhost:5433`.
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5433/prymal
+```
+
+Docker init scripts only run when the Postgres volume is first created. If a local database is stale and you see missing table or column errors, reset it from the repo root:
+
+```bash
+docker compose down -v
+docker compose up -d prymal-db
+```
+
+Then apply/verify schema from the backend:
+
+```bash
+cd backend
+npm run db:migrate
+npm run schema:check
+npm run db:verify-local
 ```
 
 ### 2. Backend

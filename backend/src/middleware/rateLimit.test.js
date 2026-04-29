@@ -53,7 +53,7 @@ function buildPlanAwareApp({ plan = 'free', middleware }) {
   return app;
 }
 
-test('planAwareRateLimit allows unlimited requests for agency plan', async () => {
+test('planAwareRateLimit skips the route cap when agency plan config is null', async () => {
   const app = buildPlanAwareApp({
     plan: 'agency',
     middleware: planAwareRateLimit({

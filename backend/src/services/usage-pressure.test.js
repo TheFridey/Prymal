@@ -48,12 +48,14 @@ test('getUpgradeSuggestion solo suggests pro and execution add-on for execution-
   const s = getUpgradeSuggestion('solo', 'execution');
   assert.equal(s.planUpgradeSuggested, 'pro');
   assert.equal(s.addOnSuggested?.creditType, 'execution');
+  assert.equal(s.addOnSuggested?.packId, 'exec_boost_1000');
 });
 
 test('getUpgradeSuggestion pro suggests teams and video-heavy add-on', () => {
   const s = getUpgradeSuggestion('pro', 'video');
   assert.equal(s.planUpgradeSuggested, 'teams');
   assert.equal(s.addOnSuggested?.creditType, 'video');
+  assert.equal(s.addOnSuggested?.packId, 'video_pack_pro');
 });
 
 test('getUpgradeSuggestion agency only suggests add-ons', () => {
@@ -65,4 +67,12 @@ test('getUpgradeSuggestion agency only suggests add-ons', () => {
 test('getUpgradeSuggestion free points at solo tier', () => {
   const s = getUpgradeSuggestion('free', 'mixed');
   assert.equal(s.planUpgradeSuggested, 'solo');
+  assert.equal(s.addOnSuggested?.packId, 'video_pack_small');
+});
+
+test('all paid plan pressure suggestions promote preferred pack IDs', () => {
+  for (const plan of ['solo', 'pro', 'teams', 'agency']) {
+    assert.equal(getUpgradeSuggestion(plan, 'execution').addOnSuggested?.packId, 'exec_boost_1000');
+    assert.match(getUpgradeSuggestion(plan, 'video').addOnSuggested?.packId ?? '', /^video_pack_(small|pro)$/);
+  }
 });

@@ -70,8 +70,8 @@ export function WorkspaceCreditAlerts({ viewer }) {
     packHint?.packId && packHint?.creditType
       ? { creditType: packHint.creditType, packId: packHint.packId }
       : criticalTarget === 'video' || (criticalTarget === 'both' && videoPercent >= executionPercent)
-        ? { creditType: 'video', packId: 'video_30' }
-        : { creditType: 'execution', packId: 'exec_300' };
+        ? { creditType: 'video', packId: 'video_pack_small' }
+        : { creditType: 'execution', packId: 'exec_boost_1000' };
 
   const thresholdCycleKey = `${billingQuery.data?.resetsAt ?? 'pending'}:${criticalTarget ?? 'none'}:${monetisation?.pressureLevel ?? 'none'}`;
   const [dismissedKey, setDismissedKey] = useState('');

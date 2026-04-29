@@ -196,8 +196,8 @@ export function BillingSettingsTab({
   const executionBlocked = executionCredits?.threshold?.surface === 'blocked';
   const videoBlocked = videoCredits?.threshold?.surface === 'blocked';
   const packGroups = useMemo(() => ({
-    execution: creditPacks.filter((pack) => pack.creditType === 'execution'),
-    video: creditPacks.filter((pack) => pack.creditType === 'video'),
+    execution: creditPacks.filter((pack) => pack.creditType === 'execution' && !pack.legacy),
+    video: creditPacks.filter((pack) => pack.creditType === 'video' && !pack.legacy),
   }), [creditPacks]);
   const usageElevated =
     showExecutionWarning || showVideoWarning || executionPercent >= 70 || videoPercent >= 70;
@@ -311,7 +311,7 @@ export function BillingSettingsTab({
               onClick={() =>
                 creditPackCheckoutMutation.mutate(
                   videoPercent >= executionPercent && videoPercent >= 70
-                    ? { creditType: 'video', packId: 'video_30' }
+                    ? { creditType: 'video', packId: 'video_pack_small' }
                     : { creditType: 'execution', packId: 'exec_boost_1000' },
                 )
               }

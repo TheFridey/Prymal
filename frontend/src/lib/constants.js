@@ -1073,7 +1073,7 @@ export const PLAN_LIBRARY = [
     credits: 10000,
     seats: 25,
     description:
-      'Client-scale workspace control — higher concurrency, priority execution, orchestration across multiple client workstreams and API access. Extend with usage packs when delivery volume spikes (not a promise of unlimited compute).',
+      'Client-scale workspace control — higher concurrency, priority execution, orchestration across multiple client workstreams and API access. Extend with usage packs when delivery volume spikes while plan caps remain enforced.',
     features: [
       '10,000 monthly execution credits',
       '25 monthly AI video credits · 25 seats',
@@ -1112,6 +1112,16 @@ export const PLAN_ENTITLEMENTS = {
     concurrencyVideo: 5,
   },
 };
+
+/**
+ * Public pack display facts — keep aligned with backend `CREDIT_PACKS`.
+ * Backend remains authoritative for checkout and grants; legacy packs are intentionally not listed here.
+ */
+export const PREFERRED_CREDIT_PACKS_PUBLIC = [
+  { id: 'exec_boost_1000', creditType: 'execution', label: 'Execution Boost', credits: 1000, priceGbp: 15 },
+  { id: 'video_pack_small', creditType: 'video', label: 'Video Pack Small', credits: 10, priceGbp: 20 },
+  { id: 'video_pack_pro', creditType: 'video', label: 'Video Pack Pro', credits: 30, priceGbp: 50 },
+];
 
 const PLAN_UPGRADE_SEQUENCE = ['free', 'solo', 'pro', 'teams', 'agency'];
 

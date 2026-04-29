@@ -25,7 +25,16 @@ test('enrichAdminEconomicsDashboard aggregates ledger splits and burn alerts', a
         return { rows: [{ execution_gbp: 5, video_gbp: 3, total_gbp: 8 }] };
       }
       if (executeCalls === 2) {
-        return { rows: [{ org_id: 'o1', burn: 4 }] };
+        return { rows: [{ execution_gbp: 7, video_gbp: 4, total_gbp: 11 }] };
+      }
+      if (executeCalls === 3) {
+        return { rows: [{ plan_key: 'solo', burn: 8 }] };
+      }
+      if (executeCalls === 4) {
+        return { rows: [{ plan_key: 'solo', burn: 11 }] };
+      }
+      if (executeCalls === 5) {
+        return { rows: [{ org_id: 'o1', plan_key: 'solo', burn: 6 }] };
       }
       return { rows: [{ user_id: 'user_1', email: 'a@b.com', burn: 2 }] };
     },
@@ -40,5 +49,9 @@ test('enrichAdminEconomicsDashboard aggregates ledger splits and burn alerts', a
 
   assert.equal(out.ledger.executionCostGbp, 5);
   assert.equal(out.ledger.videoCostGbp, 3);
+  assert.equal(out.ledger.scope, 'current_cycle');
+  assert.equal(out.ledger.allTime.totalLedgerGbp, 11);
+  assert.equal(out.ledger.burnByPlan.solo, 8);
+  assert.equal(out.topWorkspaces[0].burnCapStatus, 'amber');
   assert.ok(out.alerts.some((a) => a.code === 'WORKSPACES_GT_95_PCT_INTERNAL_CAP'));
 });

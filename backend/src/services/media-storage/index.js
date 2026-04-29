@@ -169,18 +169,16 @@ export function validateMediaStorageConfiguration(env = process.env) {
   if (
     isLiveLikeMediaEnvironment(env)
     && config.driver === MEDIA_STORAGE_DRIVERS.local
-    && config.videoGenerationConfigured
     && !config.localOverrideAllowed
   ) {
     errors.push(
-      'Local media storage is not allowed in staging/production when video generation is enabled. Configure Cloudinary or set ALLOW_LOCAL_MEDIA_STORAGE_IN_PRODUCTION=true explicitly.',
+      'Local media storage is not allowed in staging/production. Configure Cloudinary or set ALLOW_LOCAL_MEDIA_STORAGE_IN_PRODUCTION=true explicitly.',
     );
   }
 
   if (
     isLiveLikeMediaEnvironment(env)
     && config.driver === MEDIA_STORAGE_DRIVERS.local
-    && config.videoGenerationConfigured
     && config.localOverrideAllowed
   ) {
     warnings.push(

@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
 import { validateMediaStorageConfiguration } from '../src/services/media-storage/index.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirname, '..', '..');
+
+dotenv.config({ path: path.join(repoRoot, 'backend', '.env'), override: false });
+dotenv.config({ path: path.join(repoRoot, 'frontend', '.env'), override: false });
 
 const args = process.argv.slice(2);
 const mode = getArgValue('--mode') ?? process.env.NODE_ENV ?? 'development';
@@ -81,14 +90,8 @@ function validateBackendEnv(currentMode) {
       'STRIPE_PRICE_FOUNDING_AGENCY_QUARTERLY',
       'STRIPE_PRICE_FOUNDING_AGENCY_YEARLY',
       'STRIPE_PRICE_EXEC_BOOST_1000',
-      'STRIPE_PRICE_EXEC_100',
-      'STRIPE_PRICE_EXEC_300',
-      'STRIPE_PRICE_EXEC_700',
       'STRIPE_PRICE_VIDEO_PACK_SMALL',
       'STRIPE_PRICE_VIDEO_PACK_PRO',
-      'STRIPE_PRICE_VIDEO_15',
-      'STRIPE_PRICE_VIDEO_30',
-      'STRIPE_PRICE_VIDEO_100',
       'STRIPE_PRICE_SEAT_ADDON',
       'STRIPE_WEBHOOK_SECRET',
     ]) {

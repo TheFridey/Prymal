@@ -127,14 +127,8 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
   if (hasConfiguredStripe(env)) {
     const missingPackPrices = [
       'STRIPE_PRICE_EXEC_BOOST_1000',
-      'STRIPE_PRICE_EXEC_100',
-      'STRIPE_PRICE_EXEC_300',
-      'STRIPE_PRICE_EXEC_700',
       'STRIPE_PRICE_VIDEO_PACK_SMALL',
       'STRIPE_PRICE_VIDEO_PACK_PRO',
-      'STRIPE_PRICE_VIDEO_15',
-      'STRIPE_PRICE_VIDEO_30',
-      'STRIPE_PRICE_VIDEO_100',
     ].filter((name) => !env[name]?.trim() || isPlaceholderEnvValue(env[name]));
 
     if (missingPackPrices.length > 0) {

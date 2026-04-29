@@ -8,7 +8,7 @@ import {
   offerConfigs,
   subscriptions,
 } from '../db/schema.js';
-import { CREDIT_TYPES, getBillingPlan } from './billing-catalog.js';
+import { CREDIT_TYPES } from './billing-catalog.js';
 import { recordProductEvent } from './telemetry.js';
 
 export const FOUNDING_ACCESS_OFFER_KEY = 'FOUNDING_ACCESS';

@@ -4,6 +4,7 @@
 
 import { sql } from 'drizzle-orm';
 import { getMonthlyInternalBurnCapGbp } from './billing-catalog.js';
+import { getBillingPeriodWindow } from './billing-periods.js';
 
 const PLAN_ORDER = ['free', 'solo', 'pro', 'teams', 'agency'];
 
@@ -19,6 +20,11 @@ export async function enrichAdminEconomicsDashboard(db, params) {
   } = params;
 
   const subscriptionRows = await db.query.subscriptions.findMany();
+  const billingPeriodSources = subscriptionRows.reduce((acc, subscription) => {
+    const window = getBillingPeriodWindow(subscription);
+    acc[window.source] = (acc[window.source] ?? 0) + 1;
+    return acc;
+  }, {});
 
   /** @type {{ planKey: string, totalUsers: number, mrrGbp: number, totalBurnGbp: number; avgBurnPerUser: number|null; avgHeadroomToCapGbp: number|null; pctUsersOver70PctCap: number|null; pctUsersOver90PctCap: number|null; avgPctOfCap: number|null; }[]} */
   const perPlanEconomics = [];
@@ -103,51 +109,128 @@ export async function enrichAdminEconomicsDashboard(db, params) {
     });
   }
 
-  let ledgerExecutionGbp = 0;
-  let ledgerVideoGbp = 0;
-  let ledgerTotalGbp = 0;
-  /** @type {Array<{ organisationId: string; name: string; estimatedBurnGbp: number }>} */
+  let cycleExecutionGbp = 0;
+  let cycleVideoGbp = 0;
+  let cycleTotalGbp = 0;
+  let allTimeExecutionGbp = 0;
+  let allTimeVideoGbp = 0;
+  let allTimeTotalGbp = 0;
+  let cycleBurnByPlan = {};
+  let allTimeBurnByPlan = {};
+  /** @type {Array<{ organisationId: string; name: string; planKey?: string; estimatedBurnGbp: number; burnCapRatio?: number|null; burnCapStatus?: string }>} */
   let topWorkspaces = [];
   /** @type {Array<{ userId: string; email: string | null; estimatedBurnGbp: number }>} */
   let topUsers = [];
 
   try {
-    const agg = await db.execute(sql`
+    const cycleAgg = await db.execute(sql`
+      WITH scoped_events AS (
+        SELECT e.*
+        FROM usage_estimate_events e
+        LEFT JOIN subscriptions s ON s.org_id = e.organisation_id
+        WHERE e.created_at >= COALESCE(s.current_period_start, date_trunc('month', NOW()))
+          AND e.created_at < COALESCE(s.current_period_end, date_trunc('month', NOW()) + interval '1 month')
+      )
+      SELECT
+        COALESCE(SUM(estimated_gbp_cost) FILTER (WHERE action_type = 'execution'), 0)::float AS execution_gbp,
+        COALESCE(SUM(estimated_gbp_cost) FILTER (WHERE action_type = 'video'), 0)::float AS video_gbp,
+        COALESCE(SUM(estimated_gbp_cost), 0)::float AS total_gbp
+      FROM scoped_events
+    `);
+    const c0 = (cycleAgg.rows ?? cycleAgg)?.[0];
+    if (c0) {
+      cycleExecutionGbp = Number(c0.execution_gbp ?? 0) || 0;
+      cycleVideoGbp = Number(c0.video_gbp ?? 0) || 0;
+      cycleTotalGbp = Number(c0.total_gbp ?? 0) || 0;
+    }
+
+    const allTimeAgg = await db.execute(sql`
       SELECT
         COALESCE(SUM(estimated_gbp_cost) FILTER (WHERE action_type = 'execution'), 0)::float AS execution_gbp,
         COALESCE(SUM(estimated_gbp_cost) FILTER (WHERE action_type = 'video'), 0)::float AS video_gbp,
         COALESCE(SUM(estimated_gbp_cost), 0)::float AS total_gbp
       FROM usage_estimate_events
     `);
-    const a0 = (agg.rows ?? agg)?.[0];
+    const a0 = (allTimeAgg.rows ?? allTimeAgg)?.[0];
     if (a0) {
-      ledgerExecutionGbp = Number(a0.execution_gbp ?? 0) || 0;
-      ledgerVideoGbp = Number(a0.video_gbp ?? 0) || 0;
-      ledgerTotalGbp = Number(a0.total_gbp ?? 0) || 0;
+      allTimeExecutionGbp = Number(a0.execution_gbp ?? 0) || 0;
+      allTimeVideoGbp = Number(a0.video_gbp ?? 0) || 0;
+      allTimeTotalGbp = Number(a0.total_gbp ?? 0) || 0;
     }
 
     const orgMap = new Map(
       (await db.query.organisations.findMany()).map((o) => [o.id, o.name ?? o.slug ?? o.id]),
     );
 
-    const ws = await db.execute(sql`
-      SELECT organisation_id AS org_id, SUM(estimated_gbp_cost)::float AS burn
+    const planCycle = await db.execute(sql`
+      WITH scoped_events AS (
+        SELECT e.*, COALESCE(s.plan, e.plan_key) AS resolved_plan
+        FROM usage_estimate_events e
+        LEFT JOIN subscriptions s ON s.org_id = e.organisation_id
+        WHERE e.created_at >= COALESCE(s.current_period_start, date_trunc('month', NOW()))
+          AND e.created_at < COALESCE(s.current_period_end, date_trunc('month', NOW()) + interval '1 month')
+      )
+      SELECT resolved_plan AS plan_key, SUM(estimated_gbp_cost)::float AS burn
+      FROM scoped_events
+      GROUP BY resolved_plan
+    `);
+    cycleBurnByPlan = Object.fromEntries(
+      (planCycle.rows ?? planCycle).map((r) => [String(r.plan_key ?? 'free'), Number(r.burn ?? 0) || 0]),
+    );
+
+    const planAllTime = await db.execute(sql`
+      SELECT plan_key, SUM(estimated_gbp_cost)::float AS burn
       FROM usage_estimate_events
-      GROUP BY organisation_id
+      GROUP BY plan_key
+    `);
+    allTimeBurnByPlan = Object.fromEntries(
+      (planAllTime.rows ?? planAllTime).map((r) => [String(r.plan_key ?? 'free'), Number(r.burn ?? 0) || 0]),
+    );
+
+    const ws = await db.execute(sql`
+      SELECT
+        e.organisation_id AS org_id,
+        COALESCE(s.plan, MAX(e.plan_key)) AS plan_key,
+        SUM(e.estimated_gbp_cost)::float AS burn
+      FROM usage_estimate_events e
+      LEFT JOIN subscriptions s ON s.org_id = e.organisation_id
+      WHERE e.created_at >= COALESCE(s.current_period_start, date_trunc('month', NOW()))
+        AND e.created_at < COALESCE(s.current_period_end, date_trunc('month', NOW()) + interval '1 month')
+      GROUP BY e.organisation_id, s.plan
       ORDER BY burn DESC NULLS LAST
       LIMIT 10
     `);
     topWorkspaces = (ws.rows ?? ws).map((r) => ({
       organisationId: r.org_id,
       name: orgMap.get(r.org_id) ?? String(r.org_id),
+      planKey: r.plan_key ?? null,
       estimatedBurnGbp: Number(r.burn ?? 0) || 0,
-    }));
+    })).map((row) => {
+      const cap = getMonthlyInternalBurnCapGbp(row.planKey);
+      const ratio = cap > 0 ? row.estimatedBurnGbp / cap : null;
+      return {
+        ...row,
+        burnCapRatio: ratio,
+        burnCapStatus: ratio == null
+          ? 'unknown'
+          : ratio >= 1
+            ? 'critical'
+            : ratio >= 0.9
+              ? 'red'
+              : ratio >= 0.7
+                ? 'amber'
+                : 'normal',
+      };
+    });
 
     const tu = await db.execute(sql`
       SELECT e.user_id AS user_id, u.email AS email, SUM(e.estimated_gbp_cost)::float AS burn
       FROM usage_estimate_events e
+      LEFT JOIN subscriptions s ON s.org_id = e.organisation_id
       LEFT JOIN users u ON u.id = e.user_id
       WHERE e.user_id IS NOT NULL
+        AND e.created_at >= COALESCE(s.current_period_start, date_trunc('month', NOW()))
+        AND e.created_at < COALESCE(s.current_period_end, date_trunc('month', NOW()) + interval '1 month')
       GROUP BY e.user_id, u.email
       ORDER BY burn DESC NULLS LAST
       LIMIT 10
@@ -187,11 +270,20 @@ export async function enrichAdminEconomicsDashboard(db, params) {
       estimatedGrossContributionGbp: grossContributionGbp,
       approxHeadroomToInternalCapGbp,
       burnToMrrRatio,
+      billingPeriodSources,
     },
     ledger: {
-      executionCostGbp: ledgerExecutionGbp,
-      videoCostGbp: ledgerVideoGbp,
-      totalLedgerGbp: ledgerTotalGbp,
+      scope: 'current_cycle',
+      executionCostGbp: cycleExecutionGbp,
+      videoCostGbp: cycleVideoGbp,
+      totalLedgerGbp: cycleTotalGbp,
+      burnByPlan: cycleBurnByPlan,
+      allTime: {
+        executionCostGbp: allTimeExecutionGbp,
+        videoCostGbp: allTimeVideoGbp,
+        totalLedgerGbp: allTimeTotalGbp,
+        burnByPlan: allTimeBurnByPlan,
+      },
     },
     perPlan: perPlanEconomics,
     topWorkspaces,

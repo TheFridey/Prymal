@@ -360,8 +360,14 @@ export function RevenueTab({ query }) {
             : []),
           ...(ec?.ledger
             ? [
-                { label: 'Ledger: execution £', value: `£${formatNumber(Math.round(ec.ledger.executionCostGbp ?? 0))}` },
-                { label: 'Ledger: video £', value: `£${formatNumber(Math.round(ec.ledger.videoCostGbp ?? 0))}` },
+                { label: 'Cycle execution burn', value: `£${formatNumber(Math.round(ec.ledger.executionCostGbp ?? 0))}` },
+                { label: 'Cycle video burn', value: `£${formatNumber(Math.round(ec.ledger.videoCostGbp ?? 0))}` },
+                { label: 'All-time ledger burn', value: `£${formatNumber(Math.round(ec.ledger.allTime?.totalLedgerGbp ?? 0))}` },
+              ]
+            : []),
+          ...(ec?.revenueMix
+            ? [
+                { label: 'Add-on revenue', value: `£${formatNumber(Math.round(ec.revenueMix.addOnRevenueGbp ?? 0))}` },
               ]
             : []),
         ].map((card) => (
@@ -426,7 +432,7 @@ export function RevenueTab({ query }) {
 
       {ec?.topUsers?.length ? (
         <div className="staff-admin__panel">
-          <div className="staff-admin__panel-header">Highest estimated cost users (ledger)</div>
+          <div className="staff-admin__panel-header">Top 10 users by cycle burn</div>
           <table className="staff-admin__table">
             <thead>
               <tr>
@@ -456,12 +462,13 @@ export function RevenueTab({ query }) {
 
       {ec?.topWorkspaces?.length ? (
         <div className="staff-admin__panel">
-          <div className="staff-admin__panel-header">Highest cost workspaces (ledger)</div>
+          <div className="staff-admin__panel-header">Top 10 workspaces by cycle burn</div>
           <table className="staff-admin__table">
             <thead>
               <tr>
                 <th>Workspace</th>
-                <th>Est. burn £</th>
+                <th>Cycle burn £</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -469,6 +476,7 @@ export function RevenueTab({ query }) {
                 <tr key={w.organisationId}>
                   <td>{w.name}</td>
                   <td>£{formatNumber(Math.round(w.estimatedBurnGbp ?? 0))}</td>
+                  <td>{w.burnCapStatus ?? 'normal'}</td>
                 </tr>
               ))}
             </tbody>

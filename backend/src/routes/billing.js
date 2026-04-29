@@ -98,7 +98,8 @@ const FOUNDING_PRICE_IDS = {
 const checkoutSchema = z.object({
   plan: z.enum(['solo', 'pro', 'teams', 'agency']),
   interval: z.enum(['monthly', 'quarterly', 'yearly']).optional().default('monthly'),
-});
+  requestedPriceId: z.string().trim().min(1).max(120).optional(),
+}).strict();
 
 const creditPackCheckoutSchema = z.object({
   creditType: z.enum(['execution', 'video']),
@@ -127,7 +128,7 @@ router.post('/checkout', requireOrg, requireRole('owner', 'admin'), async (conte
     return context.json({ error: 'Invalid checkout payload.', details: parsed.error.flatten() }, 400);
   }
 
-  const { plan, interval } = parsed.data;
+  const { plan, interval, requestedPriceId } = parsed.data;
   const priceSelection = await selectCheckoutPrice({ orgId: org.orgId, plan, interval });
   const priceId = priceSelection.priceId;
 
@@ -146,6 +147,20 @@ router.post('/checkout', requireOrg, requireRole('owner', 'admin'), async (conte
     return context.json(
       { error: 'This subscription price is not available for new signups.', code: 'LEGACY_AGENCY_PRICE_FORBIDDEN' },
       403,
+    );
+  }
+
+  const requestedPriceValidation = validateRequestedCheckoutPrice({
+    requestedPriceId,
+    selectedPriceId: priceId,
+  });
+  if (!requestedPriceValidation.ok) {
+    return context.json(
+      {
+        error: requestedPriceValidation.error,
+        code: requestedPriceValidation.code,
+      },
+      requestedPriceValidation.status,
     );
   }
 
@@ -876,7 +891,7 @@ async function runFoundingStandardPriceEnforcement(orgId) {
   }
 }
 
-function planFromPriceId(priceId) {
+export function planFromPriceId(priceId) {
   for (const [plan, intervals] of Object.entries(PRICE_IDS)) {
     const intervalEntry = Object.entries(intervals).find(([, value]) => value === priceId);
     if (intervalEntry) {
@@ -926,6 +941,32 @@ export function resolveCheckoutPriceSelection({ standardPriceId, founderPriceId,
     offerApplied: false,
     offerUnavailableReason: eligibility.eligible ? 'founder_price_not_configured' : eligibility.reason,
   };
+}
+
+export function validateRequestedCheckoutPrice({ requestedPriceId, selectedPriceId }) {
+  if (!requestedPriceId) {
+    return { ok: true };
+  }
+
+  if (isForbiddenNewSubscriptionAgencyPriceId(requestedPriceId)) {
+    return {
+      ok: false,
+      status: 403,
+      code: 'LEGACY_AGENCY_PRICE_FORBIDDEN',
+      error: 'This subscription price is not available for new signups.',
+    };
+  }
+
+  if (requestedPriceId !== selectedPriceId) {
+    return {
+      ok: false,
+      status: 400,
+      code: 'CHECKOUT_PRICE_MISMATCH',
+      error: 'Requested Stripe price does not match the server-side billing catalog.',
+    };
+  }
+
+  return { ok: true };
 }
 
 function buildFoundingAccessSubscriptionMetadata() {

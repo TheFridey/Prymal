@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { findAgentByInvocation, getAgentMeta, stripAgentInvocationPrefix } from './constants';
+import {
+  PREFERRED_CREDIT_PACKS_PUBLIC,
+  findAgentByInvocation,
+  getAgentMeta,
+  stripAgentInvocationPrefix,
+} from './constants';
 
 describe('findAgentByInvocation', () => {
   test('does not mistake plain words like "message" for agent names', () => {
@@ -22,5 +27,16 @@ describe('stripAgentInvocationPrefix', () => {
     expect(stripAgentInvocationPrefix('hey sage, help me prioritise this week', sage)).toBe(
       'help me prioritise this week',
     );
+  });
+});
+
+describe('public preferred credit packs', () => {
+  test('lists only current preferred checkout pack IDs', () => {
+    expect(PREFERRED_CREDIT_PACKS_PUBLIC.map((pack) => pack.id)).toEqual([
+      'exec_boost_1000',
+      'video_pack_small',
+      'video_pack_pro',
+    ]);
+    expect(PREFERRED_CREDIT_PACKS_PUBLIC.map((pack) => pack.id).join(' ')).not.toMatch(/exec_100|exec_300|exec_700|video_15|video_30|video_100/);
   });
 });

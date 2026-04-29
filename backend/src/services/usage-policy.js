@@ -163,7 +163,7 @@ export function evaluateVideoUsageGate({
   planId,
   subscription,
   estimatedCostUsd = 0,
-  now = new Date(),
+  now: _now = new Date(),
 } = {}) {
   const plan = getBillingPlan(planId);
   const fair = plan.fairUse ?? {};

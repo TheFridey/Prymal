@@ -31,7 +31,7 @@ export function VideoPackPaywallModal({ open, onClose }) {
   const videoCredits = billingQuery.data?.videoCredits ?? billingQuery.data?.credits?.video ?? null;
   const monetisation = billingQuery.data?.monetisation;
   const packSuggested = monetisation?.upgradeSuggestions?.video?.addOnSuggested;
-  const packFallback = { creditType: 'video', packId: 'video_30', label: 'Video Pack — refill AI renders' };
+  const packFallback = { creditType: 'video', packId: 'video_pack_small', label: 'Video Pack Small — refill AI renders' };
 
   const packTarget = packSuggested?.packId ? packSuggested : packFallback;
 

@@ -146,12 +146,12 @@ export function getUpgradeSuggestion(planKey, usageType = 'mixed') {
       addOnSuggestion = wantsVideoHeavy
         ? {
             creditType: 'video',
-            packId: 'video_30',
+            packId: 'video_pack_small',
             label: 'Video Pack — add AI video renders',
           }
         : {
             creditType: 'execution',
-            packId: 'exec_300',
+            packId: 'exec_boost_1000',
             label: 'Execution Boost — add ~300 runs',
           };
       break;
@@ -159,12 +159,12 @@ export function getUpgradeSuggestion(planKey, usageType = 'mixed') {
       addOnSuggestion = wantsVideoHeavy
         ? {
             creditType: 'video',
-            packId: 'video_100',
+            packId: 'video_pack_pro',
             label: 'Video Pack — volume',
           }
         : {
             creditType: 'execution',
-            packId: 'exec_700',
+            packId: 'exec_boost_1000',
             label: 'Execution Boost (~700)',
           };
       break;
@@ -172,7 +172,7 @@ export function getUpgradeSuggestion(planKey, usageType = 'mixed') {
       addOnSuggestion = wantsVideoHeavy
         ? {
             creditType: 'video',
-            packId: 'video_100',
+            packId: 'video_pack_pro',
             label: 'Video Pack for spikes',
           }
         : {
@@ -184,7 +184,7 @@ export function getUpgradeSuggestion(planKey, usageType = 'mixed') {
     case 'agency':
       addOnSuggestion = {
         creditType: wantsVideoHeavy ? 'video' : 'execution',
-        packId: wantsVideoHeavy ? 'video_100' : 'exec_boost_1000',
+        packId: wantsVideoHeavy ? 'video_pack_pro' : 'exec_boost_1000',
         label: wantsVideoHeavy ? 'Video Pack add-on' : 'Execution pack add-on',
       };
       break;

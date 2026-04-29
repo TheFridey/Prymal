@@ -8,8 +8,16 @@ setupTestEnv();
 // constructEvent() performs local crypto — no real Stripe network calls are made.
 process.env.STRIPE_SECRET_KEY = 'sk_test_dummy_billing_test_key_000000000000';
 process.env.STRIPE_WEBHOOK_SECRET = 'whsec_dummysecretfortests';
+process.env.STRIPE_PRICE_AGENCY = 'price_standard_agency';
+process.env.STRIPE_PRICE_AGENCY_LEGACY = 'price_legacy_agency_xyz';
 
-const { default: billingRouter, resolveCheckoutPriceSelection } = await import('./billing.js');
+const {
+  default: billingRouter,
+  planFromPriceId,
+  resolveCheckoutPriceSelection,
+  validateRequestedCheckoutPrice,
+} = await import('./billing.js');
+const { isForbiddenNewSubscriptionAgencyPriceId } = await import('../services/billing-stripe-guards.js');
 
 // ── Webhook — invalid signature ────────────────────────────────────────────────
 
@@ -92,4 +100,53 @@ test('checkout uses Founding Access price only when eligibility is active', () =
       offerUnavailableReason: 'offer_inactive',
     },
   );
+});
+
+test('checkout validation rejects direct legacy Agency price attempts', () => {
+  assert.deepEqual(
+    validateRequestedCheckoutPrice({
+      requestedPriceId: 'price_legacy_agency_xyz',
+      selectedPriceId: 'price_standard_agency',
+    }),
+    {
+      ok: false,
+      status: 403,
+      code: 'LEGACY_AGENCY_PRICE_FORBIDDEN',
+      error: 'This subscription price is not available for new signups.',
+    },
+  );
+});
+
+test('checkout validation accepts the current server-selected Agency price', () => {
+  assert.deepEqual(
+    validateRequestedCheckoutPrice({
+      requestedPriceId: 'price_standard_agency',
+      selectedPriceId: 'price_standard_agency',
+    }),
+    { ok: true },
+  );
+});
+
+test('checkout validation rejects non-catalog price IDs', () => {
+  assert.deepEqual(
+    validateRequestedCheckoutPrice({
+      requestedPriceId: 'price_client_supplied',
+      selectedPriceId: 'price_standard_agency',
+    }),
+    {
+      ok: false,
+      status: 400,
+      code: 'CHECKOUT_PRICE_MISMATCH',
+      error: 'Requested Stripe price does not match the server-side billing catalog.',
+    },
+  );
+});
+
+test('webhook price resolution keeps legacy Agency mapping without checkout exposure', () => {
+  assert.deepEqual(planFromPriceId('price_legacy_agency_xyz'), {
+    plan: 'agency',
+    interval: 'monthly',
+    legacyGrandfatheredAgencyPrice: true,
+  });
+  assert.equal(isForbiddenNewSubscriptionAgencyPriceId('price_legacy_agency_xyz'), true);
 });

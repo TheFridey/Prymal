@@ -190,3 +190,12 @@ test('catalog serialization exposes packs, video modes, and fair usage summary',
   assert.equal(catalog.videoSpec.model, 'veo-3.1-lite-generate-preview');
   assert.match(catalog.fairUsageSummary, /fair-use/i);
 });
+
+test('catalog marks preferred packs separately from legacy pack compatibility', () => {
+  const catalog = billingCatalog.serializeBillingCatalog();
+  const preferredIds = catalog.packs.filter((pack) => pack.preferred).map((pack) => pack.id).sort();
+  const legacyIds = catalog.packs.filter((pack) => pack.legacy).map((pack) => pack.id).sort();
+
+  assert.deepEqual(preferredIds, ['exec_boost_1000', 'video_pack_pro', 'video_pack_small']);
+  assert.deepEqual(legacyIds, ['exec_100', 'exec_300', 'exec_700', 'video_100', 'video_15', 'video_30']);
+});

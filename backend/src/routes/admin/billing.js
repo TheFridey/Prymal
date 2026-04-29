@@ -36,6 +36,7 @@ function getStripe() {
 router.get('/revenue', requireStaff, requireStaffPermission('admin.billing.read'), async (context) => {
   const orgRows = await db.query.organisations.findMany({ orderBy: [desc(organisations.createdAt)] });
   const subscriptionRows = await db.query.subscriptions.findMany();
+  const creditPurchaseRows = await db.query.creditPurchases.findMany();
 
   const planCounts = {};
   for (const org of orgRows) {
@@ -73,6 +74,14 @@ router.get('/revenue', requireStaff, requireStaffPermission('admin.billing.read'
     approxHeadroomToInternalCapGbp,
     estimatedMrrTotalGbp,
   });
+  const addOnRevenueGbp = creditPurchaseRows
+    .filter((purchase) => purchase.status === 'completed')
+    .reduce((sum, purchase) => sum + (Number(purchase.amountGbp ?? 0) || 0), 0);
+  economicsDashboard.revenueMix = {
+    planMrrGbp: estimatedMrrTotalGbp,
+    addOnRevenueGbp,
+    addOnToPlanRevenueRatio: estimatedMrrTotalGbp > 0 ? addOnRevenueGbp / estimatedMrrTotalGbp : null,
+  };
 
   const stripe = getStripe();
   let stripeConfigured = false;

@@ -5,6 +5,7 @@ import {
   BILLING_INTERVALS,
   PLAN_ENTITLEMENTS,
   PLAN_LIBRARY,
+  PREFERRED_CREDIT_PACKS_PUBLIC,
   getFoundingPlanPrice,
   getPlanPrice,
 } from '../../lib/constants';
@@ -50,7 +51,7 @@ const FAQ_ITEMS = [
     a: 'Prymal includes generous monthly usage allowances. Heavy media generation, deep memory retrieval, bulk workflows, and premium model usage are subject to fair-use controls and may require usage packs.',
   },
   {
-    q: 'Is anything unlimited?',
+    q: 'Are there usage limits?',
     a: 'No. Every tier has clear execution and AI video allowances, plus fair-use controls for costly workloads. Usage packs refill capacity for short bursts — they do not remove limits.',
   },
 ];
@@ -197,7 +198,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               )}
               <ul className="pricing-card__list">
                 <li>
-                  {plan.credits.toLocaleString('en-GB')} execution credits / month (metered; no hidden “unlimited”)
+                  {plan.credits.toLocaleString('en-GB')} execution credits / month (metered with clear plan caps)
                 </li>
                 <li>
                   {ent.monthlyVideoCredits > 0
@@ -383,6 +384,17 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
             </Link>
             . Caps and fair-use safeguards stay in force; packs bridge spikes without weakening enforcement.
           </p>
+        </div>
+        <div className="pricing-credit-visual">
+          {PREFERRED_CREDIT_PACKS_PUBLIC.map((pack) => (
+            <div key={pack.id} className="pricing-credit-visual__block">
+              <h4>{pack.label}</h4>
+              <p>
+                +{pack.credits.toLocaleString('en-GB')}{' '}
+                {pack.creditType === 'video' ? 'AI video credits' : 'execution credits'} for £{pack.priceGbp}.
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 

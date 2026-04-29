@@ -110,7 +110,7 @@ test('duplicate subscription activation does not apply the Founding Access credi
     executionIncludedBalance: 2000,
     executionPurchasedBalance: 0,
     executionReservedBalance: 0,
-    videoIncludedBalance: 10,
+    videoIncludedBalance: 5,
     videoPurchasedBalance: 0,
     videoReservedBalance: 0,
     metadata: {},
@@ -181,6 +181,7 @@ test('duplicate subscription activation does not apply the Founding Access credi
 
     assert.equal(first.boost.applied, true);
     assert.equal(duplicate.boost.applied, false);
+    assert.equal(first.boost.videoCredits, 0);
     assert.equal(subscriptionBoostUpdates, 1);
     assert.equal(ledgerEntries, 1);
   } finally {

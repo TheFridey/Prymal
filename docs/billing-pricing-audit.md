@@ -39,14 +39,17 @@ Required Founding Access recurring prices:
 - `STRIPE_PRICE_FOUNDING_TEAMS`, `STRIPE_PRICE_FOUNDING_TEAMS_QUARTERLY`, `STRIPE_PRICE_FOUNDING_TEAMS_YEARLY`
 - `STRIPE_PRICE_FOUNDING_AGENCY`, `STRIPE_PRICE_FOUNDING_AGENCY_QUARTERLY`, `STRIPE_PRICE_FOUNDING_AGENCY_YEARLY`
 
-Required one-time pack prices:
+Preferred one-time pack prices for new checkout:
 
 - `STRIPE_PRICE_EXEC_BOOST_1000`
+- `STRIPE_PRICE_VIDEO_PACK_SMALL`
+- `STRIPE_PRICE_VIDEO_PACK_PRO`
+
+Legacy one-time pack prices, if retained for historical webhook compatibility:
+
 - `STRIPE_PRICE_EXEC_100`
 - `STRIPE_PRICE_EXEC_300`
 - `STRIPE_PRICE_EXEC_700`
-- `STRIPE_PRICE_VIDEO_PACK_SMALL`
-- `STRIPE_PRICE_VIDEO_PACK_PRO`
 - `STRIPE_PRICE_VIDEO_15`
 - `STRIPE_PRICE_VIDEO_30`
 - `STRIPE_PRICE_VIDEO_100`
@@ -87,8 +90,8 @@ Expected sync behaviour:
 
 Public copy must not imply:
 
-- unlimited AI runs
-- unlimited video generation
+- uncapped AI runs
+- uncapped video generation
 - video credits rolling over
 - usage packs bypassing fair-use or concurrency limits
 - Agency legacy prices being available for new customers

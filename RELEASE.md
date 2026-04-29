@@ -7,6 +7,9 @@ This repository currently ships from the `master` branch. CI and branch protecti
 - Pricing and entitlement docs now match the enforced billing catalog: Solo £49.99, Pro £99, Teams £179, Agency from £299, with separate execution and AI video credit balances.
 - Founding Access is documented as 20% off for the first 3 months with standard usage limits, server-side eligibility, and Stripe transition back to standard catalog prices after the founding window.
 - Stripe setup notes now cover standard subscription prices, Founding Access prices, one-time execution/video packs, Teams seat add-ons, and the billing webhook events used for entitlement sync.
+- Preferred add-on packs are now standardised around `exec_boost_1000`, `video_pack_small`, and `video_pack_pro`; older pack IDs are legacy compatibility only.
+- Admin economics now separates current-cycle ledger burn from all-time burn and highlights top cycle users/workspaces for operator review.
+- Production media storage validation now rejects local disk storage by default in staging/production.
 - Guided `/image` and `/video` builders now open modal-based brief composers instead of relying on long free-form slash commands.
 - Video generation now exposes two Veo lanes in-product: `Fast draft` (Veo 3.1 Lite) and `Cinematic` (Veo 3.1 Standard), with approximate prompt-token and credit estimates shown before submit.
 - Standard-mode video renders now support up to three reference images on 8 second jobs, while final validation, queueing, and credit burn remain server-side authoritative.
@@ -14,9 +17,9 @@ This repository currently ships from the `master` branch. CI and branch protecti
 
 ## Operational caveat
 
-- Generated video outputs and uploaded reference images currently live on backend-local storage under `backend/storage/`.
-- Keep the backend single-instance for video generation until shared object storage is added.
-- Do not market video storage as durable across deploys or horizontally scaled instances yet.
+- Generated video outputs and uploaded reference images may use backend-local storage only in development or explicit break-glass production overrides.
+- Use Cloudinary before staging/production video rollout.
+- Do not market video storage as durable unless Cloudinary/object storage is configured for that environment.
 
 ## Required CI gates
 

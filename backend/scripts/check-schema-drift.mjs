@@ -80,11 +80,16 @@ function parseSqlTables(source) {
 
 function parseDrizzleTables(source) {
   const tables = new Map();
-  const tableRegex = /pgTable\(\s*['"]([^'"]+)['"]\s*,\s*\{([\s\S]*?)^\s*\}\s*(?:,|\))/gm;
+  const tableRegex = /pgTable\(\s*['"]([^'"]+)['"]\s*,/g;
   let match;
 
   while ((match = tableRegex.exec(source))) {
-    const [, tableName, body] = match;
+    const [, tableName] = match;
+    const objectStart = source.indexOf('{', tableRegex.lastIndex);
+    if (objectStart === -1) continue;
+    const objectEnd = findMatchingBrace(source, objectStart);
+    if (objectEnd === -1) continue;
+    const body = source.slice(objectStart + 1, objectEnd);
     const columns = new Set();
     const columnRegex = /\b[a-zA-Z_$][\w$]*\s*:\s*[a-zA-Z_$][\w$]*\(\s*['"]([^'"]+)['"]/g;
     let columnMatch;
@@ -94,7 +99,45 @@ function parseDrizzleTables(source) {
     }
 
     tables.set(tableName, columns);
+    tableRegex.lastIndex = objectEnd + 1;
   }
 
   return tables;
+}
+
+function findMatchingBrace(source, start) {
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+
+  for (let i = start; i < source.length; i += 1) {
+    const ch = source[i];
+
+    if (quote) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === '\\') {
+        escaped = true;
+      } else if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'" || ch === '`') {
+      quote = ch;
+      continue;
+    }
+
+    if (ch === '{') {
+      depth += 1;
+    } else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return i;
+      }
+    }
+  }
+
+  return -1;
 }

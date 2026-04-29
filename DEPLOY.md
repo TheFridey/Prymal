@@ -124,7 +124,23 @@ psql "$DATABASE_URL" < database/migrations/2026-04-06-control-plane-runtime-hard
 psql "$DATABASE_URL" < database/migrations/2026-04-06-memory-scope-expansion.sql
 psql "$DATABASE_URL" < database/migrations/2026-04-07-workflow-webhooks.sql
 psql "$DATABASE_URL" < database/migrations/2026-04-23-billing-credit-schema.sql
-psql "$DATABASE_URL" -c "ALTER TABLE waitlist_entries ADD COLUMN IF NOT EXISTS invited_at TIMESTAMPTZ;"
+psql "$DATABASE_URL" < database/migrations/2026-04-25-moat-systems.sql
+psql "$DATABASE_URL" < database/migrations/2026-04-26-founding-access.sql
+psql "$DATABASE_URL" < database/migrations/2026-04-27-memory-architecture.sql
+psql "$DATABASE_URL" < database/migrations/2026-04-27-memory-hardening.sql
+psql "$DATABASE_URL" < database/migrations/2026-04-28-pricing-usage-controls.sql
+psql "$DATABASE_URL" < database/migrations/2026-04-29-usage-estimate-events.sql
+```
+
+For local Docker, remember that compose init scripts only run on first volume creation. If your local database has missing table or column errors after pulling schema changes, reset the local volume from the repo root:
+
+```bash
+docker compose down -v
+docker compose up -d prymal-db
+cd backend
+npm run db:migrate
+npm run schema:check
+npm run db:verify-local
 ```
 
 ### Migration safety rules
@@ -133,6 +149,7 @@ psql "$DATABASE_URL" -c "ALTER TABLE waitlist_entries ADD COLUMN IF NOT EXISTS i
 - Apply migrations with the backend scaled down to a single instance.
 - Do not run ad hoc schema edits in Railway first and “backfill the repo later”.
 - Keep `database/schema.sql` and `backend/src/db/schema.js` aligned if schema changes land.
+- Keep `database/migrations/` and `backend/drizzle/` migration coverage aligned for local and deployed migration paths.
 - If a migration touches tenant-owned tables, verify `org_id` filtering assumptions after deploy.
 
 ## Step 2: Configure Clerk
@@ -205,14 +222,14 @@ Use [docs/billing-pricing-audit.md](./docs/billing-pricing-audit.md) as the inte
    | Teams Founding | £149 | £393.36 | £1,358.88 |
    | Agency Founding | £249 | £657.36 | £2,270.88 |
 
-5. Create one-time credit pack prices:
+5. Create one-time credit pack prices. Preferred packs for new users are the Execution Boost and the two Video Pack entries; legacy pack IDs are retained only if you need webhook compatibility for historical purchases.
 
    | Pack | Price | Credits |
    |---|---:|---:|
    | Execution Boost | £15 | 1,000 execution |
-   | Execution 100 | £10 | 100 execution |
-   | Execution 300 | £25 | 300 execution |
-   | Execution 700 | £50 | 700 execution |
+   | Legacy execution 100 | £10 | 100 execution |
+   | Legacy execution 300 | £25 | 300 execution |
+   | Legacy execution 700 | £50 | 700 execution |
    | Video Pack Small | £20 | 10 AI video |
    | Video Pack Pro | £50 | 30 AI video |
    | Legacy video 15 | £5 | 15 AI video |
@@ -250,14 +267,9 @@ Use [docs/billing-pricing-audit.md](./docs/billing-pricing-audit.md) as the inte
    - `STRIPE_PRICE_FOUNDING_AGENCY_QUARTERLY`
    - `STRIPE_PRICE_FOUNDING_AGENCY_YEARLY`
    - `STRIPE_PRICE_EXEC_BOOST_1000`
-   - `STRIPE_PRICE_EXEC_100`
-   - `STRIPE_PRICE_EXEC_300`
-   - `STRIPE_PRICE_EXEC_700`
    - `STRIPE_PRICE_VIDEO_PACK_SMALL`
    - `STRIPE_PRICE_VIDEO_PACK_PRO`
-   - `STRIPE_PRICE_VIDEO_15`
-   - `STRIPE_PRICE_VIDEO_30`
-   - `STRIPE_PRICE_VIDEO_100`
+   - legacy-only if retained: `STRIPE_PRICE_EXEC_100`, `STRIPE_PRICE_EXEC_300`, `STRIPE_PRICE_EXEC_700`, `STRIPE_PRICE_VIDEO_15`, `STRIPE_PRICE_VIDEO_30`, `STRIPE_PRICE_VIDEO_100`
    - `STRIPE_PRICE_SEAT_ADDON`
 8. Configure the webhook:
    - `POST https://<backend-domain>/api/billing/webhook/stripe`

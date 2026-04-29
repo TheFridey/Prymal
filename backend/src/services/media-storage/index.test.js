@@ -39,15 +39,27 @@ test('media storage chooses Cloudinary when explicitly configured', () => {
   assert.equal(config.cloudinaryConfigured, true);
 });
 
-test('live video environments fail validation when local storage is used without override', () => {
+test('production local media storage is rejected by default', () => {
   const result = validateMediaStorageConfiguration({
     NODE_ENV: 'production',
-    GEMINI_API_KEY: 'AIza-real-key',
     MEDIA_STORAGE_DRIVER: 'local',
   });
 
   assert.equal(result.valid, false);
   assert.match(result.errors.join('\n'), /Local media storage is not allowed/i);
+});
+
+test('cloudinary mode requires cloud name, API key, and API secret', () => {
+  const result = validateMediaStorageConfiguration({
+    NODE_ENV: 'production',
+    MEDIA_STORAGE_DRIVER: 'cloudinary',
+    CLOUDINARY_CLOUD_NAME: 'demo',
+    CLOUDINARY_API_KEY: '',
+    CLOUDINARY_API_SECRET: 'secret',
+  });
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /Cloudinary media storage is enabled/i);
 });
 
 test('video job timing config respects new timeout and poll env vars', () => {

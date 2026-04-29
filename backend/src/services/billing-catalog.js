@@ -213,6 +213,7 @@ export const CREDIT_PACKS = {
       amountGbp: 15,
       credits: 1000,
       stripePriceEnvKey: 'STRIPE_PRICE_EXEC_BOOST_1000',
+      preferred: true,
     },
     exec_100: {
       id: 'exec_100',
@@ -221,6 +222,7 @@ export const CREDIT_PACKS = {
       amountGbp: 10,
       credits: 100,
       stripePriceEnvKey: 'STRIPE_PRICE_EXEC_100',
+      legacy: true,
     },
     exec_300: {
       id: 'exec_300',
@@ -229,6 +231,7 @@ export const CREDIT_PACKS = {
       amountGbp: 25,
       credits: 300,
       stripePriceEnvKey: 'STRIPE_PRICE_EXEC_300',
+      legacy: true,
     },
     exec_700: {
       id: 'exec_700',
@@ -237,6 +240,7 @@ export const CREDIT_PACKS = {
       amountGbp: 50,
       credits: 700,
       stripePriceEnvKey: 'STRIPE_PRICE_EXEC_700',
+      legacy: true,
     },
   },
   video: {
@@ -247,6 +251,7 @@ export const CREDIT_PACKS = {
       amountGbp: 20,
       credits: 10,
       stripePriceEnvKey: 'STRIPE_PRICE_VIDEO_PACK_SMALL',
+      preferred: true,
     },
     video_pack_pro: {
       id: 'video_pack_pro',
@@ -255,6 +260,7 @@ export const CREDIT_PACKS = {
       amountGbp: 50,
       credits: 30,
       stripePriceEnvKey: 'STRIPE_PRICE_VIDEO_PACK_PRO',
+      preferred: true,
     },
     video_15: {
       id: 'video_15',
@@ -263,6 +269,7 @@ export const CREDIT_PACKS = {
       amountGbp: 5,
       credits: 15,
       stripePriceEnvKey: 'STRIPE_PRICE_VIDEO_15',
+      legacy: true,
     },
     video_30: {
       id: 'video_30',
@@ -271,6 +278,7 @@ export const CREDIT_PACKS = {
       amountGbp: 10,
       credits: 30,
       stripePriceEnvKey: 'STRIPE_PRICE_VIDEO_30',
+      legacy: true,
     },
     video_100: {
       id: 'video_100',
@@ -279,6 +287,7 @@ export const CREDIT_PACKS = {
       amountGbp: 25,
       credits: 100,
       stripePriceEnvKey: 'STRIPE_PRICE_VIDEO_100',
+      legacy: true,
     },
   },
 };
@@ -682,6 +691,8 @@ export function serializeBillingCatalog() {
       label: pack.label,
       amountGbp: pack.amountGbp,
       credits: pack.credits,
+      preferred: Boolean(pack.preferred),
+      legacy: Boolean(pack.legacy),
     })),
     videoModes: Object.values(VIDEO_GENERATION_MODES).map((mode) => ({
       id: mode.id,
