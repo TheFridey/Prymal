@@ -64,6 +64,7 @@ function validateBackendEnv(currentMode) {
 
   if (hasConfigured('STRIPE_SECRET_KEY')) {
     rejectPlaceholder('STRIPE_SECRET_KEY', 'backend');
+    validateStripeSecretMode(currentMode);
     for (const key of [
       'STRIPE_PRICE_SOLO',
       'STRIPE_PRICE_SOLO_QUARTERLY',
@@ -136,6 +137,20 @@ function validateBackendEnv(currentMode) {
 
   if (['staging', 'production'].includes(currentMode) && mediaStorageResult.driver === 'cloudinary') {
     requireValue('CLOUDINARY_FOLDER', 'backend');
+  }
+}
+
+function validateStripeSecretMode(currentMode) {
+  const secret = String(process.env.STRIPE_SECRET_KEY ?? '').trim();
+  if (!secret) return;
+
+  if (currentMode === 'staging' && secret.startsWith('sk_live_')) {
+    errors.push('backend STRIPE_SECRET_KEY must use Stripe test mode for staging verification.');
+    return;
+  }
+
+  if (currentMode === 'development' && secret.startsWith('sk_live_')) {
+    warnings.push('backend STRIPE_SECRET_KEY is live mode in development; do not run checkout/webhook lifecycle tests against it.');
   }
 }
 

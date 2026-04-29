@@ -6,7 +6,6 @@ import {
   PLAN_ENTITLEMENTS,
   PLAN_LIBRARY,
   PREFERRED_CREDIT_PACKS_PUBLIC,
-  getFoundingPlanPrice,
   getPlanPrice,
 } from '../../lib/constants';
 import { shouldShowFoundingPricingUi } from './founding-access';
@@ -103,8 +102,8 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
 
       {devPricingUnavailable ? (
         <p className="pricing-dev-hint" role="status">
-          Development mode: founder prices are shown from the app catalog. Run the API (e.g. port 3001) with a connected database
-          so the live offer endpoint can confirm availability and Stripe checkout can apply founder price IDs.
+          Development mode: run the API (e.g. port 3001) with a connected database so the live offer endpoint can confirm
+          availability and Stripe checkout can apply eligible founder price IDs.
         </p>
       ) : null}
 
@@ -153,8 +152,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         {PLAN_LIBRARY.map((plan) => {
           const ent = PLAN_ENTITLEMENTS[plan.id];
           const price = getPlanPrice(plan, activeInterval.id);
-          const foundingPrice = getFoundingPlanPrice(plan, activeInterval.id);
-          const displayedPrice = foundingAccessActive ? foundingPrice : price;
+          const displayedPrice = price;
           const isPro = plan.id === 'pro';
           return (
             <article
@@ -173,21 +171,12 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               ) : null}
               <p className="pricing-card__persona">{PERSONA_LINE[plan.id]}</p>
               <div className="pricing-card__price">
-                {foundingAccessActive ? (
-                  <div className="pricing-card__price-stack">
-                    <span className="pricing-card__price-was" aria-label={`Standard rate ${price.display}`}>
-                      {price.display}
-                    </span>
-                    <span className="pricing-card__price-now">{displayedPrice.display}</span>
-                  </div>
-                ) : (
-                  displayedPrice.display
-                )}
+                {displayedPrice.display}
                 <small> / {displayedPrice.suffix}</small>
               </div>
               {foundingAccessActive ? (
                 <p className="pricing-card__period-note">
-                  Founding window pricing — standard usage limits apply; renews at list rate after the founding period
+                  Eligible founder intro pricing is confirmed in checkout; standard usage limits apply and renewal returns to list rate
                 </p>
               ) : price.hasPeriodDiscount ? (
                 <p className="pricing-card__period-note">

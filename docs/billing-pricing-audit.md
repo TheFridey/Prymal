@@ -13,15 +13,15 @@ This is the internal checklist for keeping public pricing, backend entitlements,
 
 ## Current Catalog
 
-| Plan | Monthly Price | Founding Price | Execution Credits | AI Video Credits | Seats | Execution Concurrency | Video Concurrency | Daily Video Cap |
+| Plan | Monthly Price | Founding Access | Execution Credits | AI Video Credits | Seats | Execution Concurrency | Video Concurrency | Daily Video Cap |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | Offer Access | £0 | n/a | 50 | 0 | 1 | 1 | 0 | 0 |
-| Solo | £49.99 | £39.99 | 500 | 2 | 1 | 1 | 1 | 2 |
-| Pro | £99 | £79 | 2,000 | 5 | 1 | 3 | 2 | 5 |
-| Teams | £179 | £149 | 6,000 | 15 | 5 | 5 | 4 | 8 |
-| Agency | £299 | £249 | 10,000 | 25 | 25 | 8 | 5 | 15 |
+| Solo | £49.99 | Stripe-configured intro only | 500 | 2 | 1 | 1 | 1 | 2 |
+| Pro | £99 | Stripe-configured intro only | 2,000 | 5 | 1 | 3 | 2 | 5 |
+| Teams | £179 | Stripe-configured intro only | 6,000 | 15 | 5 | 5 | 4 | 8 |
+| Agency | From £299 | Stripe-configured intro only | 10,000 | 25 | 25 | 8 | 5 | 15 |
 
-Founding Access applies discounted subscription price IDs for the first 3 months only. Standard usage limits apply during the founding period.
+Founding Access applies temporary discounted subscription price IDs during the founding window only. Standard usage limits apply during the founding period, and renewal/enforcement moves the subscription back to the standard catalog price.
 
 ## Stripe Price Audit
 

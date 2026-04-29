@@ -213,14 +213,14 @@ Use [docs/billing-pricing-audit.md](./docs/billing-pricing-audit.md) as the inte
    | Teams | £179 | £472.56 | £1,632.48 |
    | Agency | £299 | £789.36 | £2,726.88 |
 
-4. Create Founding Access recurring prices for the founding window. These are approximately 20% below list and use the same quarterly/yearly interval discounts:
+4. Create Founding Access recurring prices for the founding window. These are temporary Stripe intro prices only; standard catalog pricing must remain the renewal target after the founding window:
 
    | Plan | Monthly | Quarterly | Yearly |
    |---|---:|---:|---:|
-   | Solo Founding | £39.99 | £105.57 | £364.71 |
-   | Pro Founding | £79 | £208.56 | £720.48 |
-   | Teams Founding | £149 | £393.36 | £1,358.88 |
-   | Agency Founding | £249 | £657.36 | £2,270.88 |
+   | Solo Founding | Stripe-configured intro | Stripe-configured intro | Stripe-configured intro |
+   | Pro Founding | Stripe-configured intro | Stripe-configured intro | Stripe-configured intro |
+   | Teams Founding | Stripe-configured intro | Stripe-configured intro | Stripe-configured intro |
+   | Agency Founding | Stripe-configured intro | Stripe-configured intro | Stripe-configured intro |
 
 5. Create one-time credit pack prices. Preferred packs for new users are the Execution Boost and the two Video Pack entries; legacy pack IDs are retained only if you need webhook compatibility for historical purchases.
 

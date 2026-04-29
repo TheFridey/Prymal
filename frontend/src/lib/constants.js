@@ -1020,7 +1020,6 @@ export const PLAN_LIBRARY = [
     id: 'solo',
     name: 'Solo',
     monthlyPrice: 49.99,
-    foundingMonthlyPrice: 39.99,
     credits: 500,
     seats: 1,
     description: 'For individuals, founders, and solo operators — curated agents and light video with predictable usage.',
@@ -1035,7 +1034,6 @@ export const PLAN_LIBRARY = [
     id: 'pro',
     name: 'Pro',
     monthlyPrice: 99,
-    foundingMonthlyPrice: 79,
     credits: 2000,
     seats: 1,
     description: 'For serious operators and small businesses — higher execution allowance, richer workflows, modest video.',
@@ -1051,7 +1049,6 @@ export const PLAN_LIBRARY = [
     id: 'teams',
     name: 'Teams',
     monthlyPrice: 179,
-    foundingMonthlyPrice: 149,
     credits: 6000,
     seats: 5,
     additionalSeatPrice: 25,
@@ -1069,7 +1066,6 @@ export const PLAN_LIBRARY = [
     name: 'Agency',
     monthlyPrice: 299,
     monthlyPriceLabel: 'From £299/mo',
-    foundingMonthlyPrice: 249,
     credits: 10000,
     seats: 25,
     description:
@@ -1333,9 +1329,3 @@ export function getPlanPrice(plan, intervalId = 'monthly') {
   };
 }
 
-export function getFoundingPlanPrice(plan, intervalId = 'monthly') {
-  return getPlanPrice({
-    ...plan,
-    monthlyPrice: plan?.foundingMonthlyPrice ?? plan?.monthlyPrice ?? 0,
-  }, intervalId);
-}

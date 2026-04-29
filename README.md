@@ -153,15 +153,15 @@ Workflow trigger
 Public pricing is defined in `frontend/src/lib/constants.js`; backend enforcement is defined in `backend/src/services/billing-catalog.js`. Keep those two files aligned whenever pricing changes.
 The internal checklist for this alignment lives in [docs/billing-pricing-audit.md](./docs/billing-pricing-audit.md).
 
-| Plan | List Price | Founding Access Price | Execution Credits / Month | AI Video Credits / Month | Seats | Concurrent AI Runs | Notes |
+| Plan | List Price | Founding Access | Execution Credits / Month | AI Video Credits / Month | Seats | Concurrent AI Runs | Notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | Offer Access | £0 | n/a | 50 | 0 | 1 | 1 | Offer-gated fallback access, foundational agents only |
-| Solo | £49.99/mo | £39.99/mo for first 3 months | 500 | 2 | 1 | 1 | Curated starter tier, shallow LORE, light video |
-| Pro | £99/mo | £79/mo for first 3 months | 2,000 | 5 | 1 | 3 | Full user-facing roster, medium LORE, production-friendly concurrency |
-| Teams | £179/mo | £149/mo for first 3 months | 6,000 | 15 | 5 | 5 | Shared workspace, pooled usage, £25/mo extra seat add-on |
-| Agency | From £299/mo | £249/mo for first 3 months | 10,000 | 25 | 25 | 8 | API keys, client-scale orchestration, priority execution |
+| Solo | £49.99/mo | Time-windowed Stripe intro only | 500 | 2 | 1 | 1 | Curated starter tier, shallow LORE, light video |
+| Pro | £99/mo | Time-windowed Stripe intro only | 2,000 | 5 | 1 | 3 | Full user-facing roster, medium LORE, production-friendly concurrency |
+| Teams | £179/mo | Time-windowed Stripe intro only | 6,000 | 15 | 5 | 5 | Shared workspace, pooled usage, £25/mo extra seat add-on |
+| Agency | From £299/mo | Time-windowed Stripe intro only | 10,000 | 25 | 25 | 8 | API keys, client-scale orchestration, priority execution |
 
-Quarterly plans are priced at 12% off the monthly list total. Yearly plans are priced at 24% off the monthly list total. Founding Access uses the same interval discounts against the founding monthly price and then renews at standard catalog pricing after the founding window.
+Quarterly plans are priced at 12% off the monthly list total. Yearly plans are priced at 24% off the monthly list total. Founding Access uses explicitly configured Stripe price IDs during the founding window and then renews at standard catalog pricing after that window.
 
 Execution credits and AI video credits are enforced separately before expensive agent, workflow, and media paths. Included monthly credits reset each billing cycle and do not roll over. Top-up packs add short-burst capacity but do not remove plan caps, fair-use controls, or concurrency limits.
 

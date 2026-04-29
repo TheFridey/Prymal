@@ -2,10 +2,7 @@ import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../compone
 import { PageShell } from '../components/ui';
 import { FoundingAccessPopup } from '../features/marketing/FoundingAccessPopup';
 import { PricingPageContent } from '../features/marketing/PricingPageContent';
-import {
-  shouldShowFoundingPricingUi,
-  useFoundingAccessOffer,
-} from '../features/marketing/founding-access';
+import { useFoundingAccessOffer } from '../features/marketing/founding-access';
 import { PLAN_LIBRARY, getWorkspacePlanMeta } from '../lib/constants';
 import '../styles/landing-rebuild.css';
 import '../styles/pricing-page.css';
@@ -13,7 +10,6 @@ import '../styles/pricing-page.css';
 export default function Pricing() {
   const freePlan = getWorkspacePlanMeta('free');
   const foundingAccessState = useFoundingAccessOffer();
-  const foundingPricingUi = shouldShowFoundingPricingUi(foundingAccessState);
 
   return (
     <div className="marketing-page prymal-marketing pricing-page">
@@ -34,9 +30,7 @@ export default function Pricing() {
             ...PLAN_LIBRARY.map((plan) => ({
               '@type': 'Offer',
               name: plan.name,
-              price: String(
-                foundingPricingUi ? (plan.foundingMonthlyPrice ?? plan.monthlyPrice) : plan.monthlyPrice,
-              ),
+              price: String(plan.monthlyPrice),
               priceCurrency: 'GBP',
             })),
           ],

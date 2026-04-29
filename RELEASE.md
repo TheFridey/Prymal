@@ -33,7 +33,7 @@ The GitHub Actions workflow at `.github/workflows/ci.yml` is the release gate fo
 - frontend production build
 - bundle budget enforcement
 - Playwright marketing smoke
-- Playwright authenticated smoke
+- Playwright authenticated regression
 
 ## Performance Budget
 
@@ -55,7 +55,7 @@ Configure these exact GitHub status checks as required on `master`:
 2. `Frontend verify-build`
 3. `Frontend performance budget`
 4. `E2E marketing smoke`
-5. `E2E authenticated smoke`
+5. `E2E authenticated regression`
 
 ## Branch protection recommendations
 
@@ -80,7 +80,7 @@ The authenticated Playwright job is safe to run without secrets because the test
 - `PLAYWRIGHT_TEST_STAFF_EMAIL`
 - `PLAYWRIGHT_TEST_STAFF_PASSWORD`
 
-Until those secrets are configured, `E2E authenticated smoke` will stay green but only prove that the authenticated suites bootstrap and skip correctly. Staff-only admin/operator flows skip independently when staff credentials are not present.
+Until those secrets are configured, `E2E authenticated regression` will stay green but only prove that the authenticated suites bootstrap and skip correctly. Staff-only admin/operator flows skip independently when staff credentials are not present.
 
 ## Recommended merge flow
 
