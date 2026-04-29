@@ -3,12 +3,38 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { apiKeys, organisations, users } from '../db/schema.js';
 import { applyCreditAdjustment, getBillingSnapshotForOrg } from '../services/billing-engine.js';
+import {
+  computeUsagePressurePayload,
+  getUpgradeSuggestion,
+} from '../services/usage-pressure.js';
+import { getMonthlyInternalBurnCapGbp } from '../services/billing-catalog.js';
+import { formatDbQueryError, summarizeDbConnectivityError } from '../db/log-db-error.js';
 import { getStaffRole, hasStaffPermission, isStaffUser, listStaffPermissions } from '../services/staff.js';
+
+function logDevSessionMissing(context, { label } = {}) {
+  if (process.env.NODE_ENV !== 'development') {
+    return;
+  }
+
+  const authorization = context.req.header('Authorization') ?? '';
+  const bearer = authorization.startsWith('Bearer ');
+  const pkPreview = process.env.CLERK_PUBLISHABLE_KEY?.trim().slice(0, 14) ?? '(unset)';
+  const hasSecretKey = Boolean(process.env.CLERK_SECRET_KEY?.trim());
+  console.warn('[AUTH]', label ?? 'Clerk session', '—', context.req.method, context.req.path, {
+    authorizationHeader: bearer ? 'Bearer …' : 'missing',
+    clerkPublishableKeyPrefix: pkPreview,
+    clerkSecretKeySet: hasSecretKey,
+    hint: bearer
+      ? 'JWT was sent but Clerk did not accept it — use the same Clerk app keys on backend (.env CLERK_* pairs) as the frontend VITE_CLERK_PUBLISHABLE_KEY. For regional instances set CLERK_API_URL / CLERK_API_VERSION from Clerk Dashboard → API keys. System env overrides backend/.env for CLERK_SECRET_KEY.'
+      : 'No Bearer token — sign in again or confirm the SPA is sending Authorization from Clerk.',
+  });
+}
 
 export async function requireOrg(context, next) {
   const auth = getAuth(context);
 
   if (!auth?.userId) {
+    logDevSessionMissing(context, { label: 'requireOrg' });
     return context.json({ error: 'Unauthorised' }, 401);
   }
 
@@ -18,8 +44,8 @@ export async function requireOrg(context, next) {
       where: eq(users.id, auth.userId),
     });
   } catch (error) {
-    console.error('[AUTH] Database lookup failed in requireOrg:', error?.message ?? error);
-    return context.json({ error: 'Database unavailable. Please retry shortly.' }, 503);
+    console.error('[AUTH] Database lookup failed in requireOrg:', formatDbQueryError(error), summarizeDbConnectivityError(error));
+    return context.json({ error: 'Database unavailable. Please retry shortly.', code: 'DATABASE_UNAVAILABLE' }, 503);
   }
 
   if (!user) {
@@ -36,8 +62,8 @@ export async function requireOrg(context, next) {
       where: eq(organisations.id, user.orgId),
     });
   } catch (error) {
-    console.error('[AUTH] Organisation lookup failed in requireOrg:', error?.message ?? error);
-    return context.json({ error: 'Database unavailable. Please retry shortly.' }, 503);
+    console.error('[AUTH] Organisation lookup failed in requireOrg:', formatDbQueryError(error), summarizeDbConnectivityError(error));
+    return context.json({ error: 'Database unavailable. Please retry shortly.', code: 'DATABASE_UNAVAILABLE' }, 503);
   }
 
   if (!organisation) {
@@ -48,6 +74,26 @@ export async function requireOrg(context, next) {
     console.error('[AUTH] Billing snapshot lookup failed in requireOrg:', error?.message ?? error);
     return null;
   });
+
+  let monetisationBrief = null;
+  if (billingSnapshot?.subscription && billingSnapshot?.credits?.execution && billingSnapshot?.credits?.video) {
+    const est = Number(billingSnapshot.subscription.cumulativeEstimatedCostGbp ?? 0);
+    monetisationBrief = {
+      usagePressure: computeUsagePressurePayload(
+        billingSnapshot.credits.execution,
+        billingSnapshot.credits.video,
+        {
+          estimatedProviderCostGbpThisCycle: est,
+          planKey: organisation.plan,
+        },
+      ),
+      upgradeSuggestions: {
+        execution: getUpgradeSuggestion(organisation.plan, 'execution'),
+        video: getUpgradeSuggestion(organisation.plan, 'video'),
+      },
+      internalBurnCapGbp: getMonthlyInternalBurnCapGbp(organisation.plan),
+    };
+  }
 
   context.set('org', {
     userId: user.id,
@@ -82,6 +128,7 @@ export async function requireOrg(context, next) {
         threshold: null,
       },
     },
+    monetisationBrief,
   });
 
   await next();
@@ -129,6 +176,7 @@ export async function requireStaff(context, next) {
   const auth = getAuth(context);
 
   if (!auth?.userId) {
+    logDevSessionMissing(context, { label: 'requireStaff' });
     return context.json({ error: 'Unauthorised' }, 401);
   }
 
@@ -138,8 +186,8 @@ export async function requireStaff(context, next) {
       where: eq(users.id, auth.userId),
     });
   } catch (error) {
-    console.error('[AUTH] Database lookup failed in requireStaff:', error?.message ?? error);
-    return context.json({ error: 'Database unavailable. Please retry shortly.' }, 503);
+    console.error('[AUTH] Database lookup failed in requireStaff:', formatDbQueryError(error), summarizeDbConnectivityError(error));
+    return context.json({ error: 'Database unavailable. Please retry shortly.', code: 'DATABASE_UNAVAILABLE' }, 503);
   }
 
   if (!user) {

@@ -1,12 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { MotionList, MotionListItem } from './motion';
-import {
-  createCommandPaletteActionStyle,
-  createCommandPaletteBackdropStyle,
-  createCommandPaletteDialogStyle,
-  createCommandPaletteKindStyle,
-} from '../design-system/surfaces';
+import { TbArrowRight, TbMapPin, TbMessageCircle, TbSearch } from 'react-icons/tb';
+import { AgentAvatar } from './ui';
+import { createCommandPaletteBackdropStyle, createCommandPaletteDialogStyle } from '../design-system/surfaces';
 
 function paletteKey(item) {
   return `${item.kind ?? 'item'}:${item.id ?? item.title}`;
@@ -90,67 +86,40 @@ export function CommandPaletteDialog({
           style={createCommandPaletteDialogStyle()}
         >
           <div
-            style={{
-              padding: '18px 20px 14px',
-              borderBottom: '1px solid var(--line)',
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0))',
-            }}
+            className="command-palette__header"
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '12px' }}>
+            <div className="command-palette__title-row">
               <div>
-                <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--muted)' }}>
+                <div className="command-palette__eyebrow">
                   Jump surface
                 </div>
-                <div style={{ color: 'var(--text-strong)', fontSize: '1.1rem', fontWeight: 700 }}>{title}</div>
+                <div className="command-palette__title">{title}</div>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                style={{
-                  border: '1px solid var(--line)',
-                  borderRadius: '999px',
-                  background: 'transparent',
-                  color: 'var(--muted)',
-                  padding: '6px 10px',
-                  fontSize: '0.75rem',
-                  cursor: 'pointer',
-                }}
+                className="command-palette__esc"
               >
                 Esc
               </button>
             </div>
 
-            <input
-              ref={inputRef}
-              type="search"
-              value={query}
-              onChange={(event) => onQueryChange(event.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              style={{
-                width: '100%',
-                border: '1px solid var(--line)',
-                borderRadius: '18px',
-                background: 'rgba(255,255,255,0.05)',
-                color: 'var(--text-strong)',
-                padding: '14px 16px',
-                fontSize: '0.96rem',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
+            <label className="command-palette__search">
+              <TbSearch aria-hidden="true" />
+              <input
+                ref={inputRef}
+                type="search"
+                value={query}
+                onChange={(event) => onQueryChange(event.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder}
+              />
+            </label>
           </div>
 
-          <MotionList
+          <div
             ref={listRef}
-            staggerChildren={0.04}
-            style={{
-              maxHeight: '440px',
-              overflowY: 'auto',
-              padding: '10px',
-              display: 'grid',
-              gap: '6px',
-            }}
+            className="command-palette__list"
           >
             {results.length === 0 ? (
               <div
@@ -167,65 +136,59 @@ export function CommandPaletteDialog({
               results.map((result, index) => {
                 const active = index === activeIndex;
                 return (
-                  <MotionListItem key={paletteKey(result)} reveal={{ y: 6, blur: 2 }}>
-                  <button
-                    type="button"
-                    onClick={() => onSelect(result)}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    style={createCommandPaletteActionStyle(active)}
-                  >
-                    <span style={createCommandPaletteKindStyle(result.accent)}>
-                      {result.kindLabel ?? result.kind ?? 'Item'}
-                    </span>
-                    <span style={{ minWidth: 0 }}>
-                      <span
-                        style={{
-                          display: 'block',
-                          fontSize: '0.92rem',
-                          fontWeight: 650,
-                          color: 'var(--text-strong)',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                      >
-                        {result.title}
-                      </span>
-                      {result.subtitle ? (
-                        <span
-                          style={{
-                            display: 'block',
-                            marginTop: '2px',
-                            fontSize: '0.8rem',
-                            color: 'var(--muted)',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {result.subtitle}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span
-                      style={{
-                        color: 'var(--muted)',
-                        fontSize: '0.74rem',
-                        border: '1px solid var(--line)',
-                        borderRadius: '999px',
-                        padding: '4px 8px',
-                      }}
+                  <div key={paletteKey(result)} className="command-palette__list-item">
+                    <button
+                      type="button"
+                      onClick={() => onSelect(result)}
+                      onMouseEnter={() => setActiveIndex(index)}
+                      className={`command-palette__item${active ? ' is-active' : ''}`}
+                      style={{ '--command-accent': result.accent ?? 'var(--accent)' }}
                     >
-                      Enter
-                    </span>
-                  </button>
-                  </MotionListItem>
+                      <ResultVisual result={result} />
+                      <span className="command-palette__copy">
+                        <span className="command-palette__meta">
+                          <span>{result.kindLabel ?? result.kind ?? 'Item'}</span>
+                          {result.meta ? <span>{result.meta}</span> : null}
+                        </span>
+                        <span className="command-palette__result-title">{result.title}</span>
+                        {result.subtitle ? (
+                          <span className="command-palette__subtitle">{result.subtitle}</span>
+                        ) : null}
+                      </span>
+                      <span className="command-palette__enter">
+                        <span>Enter</span>
+                        <TbArrowRight aria-hidden="true" />
+                      </span>
+                    </button>
+                  </div>
                 );
               })
             )}
-          </MotionList>
+          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
+  );
+}
+
+function ResultVisual({ result }) {
+  if (result.agent) {
+    return (
+      <span className="command-palette__visual command-palette__visual--avatar">
+        <AgentAvatar agent={result.agent} size={44} />
+        {result.kind === 'conversation' ? (
+          <span className="command-palette__visual-badge">
+            <TbMessageCircle aria-hidden="true" />
+          </span>
+        ) : null}
+      </span>
+    );
+  }
+
+  return (
+    <span className="command-palette__visual command-palette__visual--badge">
+      {result.kind === 'conversation' ? <TbMessageCircle aria-hidden="true" /> : <TbMapPin aria-hidden="true" />}
+      <span>{result.code ?? result.kindLabel ?? 'Go'}</span>
+    </span>
   );
 }

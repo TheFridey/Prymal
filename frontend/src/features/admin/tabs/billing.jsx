@@ -1,5 +1,5 @@
 // features/admin/tabs/billing.jsx
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { formatDate, formatNumber, formatUserHandle } from '../../../lib/utils';
 import { InlineNotice, LoadingPanel } from '../../../components/ui';
 import { formatCurrency, humanize, getPlanTone } from '../utils';
@@ -263,6 +263,8 @@ export function BillingTab({ data, billingTotals, videoJobsQuery }) {
 
 export function RevenueTab({ query }) {
   const d = query.data;
+  const [planSort, setPlanSort] = useState({ key: 'planKey', asc: true });
+  const [userCostSort, setUserCostSort] = useState({ key: 'estimatedBurnGbp', asc: false });
 
   if (query.isLoading) {
     return <LoadingPanel />;
@@ -277,18 +279,91 @@ export function RevenueTab({ query }) {
   const paidCustomers = d?.paidCustomers ?? 0;
   const totalOrgs = d?.totalOrgs ?? 0;
   const stripeConfigured = d?.stripeConfigured ?? false;
+  const ec = d?.economicsDashboard ?? null;
 
   const displayMrr = stripeConfigured && stripeMrr > 0 ? stripeMrr : estimatedMrrTotal;
   const mrrLabel = stripeConfigured && stripeMrr > 0 ? 'Live MRR (Stripe)' : 'Estimated MRR';
 
+  const sortedPlanEconomics = useMemo(() => {
+    const rows = [...(ec?.perPlan ?? [])];
+    const { key, asc } = planSort;
+    rows.sort((a, b) => {
+      const va = a[key] ?? 0;
+      const vb = b[key] ?? 0;
+      if (typeof va === 'string' && typeof vb === 'string') {
+        return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+      }
+      return asc ? Number(va) - Number(vb) : Number(vb) - Number(va);
+    });
+    return rows;
+  }, [ec?.perPlan, planSort]);
+
+  const sortedTopUsers = useMemo(() => {
+    const rows = [...(ec?.topUsers ?? [])];
+    const { key, asc } = userCostSort;
+    rows.sort((a, b) => {
+      const va = a[key] ?? '';
+      const vb = b[key] ?? '';
+      if (key === 'email' || key === 'userId') {
+        return asc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+      }
+      return asc ? Number(va) - Number(vb) : Number(vb) - Number(va);
+    });
+    return rows;
+  }, [ec?.topUsers, userCostSort]);
+
+  const togglePlanSort = (key) => {
+    setPlanSort((prev) => (prev.key === key ? { key, asc: !prev.asc } : { key, asc: key === 'planKey' }));
+  };
+
+  const toggleUserSort = (key) => {
+    setUserCostSort((prev) => (prev.key === key ? { key, asc: !prev.asc } : { key, asc: key !== 'estimatedBurnGbp' }));
+  };
+
+  const planRowTone = (row) => {
+    const p90 = row.pctUsersOver90PctCap ?? 0;
+    const p70 = row.pctUsersOver70PctCap ?? 0;
+    if (p90 > 0) return 'var(--danger, #f87171)';
+    if (p70 > 0) return 'var(--amber, #f59e0b)';
+    return undefined;
+  };
+
   return (
     <div style={{ display: 'grid', gap: '20px' }}>
+      {ec?.alerts?.length ? (
+        <InlineNotice tone={ec.alerts.some((a) => a.level === 'critical') ? 'danger' : 'warning'}>
+          <strong>Economics alerts</strong>
+          <div style={{ marginTop: '8px', display: 'grid', gap: '6px', fontSize: '0.92rem' }}>
+            {ec.alerts.slice(0, 12).map((a) => (
+              <div key={`${a.code}-${a.message?.slice?.(0, 24)}`}>{a.message}</div>
+            ))}
+          </div>
+        </InlineNotice>
+      ) : null}
+
       <section className="staff-admin__metric-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
         {[
           { label: mrrLabel, value: `${currency === 'GBP' ? '£' : '$'}${formatNumber(displayMrr)}` },
           { label: 'Paid customers', value: formatNumber(paidCustomers) },
           { label: 'Total orgs', value: formatNumber(totalOrgs) },
           { label: 'Conversion rate', value: totalOrgs > 0 ? `${Math.round((paidCustomers / totalOrgs) * 100)}%` : '0%' },
+          ...(ec?.global
+            ? [
+                { label: 'Est. total burn (cycle)', value: `£${formatNumber(Math.round(ec.global.totalEstimatedBurnGbp ?? 0))}` },
+                { label: 'Gross contribution (est.)', value: `£${formatNumber(Math.round(ec.global.estimatedGrossContributionGbp ?? 0))}` },
+                {
+                  label: 'Burn / MRR',
+                  value:
+                    ec.global.burnToMrrRatio != null ? `${ec.global.burnToMrrRatio.toFixed(2)}×` : '—',
+                },
+              ]
+            : []),
+          ...(ec?.ledger
+            ? [
+                { label: 'Ledger: execution £', value: `£${formatNumber(Math.round(ec.ledger.executionCostGbp ?? 0))}` },
+                { label: 'Ledger: video £', value: `£${formatNumber(Math.round(ec.ledger.videoCostGbp ?? 0))}` },
+              ]
+            : []),
         ].map((card) => (
           <div key={card.label} className="staff-admin__metric-card">
             <div className="staff-admin__metric-label">{card.label}</div>
@@ -296,6 +371,110 @@ export function RevenueTab({ query }) {
           </div>
         ))}
       </section>
+
+      {ec?.perPlan?.length ? (
+        <div className="staff-admin__panel">
+          <div className="staff-admin__panel-header">Per-plan economics (server)</div>
+          <table className="staff-admin__table">
+            <thead>
+              <tr>
+                <th>
+                  <button type="button" className="staff-admin__ghost-link" onClick={() => togglePlanSort('planKey')}>
+                    Plan {planSort.key === 'planKey' ? (planSort.asc ? '↑' : '↓') : ''}
+                  </button>
+                </th>
+                <th>Users</th>
+                <th>MRR (est.)</th>
+                <th>
+                  <button type="button" className="staff-admin__ghost-link" onClick={() => togglePlanSort('totalBurnGbp')}>
+                    Burn £ {planSort.key === 'totalBurnGbp' ? (planSort.asc ? '↑' : '↓') : ''}
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="staff-admin__ghost-link" onClick={() => togglePlanSort('avgBurnPerUser')}>
+                    Avg burn / user {planSort.key === 'avgBurnPerUser' ? (planSort.asc ? '↑' : '↓') : ''}
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="staff-admin__ghost-link" onClick={() => togglePlanSort('avgHeadroomToCapGbp')}>
+                    Avg headroom £ {planSort.key === 'avgHeadroomToCapGbp' ? (planSort.asc ? '↑' : '↓') : ''}
+                  </button>
+                </th>
+                <th>% WS &gt;70% cap</th>
+                <th>% WS &gt;90% cap</th>
+                <th>Avg % of cap</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedPlanEconomics.map((row) => (
+                <tr key={row.planKey} style={{ borderLeft: planRowTone(row) ? `3px solid ${planRowTone(row)}` : undefined }}>
+                  <td><span className="staff-admin__plan-pill">{row.planKey}</span></td>
+                  <td>{formatNumber(row.totalUsers ?? 0)}</td>
+                  <td>{row.mrrGbp ? `£${formatNumber(Math.round(row.mrrGbp))}` : '—'}</td>
+                  <td>£{formatNumber(Math.round(row.totalBurnGbp ?? 0))}</td>
+                  <td>{row.avgBurnPerUser != null ? `£${row.avgBurnPerUser.toFixed(2)}` : '—'}</td>
+                  <td>{row.avgHeadroomToCapGbp != null ? `£${row.avgHeadroomToCapGbp.toFixed(2)}` : '—'}</td>
+                  <td>{row.pctUsersOver70PctCap != null ? `${Math.round(row.pctUsersOver70PctCap)}%` : '—'}</td>
+                  <td>{row.pctUsersOver90PctCap != null ? `${Math.round(row.pctUsersOver90PctCap)}%` : '—'}</td>
+                  <td>{row.avgPctOfCap != null ? `${row.avgPctOfCap.toFixed(0)}%` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {ec?.topUsers?.length ? (
+        <div className="staff-admin__panel">
+          <div className="staff-admin__panel-header">Highest estimated cost users (ledger)</div>
+          <table className="staff-admin__table">
+            <thead>
+              <tr>
+                <th>
+                  <button type="button" className="staff-admin__ghost-link" onClick={() => toggleUserSort('email')}>
+                    User {userCostSort.key === 'email' ? (userCostSort.asc ? '↑' : '↓') : ''}
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="staff-admin__ghost-link" onClick={() => toggleUserSort('estimatedBurnGbp')}>
+                    Est. burn £ {userCostSort.key === 'estimatedBurnGbp' ? (userCostSort.asc ? '↑' : '↓') : ''}
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedTopUsers.map((u) => (
+                <tr key={u.userId}>
+                  <td>{u.email ?? u.userId}</td>
+                  <td>£{formatNumber(Math.round(u.estimatedBurnGbp ?? 0))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {ec?.topWorkspaces?.length ? (
+        <div className="staff-admin__panel">
+          <div className="staff-admin__panel-header">Highest cost workspaces (ledger)</div>
+          <table className="staff-admin__table">
+            <thead>
+              <tr>
+                <th>Workspace</th>
+                <th>Est. burn £</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ec.topWorkspaces.map((w) => (
+                <tr key={w.organisationId}>
+                  <td>{w.name}</td>
+                  <td>£{formatNumber(Math.round(w.estimatedBurnGbp ?? 0))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
       <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         <div className="staff-admin__panel">

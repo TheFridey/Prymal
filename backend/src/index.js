@@ -31,6 +31,9 @@ import {
   readGeneratedVideoAsset,
 } from './services/media-storage/index.js';
 import { readWebAsset } from './services/web-research.js';
+import { bootstrapRuntimeEnv } from './env.js';
+
+bootstrapRuntimeEnv();
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({
@@ -55,7 +58,8 @@ if (process.env.SENTRY_DSN) {
 }
 
 const app = new Hono();
-const allowedOrigins = (process.env.FRONTEND_URLS ?? process.env.FRONTEND_URL ?? 'http://localhost:5173')
+const DEFAULT_FRONTEND_ORIGINS = 'http://localhost:5173,http://127.0.0.1:5173';
+const allowedOrigins = (process.env.FRONTEND_URLS ?? process.env.FRONTEND_URL ?? DEFAULT_FRONTEND_ORIGINS)
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -69,7 +73,7 @@ function isAllowedOrigin(origin) {
     return true;
   }
 
-  return /^http:\/\/localhost:517\d$/.test(origin);
+  return /^http:\/\/(localhost|127\.0\.0\.1):517\d$/.test(origin);
 }
 
 function resolveErrorProvider(error) {
@@ -108,7 +112,7 @@ app.use('*', securityHeaders());
 app.use(
   '*',
   cors({
-    origin: (origin) => (isAllowedOrigin(origin) ? origin : allowedOrigins[0] ?? 'http://localhost:5173'),
+    origin: (origin) => (isAllowedOrigin(origin) ? origin : null),
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-Org-Id', 'X-Request-Id', 'Idempotency-Key', 'X-Idempotency-Key'],
@@ -125,7 +129,15 @@ app.get('/health', (context) => {
   });
 });
 
-app.use('/api/*', clerkMiddleware());
+app.use(
+  '/api/*',
+  clerkMiddleware({
+    secretKey: String(process.env.CLERK_SECRET_KEY ?? '').trim(),
+    publishableKey: String(process.env.CLERK_PUBLISHABLE_KEY ?? '').trim(),
+    apiUrl: process.env.CLERK_API_URL?.trim() || undefined,
+    apiVersion: process.env.CLERK_API_VERSION?.trim() || undefined,
+  }),
+);
 
 app.get('/', (context) =>
   context.json({

@@ -94,10 +94,25 @@ function ThemedApp() {
   return (
     <ClerkProvider publishableKey={CLERK_KEY} appearance={getClerkAppearance(theme)}>
       <QueryClientProvider client={queryClient}>
+        <ClerkApiBinding />
         <RoutedApp />
       </QueryClientProvider>
     </ClerkProvider>
   );
+}
+
+/** Must render under ClerkProvider before any route can call `api` with the live session. */
+function ClerkApiBinding() {
+  const { getToken } = useAuth();
+  bindClerkApi(getToken);
+  return null;
+}
+
+function bindClerkApi(getToken) {
+  configureApi({
+    getToken,
+    getOrgId: () => useAppStore.getState().org?.id ?? null,
+  });
 }
 
 function AppRouter() {
@@ -236,15 +251,8 @@ function AppErrorFallback() {
 }
 
 export function ProtectedOnly({ children }) {
-  const { isLoaded, isSignedIn, getToken } = useAuth();
-
-  // Bind Clerk auth before any protected child query can fire. Doing this in
-  // an effect creates a race where the first /auth/me request can go out
-  // unauthenticated on cold load and incorrectly show a 401 until retry.
-  configureApi({
-    getToken,
-    getOrgId: () => useAppStore.getState().org?.id ?? null,
-  });
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+  bindClerkApi(getToken);
 
   if (!isLoaded || typeof isSignedIn === 'undefined') {
     return <LoadingPanel label="Checking session..." />;
@@ -259,10 +267,12 @@ export function ProtectedOnly({ children }) {
 
 function ProtectedWorkspace() {
   const setSession = useAppStore((state) => state.setSession);
+  const { isLoaded, userId } = useAuth();
   const viewerQuery = useQuery({
     queryKey: ['viewer'],
     queryFn: () => api.get('/auth/me'),
-    retry: false,
+    enabled: isLoaded && Boolean(userId),
+    retry: (failureCount, error) => failureCount === 0 && Number(error?.status) === 401,
   });
 
   useEffect(() => {
@@ -294,10 +304,12 @@ function ProtectedWorkspace() {
 }
 
 function OnboardingGate() {
+  const { isLoaded, userId } = useAuth();
   const viewerQuery = useQuery({
     queryKey: ['viewer'],
     queryFn: () => api.get('/auth/me'),
-    retry: false,
+    enabled: isLoaded && Boolean(userId),
+    retry: (failureCount, error) => failureCount === 0 && Number(error?.status) === 401,
   });
 
   if (viewerQuery.isLoading) {

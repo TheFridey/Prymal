@@ -148,6 +148,7 @@ CREATE TABLE founding_access_claims (
   plan_id                             plan NOT NULL,
   status                              founding_access_claim_status NOT NULL DEFAULT 'claimed',
   first_month_credit_boost_applied_at TIMESTAMPTZ,
+  founder_period_ends_at                 TIMESTAMPTZ,
   claimed_at                          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   activated_at                        TIMESTAMPTZ,
   cancelled_at                        TIMESTAMPTZ,
@@ -320,6 +321,28 @@ CREATE TABLE credit_purchase (
 CREATE INDEX credit_purchase_org_idx ON credit_purchase(org_id);
 CREATE INDEX credit_purchase_type_idx ON credit_purchase(credit_type);
 CREATE INDEX credit_purchase_status_idx ON credit_purchase(status);
+
+CREATE TABLE usage_estimate_events (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id     UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  user_id             TEXT REFERENCES users(id) ON DELETE SET NULL,
+  subscription_id     UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+  plan_key            TEXT NOT NULL,
+  action_type         TEXT NOT NULL,
+  cost_class          TEXT NOT NULL,
+  estimated_gbp_cost  DOUBLE PRECISION NOT NULL DEFAULT 0,
+  credit_cost         INTEGER NOT NULL DEFAULT 0,
+  provider            TEXT,
+  model               TEXT,
+  reference_kind      TEXT,
+  reference_id        UUID,
+  metadata            JSONB NOT NULL DEFAULT '{}',
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX usage_estimate_events_org_created_idx ON usage_estimate_events(organisation_id, created_at DESC);
+CREATE INDEX usage_estimate_events_created_idx ON usage_estimate_events(created_at DESC);
+CREATE INDEX usage_estimate_events_user_created_idx ON usage_estimate_events(user_id, created_at DESC) WHERE user_id IS NOT NULL;
 
 CREATE TABLE threshold_state (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),

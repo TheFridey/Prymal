@@ -36,6 +36,13 @@
       "when": 1777334400000,
       "tag": "0005_memory_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777507200000,
+      "tag": "0006_founding_claims_founder_period",
+      "breakpoints": true
     }
   ]
 }

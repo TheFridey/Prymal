@@ -196,6 +196,7 @@ export const foundingAccessClaims = pgTable(
     planId: planEnum('plan_id').notNull(),
     status: foundingAccessClaimStatusEnum('status').notNull().default('claimed'),
     firstMonthCreditBoostAppliedAt: timestamp('first_month_credit_boost_applied_at', { withTimezone: true }),
+    founderPeriodEndsAt: timestamp('founder_period_ends_at', { withTimezone: true }),
     claimedAt: timestamp('claimed_at', { withTimezone: true }).notNull().defaultNow(),
     activatedAt: timestamp('activated_at', { withTimezone: true }),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
@@ -392,6 +393,33 @@ export const creditPurchases = pgTable(
     typeIdx: index('credit_purchase_type_idx').on(table.creditType),
     statusIdx: index('credit_purchase_status_idx').on(table.status),
     sessionIdx: uniqueIndex('credit_purchase_checkout_session_idx').on(table.stripeCheckoutSessionId),
+  }),
+);
+
+export const usageEstimateEvents = pgTable(
+  'usage_estimate_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    organisationId: uuid('organisation_id')
+      .notNull()
+      .references(() => organisations.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    subscriptionId: uuid('subscription_id').references(() => subscriptions.id, { onDelete: 'set null' }),
+    planKey: text('plan_key').notNull(),
+    actionType: text('action_type').notNull(),
+    costClass: text('cost_class').notNull(),
+    estimatedGbpCost: real('estimated_gbp_cost').notNull().default(0),
+    creditCost: integer('credit_cost').notNull().default(0),
+    provider: text('provider'),
+    model: text('model'),
+    referenceKind: text('reference_kind'),
+    referenceId: uuid('reference_id'),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgCreatedIdx: index('usage_estimate_events_org_created_idx').on(table.organisationId, table.createdAt),
+    createdIdx: index('usage_estimate_events_created_idx').on(table.createdAt),
   }),
 );
 

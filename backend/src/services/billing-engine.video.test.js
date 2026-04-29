@@ -14,7 +14,7 @@ const {
 } = await import('./billing-engine.js');
 
 test('video preflight returns VIDEO_CREDITS_REQUIRED before concurrency for zero-entitlement plans', () => {
-  const plan = getBillingPlan('solo');
+  const plan = getBillingPlan('free');
   const burn = calculateVideoCreditBurn({
     durationSeconds: 4,
     resolution: '720p',

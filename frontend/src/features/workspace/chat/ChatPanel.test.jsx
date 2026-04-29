@@ -75,5 +75,5 @@ test('ChatPanel shows first-run guidance, starter prompts, and the new empty-sta
   expect(screen.getByText('Write 5 social posts for my business')).toBeInTheDocument();
   expect(screen.getByText('Create a marketing plan')).toBeInTheDocument();
   expect(screen.getByText('Generate a promo video')).toBeInTheDocument();
-  expect(screen.getByText(/Ask me to generate content, automate a task, or analyse something/i)).toBeInTheDocument();
+  expect(screen.getByText('Choose a starter prompt or type one practical task below.')).toBeInTheDocument();
 });

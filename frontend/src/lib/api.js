@@ -27,6 +27,31 @@ export function configureApi(nextBindings) {
   };
 }
 
+/** Clerk can return null from getToken briefly after hydration; last attempt skips the cache. */
+async function resolveBearerToken() {
+  const bind = authBindings.getToken;
+  if (!bind) return null;
+
+  const tryToken = async (opts) => {
+    try {
+      return (await bind(opts)) ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  let token = await tryToken();
+  if (token) return token;
+
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  token = await tryToken();
+  if (token) return token;
+
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  token = await tryToken({ skipCache: true });
+  return token ?? null;
+}
+
 async function request(path, init = {}, options = {}) {
   const controller = new AbortController();
   const timeoutMs = options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
@@ -45,7 +70,7 @@ async function request(path, init = {}, options = {}) {
     headers.set('Accept', 'application/json');
   }
 
-  const token = await authBindings.getToken?.();
+  const token = await resolveBearerToken();
   const orgId = authBindings.getOrgId?.();
 
   if (token) {
@@ -127,7 +152,7 @@ async function upload(path, formData, options = {}) {
     });
   }
 
-  const token = await authBindings.getToken?.();
+  const token = await resolveBearerToken();
   const orgId = authBindings.getOrgId?.();
   const timeoutMs = options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
 

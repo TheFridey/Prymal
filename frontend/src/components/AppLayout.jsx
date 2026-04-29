@@ -2,25 +2,37 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import {
+  TbBook2,
+  TbBrain,
+  TbChevronRight,
+  TbLayoutDashboard,
+  TbPlugConnected,
+  TbRoute,
+  TbSettings,
+  TbShieldCog,
+  TbX,
+} from 'react-icons/tb';
 import { api } from '../lib/api';
 import { AGENT_LIBRARY, mergeAgentState } from '../lib/constants';
 import { useAppStore } from '../stores/useAppStore';
 import { BrandMark, ThemeToggle } from './ui';
 import { WorkspaceCreditAlerts } from '../features/workspace/billing/WorkspaceCreditAlerts';
 import { WorkspaceCommandPalette } from '../features/workspace/command/WorkspaceCommandPalette';
-import { MotionDrawer, MotionModal, MotionPresence, motion } from './motion';
+import { MotionModal, MotionPresence, motion } from './motion';
 import '../styles/app-rebuild.css';
 
 const BASE_RAIL_ITEMS = [
   { to: '/app/dashboard', label: 'Dashboard', short: 'DB', icon: 'dashboard' },
-  { to: '/app/memory', label: 'Memory', short: 'ME', icon: 'knowledge' },
-  { to: '/app/lore', label: 'LORE', short: 'LO', icon: 'knowledge' },
+  { to: '/app/memory', label: 'Memory', short: 'ME', icon: 'memory' },
+  { to: '/app/lore', label: 'LORE', short: 'LO', icon: 'lore' },
   { to: '/app/workflows', label: 'NEXUS', short: 'NX', icon: 'workflow' },
   { to: '/app/integrations', label: 'Integrations', short: 'IO', icon: 'integrations' },
 ];
 
 export default function AppLayout({ viewer }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [railExpanded, setRailExpanded] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(max-width: 1024px)').matches : false,
@@ -66,6 +78,7 @@ export default function AppLayout({ viewer }) {
 
   useEffect(() => {
     setDrawerOpen(false);
+    setRailExpanded(false);
   }, [isMobileView]);
 
   useEffect(() => {
@@ -91,21 +104,6 @@ export default function AppLayout({ viewer }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  function applyParallax(element, event, strength = 8) {
-    if (!element) return;
-    const rect = element.getBoundingClientRect();
-    const offsetX = ((event.clientX - rect.left) / rect.width - 0.5) * strength * 2;
-    const offsetY = ((event.clientY - rect.top) / rect.height - 0.5) * strength * 2;
-    element.style.setProperty('--parallax-x', `${offsetX.toFixed(2)}px`);
-    element.style.setProperty('--parallax-y', `${offsetY.toFixed(2)}px`);
-  }
-
-  function resetParallax(element) {
-    if (!element) return;
-    element.style.setProperty('--parallax-x', '0px');
-    element.style.setProperty('--parallax-y', '0px');
-  }
 
   const handleSearchChange = useCallback((value) => {
     setSearchQuery(value);
@@ -136,21 +134,35 @@ export default function AppLayout({ viewer }) {
     navigate(`/app/agents/${conversation.agentId}?cid=${conversation.id}`);
   }
 
+  function handleRailBlur(event) {
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      setRailExpanded(false);
+    }
+  }
+
   return (
     <>
       {isMobileView ? (
         <div className="app-mobile-bar app-mobile-bar--studio">
-          <button type="button" className={`burger${drawerOpen ? ' is-open' : ''}`} onClick={() => setDrawerOpen((current) => !current)} aria-label="Toggle workspace navigation">
+          <button
+            type="button"
+            className={`burger app-mobile-bar__menu${drawerOpen ? ' is-open' : ''}`}
+            onClick={() => setDrawerOpen((current) => !current)}
+            aria-label={drawerOpen ? 'Close workspace navigation' : 'Open workspace navigation'}
+            aria-expanded={drawerOpen}
+          >
             <span />
           </button>
-          <BrandMark compact />
-          <div className="app-mobile-bar__avatar">
-            {user?.imageUrl ? <img src={user.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : user?.firstName?.[0] ?? 'A'}
+          <Link to="/app/dashboard" className="app-mobile-bar__brand" aria-label="Open Prymal dashboard">
+            <BrandMark compact />
+          </Link>
+          <div className="app-mobile-bar__avatar" aria-label="Current user">
+            {user?.imageUrl ? <img src={user.imageUrl} alt="" /> : user?.firstName?.[0] ?? 'A'}
           </div>
         </div>
       ) : null}
 
-      <div className="app-shell app-shell--studio">
+      <div className={`app-shell app-shell--studio${railExpanded && !isMobileView ? ' app-shell--rail-expanded' : ''}`}>
         <div className="ambient-background" aria-hidden="true" />
         <div className="app-shell__ambience" aria-hidden="true">
           <span className="app-shell__glow app-shell__glow--one" />
@@ -161,20 +173,45 @@ export default function AppLayout({ viewer }) {
         </div>
 
         {!isMobileView ? (
-          <aside className="app-launcher">
+          <aside
+            className="app-launcher"
+            onPointerEnter={() => setRailExpanded(true)}
+            onPointerLeave={() => setRailExpanded(false)}
+            onFocusCapture={() => setRailExpanded(true)}
+            onBlurCapture={handleRailBlur}
+          >
             <Link to="/app/dashboard" className="app-launcher__brand" aria-label="Open Prymal dashboard">
               <BrandMark compact />
             </Link>
 
-            <button
-              type="button"
-              className={`app-launcher__toggle${drawerOpen ? ' is-open' : ''}`}
-              onClick={() => setDrawerOpen((current) => !current)}
-              aria-label={drawerOpen ? 'Close workspace navigation' : 'Open workspace navigation'}
-              aria-expanded={drawerOpen}
-            >
-              <ChevronRailIcon />
-            </button>
+            <div className="app-launcher__tools" aria-label="Workspace tools">
+              <button type="button" className="app-launcher__jump" onClick={() => setCommandPaletteOpen(true)}>
+                Jump
+              </button>
+              <ThemeToggle tiny />
+            </div>
+
+            <div className="app-launcher__search">
+              <input
+                type="search"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(event) => handleSearchChange(event.target.value)}
+                onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
+                onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+                aria-label="Search conversations"
+              />
+              {searchOpen && searchResults.length > 0 ? (
+                <div className="app-launcher__search-results">
+                  {searchResults.map((conv) => (
+                    <button key={conv.id} type="button" onMouseDown={() => handleSearchSelect(conv)}>
+                      <span>{conv.title || 'Untitled conversation'}</span>
+                      <small>{conv.agentId}</small>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
 
             <nav className="app-launcher__nav" aria-label="Primary workspace navigation">
               {railItems.map((item) => (
@@ -189,6 +226,7 @@ export default function AppLayout({ viewer }) {
                   <span className="app-launcher__link-icon" aria-hidden="true">
                     <RailIcon icon={item.icon} />
                   </span>
+                  <span className="app-launcher__link-label">{item.label}</span>
                 </NavLink>
               ))}
             </nav>
@@ -204,11 +242,12 @@ export default function AppLayout({ viewer }) {
                 <span className="app-launcher__link-icon" aria-hidden="true">
                   <RailIcon icon="settings" />
                 </span>
+                <span className="app-launcher__link-label">Settings</span>
               </NavLink>
             </div>
 
             <div className="app-launcher__profile">
-              {user?.imageUrl ? <img src={user.imageUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : user?.firstName?.[0] ?? 'A'}
+              {user?.imageUrl ? <img src={user.imageUrl} alt="" /> : user?.firstName?.[0] ?? 'A'}
             </div>
           </aside>
         ) : null}
@@ -221,160 +260,6 @@ export default function AppLayout({ viewer }) {
         <Toasts />
       </div>
 
-      {!isMobileView ? (
-        <MotionDrawer
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          className={`app-drawer${drawerOpen ? ' is-open' : ''}`}
-          backdropClassName="app-drawer-backdrop"
-          backdropLabel="Close workspace navigation"
-          aria-hidden={!drawerOpen}
-        >
-        <div className="app-drawer__header">
-          <div
-            className="app-drawer__header-inner"
-            onPointerMove={(event) => applyParallax(event.currentTarget, event, 7)}
-            onPointerLeave={(event) => resetParallax(event.currentTarget)}
-          >
-            <div>
-              <div className="app-drawer__label">Workspace</div>
-              <div className="app-drawer__title">{viewer?.organisation?.name ?? 'Prymal'}</div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setCommandPaletteOpen(true)}
-                style={{
-                  border: '1px solid var(--line)',
-                  borderRadius: '999px',
-                  background: 'rgba(255,255,255,0.06)',
-                  color: 'var(--text-strong)',
-                  padding: '6px 10px',
-                  fontSize: '0.72rem',
-                  cursor: 'pointer',
-                }}
-              >
-                Jump
-              </button>
-              <ThemeToggle tiny />
-            </div>
-          </div>
-        </div>
-
-        <div style={{ padding: '0 16px 12px', position: 'relative' }}>
-          <input
-            type="search"
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            onFocus={() => searchResults.length > 0 && setSearchOpen(true)}
-            onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
-            style={{
-              width: '100%',
-              padding: '10px 14px',
-              borderRadius: '999px',
-              border: '1px solid var(--line)',
-              background: 'rgba(255,255,255,0.06)',
-              color: 'var(--text-strong)',
-              fontSize: '13px',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-          />
-          {searchOpen && searchResults.length > 0 ? (
-            <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: '16px',
-                right: '16px',
-                background: 'var(--surface)',
-                border: '1px solid var(--line)',
-                borderRadius: '18px',
-                overflow: 'hidden',
-                zIndex: 100,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
-              }}
-            >
-              {searchResults.map((conv) => (
-                <button
-                  key={conv.id}
-                  type="button"
-                  onMouseDown={() => handleSearchSelect(conv)}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '10px 14px',
-                    background: 'none',
-                    border: 'none',
-                    borderBottom: '1px solid var(--line)',
-                    color: 'var(--text-strong)',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                  }}
-                >
-                  <div style={{ fontWeight: 500, marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {conv.title || 'Untitled conversation'}
-                  </div>
-                  <div style={{ color: 'var(--muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                    {conv.agentId}
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        <nav className="app-drawer__nav">
-          {railItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) => `app-drawer__link${isActive ? ' active' : ''}`}
-              onClick={() => setDrawerOpen(false)}
-              title={item.label}
-            >
-              <span
-                className="app-drawer__link-icon"
-                aria-hidden="true"
-                onPointerMove={(event) => applyParallax(event.currentTarget, event, 5)}
-                onPointerLeave={(event) => resetParallax(event.currentTarget)}
-              >
-                <RailIcon icon={item.icon} />
-              </span>
-              <span className="app-drawer__link-text">
-                <span className="app-drawer__link-code">{item.short}</span>
-                <span className="app-drawer__link-label">{item.label}</span>
-              </span>
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="app-drawer__footer">
-          <NavLink
-            to="/app/settings"
-            className={({ isActive }) => `app-drawer__link${isActive ? ' active' : ''}`}
-            onClick={() => setDrawerOpen(false)}
-            title="Workspace settings"
-          >
-            <span
-              className="app-drawer__link-icon"
-              aria-hidden="true"
-              onPointerMove={(event) => applyParallax(event.currentTarget, event, 5)}
-              onPointerLeave={(event) => resetParallax(event.currentTarget)}
-            >
-              <RailIcon icon="settings" />
-            </span>
-            <span className="app-drawer__link-text">
-              <span className="app-drawer__link-code">ST</span>
-              <span className="app-drawer__link-label">Settings</span>
-            </span>
-          </NavLink>
-        </div>
-      </MotionDrawer>
-      ) : null}
-
       {drawerOpen && isMobileView ? (
         <MotionModal
           open={drawerOpen}
@@ -384,17 +269,44 @@ export default function AppLayout({ viewer }) {
           backdropLabel="Close workspace navigation"
           onClick={(event) => event.stopPropagation()}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-            <BrandMark compact />
-            <ThemeToggle tiny />
+          <div className="mobile-drawer__header">
+            <Link to="/app/dashboard" onClick={() => setDrawerOpen(false)} className="mobile-drawer__brand">
+              <BrandMark compact />
+            </Link>
+            <button
+              type="button"
+              className="mobile-drawer__close"
+              onClick={() => setDrawerOpen(false)}
+              aria-label="Close workspace navigation"
+            >
+              <TbX />
+            </button>
           </div>
-          <div style={{ display: 'grid', gap: '8px' }}>
-            {[...railItems, { to: '/app/settings', label: 'Settings', icon: '::' }].map((item) => (
-              <NavLink key={item.to} to={item.to} onClick={() => setDrawerOpen(false)} className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
-                <span style={{ minWidth: '28px', color: 'var(--muted-2)' }}>{item.icon}</span>
+          <div className="mobile-drawer__profile">
+            <div className="mobile-drawer__avatar">
+              {user?.imageUrl ? <img src={user.imageUrl} alt="" /> : user?.firstName?.[0] ?? 'A'}
+            </div>
+            <div>
+              <div className="mobile-drawer__user">{user?.fullName ?? user?.firstName ?? 'Workspace'}</div>
+              <div className="mobile-drawer__org">{viewer?.organisation?.name ?? 'Prymal'}</div>
+            </div>
+          </div>
+          <nav className="mobile-drawer__nav" aria-label="Workspace navigation">
+            {[...railItems, { to: '/app/settings', label: 'Settings', icon: 'settings' }].map((item) => (
+              <NavLink key={item.to} to={item.to} onClick={() => setDrawerOpen(false)} className={({ isActive }) => `mobile-drawer__link${isActive ? ' active' : ''}`}>
+                <span className="mobile-drawer__link-icon" aria-hidden="true">
+                  <RailIcon icon={item.icon} />
+                </span>
                 <span>{item.label}</span>
+                <TbChevronRight aria-hidden="true" />
               </NavLink>
             ))}
+          </nav>
+          <div className="mobile-drawer__footer">
+            <button type="button" className="pm-btn pm-btn--ghost" onClick={() => { setCommandPaletteOpen(true); setDrawerOpen(false); }}>
+              Open command palette
+            </button>
+            <ThemeToggle tiny />
           </div>
         </MotionModal>
       ) : null}
@@ -416,74 +328,13 @@ export default function AppLayout({ viewer }) {
 }
 
 function RailIcon({ icon }) {
-  if (icon === 'dashboard') return <DashboardIcon />;
-  if (icon === 'knowledge') return <KnowledgeIcon />;
-  if (icon === 'workflow') return <WorkflowIcon />;
-  if (icon === 'integrations') return <IntegrationsIcon />;
-  if (icon === 'admin') return <AdminIcon />;
-  return <SettingsIcon />;
-}
-
-function ChevronRailIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m9 6 6 6-6 6" />
-    </svg>
-  );
-}
-
-function DashboardIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 13h6V4H4zM14 20h6v-9h-6zM14 10h6V4h-6zM4 20h6v-3H4z" />
-    </svg>
-  );
-}
-
-function KnowledgeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-    </svg>
-  );
-}
-
-function WorkflowIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 6h6v6H4zM14 12h6v6h-6zM14 4h6v4h-6zM10 9h4M12 9v3M7 12v2h7" />
-    </svg>
-  );
-}
-
-function IntegrationsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M15 7h3a2 2 0 0 1 2 2v3" />
-      <path d="M9 17H6a2 2 0 0 1-2-2v-3" />
-      <path d="m8 12 4-4 4 4" />
-      <path d="m8 12 4 4 4-4" />
-    </svg>
-  );
-}
-
-function SettingsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="3.2" />
-      <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a1.8 1.8 0 0 1 0 2.5l-.2.2a1.8 1.8 0 0 1-2.5 0l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a1.8 1.8 0 0 1-1.8 1.8h-.8A1.8 1.8 0 0 1 10.8 20v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a1.8 1.8 0 0 1-2.5 0l-.2-.2a1.8 1.8 0 0 1 0-2.5l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4.8A1.8 1.8 0 0 1 3 12.6v-.8A1.8 1.8 0 0 1 4.8 10h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a1.8 1.8 0 0 1 0-2.5l.2-.2a1.8 1.8 0 0 1 2.5 0l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V4.8A1.8 1.8 0 0 1 12.6 3h.8a1.8 1.8 0 0 1 1.8 1.8v.2a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a1.8 1.8 0 0 1 2.5 0l.2.2a1.8 1.8 0 0 1 0 2.5l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.2A1.8 1.8 0 0 1 21 11.8v.8a1.8 1.8 0 0 1-1.8 1.8H19a1 1 0 0 0-.9.6z" />
-    </svg>
-  );
-}
-
-function AdminIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3 4 7v6c0 4.4 3.1 6.9 8 8 4.9-1.1 8-3.6 8-8V7z" />
-      <path d="M9.5 12.5 11 14l3.5-4" />
-    </svg>
-  );
+  if (icon === 'dashboard') return <TbLayoutDashboard />;
+  if (icon === 'memory') return <TbBrain />;
+  if (icon === 'lore') return <TbBook2 />;
+  if (icon === 'workflow') return <TbRoute />;
+  if (icon === 'integrations') return <TbPlugConnected />;
+  if (icon === 'admin') return <TbShieldCog />;
+  return <TbSettings />;
 }
 
 function Toasts() {

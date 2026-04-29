@@ -78,13 +78,21 @@ ALTER TABLE agent_memory ADD COLUMN IF NOT EXISTS pinned BOOLEAN NOT NULL DEFAUL
 UPDATE agent_memory SET content = value WHERE content IS NULL;
 UPDATE agent_memory SET title = COALESCE(title, key) WHERE title IS NULL;
 
-ALTER TABLE memory_contradiction_groups
-  ADD CONSTRAINT memory_contradiction_groups_winning_fkey
-  FOREIGN KEY (winning_memory_id) REFERENCES agent_memory(id) ON DELETE SET NULL;
+DO $$ BEGIN
+  ALTER TABLE memory_contradiction_groups
+    ADD CONSTRAINT memory_contradiction_groups_winning_fkey
+    FOREIGN KEY (winning_memory_id) REFERENCES agent_memory(id) ON DELETE SET NULL;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE agent_memory
-  ADD CONSTRAINT agent_memory_parent_memory_id_fkey
-  FOREIGN KEY (parent_memory_id) REFERENCES agent_memory(id) ON DELETE SET NULL;
+DO $$ BEGIN
+  ALTER TABLE agent_memory
+    ADD CONSTRAINT agent_memory_parent_memory_id_fkey
+    FOREIGN KEY (parent_memory_id) REFERENCES agent_memory(id) ON DELETE SET NULL;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE INDEX IF NOT EXISTS memory_org_status_idx ON agent_memory(org_id, memory_item_status);
 CREATE INDEX IF NOT EXISTS memory_contradiction_group_idx ON agent_memory(contradiction_group_id);

@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { api } from '../../../lib/api';
 import WorkflowTemplateCard from './WorkflowTemplateCard';
 import { WORKFLOW_TEMPLATES, createWorkflowTemplatePayload } from '../../../lib/workflow-templates';
@@ -15,6 +16,7 @@ import {
 } from '../../../components/ui';
 import { MotionList, MotionListItem, MotionModal, MotionPresence, MotionSection } from '../../../components/motion';
 import { useAppStore } from '../../../stores/useAppStore';
+import { getWorkflowRunBlockedMessage } from '../../../lib/usageGateCopy';
 
 const WorkflowBuilder = lazy(() => import('../../../pages/WorkflowBuilder'));
 const WebhookSubscriptionsPanel = lazy(() => import('./WebhookSubscriptionsPanel'));
@@ -159,6 +161,8 @@ export default function WorkflowPanel() {
       ]);
     },
   });
+
+  const runMutationBlockInfo = runMutation.isError ? getWorkflowRunBlockedMessage(runMutation.error) : null;
 
   const toggleMutation = useMutation({
     mutationFn: (workflowId) => api.patch(`/workflows/${workflowId}/toggle`),
@@ -489,11 +493,25 @@ export default function WorkflowPanel() {
           )}
 
           {runMutation.isError ? (
-            <InlineNotice tone={runMutation.error?.code === 'RATE_LIMITED' ? 'warning' : 'danger'}>
-              {runMutation.error?.code === 'RATE_LIMITED'
-                ? `You've reached your plan's workflow run limit. Upgrade for higher limits, or wait ${runMutation.error.retryAfter}s.`
-                : getErrorMessage(runMutation.error)}
-            </InlineNotice>
+            runMutationBlockInfo ? (
+              <InlineNotice tone={runMutationBlockInfo.tone}>
+                <span>{runMutationBlockInfo.body}</span>
+                {runMutationBlockInfo.showBillingLink ? (
+                  <>
+                    {' '}
+                    <Link to="/app/settings?tab=Billing" style={{ color: 'inherit', textDecoration: 'underline' }}>
+                      Open Billing
+                    </Link>
+                  </>
+                ) : null}
+              </InlineNotice>
+            ) : (
+              <InlineNotice tone={runMutation.error?.code === 'RATE_LIMITED' ? 'warning' : 'danger'}>
+                {runMutation.error?.code === 'RATE_LIMITED'
+                  ? `You've reached your plan's workflow run limit. Upgrade for higher limits, or wait ${runMutation.error.retryAfter}s.`
+                  : getErrorMessage(runMutation.error)}
+              </InlineNotice>
+            )
           ) : null}
           {toggleMutation.isError ? (
             <InlineNotice tone="danger">{getErrorMessage(toggleMutation.error)}</InlineNotice>

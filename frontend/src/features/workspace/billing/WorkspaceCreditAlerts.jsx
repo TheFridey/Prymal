@@ -8,7 +8,7 @@ import { useAppStore } from '../../../stores/useAppStore';
 import { Button } from '../../../components/ui';
 
 /**
- * Workspace-wide credit warnings (80% banner) and low-credit modal (90%) with upgrade-first CTAs.
+ * Workspace usage pressure: 70% soft notice, 85% upsell-forward, 95% modal forcing pack/upgrade.
  */
 export function WorkspaceCreditAlerts({ viewer }) {
   const notify = useAppStore((s) => s.addNotification);
@@ -45,9 +45,17 @@ export function WorkspaceCreditAlerts({ viewer }) {
   const videoCredits = billingQuery.data?.videoCredits ?? billingQuery.data?.credits?.video ?? null;
   const executionPercent = executionCredits?.percentUsed ?? 0;
   const videoPercent = videoCredits?.percentUsed ?? 0;
+  const monetisation = billingQuery.data?.monetisation ?? null;
+  const suggestion = monetisation?.upgradeSuggestions?.balanced ?? null;
+  const packHint = suggestion?.addOnSuggested;
+  const directedPlan = suggestion?.planUpgradeSuggested ?? getNextPlanId(currentPlan);
+  const directedPlanLabel = directedPlan ? PLAN_LIBRARY.find((p) => p.id === directedPlan)?.name ?? directedPlan : null;
 
-  const showBanner =
-    executionCredits?.threshold?.surface === 'banner' || videoCredits?.threshold?.surface === 'banner';
+  const surfaces = [executionCredits?.threshold?.surface, videoCredits?.threshold?.surface];
+
+  const bannerSoft = surfaces.some((s) => s === 'soft_banner');
+  const bannerStrong = surfaces.some((s) => s === 'strong_banner');
+  const legacyBanner = surfaces.some((s) => s === 'banner');
 
   const criticalTarget = useMemo(() => {
     if (executionCredits?.threshold?.surface === 'modal' && videoCredits?.threshold?.surface === 'modal') {
@@ -58,16 +66,14 @@ export function WorkspaceCreditAlerts({ viewer }) {
     return null;
   }, [executionCredits?.threshold?.surface, videoCredits?.threshold?.surface]);
 
-  const nextPlanId = getNextPlanId(currentPlan);
-  const nextPlanName = nextPlanId ? PLAN_LIBRARY.find((p) => p.id === nextPlanId)?.name ?? nextPlanId : null;
-  const canUpgradePlan = Boolean(nextPlanId && canManage);
-
   const packTopUp =
-    criticalTarget === 'video' || (criticalTarget === 'both' && videoPercent >= executionPercent)
-      ? { creditType: 'video', packId: 'video_30' }
-      : { creditType: 'execution', packId: 'exec_300' };
+    packHint?.packId && packHint?.creditType
+      ? { creditType: packHint.creditType, packId: packHint.packId }
+      : criticalTarget === 'video' || (criticalTarget === 'both' && videoPercent >= executionPercent)
+        ? { creditType: 'video', packId: 'video_30' }
+        : { creditType: 'execution', packId: 'exec_300' };
 
-  const thresholdCycleKey = `${billingQuery.data?.resetsAt ?? 'pending'}:${criticalTarget ?? 'none'}:global`;
+  const thresholdCycleKey = `${billingQuery.data?.resetsAt ?? 'pending'}:${criticalTarget ?? 'none'}:${monetisation?.pressureLevel ?? 'none'}`;
   const [dismissedKey, setDismissedKey] = useState('');
 
   useEffect(() => {
@@ -78,19 +84,24 @@ export function WorkspaceCreditAlerts({ viewer }) {
 
   const showModal = Boolean(criticalTarget) && dismissedKey !== thresholdCycleKey;
 
+  const showTipBand = (bannerSoft || legacyBanner) && !bannerStrong && !criticalTarget;
+  const showUpgradeBand = bannerStrong && !criticalTarget;
+
   const modalTitle =
-    criticalTarget === 'both'
-      ? 'You are running low on credits'
-      : criticalTarget === 'video'
-        ? 'AI video credits are running low'
-        : 'Execution credits are running low';
+    monetisation?.heavyUserMessaging?.headline && monetisation?.heavyUser
+      ? 'High-throughput workspace detected'
+      : criticalTarget === 'both'
+        ? 'You’re nearing exhausting limits across execution and AI video.'
+        : criticalTarget === 'video'
+          ? 'AI video renders need more capacity.'
+          : 'Execution capacity runs tight';
 
   const modalBody =
     criticalTarget === 'both'
-      ? 'Upgrade for more included credits each month, or add a one-off pack if you only need a short boost.'
+      ? 'Pick the next plan up for included monthly capacity, or add a pack for a short burst before your reset.'
       : criticalTarget === 'video'
-        ? 'Upgrade for a higher monthly AI video allowance, or add a video pack as a backup.'
-        : 'Upgrade for more monthly execution credits, or add a pack if you need capacity before your cycle resets.';
+        ? 'Video generation is a premium lane — add a Video Pack or move to a plan with more included AI video credits.'
+        : 'Unlock more execution capacity with the next plan tier or bolt on a pack for immediate relief.';
 
   if (!viewer?.organisation?.id || billingQuery.isLoading) {
     return null;
@@ -98,14 +109,14 @@ export function WorkspaceCreditAlerts({ viewer }) {
 
   return (
     <>
-      {showBanner ? (
+      {showTipBand ? (
         <div
           className="workspace-credit-banner"
           style={{
             margin: '0 0 0',
             padding: '10px 16px',
-            background: 'rgba(245, 158, 11, 0.12)',
-            borderBottom: '1px solid rgba(245, 158, 11, 0.35)',
+            background: 'rgba(59, 130, 246, 0.08)',
+            borderBottom: '1px solid rgba(59, 130, 246, 0.25)',
             color: 'var(--text-strong)',
             fontSize: '13px',
             lineHeight: 1.5,
@@ -117,22 +128,71 @@ export function WorkspaceCreditAlerts({ viewer }) {
           }}
         >
           <span>
-            You are approaching your included credit limit.{' '}
-            {canManage ? 'Upgrade for more headroom, or add a pack if you only need a small top-up.' : 'Ask a workspace admin to adjust the plan or add credits.'}
+            {monetisation?.heavyUserMessaging?.headline
+              ? `${monetisation.heavyUserMessaging.headline} `
+              : 'You’re nearing your plan limits. '}
+            {canManage ? 'Keep shipping by watching usage and lining up the next step before you hit the wall.' : 'Ask an admin to review usage and add capacity.'}
+          </span>
+          <Link to="/app/settings?tab=Billing" className="button button--ghost">
+            Usage details
+          </Link>
+        </div>
+      ) : null}
+
+      {showUpgradeBand ? (
+        <div
+          className="workspace-credit-banner"
+          style={{
+            margin: '0 0 0',
+            padding: '10px 16px',
+            background: 'rgba(245, 158, 11, 0.15)',
+            borderBottom: '1px solid rgba(245, 158, 11, 0.4)',
+            color: 'var(--text-strong)',
+            fontSize: '13px',
+            lineHeight: 1.5,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '10px',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span>
+            <strong>Unlock more execution capacity:</strong>{' '}
+            {suggestion?.headline
+              ?? 'Upgrade tiers include higher concurrency plus workflow scale — packs cover spikes without changing plans indefinitely.'}{' '}
+            {canManage ? 'Buy a usage pack instantly or step up plans when growth sticks.' : null}
           </span>
           {canManage ? (
             <span style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {nextPlanId ? (
+              {directedPlan ? (
                 <Button
                   tone="accent"
-                  onClick={() => checkoutMutation.mutate({ plan: nextPlanId, interval: 'monthly' })}
+                  onClick={() => checkoutMutation.mutate({ plan: directedPlan, interval: 'monthly' })}
                   disabled={checkoutMutation.isPending}
                 >
-                  {`Upgrade to ${nextPlanName}`}
+                  {directedPlanLabel ? `Upgrade to ${directedPlanLabel}` : `Upgrade plan`}
                 </Button>
               ) : null}
+              {packHint ? (
+                <Button
+                  tone="ghost"
+                  onClick={() => creditPackCheckoutMutation.mutate({ creditType: packHint.creditType, packId: packHint.packId })}
+                  disabled={creditPackCheckoutMutation.isPending}
+                >
+                  {packHint.label ?? 'Add credits'}
+                </Button>
+              ) : (
+                <Button
+                  tone="ghost"
+                  onClick={() => creditPackCheckoutMutation.mutate(packTopUp)}
+                  disabled={creditPackCheckoutMutation.isPending}
+                >
+                  Add pack
+                </Button>
+              )}
               <Link to="/app/settings?tab=Billing" className="button button--ghost">
-                Usage details
+                Billing
               </Link>
             </span>
           ) : (
@@ -166,30 +226,38 @@ export function WorkspaceCreditAlerts({ viewer }) {
             }}
           >
             <div style={{ fontSize: '22px', marginBottom: '8px' }}>{modalTitle}</div>
-            <div style={{ color: 'var(--muted)', lineHeight: 1.7, marginBottom: '16px' }}>{modalBody}</div>
+            <div style={{ color: 'var(--muted)', lineHeight: 1.7, marginBottom: '12px' }}>{modalBody}</div>
+            {monetisation?.heavyUserMessaging?.subline ? (
+              <div style={{ color: 'var(--text-strong)', fontSize: '13px', marginBottom: '12px' }}>
+                {monetisation.heavyUserMessaging.subline}
+              </div>
+            ) : null}
+            <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '16px' }}>
+              Execution {executionPercent.toFixed(0)}% · Video {videoPercent.toFixed(0)}%
+            </div>
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-              {canUpgradePlan && nextPlanId ? (
+              {directedPlan && canManage ? (
                 <Button
                   tone="accent"
                   onClick={() => {
-                    checkoutMutation.mutate({ plan: nextPlanId, interval: 'monthly' });
+                    checkoutMutation.mutate({ plan: directedPlan, interval: 'monthly' });
                     setDismissedKey(thresholdCycleKey);
                   }}
                   disabled={creditPackCheckoutMutation.isPending || checkoutMutation.isPending}
                 >
-                  {`Upgrade to ${nextPlanName}`}
+                  {directedPlanLabel ? `Upgrade to ${directedPlanLabel}` : 'Upgrade plan'}
                 </Button>
               ) : null}
               {canManage ? (
                 <Button
-                  tone={canUpgradePlan && nextPlanId ? 'ghost' : 'accent'}
+                  tone={directedPlan ? 'ghost' : 'accent'}
                   onClick={() => {
                     creditPackCheckoutMutation.mutate(packTopUp);
                     setDismissedKey(thresholdCycleKey);
                   }}
                   disabled={creditPackCheckoutMutation.isPending || checkoutMutation.isPending}
                 >
-                  Buy credits
+                  {packHint?.label ?? 'Buy usage pack'}
                 </Button>
               ) : null}
               <Button tone="ghost" onClick={() => setDismissedKey(thresholdCycleKey)}>

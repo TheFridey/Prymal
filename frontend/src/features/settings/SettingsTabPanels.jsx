@@ -189,8 +189,10 @@ export function BillingSettingsTab({
       accent: '#BDB4FE',
     },
   ];
-  const showExecutionWarning = executionCredits?.threshold?.surface === 'banner';
-  const showVideoWarning = videoCredits?.threshold?.surface === 'banner';
+  const bannerish = (surf) =>
+    surf === 'banner' || surf === 'soft_banner' || surf === 'strong_banner';
+  const showExecutionWarning = bannerish(executionCredits?.threshold?.surface ?? '');
+  const showVideoWarning = bannerish(videoCredits?.threshold?.surface ?? '');
   const executionBlocked = executionCredits?.threshold?.surface === 'blocked';
   const videoBlocked = videoCredits?.threshold?.surface === 'blocked';
   const packGroups = useMemo(() => ({
@@ -198,7 +200,7 @@ export function BillingSettingsTab({
     video: creditPacks.filter((pack) => pack.creditType === 'video'),
   }), [creditPacks]);
   const usageElevated =
-    showExecutionWarning || showVideoWarning || executionPercent >= 80 || videoPercent >= 80;
+    showExecutionWarning || showVideoWarning || executionPercent >= 70 || videoPercent >= 70;
   const showHeavyUsageRow = Boolean(billingQuery.data?.canManageBilling && usageElevated);
 
   return (
@@ -223,19 +225,37 @@ export function BillingSettingsTab({
         <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '6px' }}>
           Reset cycle: {resetLabel}
         </div>
+        {billingQuery.data?.usageEconomics?.founderDiscountWindowEndsAt ? (
+          <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '10px' }}>
+            Founding window ends{' '}
+            <strong>{formatDate(billingQuery.data.usageEconomics.founderDiscountWindowEndsAt)}</strong>
+            . List pricing applies afterward unless your Stripe subscription shows a different schedule.
+          </div>
+        ) : null}
+        {billingQuery.data?.usageEconomics?.monthlyInternalBurnCapGbp != null ? (
+          <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '10px' }}>
+            Estimated provider cost this cycle:{' '}
+            {typeof billingQuery.data.usageEconomics.estimatedProviderCostGbpThisCycle === 'number'
+              ? billingQuery.data.usageEconomics.estimatedProviderCostGbpThisCycle.toFixed(2)
+              : '—'}{' '}
+            GBP (internal burn cap approx. {billingQuery.data.usageEconomics.monthlyInternalBurnCapGbp} GBP — fair-use
+            thresholds may slow or block high-cost work before credits are exhausted).
+          </div>
+        ) : null}
         {foundingAccess?.offerKey === 'FOUNDING_ACCESS' ? (
           <InlineNotice tone="success" style={{ marginBottom: '12px' }}>
-            Founding Access is active on this workspace. Your reduced rate stays active while your subscription remains active,
-            with priority access to selected new Prymal features.
+            Founding Access is active — subscription pricing reflects the founding window where applicable. Founder badge and
+            onboarding bonus credits may apply; standard monthly execution and video allowances still apply. Renewal moves to
+            list pricing after your founding window (see billing portal for dates).
           </InlineNotice>
         ) : null}
         {(showExecutionWarning || showVideoWarning) ? (
           <InlineNotice tone="warning" style={{ marginBottom: '12px' }}>
             {showExecutionWarning && showVideoWarning
-              ? 'Execution and video usage are both above 80%. Upgrading your plan is usually the best next step; credit packs are there if you only need a short boost.'
+              ? 'Execution and video meters are both trending high. Step up with a plan upgrade for sustainable headroom, or add a pack for a short burst.'
               : showVideoWarning
-                ? 'AI video usage is above 80%. Consider upgrading for a higher monthly video allowance, or add a video pack.'
-                : 'Execution usage is above 80%. Consider upgrading for more included credits, or add a pack if you need capacity before your cycle resets.'}
+                ? 'Video usage is trending high. Unlock more AI video capacity with a Video Pack or a plan with a higher monthly allowance.'
+                : 'Execution usage is trending high. Upgrade tiers add concurrency and workflow scale; packs cover short spikes before your reset.'}
           </InlineNotice>
         ) : null}
         {(executionBlocked || videoBlocked) ? (
@@ -290,9 +310,9 @@ export function BillingSettingsTab({
               tone={canUpgradePlan && nextPlanId ? 'ghost' : 'accent'}
               onClick={() =>
                 creditPackCheckoutMutation.mutate(
-                  videoPercent >= executionPercent && videoPercent >= 80
+                  videoPercent >= executionPercent && videoPercent >= 70
                     ? { creditType: 'video', packId: 'video_30' }
-                    : { creditType: 'execution', packId: 'exec_300' },
+                    : { creditType: 'execution', packId: 'exec_boost_1000' },
                 )
               }
               disabled={creditPackCheckoutMutation?.isPending || checkoutMutation.isPending}

@@ -95,7 +95,7 @@ export function createCommandPaletteBackdropStyle() {
     zIndex: 9999,
     background: 'rgba(10, 15, 31, 0.58)',
     backdropFilter: `blur(${BLUR_TOKENS.overlay})`,
-    padding: '8vh 16px 24px',
+    padding: 'max(16px, 4vh) 16px 16px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'flex-start',
@@ -104,7 +104,8 @@ export function createCommandPaletteBackdropStyle() {
 
 export function createCommandPaletteDialogStyle() {
   return {
-    width: 'min(720px, 100%)',
+    width: 'min(760px, 100%)',
+    maxHeight: 'calc(100svh - 32px)',
     borderRadius: RADIUS_TOKENS.xxl,
     border: '1px solid color-mix(in srgb, var(--line) 82%, white 8%)',
     background:
@@ -134,7 +135,7 @@ export function createCommandPaletteKindStyle(accent) {
 export function createCommandPaletteActionStyle(active) {
   return {
     display: 'grid',
-    gridTemplateColumns: 'auto 1fr auto',
+    gridTemplateColumns: 'minmax(58px, auto) minmax(0, 1fr) auto',
     alignItems: 'center',
     gap: '12px',
     width: '100%',

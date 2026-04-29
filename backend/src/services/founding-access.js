@@ -12,17 +12,27 @@ import { CREDIT_TYPES, getBillingPlan } from './billing-catalog.js';
 import { recordProductEvent } from './telemetry.js';
 
 export const FOUNDING_ACCESS_OFFER_KEY = 'FOUNDING_ACCESS';
-export const FOUNDING_ACCESS_FIRST_MONTH_REASON = 'FOUNDING_ACCESS_FIRST_MONTH_2X';
+/** Legacy telemetry id — kept so existing ledger rows remain explainable */
+export const FOUNDING_ACCESS_LEGACY_FIRST_MONTH_2X = 'FOUNDING_ACCESS_FIRST_MONTH_2X';
+export const FOUNDING_ACCESS_ONBOARDING_BONUS_REASON = 'FOUNDING_ACCESS_ONBOARDING_BONUS_EXECUTION';
+
+export function getFoundingOnboardingBonusExecutionCredits() {
+  const raw = Number(process.env.FOUNDING_ACCESS_ONBOARDING_EXECUTION_CREDITS ?? 250);
+  if (!Number.isFinite(raw) || raw < 0) return 250;
+  return Math.min(Math.floor(raw), 5_000);
+}
 export const FOUNDING_ACCESS_COUNTED_STATUSES = ['claimed', 'active'];
 export const FOUNDING_ACCESS_LEAD_SOURCES = ['exit_intent', 'delayed_popup', 'pricing_banner'];
 
 export const PUBLIC_FOUNDING_ACCESS_COPY = {
-  headline: 'Founding Access is open',
-  subtext: 'Lock in early pricing, receive 2x credits for your first month, and get priority access to new Prymal capabilities.',
+  headline: 'Founding Access: 20% off for your first 3 months',
+  subtext:
+    'Founders get reduced subscription pricing during the founding window, onboarding bonus credits, a founder badge, and priority onboarding. Standard monthly usage allowances apply.',
   benefits: [
-    'Reduced lifetime pricing',
-    '2x first-month credits',
-    'Priority access to new Prymal capabilities',
+    'Founding subscription discount for the founding window',
+    'Bonus launch execution credits once per workspace',
+    'Founder badge and early roadmap access',
+    'Priority onboarding',
   ],
 };
 
@@ -420,21 +430,22 @@ async function applyFoundingAccessCreditBoost(tx, {
     return { applied: false, reason: 'subscription_not_found' };
   }
 
-  const plan = getBillingPlan(claim.planId);
-  const executionBoost = Number(plan.includedExecutionCredits ?? 0);
-  const videoBoost = Number(plan.includedVideoCredits ?? 0);
+  const executionBoost = getFoundingOnboardingBonusExecutionCredits();
   const now = new Date();
+  const founderPeriodEndsAt = new Date(now);
+  founderPeriodEndsAt.setMonth(founderPeriodEndsAt.getMonth() + 3);
 
   const [updatedClaim] = await tx
     .update(foundingAccessClaims)
     .set({
       firstMonthCreditBoostAppliedAt: now,
+      founderPeriodEndsAt,
       metadata: {
         ...(claim.metadata ?? {}),
-        firstMonthCreditBoost: {
-          reason: FOUNDING_ACCESS_FIRST_MONTH_REASON,
+        onboardingExecutionBonus: {
+          reason: FOUNDING_ACCESS_ONBOARDING_BONUS_REASON,
           executionCredits: executionBoost,
-          videoCredits: videoBoost,
+          videoCredits: 0,
           stripeInvoiceId,
           stripeEventId,
         },
@@ -455,7 +466,6 @@ async function applyFoundingAccessCreditBoost(tx, {
     .update(subscriptions)
     .set({
       executionIncludedBalance: sql`${subscriptions.executionIncludedBalance} + ${executionBoost}`,
-      videoIncludedBalance: sql`${subscriptions.videoIncludedBalance} + ${videoBoost}`,
       metadata: {
         ...(subscription.metadata ?? {}),
         foundingAccess: {
@@ -464,7 +474,9 @@ async function applyFoundingAccessCreditBoost(tx, {
           priorityAccess: true,
           priorityFeatureAccess: true,
           founderBadge: true,
-          firstMonthCreditBoost: FOUNDING_ACCESS_FIRST_MONTH_REASON,
+          founderDiscountWindowEndsAt: founderPeriodEndsAt.toISOString(),
+          onboardingBonusExecutionCredits: executionBoost,
+          onboardingBonusReason: FOUNDING_ACCESS_ONBOARDING_BONUS_REASON,
         },
       },
       updatedAt: now,
@@ -480,7 +492,7 @@ async function applyFoundingAccessCreditBoost(tx, {
     purchasedBalanceAfter: nextSubscription.executionPurchasedBalance,
     reservedBalanceAfter: nextSubscription.executionReservedBalance,
     metadata: {
-      reason: FOUNDING_ACCESS_FIRST_MONTH_REASON,
+      reason: FOUNDING_ACCESS_ONBOARDING_BONUS_REASON,
       offerKey: FOUNDING_ACCESS_OFFER_KEY,
       claimId: claim.id,
       planId: claim.planId,
@@ -489,25 +501,6 @@ async function applyFoundingAccessCreditBoost(tx, {
     },
   });
 
-  if (videoBoost > 0) {
-    await appendFoundingLedgerEntry(tx, CREDIT_TYPES.video, {
-      orgId,
-      subscriptionId: nextSubscription.id,
-      delta: videoBoost,
-      includedBalanceAfter: nextSubscription.videoIncludedBalance,
-      purchasedBalanceAfter: nextSubscription.videoPurchasedBalance,
-      reservedBalanceAfter: nextSubscription.videoReservedBalance,
-      metadata: {
-        reason: FOUNDING_ACCESS_FIRST_MONTH_REASON,
-        offerKey: FOUNDING_ACCESS_OFFER_KEY,
-        claimId: claim.id,
-        planId: claim.planId,
-        stripeInvoiceId,
-        stripeEventId,
-      },
-    });
-  }
-
   await recordProductEvent({
     orgId,
     userId: claim.userId,
@@ -515,7 +508,7 @@ async function applyFoundingAccessCreditBoost(tx, {
     metadata: {
       claimId: claim.id,
       executionCredits: executionBoost,
-      videoCredits: videoBoost,
+      videoCredits: 0,
       stripeInvoiceId,
       stripeEventId,
     },
@@ -525,7 +518,7 @@ async function applyFoundingAccessCreditBoost(tx, {
     applied: true,
     reason: null,
     executionCredits: executionBoost,
-    videoCredits: videoBoost,
+    videoCredits: 0,
   };
 }
 

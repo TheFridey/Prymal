@@ -372,6 +372,7 @@ router.get('/me', requireOrg, async (context) => {
       workflowTemplates: learning.workflowTemplates,
     },
     credits: org.credits,
+    monetisation: org.monetisationBrief ?? null,
   });
 });
 

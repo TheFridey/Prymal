@@ -8,17 +8,20 @@ import { db } from '../../db/index.js';
 import {
   creditAdjustments,
   organisations,
+  subscriptions,
   videoGenerationEvents,
 } from '../../db/schema.js';
 import { hasConfiguredStripe } from '../../env.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
 import { findAdminMutationReplay, getAdminMutationMeta } from '../../services/admin-mutations.js';
 import { applyCreditAdjustment, getBillingSnapshotForOrg } from '../../services/billing-engine.js';
+import { enrichAdminEconomicsDashboard } from '../../services/billing-admin-economics.js';
+import { getMonthlyInternalBurnCapGbp } from '../../services/billing-catalog.js';
 import { recordAdminActionLog } from '../../services/telemetry.js';
 
 const router = new Hono();
 
-const PLAN_PRICES_GBP = { free: 0, solo: 49.99, pro: 99, teams: 179, agency: 249 };
+const PLAN_PRICES_GBP = { free: 0, solo: 49.99, pro: 99, teams: 179, agency: 299 };
 
 const creditAdjustmentSchema = z.object({
   delta: z.number().int().min(-1_000_000).max(1_000_000).refine((value) => value !== 0, { message: 'Delta cannot be zero.' }),
@@ -33,6 +36,7 @@ function getStripe() {
 
 router.get('/revenue', requireStaff, requireStaffPermission('admin.billing.read'), async (context) => {
   const orgRows = await db.query.organisations.findMany({ orderBy: [desc(organisations.createdAt)] });
+  const subscriptionRows = await db.query.subscriptions.findMany();
 
   const planCounts = {};
   for (const org of orgRows) {
@@ -48,6 +52,28 @@ router.get('/revenue', requireStaff, requireStaffPermission('admin.billing.read'
 
   const estimatedMrrTotalGbp = planDistribution.reduce((sum, row) => sum + row.estimatedMrrGbp, 0);
   const paidCustomers = planDistribution.filter((row) => row.priceGbp > 0).reduce((sum, row) => sum + row.count, 0);
+
+  const burnByPlan = {};
+  let rollUpEstimatedProviderCostGbp = 0;
+  for (const sub of subscriptionRows) {
+    const burn = Number(sub.cumulativeEstimatedCostGbp ?? 0) || 0;
+    rollUpEstimatedProviderCostGbp += burn;
+    burnByPlan[sub.plan] = (burnByPlan[sub.plan] ?? 0) + burn;
+  }
+
+  let approxHeadroomToInternalCapGbp = 0;
+  for (const sub of subscriptionRows) {
+    const cap = getMonthlyInternalBurnCapGbp(sub.plan);
+    const burn = Number(sub.cumulativeEstimatedCostGbp ?? 0) || 0;
+    approxHeadroomToInternalCapGbp += Math.max(0, cap - burn);
+  }
+
+  const economicsDashboard = await enrichAdminEconomicsDashboard(db, {
+    planDistribution,
+    rollUpEstimatedProviderCostGbp,
+    approxHeadroomToInternalCapGbp,
+    estimatedMrrTotalGbp,
+  });
 
   const stripe = getStripe();
   let stripeConfigured = false;
@@ -116,6 +142,13 @@ router.get('/revenue', requireStaff, requireStaffPermission('admin.billing.read'
     paidCustomers,
     totalOrgs: orgRows.length,
     planDistribution,
+    economicsDashboard,
+    usageEconomics: {
+      rollUpEstimatedProviderCostGbp,
+      burnByPlan,
+      approxHeadroomToInternalCapGbp,
+    },
+    economicsDashboard,
     stripeConfigured,
     stripeMrrGbp: stripeMrr,
     recentInvoices,

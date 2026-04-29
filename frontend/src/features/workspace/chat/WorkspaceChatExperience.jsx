@@ -18,6 +18,7 @@ import ChatPanel from './ChatPanel';
 import MessageInput from './MessageInput';
 import ChatSettingsModal from './ChatSettingsModal';
 import MediaGenerationModal from './MediaGenerationModal';
+import { VideoPackPaywallModal } from '../billing/VideoPackPaywallModal';
 import { useAgentStripDrag } from './hooks/useAgentStripDrag';
 import { useConversationManager, DEFAULT_CHAT_SETTINGS } from './hooks/useConversationManager';
 import { useChatSend } from './hooks/useChatSend';
@@ -65,6 +66,7 @@ export default function WorkspaceChatExperience({
   const [commandIndex, setCommandIndex] = useState(0);
   const [showFirstRunHint, setShowFirstRunHint] = useState(false);
   const [mediaComposer, setMediaComposer] = useState(null);
+  const [videoPaywallOpen, setVideoPaywallOpen] = useState(false);
 
   useEffect(() => { draftRef.current = draft; }, [draft]);
 
@@ -122,6 +124,7 @@ export default function WorkspaceChatExperience({
     routeMode,
     setDraft,
     fileInputRef,
+    onVideoCreditsBlocked: () => setVideoPaywallOpen(true),
   });
 
   const voice = useVoiceInput({
@@ -606,6 +609,8 @@ export default function WorkspaceChatExperience({
           isSubmitting={chat.isStreaming}
         />
       ) : null}
+
+      <VideoPackPaywallModal open={videoPaywallOpen} onClose={() => setVideoPaywallOpen(false)} />
     </>
   );
 }

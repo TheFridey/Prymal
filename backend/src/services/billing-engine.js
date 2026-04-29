@@ -11,11 +11,13 @@ import {
   videoGenerationEvents,
 } from '../db/schema.js';
 import {
+  ACTION_COST_CLASS,
   BILLING_INTERVALS,
   CREDIT_TYPES,
   calculateExecutionCreditBurn,
   calculateVideoCreditBurn,
   canAccessAgent,
+  classifyExecutionCostIntent,
   detectHeavyUsage,
   estimateVideoProviderCostUsd,
   evaluateCostGuard,
@@ -28,7 +30,11 @@ import {
   serializeBillingCatalog,
   validateVideoGenerationRequest,
 } from './billing-catalog.js';
+import { evaluateExecutionUsageGate, evaluateVideoUsageGate } from './usage-policy.js';
+import { recordUsageEstimateEvent } from './usage-ledger.js';
 import { recordProductEvent } from './telemetry.js';
+
+const SOLO_VIDEO_SPIKE_WARN_USD = Number(process.env.SOLO_VIDEO_SPIKE_WARN_USD ?? 2);
 
 const CREDIT_FIELD_MAP = {
   [CREDIT_TYPES.execution]: {
@@ -134,7 +140,39 @@ export async function reserveExecutionCredits({
 }) {
   return db.transaction(async (tx) => {
     const { organisation, subscription } = await ensureSubscriptionForOrg(orgId, { tx });
+    await tx.execute(sql`SELECT 1 FROM subscriptions WHERE id = ${subscription.id} FOR UPDATE`);
+    const lockedSubscription =
+      (await tx.query.subscriptions.findFirst({ where: eq(subscriptions.id, subscription.id) })) ?? subscription;
+
     const plan = getBillingPlan(organisation.plan);
+
+    const usageGate = evaluateExecutionUsageGate({
+      planId: organisation.plan,
+      subscription: lockedSubscription,
+      estimatedCostUsd,
+      estimatedContextTokens,
+      agentCount,
+    });
+
+    if (!usageGate.allowed) {
+      const status =
+        usageGate.code === 'FAIR_USE_RATE_LIMIT' ? 429 : 402;
+      throw buildBillingError(usageGate.message, status, usageGate.code);
+    }
+
+    let subscriptionRow = lockedSubscription;
+    if (usageGate.subscriptionMetadataPatch) {
+      const [updated] = await tx
+        .update(subscriptions)
+        .set({
+          metadata: usageGate.subscriptionMetadataPatch,
+          updatedAt: new Date(),
+        })
+        .where(eq(subscriptions.id, lockedSubscription.id))
+        .returning();
+      subscriptionRow = updated ?? lockedSubscription;
+    }
+
     const activeCount = await countActiveUsage(tx, CREDIT_TYPES.execution, orgId);
 
     if (activeCount >= plan.concurrency.execution) {
@@ -154,15 +192,15 @@ export async function reserveExecutionCredits({
       estimatedContextTokens,
       agentCount,
     });
-    const balances = getAvailableBalances(subscription, CREDIT_TYPES.execution);
+    const balances = getAvailableBalances(subscriptionRow, CREDIT_TYPES.execution);
 
     assertCreditAvailability(CREDIT_TYPES.execution, balances.available, burn.creditsUsed);
 
     const reserved = reserveFromBalances(balances, burn.creditsUsed);
-    const cycleSummaryBefore = await getCreditSummary(tx, organisation, subscription, CREDIT_TYPES.execution);
+    const cycleSummaryBefore = await getCreditSummary(tx, organisation, subscriptionRow, CREDIT_TYPES.execution);
     const heavyUsage = detectHeavyUsage({
       percentUsed: cycleSummaryBefore.percentUsed,
-      cycleAgeDays: getCycleAgeDays(subscription.currentPeriodStart),
+      cycleAgeDays: getCycleAgeDays(subscriptionRow.currentPeriodStart),
     });
     const costGuard = evaluateCostGuard({
       creditType: CREDIT_TYPES.execution,
@@ -194,7 +232,14 @@ export async function reserveExecutionCredits({
         metadata: {
           ...metadata,
           reservationSplit: reserved.split,
-          softThrottleMs: Math.max(costGuard.throttleDelayMs, heavyUsage.flagged ? 2_500 : 0),
+          softThrottleMs: Math.max(
+            costGuard.throttleDelayMs,
+            heavyUsage.flagged ? 2_500 : 0,
+            usageGate.throttleDelayMs ?? 0,
+          ),
+          usagePolicy: {
+            costIntent: usageGate.costIntent ?? null,
+          },
         },
       })
       .returning();
@@ -207,7 +252,7 @@ export async function reserveExecutionCredits({
         executionReservedBalance: reserved.reservedBalance,
         updatedAt: new Date(),
       })
-      .where(eq(subscriptions.id, subscription.id))
+      .where(eq(subscriptions.id, subscriptionRow.id))
       .returning();
 
     await appendLedgerEntry(tx, CREDIT_TYPES.execution, {
@@ -341,6 +386,30 @@ export async function commitExecutionUsage({
       creditType: CREDIT_TYPES.execution,
     });
 
+    await recordUsageEstimateEvent(tx, {
+      organisationId: usageEvent.orgId,
+      userId: usageEvent.userId,
+      subscriptionId: nextSubscription.id,
+      planKey: organisation.plan,
+      actionType: 'execution',
+      costClass: classifyExecutionCostIntent({
+        estimatedCostUsd: finalEstimatedCostUsd,
+        estimatedContextTokens: usageEvent.estimatedContextTokens,
+        agentCount: usageEvent.agentCount,
+      }),
+      estimatedGbpCost: costGuardSnapshot.estimatedCostGbp ?? 0,
+      creditCost: usageEvent.creditsReserved ?? usageEvent.creditsCommitted ?? 0,
+      provider: provider ?? usageEvent.provider,
+      model: model ?? usageEvent.model,
+      referenceKind: 'execution_usage_event',
+      referenceId: usageEvent.id,
+      metadata: {
+        usageEventId: usageEvent.id,
+        agentId: usageEvent.agentId ?? null,
+        conversationId: usageEvent.conversationId ?? null,
+      },
+    });
+
     if (updatedEvent.costGuardTriggered || updatedEvent.heavyUsageFlagged) {
       await recordProductEvent({
         orgId: usageEvent.orgId,
@@ -450,6 +519,10 @@ export async function reserveVideoCredits({
 }) {
   return db.transaction(async (tx) => {
     const { organisation, subscription } = await ensureSubscriptionForOrg(orgId, { tx });
+    await tx.execute(sql`SELECT 1 FROM subscriptions WHERE id = ${subscription.id} FOR UPDATE`);
+    const lockedSubscription =
+      (await tx.query.subscriptions.findFirst({ where: eq(subscriptions.id, subscription.id) })) ?? subscription;
+
     const plan = getBillingPlan(organisation.plan);
     const videoMode = getVideoGenerationMode(mode);
     const burn = calculateVideoCreditBurn({
@@ -458,7 +531,32 @@ export async function reserveVideoCredits({
       mode,
       referenceImageCount: referenceImages.length,
     });
-    const balances = getAvailableBalances(subscription, CREDIT_TYPES.video);
+    const estimatedCostUsd = estimateVideoProviderCostUsd({ durationSeconds, resolution, mode });
+
+    const videoGate = evaluateVideoUsageGate({
+      planId: organisation.plan,
+      subscription: lockedSubscription,
+      estimatedCostUsd,
+    });
+
+    if (!videoGate.allowed) {
+      throw buildBillingError(videoGate.message, 402, videoGate.code);
+    }
+
+    let subscriptionRow = lockedSubscription;
+    if (videoGate.subscriptionMetadataPatch) {
+      const [updated] = await tx
+        .update(subscriptions)
+        .set({
+          metadata: videoGate.subscriptionMetadataPatch,
+          updatedAt: new Date(),
+        })
+        .where(eq(subscriptions.id, lockedSubscription.id))
+        .returning();
+      subscriptionRow = updated ?? lockedSubscription;
+    }
+
+    const balances = getAvailableBalances(subscriptionRow, CREDIT_TYPES.video);
     const validation = validateVideoGenerationRequest({
       durationSeconds,
       resolution,
@@ -470,7 +568,7 @@ export async function reserveVideoCredits({
     const activeCount = await countActiveUsage(tx, CREDIT_TYPES.video, orgId);
     const preflightError = getVideoReservationPreflightError({
       plan,
-      subscription,
+      subscription: subscriptionRow,
       balances,
       burn,
       validation,
@@ -483,14 +581,13 @@ export async function reserveVideoCredits({
     }
 
     const reserved = reserveFromBalances(balances, burn.creditsUsed);
-    const cycleSummaryBefore = await getCreditSummary(tx, organisation, subscription, CREDIT_TYPES.video);
+    const cycleSummaryBefore = await getCreditSummary(tx, organisation, subscriptionRow, CREDIT_TYPES.video);
     const heavyUsage = detectHeavyUsage({
       percentUsed: cycleSummaryBefore.percentUsed,
-      cycleAgeDays: getCycleAgeDays(subscription.currentPeriodStart),
+      cycleAgeDays: getCycleAgeDays(subscriptionRow.currentPeriodStart),
       durationSeconds,
       resolution,
     });
-    const estimatedCostUsd = estimateVideoProviderCostUsd({ durationSeconds, resolution, mode });
     const costGuard = evaluateCostGuard({
       creditType: CREDIT_TYPES.video,
       credits: burn.creditsUsed,
@@ -537,7 +634,7 @@ export async function reserveVideoCredits({
         videoReservedBalance: reserved.reservedBalance,
         updatedAt: new Date(),
       })
-      .where(eq(subscriptions.id, subscription.id))
+      .where(eq(subscriptions.id, subscriptionRow.id))
       .returning();
 
     await appendLedgerEntry(tx, CREDIT_TYPES.video, {
@@ -671,6 +768,23 @@ export async function commitVideoJob({
     }));
     const estimatedCostGbp = Number(job.providerMetadata?.estimatedCostGbp ?? (estimatedCostUsd * 0.79).toFixed(4));
 
+    const priorMeta = subscription.metadata ?? {};
+    const soloSpike =
+      organisation.plan === 'solo'
+      && Number.isFinite(SOLO_VIDEO_SPIKE_WARN_USD)
+      && estimatedCostUsd >= SOLO_VIDEO_SPIKE_WARN_USD;
+    const mergedMeta = soloSpike
+      ? {
+          ...priorMeta,
+          soloVideoCostMonitor: {
+            ...(priorMeta.soloVideoCostMonitor ?? {}),
+            lastFlaggedAt: new Date().toISOString(),
+            lastEstimatedCostUsd: estimatedCostUsd,
+            spikeCount: Number(priorMeta.soloVideoCostMonitor?.spikeCount ?? 0) + 1,
+          },
+        }
+      : priorMeta;
+
     const [nextSubscription] = await tx
       .update(subscriptions)
       .set({
@@ -678,6 +792,7 @@ export async function commitVideoJob({
         cumulativeEstimatedCostUsd: sql`${subscriptions.cumulativeEstimatedCostUsd} + ${estimatedCostUsd}`,
         cumulativeEstimatedCostGbp: sql`${subscriptions.cumulativeEstimatedCostGbp} + ${estimatedCostGbp}`,
         costGuardState: job.providerMetadata?.costGuard?.triggered ? 'throttled' : subscription.costGuardState,
+        metadata: mergedMeta,
         updatedAt: new Date(),
       })
       .where(eq(subscriptions.id, subscription.id))
@@ -710,6 +825,50 @@ export async function commitVideoJob({
       subscription: nextSubscription,
       creditType: CREDIT_TYPES.video,
     });
+
+    await recordUsageEstimateEvent(tx, {
+      organisationId: job.orgId,
+      userId: job.userId,
+      subscriptionId: nextSubscription.id,
+      planKey: organisation.plan,
+      actionType: 'video',
+      costClass: ACTION_COST_CLASS.MEDIA_COST,
+      estimatedGbpCost: estimatedCostGbp,
+      creditCost: job.creditsCommitted ?? job.creditsReserved ?? 0,
+      provider: job.provider,
+      model: job.model,
+      referenceKind: 'video_generation_event',
+      referenceId: job.id,
+      metadata: {
+        durationSeconds: job.durationSeconds,
+        resolution: job.resolution,
+        mode: job.providerMetadata?.mode ?? null,
+      },
+    });
+
+    if (soloSpike) {
+      await recordProductEvent({
+        orgId: job.orgId,
+        userId: job.userId,
+        eventName: 'solo_video_cost_spike_warning',
+        metadata: {
+          videoJobId: job.id,
+          estimatedCostUsd,
+          estimatedCostGbp,
+          thresholdUsd: SOLO_VIDEO_SPIKE_WARN_USD,
+        },
+      });
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'solo_video.cost_spike_flagged',
+          orgId: job.orgId,
+          userId: job.userId,
+          videoJobId: job.id,
+          estimatedCostUsd,
+        }),
+      );
+    }
 
     return { job: updatedJob, threshold, subscription: nextSubscription };
   });
@@ -1341,6 +1500,9 @@ async function resetSubscriptionForNewCycle({ orgId, tx, organisation, subscript
       executionReservedBalance: 0,
       videoIncludedBalance: plan.includedVideoCredits,
       videoReservedBalance: 0,
+      cumulativeEstimatedCostUsd: 0,
+      cumulativeEstimatedCostGbp: 0,
+      costGuardState: 'normal',
       currentPeriodStart: currentStart,
       currentPeriodEnd: nextEnd,
       lastResetAt: new Date(),
@@ -1809,6 +1971,7 @@ function getAvailableBalances(subscription, creditType) {
   };
 }
 
+/** Consume included entitlement before purchased add-on pool credits. */
 function reserveFromBalances(balances, credits) {
   const fromIncluded = Math.min(balances.included, credits);
   const fromPurchased = credits - fromIncluded;

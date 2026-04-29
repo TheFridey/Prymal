@@ -144,8 +144,7 @@ test('duplicate subscription activation does not apply the Founding Access credi
               subscriptionBoostUpdates += 1;
               return [{
                 ...subscription,
-                executionIncludedBalance: 4000,
-                videoIncludedBalance: 20,
+                executionIncludedBalance: 2250,
                 metadata: payload.metadata,
               }];
             }
@@ -183,7 +182,7 @@ test('duplicate subscription activation does not apply the Founding Access credi
     assert.equal(first.boost.applied, true);
     assert.equal(duplicate.boost.applied, false);
     assert.equal(subscriptionBoostUpdates, 1);
-    assert.equal(ledgerEntries, 2);
+    assert.equal(ledgerEntries, 1);
   } finally {
     db.transaction = originalTransaction;
     db.insert = originalInsert;

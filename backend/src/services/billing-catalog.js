@@ -81,16 +81,49 @@ export const COST_GUARD_DEFAULTS = {
   throttleDelayMs: Number(process.env.BILLING_COST_GUARD_DELAY_MS ?? 7_500),
 };
 
+/** Estimated internal provider burn budget per workspace per billing month (GBP). Env override: BILLING_INTERNAL_CAP_GBP_SOLO etc. */
+export const DEFAULT_MONTHLY_INTERNAL_BURN_CAP_GBP = {
+  free: Number(process.env.BILLING_INTERNAL_CAP_GBP_FREE ?? 2),
+  solo: Number(process.env.BILLING_INTERNAL_CAP_GBP_SOLO ?? 8),
+  pro: Number(process.env.BILLING_INTERNAL_CAP_GBP_PRO ?? 20),
+  teams: Number(process.env.BILLING_INTERNAL_CAP_GBP_TEAMS ?? 45),
+  agency: Number(process.env.BILLING_INTERNAL_CAP_GBP_AGENCY ?? 75),
+};
+
+/** Coarse mapping from product surface to approximate marginal cost tier (for caps and analytics). */
+export const ACTION_COST_CLASS = {
+  LOW_COST: 'LOW_COST',
+  MEDIUM_COST: 'MEDIUM_COST',
+  HIGH_COST: 'HIGH_COST',
+  MEDIA_COST: 'MEDIA_COST',
+};
+
+/** Default fair-use knobs (requests / high-cost actions). Not shown to users as headline numbers — enforced server-side. */
+function fairUse(planKey) {
+  const defaults = {
+    free: { requestsPerMinute: 30, highCostActionsPerDay: 15, highCostActionsPerMonth: 80, mediaGenerationPerMonth: 4 },
+    solo: { requestsPerMinute: 45, highCostActionsPerDay: 25, highCostActionsPerMonth: 220, mediaGenerationPerMonth: 15 },
+    pro: { requestsPerMinute: 90, highCostActionsPerDay: 60, highCostActionsPerMonth: 700, mediaGenerationPerMonth: 35 },
+    teams: { requestsPerMinute: 120, highCostActionsPerDay: 120, highCostActionsPerMonth: 2400, mediaGenerationPerMonth: 120 },
+    agency: { requestsPerMinute: 180, highCostActionsPerDay: 220, highCostActionsPerMonth: 5000, mediaGenerationPerMonth: 260 },
+  };
+  return defaults[planKey] ?? defaults.free;
+}
+
 export const BILLING_PLANS = {
   free: {
     id: 'free',
     label: 'Offer Access',
     monthlyPriceGbp: 0,
+    monthlyInternalBurnCapGbp: DEFAULT_MONTHLY_INTERNAL_BURN_CAP_GBP.free,
+    loreDepthLevel: 'shallow',
+    maxActiveWorkspaceCount: 1,
     includedExecutionCredits: 50,
     includedVideoCredits: 0,
     seatLimit: 1,
     accessibleAgents: CORE_FREE_AGENTS,
     dailyVideoCreditCap: 0,
+    fairUse: fairUse('free'),
     concurrency: {
       execution: 1,
       video: 0,
@@ -100,11 +133,15 @@ export const BILLING_PLANS = {
     id: 'solo',
     label: 'Solo',
     monthlyPriceGbp: 49.99,
+    monthlyInternalBurnCapGbp: DEFAULT_MONTHLY_INTERNAL_BURN_CAP_GBP.solo,
+    loreDepthLevel: 'shallow',
+    maxActiveWorkspaceCount: 1,
     includedExecutionCredits: 500,
-    includedVideoCredits: 0,
+    includedVideoCredits: 2,
     seatLimit: 1,
     accessibleAgents: SOLO_AGENTS,
-    dailyVideoCreditCap: 0,
+    dailyVideoCreditCap: 2,
+    fairUse: fairUse('solo'),
     concurrency: {
       execution: 1,
       video: 1,
@@ -114,11 +151,15 @@ export const BILLING_PLANS = {
     id: 'pro',
     label: 'Pro',
     monthlyPriceGbp: 99,
+    monthlyInternalBurnCapGbp: DEFAULT_MONTHLY_INTERNAL_BURN_CAP_GBP.pro,
+    loreDepthLevel: 'medium',
+    maxActiveWorkspaceCount: 3,
     includedExecutionCredits: 2000,
-    includedVideoCredits: 10,
+    includedVideoCredits: 5,
     seatLimit: 1,
     accessibleAgents: 'all',
-    dailyVideoCreditCap: 10,
+    dailyVideoCreditCap: 5,
+    fairUse: fairUse('pro'),
     concurrency: {
       execution: 3,
       video: 2,
@@ -128,34 +169,51 @@ export const BILLING_PLANS = {
     id: 'teams',
     label: 'Teams',
     monthlyPriceGbp: 179,
+    monthlyInternalBurnCapGbp: DEFAULT_MONTHLY_INTERNAL_BURN_CAP_GBP.teams,
+    loreDepthLevel: 'deep_capped',
+    maxActiveWorkspaceCount: 10,
     includedExecutionCredits: 6000,
-    includedVideoCredits: 30,
+    includedVideoCredits: 15,
     seatLimit: 5,
     accessibleAgents: 'all',
-    dailyVideoCreditCap: 15,
+    dailyVideoCreditCap: 8,
+    fairUse: fairUse('teams'),
     concurrency: {
-      execution: 8,
+      execution: 5,
       video: 4,
     },
   },
   agency: {
     id: 'agency',
     label: 'Agency',
-    monthlyPriceGbp: 249,
+    monthlyPriceGbp: 299,
+    monthlyStandardPriceLabel: 'from £299/mo',
+    monthlyInternalBurnCapGbp: DEFAULT_MONTHLY_INTERNAL_BURN_CAP_GBP.agency,
+    loreDepthLevel: 'deep_capped',
+    maxActiveWorkspaceCount: 50,
     includedExecutionCredits: 10000,
-    includedVideoCredits: 60,
+    includedVideoCredits: 25,
     seatLimit: 25,
     accessibleAgents: 'all',
-    dailyVideoCreditCap: 25,
+    dailyVideoCreditCap: 15,
+    fairUse: fairUse('agency'),
     concurrency: {
-      execution: 15,
-      video: 6,
+      execution: 8,
+      video: 5,
     },
   },
 };
 
 export const CREDIT_PACKS = {
   execution: {
+    exec_boost_1000: {
+      id: 'exec_boost_1000',
+      creditType: CREDIT_TYPES.execution,
+      label: '+1,000 execution credits (boost)',
+      amountGbp: 15,
+      credits: 1000,
+      stripePriceEnvKey: 'STRIPE_PRICE_EXEC_BOOST_1000',
+    },
     exec_100: {
       id: 'exec_100',
       creditType: CREDIT_TYPES.execution,
@@ -182,6 +240,22 @@ export const CREDIT_PACKS = {
     },
   },
   video: {
+    video_pack_small: {
+      id: 'video_pack_small',
+      creditType: CREDIT_TYPES.video,
+      label: 'Video Pack · Small (+10)',
+      amountGbp: 20,
+      credits: 10,
+      stripePriceEnvKey: 'STRIPE_PRICE_VIDEO_PACK_SMALL',
+    },
+    video_pack_pro: {
+      id: 'video_pack_pro',
+      creditType: CREDIT_TYPES.video,
+      label: 'Video Pack · Pro (+30)',
+      amountGbp: 50,
+      credits: 30,
+      stripePriceEnvKey: 'STRIPE_PRICE_VIDEO_PACK_PRO',
+    },
     video_15: {
       id: 'video_15',
       creditType: CREDIT_TYPES.video,
@@ -231,6 +305,16 @@ export function getVideoGenerationMode(mode = DEFAULT_VIDEO_GENERATION_MODE) {
   return VIDEO_GENERATION_MODES[mode] ?? VIDEO_GENERATION_MODES[DEFAULT_VIDEO_GENERATION_MODE];
 }
 
+export function getMonthlyInternalBurnCapGbp(planId = 'free') {
+  const suffix = String(planId || 'free').toUpperCase();
+  const raw = process.env[`BILLING_INTERNAL_CAP_GBP_${suffix}`]?.trim();
+  if (raw !== undefined && raw !== '' && Number.isFinite(Number(raw))) {
+    return Number(raw);
+  }
+  const plan = getBillingPlan(planId);
+  return Number(plan.monthlyInternalBurnCapGbp ?? DEFAULT_MONTHLY_INTERNAL_BURN_CAP_GBP[plan.id] ?? 8);
+}
+
 export function getPlanConfig(planId = 'free') {
   const plan = getBillingPlan(planId);
 
@@ -244,7 +328,53 @@ export function getPlanConfig(planId = 'free') {
     dailyVideoCreditCap: plan.dailyVideoCreditCap,
     concurrency: plan.concurrency,
     monthlyPriceGbp: plan.monthlyPriceGbp,
+    loreDepthLevel: plan.loreDepthLevel ?? 'shallow',
+    monthlyInternalBurnCapGbp: getMonthlyInternalBurnCapGbp(planId),
+    fairUse: plan.fairUse ?? fairUse(plan.id),
+    maxActiveWorkspaceCount: plan.maxActiveWorkspaceCount ?? 1,
+    monthlyStandardPriceLabel: plan.monthlyStandardPriceLabel ?? null,
   };
+}
+
+/** Clip LORE vector retrieval breadth based on billed plan depth (caller: llm/system prompt assembly). */
+export function constrainLoreRetrievalBudgetForPlan(orgPlanId, retrievalBudget) {
+  const plan = getBillingPlan(orgPlanId);
+  const tier = plan.loreDepthLevel ?? 'shallow';
+  const b = retrievalBudget ?? { baseLimit: 2, hardCap: 3, research: false };
+  if (tier === 'shallow') {
+    return {
+      baseLimit: Math.min(b.baseLimit, 2),
+      hardCap: Math.min(b.hardCap, 4),
+      research: false,
+    };
+  }
+  if (tier === 'medium') {
+    return {
+      baseLimit: Math.min(b.baseLimit, 3),
+      hardCap: Math.min(b.hardCap, 6),
+      research: Boolean(b.research),
+    };
+  }
+  /** deep_capped — strong retrieval but bounded */
+  return {
+    baseLimit: Math.min(b.baseLimit, 5),
+    hardCap: Math.min(b.hardCap, 9),
+    research: Boolean(b.research),
+  };
+}
+
+/** Heuristic class for metering / analytics (fair-use buckets). Not a billing currency. */
+export function classifyExecutionCostIntent({
+  estimatedCostUsd = 0,
+  estimatedContextTokens = 0,
+  agentCount = 1,
+} = {}) {
+  const ctx = Number(estimatedContextTokens) || 0;
+  const usd = Number(estimatedCostUsd) || 0;
+  const agents = Math.max(Number(agentCount) || 1, 1);
+  if (usd >= 0.2 || ctx > 63000 || agents > 8) return ACTION_COST_CLASS.HIGH_COST;
+  if (usd >= 0.055 || ctx > 7999 || agents > 2) return ACTION_COST_CLASS.MEDIUM_COST;
+  return ACTION_COST_CLASS.LOW_COST;
 }
 
 export function canAccessAgent(planId, agentId) {
@@ -430,8 +560,9 @@ export function validateVideoGenerationRequest({
 
 export function getUsageThreshold(percentUsed = 0) {
   if (percentUsed >= 100) return 100;
-  if (percentUsed >= 90) return 90;
-  if (percentUsed >= 80) return 80;
+  if (percentUsed >= 95) return 95;
+  if (percentUsed >= 85) return 85;
+  if (percentUsed >= 70) return 70;
   return 0;
 }
 
@@ -444,24 +575,37 @@ export function getThresholdPresentation(percentUsed = 0) {
       state: 'blocked',
       label: 'Credit limit reached',
       surface: 'blocked',
+      pressureLevel: 'blocked',
     };
   }
 
-  if (threshold === 90) {
+  if (threshold === 95) {
     return {
       threshold,
       state: 'critical',
-      label: 'Approaching credit exhaustion',
+      label: 'Near exhaustion — upgrade or buy a pack now',
       surface: 'modal',
+      pressureLevel: 'critical',
     };
   }
 
-  if (threshold === 80) {
+  if (threshold === 85) {
     return {
       threshold,
-      state: 'warning',
-      label: 'Heavy credit usage',
-      surface: 'banner',
+      state: 'elevated',
+      label: 'High usage — packs or upgrade recommended',
+      surface: 'strong_banner',
+      pressureLevel: 'high',
+    };
+  }
+
+  if (threshold === 70) {
+    return {
+      threshold,
+      state: 'notice',
+      label: 'Heading toward limits',
+      surface: 'soft_banner',
+      pressureLevel: 'warning',
     };
   }
 
@@ -470,6 +614,7 @@ export function getThresholdPresentation(percentUsed = 0) {
     state: 'normal',
     label: 'Within plan allowance',
     surface: 'none',
+    pressureLevel: 'none',
   };
 }
 
@@ -514,15 +659,22 @@ export function evaluateCostGuard({ creditType, credits, estimatedCostUsd }) {
 export function serializeBillingCatalog() {
   return {
     thresholds: BILLING_THRESHOLDS,
+    fairUsageSummary:
+      'Prymal includes generous monthly usage allowances. Heavy media generation, deep memory retrieval, bulk workflows, and premium model usage are subject to fair-use controls and may require usage packs.',
     plans: Object.values(BILLING_PLANS).map((plan) => ({
       id: plan.id,
       label: plan.label,
       monthlyPriceGbp: plan.monthlyPriceGbp,
+      monthlyStandardPriceLabel: plan.monthlyStandardPriceLabel ?? null,
       includedExecutionCredits: plan.includedExecutionCredits,
       includedVideoCredits: plan.includedVideoCredits,
       seatLimit: plan.seatLimit,
       dailyVideoCreditCap: plan.dailyVideoCreditCap,
       concurrency: plan.concurrency,
+      loreDepthLevel: plan.loreDepthLevel ?? 'shallow',
+      monthlyInternalBurnCapGbp: getMonthlyInternalBurnCapGbp(plan.id),
+      maxActiveWorkspaceCount: plan.maxActiveWorkspaceCount ?? 1,
+      fairUse: plan.fairUse ?? fairUse(plan.id),
     })),
     packs: getAllCreditPacks().map((pack) => ({
       id: pack.id,

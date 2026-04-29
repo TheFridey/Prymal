@@ -12,6 +12,11 @@ import {
 import { getSpeechPreviewText } from '../messagePresentation';
 import { convertImageFileToWebpPayload } from '../imageUpload';
 import { useAppStore } from '../../../../stores/useAppStore';
+import {
+  getChatUsageGateNotify,
+  getChatUsageGateUserMessage,
+  isVideoPaywallCode,
+} from '../../../../lib/usageGateCopy';
 
 const WORKFLOW_RUN_UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -92,6 +97,7 @@ function buildStreamingTask({
  * @param {boolean} params.routeMode
  * @param {function} params.setDraft
  * @param {object} params.fileInputRef
+ * @param {function} [params.onVideoCreditsBlocked] — open Video Pack paywall (video credits exhausted)
  */
 export function useChatSend({
   activeAgent,
@@ -106,6 +112,7 @@ export function useChatSend({
   routeMode,
   setDraft,
   fileInputRef,
+  onVideoCreditsBlocked,
 }) {
   const activeWorkflowRunId = useAppStore((state) => state.activeWorkflowRunId);
   const activeWorkflowRunStatus = useAppStore((state) => state.activeWorkflowRunStatus);
@@ -305,10 +312,29 @@ export function useChatSend({
     } catch (error) {
       setIsStreaming(false);
       setStreamingTask(null);
+      const code = error?.code;
+      if (isVideoPaywallCode(code)) {
+        onVideoCreditsBlocked?.();
+        appendFailureMessage({
+          message:
+            'Video generation requires a Video Pack or a plan with allowance. Open Billing to purchase credits — Prymal never downgrades quality silently.',
+          retryText: `/video ${prompt}`,
+          code,
+          agentId: targetAgent.id,
+        });
+        notify({
+          type: 'warning',
+          title: 'Video credits required',
+          message: 'Add a Video Pack or upgrade — then retry your prompt.',
+          action: { label: 'Billing & packs', href: '/app/settings?tab=Billing' },
+        });
+        await queryClient.invalidateQueries({ queryKey: ['billing-stats'] });
+        return;
+      }
       appendFailureMessage({
         message: getErrorMessage(error, 'Prymal could not complete this video render.'),
         retryText: `/video ${prompt}`,
-        code: error?.code ?? 'VIDEO_GENERATION_FAILED',
+        code: code ?? 'VIDEO_GENERATION_FAILED',
         agentId: targetAgent.id,
       });
       notify({ type: 'error', title: 'Video generation failed', message: getErrorMessage(error) });
@@ -564,6 +590,26 @@ export function useChatSend({
             ? `You've used your plan's chat allowance. Upgrade to continue. Resets in ${error.retryAfter}s.`
             : `Too many requests. Please wait ${error.retryAfter}s before sending another message.`,
           action: error.upgrade ? { label: 'Upgrade plan', href: '/app/settings?tab=Billing' } : null,
+        });
+        return;
+      }
+
+      const usageGate = getChatUsageGateNotify(error.code);
+      if (usageGate) {
+        const userLine =
+          getChatUsageGateUserMessage(error.code)
+          ?? getErrorMessage(error, 'Prymal could not complete this response.');
+        appendFailureMessage({
+          message: userLine,
+          retryText: finalMessage,
+          code: error.code,
+          agentId: targetAgent.id,
+        });
+        notify({
+          type: 'warning',
+          title: usageGate.title,
+          message: usageGate.message,
+          action: usageGate.action,
         });
         return;
       }

@@ -11,17 +11,17 @@ import {
 import { shouldShowFoundingPricingUi } from './founding-access';
 
 const PERSONA_LINE = {
-  solo: 'For individuals getting started',
-  pro: 'For growing businesses and creators',
-  teams: 'For teams running workflows',
-  agency: 'For high-scale operations',
+  solo: 'Starter — individual operators shipping with agents',
+  pro: 'Serious operator tier — deeper workflows and production concurrency',
+  teams: 'Collaboration — pooled usage, seats, shared workspaces',
+  agency: 'Scale + clients — orchestration, concurrency, and priority lanes',
 };
 
 const PRIORITY_LABEL = {
   solo: 'Standard',
   pro: 'Elevated',
   teams: 'High',
-  agency: 'Maximum',
+  agency: 'Priority',
 };
 
 const FAQ_ITEMS = [
@@ -44,6 +44,14 @@ const FAQ_ITEMS = [
   {
     q: 'Is pricing predictable?',
     a: 'Your subscription price is fixed in GBP. Usage stays within the included execution credits and AI video credits for your tier, with clear limits for concurrent runs and daily video caps on higher plans.',
+  },
+  {
+    q: 'Fair usage',
+    a: 'Prymal includes generous monthly usage allowances. Heavy media generation, deep memory retrieval, bulk workflows, and premium model usage are subject to fair-use controls and may require usage packs.',
+  },
+  {
+    q: 'Is anything unlimited?',
+    a: 'No. Every tier has clear execution and AI video allowances, plus fair-use controls for costly workloads. Usage packs refill capacity for short bursts — they do not remove limits.',
   },
 ];
 
@@ -68,8 +76,9 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
           Run your entire business with AI agents
         </h1>
         <p className="pricing-hero__lede">
-          Create content, automate workflows, and produce video — in one system. Pick the tier that matches how often you ship
-          work; Pro is the sweet spot for most operators.
+          Choose a lane in seconds: Solo is the starter tier, Pro for serious operators, Teams for collaboration, Agency for
+          client-scale orchestration. Usage packs are available when you need extra execution or video renders without changing
+          caps or safety controls.
         </p>
         <div className="pricing-hero__ctas">
           <SignedOut>
@@ -102,10 +111,11 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         <section className="pricing-founding-banner" aria-labelledby="founding-access-heading">
           <div>
             <div className="pricing-founding-banner__eyebrow">Limited founding accounts</div>
-            <h2 id="founding-access-heading">Founding Access is open</h2>
+            <h2 id="founding-access-heading">Founding Access: 20% off for your first 3 months</h2>
             <p>
-              Lock in reduced rates for the first paid cohort, receive 2x credits for your first month, and get priority access
-              to new Prymal capabilities. Applied at checkout while capacity remains.
+              Founder badge, priority onboarding, early roadmap access, and a one-time onboarding execution credit bonus. Standard
+              monthly usage limits apply — discount renews at standard plan rates after the founding window (see checkout &amp;
+              billing portal for your quote).
             </p>
           </div>
           <button type="button" className="button button--accent" onClick={scrollToPricingGrid}>
@@ -157,6 +167,9 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
                 <div className="pricing-card__badge">Most popular</div>
               ) : null}
               <h2 className="pricing-card__name">{plan.name}</h2>
+              {plan.monthlyPriceLabel ? (
+                <p style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '6px' }}>{plan.monthlyPriceLabel}</p>
+              ) : null}
               <p className="pricing-card__persona">{PERSONA_LINE[plan.id]}</p>
               <div className="pricing-card__price">
                 {foundingAccessActive ? (
@@ -173,7 +186,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               </div>
               {foundingAccessActive ? (
                 <p className="pricing-card__period-note">
-                  Early pricing locked while your subscription remains active
+                  Founding window pricing — standard usage limits apply; renews at list rate after the founding period
                 </p>
               ) : price.hasPeriodDiscount ? (
                 <p className="pricing-card__period-note">
@@ -184,7 +197,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               )}
               <ul className="pricing-card__list">
                 <li>
-                  {plan.credits.toLocaleString('en-GB')} execution credits / month
+                  {plan.credits.toLocaleString('en-GB')} execution credits / month (metered; no hidden “unlimited”)
                 </li>
                 <li>
                   {ent.monthlyVideoCredits > 0
@@ -192,8 +205,8 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
                     : 'AI video credits via upgrade'}
                 </li>
                 <li>AI agents &amp; automations</li>
-                {foundingAccessActive ? <li>Includes 2x first-month credits</li> : null}
-                {foundingAccessActive ? <li>Priority access to new agent capabilities</li> : null}
+                {foundingAccessActive ? <li>Bonus launch execution credits (one-time, same limits as standard plans)</li> : null}
+                {foundingAccessActive ? <li>Founder badge &amp; early roadmap access</li> : null}
                 <li>
                   {ent.concurrencyExecution > 1
                     ? `Run up to ${ent.concurrencyExecution} AI tasks at once`
@@ -326,6 +339,14 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               ))}
             </tr>
             <tr>
+              <td>Usage packs</td>
+              {PLAN_LIBRARY.map((plan) => (
+                <td key={plan.id} className="pricing-compare__tick">
+                  Add execution or video credits (any paid tier)
+                </td>
+              ))}
+            </tr>
+            <tr>
               <td>Daily video cap</td>
               {PLAN_LIBRARY.map((plan) => (
                 <td key={plan.id}>
@@ -343,6 +364,25 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
             </tr>
           </tbody>
         </table>
+        </div>
+      </section>
+
+      <section className="pricing-explainer" aria-labelledby="usage-packs-heading">
+        <h2 id="usage-packs-heading" className="pricing-section-title" style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+          Usage packs
+        </h2>
+        <div className="pricing-panel" style={{ maxWidth: '720px', margin: '0 auto 1.25rem' }}>
+          <p>
+            <strong>Execution Boost</strong> adds chat, agent, and workflow capacity when your monthly pool runs thin.{' '}
+            <strong>AI video packs</strong> refill premium render credits only — video stays visibly metered separately from execution.
+          </p>
+          <p style={{ marginBottom: 0 }}>
+            Purchase packs anytime from{' '}
+            <Link to="/app/settings?tab=Billing" style={{ color: 'var(--accent, #00FFD1)', textDecoration: 'underline' }}>
+              Settings → Billing
+            </Link>
+            . Caps and fair-use safeguards stay in force; packs bridge spikes without weakening enforcement.
+          </p>
         </div>
       </section>
 

@@ -34,6 +34,7 @@ import {
 import { ragSearch } from './rag.js';
 import { fetchLiveWebContext } from './web-research.js';
 import { buildSuccessfulPatternsPrompt, getSuccessfulPatterns } from './moat-feedback.js';
+import { constrainLoreRetrievalBudgetForPlan } from './billing-catalog.js';
 
 const ANTHROPIC_MODELS = getAnthropicModels();
 const OPENAI_MODELS = getOpenAIModels();
@@ -249,6 +250,7 @@ export async function* streamAgentResponse({
     agent,
     contract,
     orgId,
+    orgPlan,
     userId,
     conversationId,
     workflowRunId,
@@ -509,6 +511,7 @@ export async function runAgentNode({ agentId, orgId, orgPlan = 'free', prompt, c
     agent,
     contract,
     orgId,
+    orgPlan,
     userId: null,
     workflowRunId: context.__workflowRunId ?? null,
     userMessage,
@@ -1156,6 +1159,7 @@ async function buildSystemPrompt({
   agent,
   contract = getRuntimeAgentContract(agent.id),
   orgId,
+  orgPlan = 'free',
   userId = null,
   conversationId = null,
   workflowRunId = null,
@@ -1231,7 +1235,8 @@ async function buildSystemPrompt({
   let memorySummary = null;
   if (useLore && orgId && userMessage && contract?.allowedTools?.includes('lore_search')) {
     try {
-      const budget = getRetrievalBudgetForAgent(agent.id, contract);
+      const budgetRaw = getRetrievalBudgetForAgent(agent.id, contract);
+      const budget = constrainLoreRetrievalBudgetForPlan(orgPlan, budgetRaw);
       const fetchedChunks = await ragSearch({
         orgId,
         query: userMessage,

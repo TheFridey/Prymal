@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CommandPaletteDialog } from '../../../components/CommandPaletteDialog';
 import { api } from '../../../lib/api';
-// Motion imports — MotionList, MotionListItem, MotionPresence are used inside CommandPaletteDialog
-import { MotionList, MotionListItem, MotionPresence } from '../../../components/motion';
 
 const KIND_META = {
   destination: { label: 'Jump', accent: '#6d8aff' },
@@ -38,11 +36,15 @@ export function WorkspaceCommandPalette({
   });
 
   const results = useMemo(() => {
+    const agentById = new Map(agents.map((agent) => [agent.id, agent]));
+
     const baseDestinations = railItems.map((item) => ({
       kind: 'destination',
       id: item.to,
       title: item.label,
       subtitle: 'Open this workspace surface.',
+      meta: 'Workspace',
+      code: item.short,
       to: item.to,
       score: trimmedQuery ? scoreMatch(item.label, trimmedQuery) + 8 : 1,
     }));
@@ -52,6 +54,8 @@ export function WorkspaceCommandPalette({
       id: agent.id,
       title: agent.name,
       subtitle: agent.title ?? agent.description ?? 'Open agent workspace',
+      meta: 'Agent workspace',
+      agent,
       to: `/app/agents/${agent.id}`,
       score: trimmedQuery
         ? Math.max(
@@ -62,20 +66,25 @@ export function WorkspaceCommandPalette({
         : 1,
     }));
 
-    const conversationResults = (conversationsQuery.data?.conversations ?? []).map((conversation) => ({
-      kind: 'conversation',
-      id: conversation.id,
-      title: conversation.title || 'Untitled conversation',
-      subtitle: `${conversation.agentId} | recent conversation`,
-      to: `/app/agents/${conversation.agentId}?cid=${conversation.id}`,
-      score: trimmedQuery
-        ? Math.max(
-            scoreMatch(conversation.title, trimmedQuery),
-            scoreMatch(conversation.agentId, trimmedQuery),
-            scoreMatch(conversation.id, trimmedQuery),
-          ) + 10
-        : 0,
-    }));
+    const conversationResults = (conversationsQuery.data?.conversations ?? []).map((conversation) => {
+      const agent = agentById.get(conversation.agentId);
+      return {
+        kind: 'conversation',
+        id: conversation.id,
+        title: conversation.title || 'Untitled conversation',
+        subtitle: agent ? `${agent.name} recent conversation` : `${conversation.agentId} recent conversation`,
+        meta: 'Recent chat',
+        agent,
+        to: `/app/agents/${conversation.agentId}?cid=${conversation.id}`,
+        score: trimmedQuery
+          ? Math.max(
+              scoreMatch(conversation.title, trimmedQuery),
+              scoreMatch(conversation.agentId, trimmedQuery),
+              scoreMatch(conversation.id, trimmedQuery),
+            ) + 10
+          : 0,
+      };
+    });
 
     return [...baseDestinations, ...agentResults, ...conversationResults]
       .filter((item) => item.score > 0)

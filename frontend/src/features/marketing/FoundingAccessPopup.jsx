@@ -99,8 +99,8 @@ export function FoundingAccessPopup({ offer, surface = 'pricing' }) {
         <div className="founding-access-modal__eyebrow">Founding Access</div>
         <h2 id={`founding-access-${surface}-title`}>Unlock Founding Access</h2>
         <p>
-          Early Prymal users can lock in reduced lifetime pricing, receive 2x credits for their first month,
-          and get priority access to new agent capabilities.
+          Prymal Founding Access includes discounted subscription pricing during the founding window, a one-time onboarding
+          execution bonus, a founder badge, and priority onboarding — standard monthly usage allowances still apply.
         </p>
         <form className="founding-access-modal__form" onSubmit={submitLead}>
           <TextInput

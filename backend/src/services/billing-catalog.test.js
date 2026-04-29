@@ -121,11 +121,25 @@ test('threshold presentation blocks at 100 percent', () => {
   assert.equal(result.surface, 'blocked');
 });
 
-test('threshold presentation uses a modal at 90 percent', () => {
-  const result = billingCatalog.getThresholdPresentation(90);
+test('threshold presentation reaches modal tier at ~95 percent', () => {
+  const result = billingCatalog.getThresholdPresentation(96);
 
-  assert.equal(result.threshold, 90);
+  assert.equal(result.threshold, 95);
   assert.equal(result.surface, 'modal');
+});
+
+test('soft banner tier begins at ~70 percent', () => {
+  const result = billingCatalog.getThresholdPresentation(71);
+
+  assert.equal(result.threshold, 70);
+  assert.equal(result.surface, 'soft_banner');
+});
+
+test('strong banner tier begins at ~85 percent', () => {
+  const result = billingCatalog.getThresholdPresentation(88);
+
+  assert.equal(result.threshold, 85);
+  assert.equal(result.surface, 'strong_banner');
 });
 
 test('heavy usage flags rapid burn and repeated maxed video posture', () => {
@@ -157,7 +171,16 @@ test('cost guard triggers when estimated cost exceeds conservative revenue contr
   assert.ok(result.revenueContributionGbp > 0);
 });
 
-test('catalog serialization exposes both credit packs and video modes', () => {
+test('Agency standard list price is £299/mo in catalog', () => {
+  assert.equal(billingCatalog.getBillingPlan('agency').monthlyPriceGbp, 299);
+});
+
+test('internal monthly burn cap defaults match commercial policy', () => {
+  assert.equal(billingCatalog.getMonthlyInternalBurnCapGbp('solo'), billingCatalog.DEFAULT_MONTHLY_INTERNAL_BURN_CAP_GBP.solo);
+  assert.equal(billingCatalog.getMonthlyInternalBurnCapGbp('agency'), billingCatalog.DEFAULT_MONTHLY_INTERNAL_BURN_CAP_GBP.agency);
+});
+
+test('catalog serialization exposes packs, video modes, and fair usage summary', () => {
   const catalog = billingCatalog.serializeBillingCatalog();
 
   assert.ok(Array.isArray(catalog.plans));
@@ -165,4 +188,5 @@ test('catalog serialization exposes both credit packs and video modes', () => {
   assert.ok(Array.isArray(catalog.videoModes));
   assert.equal(catalog.videoModes.length, 2);
   assert.equal(catalog.videoSpec.model, 'veo-3.1-lite-generate-preview');
+  assert.match(catalog.fairUsageSummary, /fair-use/i);
 });

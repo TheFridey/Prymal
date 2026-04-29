@@ -23,6 +23,7 @@ import {
   updateSubscriptionBillingStatus,
 } from '../services/billing-engine.js';
 import { getPlanConfig } from '../services/entitlements.js';
+import { getMonthlyInternalBurnCapGbp } from '../services/billing-catalog.js';
 import {
   FOUNDING_ACCESS_OFFER_KEY,
   activateFoundingAccessClaim,
@@ -32,8 +33,21 @@ import {
 } from '../services/founding-access.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
 import { getSeatSnapshot } from '../services/team.js';
+import { isForbiddenNewSubscriptionAgencyPriceId } from '../services/billing-stripe-guards.js';
+import { enforceFounderStandardStripePricing } from '../services/founder-stripe-enforcement.js';
+import {
+  computeUsagePressurePayload,
+  fetchLedgerMonetisationFlags,
+  getUpgradeSuggestion,
+} from '../services/usage-pressure.js';
 
 const router = new Hono();
+
+const LEGACY_AGENCY_STRIPE_PRICE_IDS = {
+  monthly: process.env.STRIPE_PRICE_AGENCY_LEGACY?.trim(),
+  quarterly: process.env.STRIPE_PRICE_AGENCY_LEGACY_QUARTERLY?.trim(),
+  yearly: process.env.STRIPE_PRICE_AGENCY_LEGACY_YEARLY?.trim(),
+};
 
 const PRICE_IDS = {
   solo: {
@@ -119,6 +133,20 @@ router.post('/checkout', requireOrg, requireRole('owner', 'admin'), async (conte
 
   if (!priceId) {
     return context.json({ error: 'Selected billing interval is not configured.' }, 400);
+  }
+
+  if (isForbiddenNewSubscriptionAgencyPriceId(priceId)) {
+    console.warn(
+      JSON.stringify({
+        event: 'billing.checkout_blocked_legacy_agency_price',
+        orgId: org.orgId,
+        priceId,
+      }),
+    );
+    return context.json(
+      { error: 'This subscription price is not available for new signups.', code: 'LEGACY_AGENCY_PRICE_FORBIDDEN' },
+      403,
+    );
   }
 
   const organisation = await db.query.organisations.findFirst({
@@ -372,6 +400,59 @@ router.get('/stats', requireOrg, async (context) => {
   const execution = credits.execution;
   const video = credits.video;
 
+  const estGbpThisCycle = billingSnapshot.subscription.cumulativeEstimatedCostGbp ?? 0;
+  const periodAnchor =
+    billingSnapshot.subscription.currentPeriodStart
+    ?? billingSnapshot.subscription.createdAt
+    ?? new Date(Date.now() - 31 * 24 * 60 * 60 * 1000);
+  const ledgerFlags = await fetchLedgerMonetisationFlags(db, {
+    orgId: org.orgId,
+    userId: org.userId,
+    periodStart: periodAnchor,
+    planKey: organisation?.plan ?? 'free',
+  });
+
+  const planKeyUi = organisation?.plan ?? 'free';
+  const heavyUserMessaging = ledgerFlags.heavyUser
+    ? {
+      headline:
+        ledgerFlags.heavyUserSignals?.leaderboardRankApprox != null
+          && ledgerFlags.heavyUserSignals?.contributorCountApprox != null
+          && Number(ledgerFlags.heavyUserSignals.leaderboardRankApprox)
+            <= Math.ceil(Number(ledgerFlags.heavyUserSignals.contributorCountApprox) * 0.05)
+          ? 'You pace among the top-tier throughput operators this cycle.'
+          : 'You generate sustained throughput versus typical workspace usage.',
+      subline:
+          ledgerFlags.heavyUserSignals?.orgLedgerSharePct != null
+            && ledgerFlags.heavyUserSignals.orgLedgerSharePct > 33
+            ? `Your traces represent ~${Math.round(ledgerFlags.heavyUserSignals.orgLedgerSharePct)}% of shared workspace provider spend — layer packs ahead of spikes.`
+            : 'Burst packs map spend predictably ahead of spikes; upgrades unlock orchestration rails.',
+    }
+    : null;
+
+  const pressure = computeUsagePressurePayload(execution, video, {
+    estimatedProviderCostGbpThisCycle: estGbpThisCycle,
+    planKey: planKeyUi,
+  });
+
+  const upgradeExecution = getUpgradeSuggestion(planKeyUi, 'execution');
+  const upgradeVideo = getUpgradeSuggestion(planKeyUi, 'video');
+
+  const monetisation = {
+    usagePercentage: pressure.usagePercentage,
+    pressureLevel: pressure.pressureLevel,
+    usageBreakdown: pressure.breakdown,
+    upgradeSuggestions: {
+      balanced: getUpgradeSuggestion(planKeyUi, 'mixed'),
+      execution: upgradeExecution,
+      video: upgradeVideo,
+    },
+    heavyUser: ledgerFlags.heavyUser,
+    heavyUserSignals: ledgerFlags.heavyUserSignals,
+    isEnterpriseEligible: ledgerFlags.isEnterpriseEligible,
+    heavyUserMessaging,
+  };
+
   return context.json({
     plan: organisation?.plan ?? 'free',
     creditsUsed: execution.committedThisCycle,
@@ -386,6 +467,12 @@ router.get('/stats', requireOrg, async (context) => {
     credits,
     foundingAccess: billingSnapshot.subscription.metadata?.foundingAccess ?? null,
     entitlements: billingSnapshot.subscription.metadata?.entitlements ?? {},
+    usageEconomics: {
+      estimatedProviderCostGbpThisCycle: billingSnapshot.subscription.cumulativeEstimatedCostGbp ?? 0,
+      monthlyInternalBurnCapGbp: getMonthlyInternalBurnCapGbp(organisation?.plan),
+      founderDiscountWindowEndsAt:
+        billingSnapshot.subscription.metadata?.foundingAccess?.founderDiscountWindowEndsAt ?? null,
+    },
     catalog: getBillingCatalog(),
     executionCredits: {
       ...execution,
@@ -395,6 +482,7 @@ router.get('/stats', requireOrg, async (context) => {
       ...video,
       limit: getPlanConfig(organisation?.plan).monthlyVideoCredits,
     },
+    monetisation,
   });
 });
 
@@ -577,6 +665,8 @@ router.post('/webhook/stripe', async (context) => {
           sync,
           metadata: resolvedPlan,
         });
+
+        await runFoundingStandardPriceEnforcement(orgId);
       }
       break;
     }
@@ -684,6 +774,8 @@ router.post('/webhook/stripe', async (context) => {
               offerKey: resolvedPlan?.offerKey ?? null,
             },
           });
+
+          await runFoundingStandardPriceEnforcement(orgId);
         }
       }
       break;
@@ -768,6 +860,22 @@ router.get('/usage-breakdown', requireOrg, async (context) => {
   });
 });
 
+async function runFoundingStandardPriceEnforcement(orgId) {
+  if (!orgId) return;
+  try {
+    await enforceFounderStandardStripePricing({ orgId });
+  } catch (e) {
+    console.warn(
+      JSON.stringify({
+        level: 'warn',
+        event: 'founding.standard_enforcement_failed',
+        orgId,
+        message: e?.message ?? String(e),
+      }),
+    );
+  }
+}
+
 function planFromPriceId(priceId) {
   for (const [plan, intervals] of Object.entries(PRICE_IDS)) {
     const intervalEntry = Object.entries(intervals).find(([, value]) => value === priceId);
@@ -780,6 +888,16 @@ function planFromPriceId(priceId) {
     const intervalEntry = Object.entries(intervals).find(([, value]) => value === priceId);
     if (intervalEntry) {
       return { plan, interval: intervalEntry[0], offerKey: FOUNDING_ACCESS_OFFER_KEY };
+    }
+  }
+
+  for (const [interval, value] of Object.entries(LEGACY_AGENCY_STRIPE_PRICE_IDS)) {
+    if (value && value === priceId) {
+      return {
+        plan: 'agency',
+        interval,
+        legacyGrandfatheredAgencyPrice: true,
+      };
     }
   }
 
