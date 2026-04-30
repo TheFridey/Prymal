@@ -217,10 +217,10 @@ Use [docs/billing-pricing-audit.md](./docs/billing-pricing-audit.md) as the inte
 
    | Plan | Monthly | Quarterly | Yearly |
    |---|---:|---:|---:|
-   | Solo Founding | Stripe-configured intro | Stripe-configured intro | Stripe-configured intro |
-   | Pro Founding | Stripe-configured intro | Stripe-configured intro | Stripe-configured intro |
-   | Teams Founding | Stripe-configured intro | Stripe-configured intro | Stripe-configured intro |
-   | Agency Founding | Stripe-configured intro | Stripe-configured intro | Stripe-configured intro |
+   | Solo Founding | £39.99 | £119.97 | £479.88 |
+   | Pro Founding | £79 | £237 | £948 |
+   | Teams Founding | £143.20 | £429.60 | £1,718.40 |
+   | Agency Founding | £239.20 | £717.60 | £2,870.40 |
 
 5. Create one-time credit pack prices. Preferred packs for new users are the Execution Boost and the two Video Pack entries; legacy pack IDs are retained only if you need webhook compatibility for historical purchases.
 
@@ -595,17 +595,17 @@ Do not treat a green static build as production readiness. Prymal’s release co
 - webhook health
 - live admin drilldown sanity
 
-## Deferred Stripe checklist
+## Stripe final proof checklist
 
-Stripe remains intentionally deferred until the final pre-launch window. Before launch:
+Live Stripe Prices for standard plans, Founding Access, preferred usage packs, legacy-compatible packs, and the Teams seat add-on should exist before production checkout is enabled. Before controlled beta:
 
-- [ ] Create subscription prices for Solo, Pro, Teams, and Agency across monthly, quarterly, and yearly intervals
-- [ ] Create Founding Access prices for Solo, Pro, Teams, and Agency across monthly, quarterly, and yearly intervals
-- [ ] Create Stripe prices for execution credit packs, including Execution Boost 1,000
-- [ ] Create Stripe prices for AI video packs, including Video Pack Small and Video Pack Pro
-- [ ] Create the Teams seat add-on recurring price
-- [ ] Set every `STRIPE_PRICE_*` env var
-- [ ] Configure the Stripe webhook endpoint and signing secret
+- [x] Create subscription prices for Solo, Pro, Teams, and Agency across monthly, quarterly, and yearly intervals
+- [x] Create Founding Access prices for Solo, Pro, Teams, and Agency across monthly, quarterly, and yearly intervals
+- [x] Create Stripe prices for execution credit packs, including Execution Boost 1,000
+- [x] Create Stripe prices for AI video packs, including Video Pack Small and Video Pack Pro
+- [x] Create the Teams seat add-on recurring price
+- [x] Set every required `STRIPE_PRICE_*` env var for local production validation except optional legacy Agency grandfathering IDs
+- [ ] Configure the Stripe webhook endpoint and signing secret in the target environment
 - [ ] Run one real checkout flow
 - [ ] Buy one credit pack
 - [ ] Test one Founding Access checkout and one standard-price checkout

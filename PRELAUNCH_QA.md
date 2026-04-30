@@ -11,6 +11,25 @@ Run this before beta or investor demos. Authenticated paths require real Clerk t
 - Onboarding completes and redirects to `/app/dashboard`.
 - Team invite accept flow uses the invited email and cannot join the wrong org.
 
+### Clerk `/api/auth/me` Proof Record
+
+Complete this record before marking a staging or production build ready for controlled beta.
+
+| Field | Required Evidence |
+|---|---|
+| Test date | Exact date and environment tested |
+| Frontend origin | The browser origin used for the authenticated request |
+| Backend route | `GET /api/auth/me` |
+| Status | `200 OK` for authenticated user, `401` for signed-out request |
+| Auth header | Browser request includes `Authorization: Bearer <Clerk JWT>` from `getToken()` |
+| User context | Response includes the expected Clerk user identifier |
+| Org context | Response includes the expected active organisation/workspace context |
+| Clerk environment | Frontend publishable key and backend secret key belong to the same Clerk test/live environment |
+| CORS notes | Frontend origin is allowed and `Authorization` header is accepted |
+| Evidence link | Playwright trace, curl transcript, or staging QA note |
+
+Do not bypass Clerk, mock production auth, or disable auth middleware for this proof.
+
 ## Billing And Entitlements
 
 - Standard Stripe checkout works for Solo, Pro, Teams, and Agency.
@@ -22,6 +41,27 @@ Run this before beta or investor demos. Authenticated paths require real Clerk t
 - Add-on purchase works for `exec_boost_1000`, `video_pack_small`, and `video_pack_pro`.
 - Legacy Agency price IDs cannot start new checkout.
 - Legacy Agency price IDs still resolve for grandfathered webhook sync.
+
+### Stripe Test-Mode Lifecycle Record
+
+Complete this record using Stripe test mode before controlled beta.
+
+| Flow | Required Evidence |
+|---|---|
+| Solo checkout | Checkout session uses current Solo price ID and credits match catalog |
+| Pro checkout | Checkout session uses current Pro price ID and credits match catalog |
+| Teams checkout | Checkout session uses current Teams price ID and credits match catalog |
+| Agency checkout | Checkout session uses current Agency `from £299` price ID and credits match catalog |
+| Legacy Agency rejection | Direct legacy Agency price checkout returns blocked/rejected response |
+| Founding checkout | Eligible workspace receives Founding price ID only during active founding window |
+| Founder expiry | Subscription item transitions back to standard price after founding window |
+| Execution add-on | `exec_boost_1000` purchase credits execution balance only |
+| Video add-ons | `video_pack_small` and `video_pack_pro` credit video balance only |
+| Duplicate webhook | Duplicate/stale Stripe event does not reset balances |
+| Same-plan update | Same-plan webhook update does not reset credits incorrectly |
+| Billing portal | Portal opens, returns to app, and does not expose legacy checkout |
+
+Record Stripe event IDs and workspace IDs in the private launch log, not in public docs.
 
 ## Usage Controls
 
@@ -75,6 +115,7 @@ cd backend
 npm run lint
 npm test
 npm run schema:check
+npm run db:verify-local
 npm run env:validate
 
 cd ../frontend

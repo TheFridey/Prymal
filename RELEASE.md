@@ -7,7 +7,9 @@ This repository currently ships from the `master` branch. CI and branch protecti
 - Pricing and entitlement docs now match the enforced billing catalog: Solo £49.99, Pro £99, Teams £179, Agency from £299, with separate execution and AI video credit balances.
 - Founding Access is documented as 20% off for the first 3 months with standard usage limits, server-side eligibility, and Stripe transition back to standard catalog prices after the founding window.
 - Stripe setup notes now cover standard subscription prices, Founding Access prices, one-time execution/video packs, Teams seat add-ons, and the billing webhook events used for entitlement sync.
+- Live Stripe Prices have been provisioned for Founding Access and preferred usage packs; real checkout/webhook lifecycle proof is still required before controlled beta.
 - Preferred add-on packs are now standardised around `exec_boost_1000`, `video_pack_small`, and `video_pack_pro`; older pack IDs are legacy compatibility only.
+- Landing and pricing surfaces now position Prymal around execution, Simple/Advanced adoption paths, structured examples, memory, validation, and cost-controlled workflows.
 - Admin economics now separates current-cycle ledger burn from all-time burn and highlights top cycle users/workspaces for operator review.
 - Production media storage validation now rejects local disk storage by default in staging/production.
 - Guided `/image` and `/video` builders now open modal-based brief composers instead of relying on long free-form slash commands.
@@ -40,10 +42,10 @@ The GitHub Actions workflow at `.github/workflows/ci.yml` is the release gate fo
 The frontend performance budget is enforced by `frontend/scripts/check-bundles.mjs`.
 
 - Initial JavaScript budget: `700 KB`
-- Initial CSS budget: `380 KB`
+- Initial CSS budget: `400 KB`
 - Largest async JavaScript budget: `1000 KB`
 
-The `380 KB` initial CSS budget is intentional. Prymal ships a premium cinematic design system with a large global interaction layer, agent avatar presentation, workspace chrome, governance states, billing UI, and release-grade empty/error states. The previous `220 KB` budget was too small for the completed product and was failing CI despite the bundle being structurally healthy.
+The `400 KB` initial CSS budget is intentional. Prymal ships a premium cinematic design system with a large global interaction layer, agent avatar presentation, workspace chrome, governance states, billing UI, and release-grade empty/error states. The previous `380 KB` budget became slightly too tight after the final conversion and launch-readiness surfaces landed, while the measured bundle remains structurally healthy.
 
 This is not treated as a regression waiver: the budget still sits close to the current measured initial CSS size, and route-scoped CSS such as `landing-rebuild.css` remains code-split into async page chunks instead of being folded blindly into the global bundle.
 

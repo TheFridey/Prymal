@@ -176,6 +176,8 @@ Stripe uses recurring Prices for plan subscriptions and one-time Prices for cred
 - Seat add-on: `STRIPE_PRICE_SEAT_ADDON` for Teams extra seats.
 - Legacy Agency prices may be mapped through `STRIPE_PRICE_AGENCY_LEGACY*` for webhook grandfathering only; they must not be used for new checkout.
 
+Live Stripe Prices for Founding Access and preferred usage packs were provisioned during the launch-readiness pass. Keep actual Price IDs in environment variables only, not in public docs or customer-facing changelog copy.
+
 ## Local Development
 
 ### 1. Database
@@ -303,11 +305,14 @@ cd backend
 npm run lint
 npm test
 npm run schema:check
+npm run db:verify-local
+npm run env:validate
 
 cd ../frontend
 npm run lint
 npm test
 npm run build
+npm run perf:budget
 ```
 
 Full end-to-end authenticated testing still requires:
@@ -327,9 +332,9 @@ Deployment guidance lives in [DEPLOY.md](./DEPLOY.md).
 
 ## Next High-Leverage Sprint
 
-1. Provision Clerk production and staging applications.
-2. Configure Stripe live prices and webhooks when ready to accept production payment.
+1. Replace the placeholder Clerk webhook signing secret and Resend API key in the target environment.
+2. Configure Stripe webhook endpoints and complete the real checkout/webhook lifecycle proof.
 3. Run authenticated Playwright against staging with dedicated user and staff accounts.
-4. Finish durable object-storage rollout for all generated and uploaded media.
-5. Add first-customer feedback loops into `product_events`.
+4. Record Clerk `/api/auth/me` proof and Stripe lifecycle evidence in `PRELAUNCH_QA.md`.
+5. Start the first 10-25 user controlled beta using `docs/controlled-beta-runbook.md`.
 6. Evaluate Gemini live grounding separately and keep it disabled until cleared for production.

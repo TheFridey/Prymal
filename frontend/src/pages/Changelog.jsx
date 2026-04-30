@@ -8,6 +8,22 @@ import '../styles/changelog-premium.css';
 
 const CHANGELOG = [
   {
+    version: '1.0.3',
+    date: '2026-04-30',
+    tag: 'Update',
+    badge: 'Launch',
+    milestone: true,
+    title: 'Execution-First Launch Readiness',
+    impact: 'Prymal now explains its operating-system depth faster while keeping onboarding approachable.',
+    entries: [
+      'Rebuilt the landing experience around business execution, workflows, memory, validation, and cost control.',
+      'Added Simple Mode and Advanced Mode so new users can start with a guided task and grow into deeper workflows when ready.',
+      'Introduced real example outputs that show how Prymal turns a request into structured, usable business work.',
+      'Strengthened pricing and usage clarity around execution credits, AI video credits, add-on packs, and team-scale governance.',
+      'Prepared production billing configuration for Founding Access and preferred usage packs while keeping plan limits server-enforced.',
+    ],
+  },
+  {
     version: '1.0.2',
     date: '2026-04-29',
     tag: 'Update',
