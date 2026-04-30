@@ -82,6 +82,123 @@
   border-bottom-color: var(--accent, #00ffd1);
 }
 
+.pricing-platform-compare {
+  margin: 0 auto 3rem;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background:
+    linear-gradient(135deg, rgba(156, 245, 224, 0.055), rgba(199, 125, 255, 0.04)),
+    rgba(8, 13, 24, 0.76);
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.pricing-platform-compare__header {
+  padding: 1.5rem 1.35rem 1.1rem;
+  text-align: center;
+}
+
+.pricing-platform-compare__header h2 {
+  margin: 0 0 0.55rem;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  letter-spacing: -0.02em;
+}
+
+.pricing-platform-compare__header p {
+  margin: 0;
+  color: var(--muted, #9aa4b2);
+  line-height: 1.55;
+}
+
+.pricing-platform-compare__scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pricing-platform-compare__table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.pricing-platform-compare__table th,
+.pricing-platform-compare__table td {
+  padding: 0.85rem 1rem;
+  text-align: left;
+  border-top: 1px solid rgba(255, 255, 255, 0.065);
+}
+
+.pricing-platform-compare__table th {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.52);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.pricing-platform-compare__table td:first-child {
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 600;
+}
+
+.pricing-platform-compare__table th:not(:first-child),
+.pricing-platform-compare__table td:not(:first-child) {
+  text-align: center;
+}
+
+.pricing-platform-compare__brand {
+  position: relative;
+  background: rgba(156, 245, 224, 0.05);
+  box-shadow: inset 1px 0 rgba(156, 245, 224, 0.12), inset -1px 0 rgba(156, 245, 224, 0.12);
+}
+
+.pricing-platform-compare__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+}
+
+.pricing-platform-compare__mark svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.pricing-platform-compare__mark--yes {
+  color: #071410;
+  background: #9cf5e0;
+}
+
+.pricing-platform-compare__mark--yes.is-highlight {
+  box-shadow: 0 0 24px rgba(156, 245, 224, 0.34);
+}
+
+.pricing-platform-compare__mark--no {
+  color: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.pricing-platform-compare__limited {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 4.5rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.pricing-platform-compare__footer {
+  margin: 0;
+  padding: 1rem 1.35rem 1.25rem;
+  text-align: center;
+  color: #9cf5e0;
+  font-weight: 750;
+}
+
 /* Interval toggle */
 .pricing-intervals {
   display: flex;
@@ -358,8 +475,16 @@
   font-size: 0.82rem;
   color: var(--muted, #9aa4b2);
   line-height: 1.45;
+  margin: 0 0 0.55rem;
+  min-height: 2em;
+}
+
+.pricing-card__power-line {
   margin: 0 0 1rem;
-  min-height: 2.6em;
+  min-height: 2.7em;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: #9cf5e0;
 }
 
 .pricing-card__price {
@@ -443,6 +568,75 @@
 
 .pricing-card--pro .pricing-card__cta .button--accent {
   box-shadow: 0 8px 28px rgba(0, 255, 209, 0.25);
+}
+
+.pricing-usage-clarity {
+  margin: 0 0 3.5rem;
+  padding: 1.6rem;
+  border-radius: 24px;
+  border: 1px solid rgba(156, 245, 224, 0.18);
+  background:
+    linear-gradient(135deg, rgba(156, 245, 224, 0.075), rgba(76, 201, 240, 0.04)),
+    rgba(8, 14, 26, 0.74);
+}
+
+.pricing-usage-clarity__header {
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto 1.25rem;
+}
+
+.pricing-usage-clarity__header h2 {
+  margin: 0 0 0.45rem;
+  font-size: clamp(1.3rem, 2.8vw, 1.9rem);
+}
+
+.pricing-usage-clarity__header p {
+  margin: 0;
+  color: var(--muted, #9aa4b2);
+  line-height: 1.55;
+}
+
+.pricing-usage-clarity__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.pricing-usage-clarity article {
+  min-height: 170px;
+  padding: 1.15rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.pricing-usage-clarity__icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 0.85rem;
+  border-radius: 12px;
+  color: #9cf5e0;
+  background: rgba(156, 245, 224, 0.1);
+}
+
+.pricing-usage-clarity__icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.pricing-usage-clarity h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+}
+
+.pricing-usage-clarity p {
+  margin: 0;
+  color: var(--muted, #9aa4b2);
+  font-size: 0.88rem;
+  line-height: 1.6;
 }
 
 /* Value / credit explainer */
@@ -713,6 +907,60 @@
   font-weight: 600;
 }
 
+.pricing-scale-simple {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1.15rem;
+  align-items: center;
+  margin: 0 0 3.5rem;
+  padding: 1.35rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(135deg, rgba(199, 125, 255, 0.075), rgba(156, 245, 224, 0.05));
+}
+
+.pricing-scale-simple__icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+  color: #c77dff;
+  background: rgba(199, 125, 255, 0.12);
+}
+
+.pricing-scale-simple__icon svg {
+  width: 25px;
+  height: 25px;
+}
+
+.pricing-scale-simple h2 {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.2rem, 2.4vw, 1.55rem);
+}
+
+.pricing-scale-simple p {
+  margin: 0;
+  color: var(--muted, #9aa4b2);
+  line-height: 1.6;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 780px) {
+  .pricing-usage-clarity__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pricing-scale-simple {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .pricing-platform-compare {
+    border-radius: 18px;
+  }
+}
+
 /* FAQ */
 .pricing-faq {
   max-width: 720px;
@@ -829,6 +1077,11 @@
 
 .pricing-card__badge--founding {
   background: linear-gradient(90deg, #00ffd1, #bdb4fe);
+}
+
+.pricing-card__badge--scale {
+  background: linear-gradient(90deg, #9cf5e0, #4cc9f0);
+  box-shadow: 0 8px 24px rgba(76, 201, 240, 0.28);
 }
 
 .founding-access-modal {

@@ -10,6 +10,10 @@ vi.mock('../lib/api', () => ({
   },
 }));
 
+vi.mock('@clerk/clerk-react', () => ({
+  useAuth: () => ({ isSignedIn: true }),
+}));
+
 const { api } = await import('../lib/api');
 
 test(
@@ -21,6 +25,12 @@ test(
 
     await user.type(view.getByPlaceholderText('Prymal Labs'), 'Launch Ops');
     await user.click(view.getByRole('button', { name: /continue to first win/i }));
+
+    expect(view.getByRole('heading', { name: /choose how you want to start/i })).toBeInTheDocument();
+    expect(view.getByRole('tab', { name: 'Simple Mode' })).toHaveAttribute('aria-selected', 'true');
+    expect(view.getByRole('heading', { name: /start with a guided task/i })).toBeInTheDocument();
+    await user.click(view.getByRole('tab', { name: 'Advanced Mode' }));
+    expect(view.getByRole('heading', { name: /build a custom workflow/i })).toBeInTheDocument();
 
     await user.selectOptions(view.getByDisplayValue('Marketing agency'), 'Consultancy');
     await user.selectOptions(view.getByDisplayValue('Win and progress more leads'), 'Build repeatable workflows');

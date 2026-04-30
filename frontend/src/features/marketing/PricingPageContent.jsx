@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import {
+  TbBolt,
+  TbCheck,
+  TbCoin,
+  TbMovie,
+  TbScale,
+  TbX,
+} from 'react-icons/tb';
+import {
   BILLING_INTERVALS,
   PLAN_ENTITLEMENTS,
   PLAN_LIBRARY,
@@ -11,10 +19,10 @@ import {
 import { shouldShowFoundingPricingUi } from './founding-access';
 
 const PERSONA_LINE = {
-  solo: 'Starter — individual operators shipping with agents',
-  pro: 'Serious operator tier — deeper workflows and production concurrency',
-  teams: 'Collaboration — pooled usage, seats, shared workspaces',
-  agency: 'Scale + clients — orchestration, concurrency, and priority lanes',
+  solo: 'For individuals getting started',
+  pro: 'For serious operators',
+  teams: 'For collaborative workflows',
+  agency: 'For client-scale execution',
 };
 
 const PRIORITY_LABEL = {
@@ -24,10 +32,34 @@ const PRIORITY_LABEL = {
   agency: 'Priority',
 };
 
+const PLAN_POWER_LINE = {
+  solo: 'Starter workflows, shallow LORE memory, 1 execution lane',
+  pro: 'Production workflows, medium LORE memory, 3 concurrent runs',
+  teams: 'Shared workflows, deeper LORE memory, 5 concurrent runs',
+  agency: 'Client-scale workflows, deeper LORE memory, 8 concurrent runs',
+};
+
+const PLAN_BADGES = {
+  pro: 'Best value',
+  agency: 'Scale plan',
+};
+
+const PLATFORM_COMPARISON_ROWS = [
+  ['AI chat / prompts', 'yes', 'yes'],
+  ['Multi-agent system', 'no', 'yes'],
+  ['Workflow automation', 'no', 'yes'],
+  ['Persistent memory', 'no', 'yes'],
+  ['Output validation (QA layer)', 'no', 'yes'],
+  ['Cost control system', 'no', 'yes'],
+  ['Admin usage visibility', 'no', 'yes'],
+  ['Scales with teams', 'Limited', 'yes'],
+  ['Add-ons instead of hidden overuse cost', 'no', 'yes'],
+];
+
 const FAQ_ITEMS = [
   {
     q: 'How do credits work?',
-    a: 'Credits are used when you run AI tasks — chat, agents, and workflows draw from your execution balance. Most short tasks use about 1–3 credits; larger workflows with more context use more. AI video credits are separate and only power AI-generated video renders.',
+    a: 'Credits are used when you run execution work: chat, agents, and workflows draw from your execution balance. Most short runs use about 1-3 credits; larger workflows with more context use more. AI video credits are separate and only power AI-generated video renders.',
   },
   {
     q: 'What happens if I run out?',
@@ -57,6 +89,28 @@ const FAQ_ITEMS = [
 
 function scrollToPricingGrid() {
   document.getElementById('pricing-plans')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function ComparisonValue({ value, highlight = false }) {
+  if (value === 'yes') {
+    return (
+      <span className={`pricing-platform-compare__mark pricing-platform-compare__mark--yes${highlight ? ' is-highlight' : ''}`}>
+        <TbCheck aria-hidden="true" />
+        <span className="pricing-compare-sr-only">Included</span>
+      </span>
+    );
+  }
+
+  if (value === 'no') {
+    return (
+      <span className="pricing-platform-compare__mark pricing-platform-compare__mark--no">
+        <TbX aria-hidden="true" />
+        <span className="pricing-compare-sr-only">Not included</span>
+      </span>
+    );
+  }
+
+  return <span className="pricing-platform-compare__limited">{value}</span>;
 }
 
 export function PricingPageContent({ foundingAccessState = { status: 'idle', offer: null } }) {
@@ -124,6 +178,34 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         </section>
       ) : null}
 
+      <section className="pricing-platform-compare" aria-labelledby="platform-compare-heading">
+        <div className="pricing-platform-compare__header">
+          <h2 id="platform-compare-heading">Not all AI platforms are built the same</h2>
+          <p>Execution, memory, validation, and usage control are built into the system.</p>
+        </div>
+        <div className="pricing-platform-compare__scroll" role="region" aria-label="AI platform comparison table" tabIndex={0}>
+          <table className="pricing-platform-compare__table">
+            <thead>
+              <tr>
+                <th scope="col">Feature</th>
+                <th scope="col">Typical AI Tools</th>
+                <th scope="col" className="pricing-platform-compare__brand">Prymal</th>
+              </tr>
+            </thead>
+            <tbody>
+              {PLATFORM_COMPARISON_ROWS.map(([feature, typical, prymal]) => (
+                <tr key={feature}>
+                  <td>{feature}</td>
+                  <td><ComparisonValue value={typical} /></td>
+                  <td className="pricing-platform-compare__brand"><ComparisonValue value={prymal} highlight /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="pricing-platform-compare__footer">Most tools generate content. Prymal runs systems.</p>
+      </section>
+
       <div className="pricing-intervals">
         <div className="pricing-intervals__inner" role="tablist" aria-label="Billing period">
           {BILLING_INTERVALS.map((interval) => (
@@ -154,22 +236,26 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
           const price = getPlanPrice(plan, activeInterval.id);
           const displayedPrice = price;
           const isPro = plan.id === 'pro';
+          const planBadge = PLAN_BADGES[plan.id];
           return (
             <article
               key={plan.id}
               className={`pricing-card${isPro ? ' pricing-card--pro' : ''}${foundingAccessActive ? ' pricing-card--founding' : ''}`}
               aria-label={`${plan.name} plan`}
             >
-              {foundingAccessActive ? (
+              {planBadge ? (
+                <div className={`pricing-card__badge${plan.id === 'agency' ? ' pricing-card__badge--scale' : ''}`}>
+                  {planBadge}
+                </div>
+              ) : foundingAccessActive ? (
                 <div className="pricing-card__badge pricing-card__badge--founding">Founding Access</div>
-              ) : isPro ? (
-                <div className="pricing-card__badge">Most popular</div>
               ) : null}
               <h2 className="pricing-card__name">{plan.name}</h2>
               {plan.monthlyPriceLabel ? (
                 <p style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '6px' }}>{plan.monthlyPriceLabel}</p>
               ) : null}
               <p className="pricing-card__persona">{PERSONA_LINE[plan.id]}</p>
+              <p className="pricing-card__power-line">{PLAN_POWER_LINE[plan.id]}</p>
               <div className="pricing-card__price">
                 {displayedPrice.display}
                 <small> / {displayedPrice.suffix}</small>
@@ -194,13 +280,13 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
                     ? `${ent.monthlyVideoCredits} AI video credits / month`
                     : 'AI video credits via upgrade'}
                 </li>
-                <li>AI agents &amp; automations</li>
+                <li>AI system workflows &amp; automations</li>
                 {foundingAccessActive ? <li>Bonus launch execution credits (one-time, same limits as standard plans)</li> : null}
                 {foundingAccessActive ? <li>Founder badge &amp; early roadmap access</li> : null}
                 <li>
                   {ent.concurrencyExecution > 1
-                    ? `Run up to ${ent.concurrencyExecution} AI tasks at once`
-                    : 'Single-lane AI runs (upgrade for more)'}
+                    ? `Run up to ${ent.concurrencyExecution} execution runs at once`
+                    : 'Single-lane execution runs (upgrade for more)'}
                 </li>
               </ul>
               <div className="pricing-card__cta">
@@ -226,11 +312,35 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         })}
       </div>
 
+      <section className="pricing-usage-clarity" aria-labelledby="usage-clarity-heading">
+        <div className="pricing-usage-clarity__header">
+          <h2 id="usage-clarity-heading">Built for real usage, not hidden limits</h2>
+          <p>Execution credits, video credits, and add-on packs are designed for predictable scaling.</p>
+        </div>
+        <div className="pricing-usage-clarity__grid">
+          <article>
+            <span className="pricing-usage-clarity__icon" aria-hidden="true"><TbBolt /></span>
+            <h3>Execution credits</h3>
+            <p>Used for chat, agents, workflow runs, retrieval-heavy work, and other execution system activity.</p>
+          </article>
+          <article>
+            <span className="pricing-usage-clarity__icon" aria-hidden="true"><TbMovie /></span>
+            <h3>Video credits</h3>
+            <p>Tracked separately for AI-generated video renders so media usage stays visible and controlled.</p>
+          </article>
+          <article>
+            <span className="pricing-usage-clarity__icon" aria-hidden="true"><TbCoin /></span>
+            <h3>Add-on packs</h3>
+            <p>Top up for short bursts of execution or video without turning usage into surprise overage.</p>
+          </article>
+        </div>
+      </section>
+
       <section className="pricing-explainer" aria-labelledby="credit-clarity-heading">
         <div className="pricing-panel">
           <h3 id="credit-clarity-heading">How credits work</h3>
           <p>
-            <strong>Credits are used when you run AI tasks.</strong> A quick reply might be one credit; a deep multi-step workflow
+            <strong>Credits are used when you run execution work.</strong> A quick reply might be one credit; a deep multi-step workflow
             uses more. Most everyday tasks fall in the 1–3 credit range; larger automations scale up from there.
           </p>
           <p>
@@ -259,7 +369,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               </span>
               Execution credits
             </h4>
-            <p>Used for AI tasks, agents, and workflows — everything that is not video output.</p>
+            <p>Used for chat, agents, and workflows — everything that is not video output.</p>
           </div>
           <div className="pricing-credit-visual__block pricing-credit-visual__block--video">
             <h4>
@@ -283,7 +393,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
 
       <section className="pricing-compare-wrap" aria-labelledby="plan-compare-heading">
         <h2 id="plan-compare-heading" className="pricing-section-title" style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
-          Compare plans
+          Compare plan limits
         </h2>
         <p className="pricing-compare-hint">Swipe sideways to see all plans</p>
         <div className="pricing-compare-scroll" role="region" aria-label="Plan comparison table" tabIndex={0}>
@@ -323,7 +433,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               ))}
             </tr>
             <tr>
-              <td>Max concurrent AI runs</td>
+              <td>Max concurrent execution runs</td>
               {PLAN_LIBRARY.map((plan) => (
                 <td key={plan.id}>{PLAN_ENTITLEMENTS[plan.id].concurrencyExecution}</td>
               ))}
@@ -385,6 +495,27 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="pricing-scale-simple" aria-labelledby="scale-simple-heading">
+        <span className="pricing-scale-simple__icon" aria-hidden="true"><TbScale /></span>
+        <div>
+          <h2 id="scale-simple-heading">Start simple. Scale when you need.</h2>
+          <p>
+            You do not need to understand the whole system on day one. Start with a single task, then grow into repeatable
+            workflows as your team finds the processes worth automating.
+          </p>
+        </div>
+        <SignedOut>
+          <Link to="/signup" className="button button--ghost">
+            Start with one workflow
+          </Link>
+        </SignedOut>
+        <SignedIn>
+          <Link to="/app/workflows" className="button button--ghost">
+            Start with one workflow
+          </Link>
+        </SignedIn>
       </section>
 
       <section className="pricing-faq" aria-labelledby="faq-heading">

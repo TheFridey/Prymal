@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { ProtectedOnly } from './App';
+import { ProtectedOnly, resolveSignupOnboardingUrl } from './App';
 import { api } from './lib/api';
 
 const mockGetToken = vi.fn();
@@ -53,4 +53,16 @@ test('binds Clerk auth before protected child requests fire', async () => {
   const [, init] = global.fetch.mock.calls[0];
   const headers = new Headers(init?.headers ?? {});
   expect(headers.get('Authorization')).toBe('Bearer token-from-clerk');
+});
+
+test('preserves signup intent and allowed redirect for onboarding', () => {
+  expect(resolveSignupOnboardingUrl('?intent=advanced&redirect_url=/app/workflows')).toBe(
+    '/app/onboarding?intent=advanced&redirect_url=%2Fapp%2Fworkflows',
+  );
+  expect(resolveSignupOnboardingUrl('?intent=simple&redirect_url=/app/dashboard?intent=simple')).toBe(
+    '/app/onboarding?intent=simple&redirect_url=%2Fapp%2Fdashboard%3Fintent%3Dsimple',
+  );
+  expect(resolveSignupOnboardingUrl('?intent=advanced&redirect_url=https://example.com')).toBe(
+    '/app/onboarding?intent=advanced',
+  );
 });

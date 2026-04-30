@@ -9,6 +9,7 @@ import { BrandMark, Button, InlineNotice, TextInput, ThemeToggle } from '../comp
 import { usePrymalReducedMotion } from '../components/motion';
 import { useAppStore } from '../stores/useAppStore';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import { SimpleAdvancedModeSection } from '../features/marketing/SimpleAdvancedModeSection';
 import '../styles/landing-rebuild.css';
 
 const WORKSPACE_OPTIONS = [
@@ -53,18 +54,45 @@ const PRIMARY_GOALS = [
   'Build repeatable workflows',
 ];
 
+function readStoredStartIntent() {
+  if (typeof window === 'undefined') return {};
+  try {
+    return {
+      intent: window.sessionStorage.getItem('prymal_start_intent') || '',
+      redirect: window.sessionStorage.getItem('prymal_start_redirect') || '',
+    };
+  } catch {
+    return {};
+  }
+}
+
+function resolveStartIntent({ searchParams, stored }) {
+  const rawIntent = searchParams.get('intent')?.trim() || stored.intent || '';
+  const startMode = rawIntent === 'advanced' ? 'advanced' : 'simple';
+  const rawRedirect = searchParams.get('redirect_url')?.trim() || stored.redirect || '';
+  const fallback = startMode === 'advanced' ? '/app/workflows' : '/app/dashboard?intent=simple';
+  const redirect = ['/app/workflows', '/app/dashboard', '/app/dashboard?intent=simple'].includes(rawRedirect)
+    ? rawRedirect
+    : fallback;
+
+  return { startMode, redirect };
+}
+
 export default function Onboarding() {
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('invite')?.trim() || '';
   const urlRef = searchParams.get('ref')?.trim() || '';
   const storedRef = sessionStorage.getItem('prymal_referral') || '';
   const referralCode = urlRef || storedRef;
+  const storedStart = readStoredStartIntent();
+  const initialStart = resolveStartIntent({ searchParams, stored: storedStart });
   const totalSteps = 2;
   const [step, setStep] = useState(inviteToken ? 2 : 1);
   const [orgName, setOrgName] = useState('');
   const [businessType, setBusinessType] = useState(BUSINESS_TYPE_OPTIONS[0]);
   const [primaryGoal, setPrimaryGoal] = useState(PRIMARY_GOALS[0]);
   const [workspaceFocus, setWorkspaceFocus] = useState('agency');
+  const [startMode, setStartMode] = useState(initialStart.startMode);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const notify = useAppStore((state) => state.addNotification);
@@ -95,6 +123,8 @@ export default function Onboarding() {
     mutationFn: (payload) => api.post('/auth/onboard', payload),
     onSuccess: async (result) => {
       sessionStorage.removeItem('prymal_referral');
+      sessionStorage.removeItem('prymal_start_intent');
+      sessionStorage.removeItem('prymal_start_redirect');
       await queryClient.invalidateQueries({ queryKey: ['viewer'] });
       notify({
         type: 'success',
@@ -103,11 +133,21 @@ export default function Onboarding() {
           ? 'Your seat has been activated and your first recommended agent is ready.'
           : 'Prymal created your workspace and queued the fastest first-win path.',
       });
-      navigate('/app/dashboard', {
+      const destination = startMode === initialStart.startMode
+        ? initialStart.redirect
+        : startMode === 'advanced'
+          ? '/app/workflows'
+          : '/app/dashboard?intent=simple';
+      navigate(destination, {
         replace: true,
         state: {
           onboardingResult: result,
           onboardingWorkspaceProfile: workspaceProfile,
+          onboardingStartMode: startMode,
+          onboardingStartPaths:
+            startMode === 'advanced'
+              ? ['workflow-builder', 'lore-setup', 'integrations', 'agent-selection']
+              : ['content-builder', 'website-audit', 'lead-generation', 'first-agent-chat'],
           recommendedAgentIds: recommendedAgents.map((agent) => agent.id),
           recommendedFirstAgentId,
           recommendedWorkflowName: recommendedWorkflow?.name ?? 'Weekly Client Report',
@@ -238,6 +278,13 @@ export default function Onboarding() {
               <InlineNotice tone="default">
                 Nothing else blocks this path. Integrations, LORE uploads, and workflow setup can all happen after your first conversation is already underway.
               </InlineNotice>
+
+              <SimpleAdvancedModeSection
+                variant="compact"
+                surface="onboarding"
+                selectedMode={startMode}
+                onModeChange={setStartMode}
+              />
 
               <div className="pm-onboarding__summary">
                 <div>

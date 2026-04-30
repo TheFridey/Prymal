@@ -14,8 +14,8 @@ export default function Pricing() {
   return (
     <div className="marketing-page prymal-marketing pricing-page">
       <PageMeta
-        title="Prymal | Pricing — AI agents, workflows & video"
-        description="Simple plans for execution credits and AI video credits. Pro is the best balance of power and cost for most teams."
+        title="Prymal | Pricing for AI workflows, memory, and execution control"
+        description="Simple plans for Prymal's multi-agent AI system, workflow engine, LORE memory, SENTINEL validation, execution credits, and AI video credits."
         canonicalPath="/pricing"
       />
       <JsonLd

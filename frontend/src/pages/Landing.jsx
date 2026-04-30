@@ -3,6 +3,20 @@ import { useMutation } from '@tanstack/react-query';
 import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import {
+  TbBolt,
+  TbBrain,
+  TbBuildingStore,
+  TbChecks,
+  TbCircleCheck,
+  TbCircleX,
+  TbDatabase,
+  TbFileAnalytics,
+  TbRoute,
+  TbShieldCheck,
+  TbSparkles,
+  TbUsersGroup,
+} from 'react-icons/tb';
+import {
   AGENT_LIBRARY,
   AGENT_UI_LAYERS,
   PLAN_LIBRARY,
@@ -17,6 +31,8 @@ import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../compone
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
 import { FoundingAccessPopup } from '../features/marketing/FoundingAccessPopup';
+import { SimpleAdvancedModeSection } from '../features/marketing/SimpleAdvancedModeSection';
+import { SeePrymalInActionSection } from '../features/marketing/SeePrymalInActionSection';
 import { useFoundingAccessOffer } from '../features/marketing/founding-access';
 import '../styles/landing-rebuild.css';
 
@@ -67,15 +83,6 @@ const CORE_TRIO_VISUAL = ['atlas', 'nexus', 'lore']
   .map((id) => AGENT_LIBRARY.find((a) => a.id === id))
   .filter(Boolean);
 
-/** Hero constellation: why these three sit above every other agent. */
-const CORE_TRIO_HERO_BLURB = {
-  nexus:
-    'The hub that wires specialists, triggers, and QA into one graph. This is the default front door when you “start Prymal” — not another chat thread.',
-  atlas:
-    'Where vague intent becomes milestones, owners, and dependencies. ATLAS is the operating layer that keeps delivery legible while everything else executes.',
-  lore:
-    'The memory the whole stack trusts. LORE grounds answers in indexed knowledge with provenance, so the system speaks from evidence — not vibes.',
-};
 const INTELLIGENCE_SHOWCASE_AGENTS = AGENT_UI_LAYERS.intelligence
   .map((id) => AGENT_LIBRARY.find((a) => a.id === id))
   .filter(Boolean);
@@ -94,6 +101,71 @@ const EXECUTION_STEPS = [
   { agent: 'sentinel', label: 'QA reviewed', detail: 'SENTINEL checks for accuracy, schema compliance, and risk.', color: '#F72585' },
 ];
 
+const HERO_FLOW = [
+  { label: 'User', detail: 'Brief or trigger', Icon: TbUsersGroup, color: '#9cf5e0' },
+  { label: 'Agents', detail: '15 specialists coordinate', Icon: TbSparkles, color: '#c77dff' },
+  { label: 'Memory', detail: 'LORE recalls context', Icon: TbBrain, color: '#ffd166' },
+  { label: 'Workflow', detail: 'NEXUS runs the steps', Icon: TbRoute, color: '#4cc9f0' },
+  { label: 'Output', detail: 'Validated and ready', Icon: TbShieldCheck, color: '#ff6b9a' },
+];
+
+const HERO_TRUST = [
+  'Multi-agent system',
+  'Built-in memory (LORE)',
+  'Workflow automation',
+  'Output validation (SENTINEL)',
+];
+
+const DIFFERENCE_COLUMNS = [
+  {
+    title: 'Typical AI tools',
+    tone: 'dim',
+    items: ['Chat-based', 'No memory', 'No workflows', 'Unvalidated outputs', 'Costs scale unpredictably'],
+  },
+  {
+    title: 'Prymal',
+    tone: 'brand',
+    items: [
+      'Multi-agent execution',
+      'Persistent memory (LORE)',
+      'Workflow engine',
+      'SENTINEL QA validation',
+      'Cost control + usage system',
+    ],
+  },
+];
+
+const SYSTEM_STACK = [
+  { title: 'AGENTS', meta: '15 specialists', copy: 'Specialist operators for content, research, sales, planning, support, and more.', Icon: TbSparkles, color: '#c77dff' },
+  { title: 'LORE', meta: 'memory + context', copy: 'Workspace knowledge, documents, and source-backed context shared across execution.', Icon: TbDatabase, color: '#ffd166' },
+  { title: 'WORKFLOWS', meta: 'automation engine', copy: 'Repeatable multi-step runs that coordinate agents instead of leaving work in chat.', Icon: TbRoute, color: '#4cc9f0' },
+  { title: 'SENTINEL', meta: 'validation layer', copy: 'QA checks outputs before delivery so weak results get repaired or held.', Icon: TbShieldCheck, color: '#ff6b9a' },
+  { title: 'BILLING + CONTROL', meta: 'cost governance', copy: 'Credits, limits, visibility, and plan controls for predictable scaling.', Icon: TbBolt, color: '#9cf5e0' },
+];
+
+const USE_CASES = [
+  {
+    title: 'Generate full content pipelines',
+    copy: 'Turn a brief into research, outlines, drafts, repurposed posts, and reviewed deliverables.',
+    Icon: TbFileAnalytics,
+  },
+  {
+    title: 'Audit websites and fix issues',
+    copy: 'Find conversion, SEO, messaging, and quality gaps, then turn them into an action plan.',
+    Icon: TbChecks,
+  },
+  {
+    title: 'Build lead generation workflows',
+    copy: 'Move from target list to outreach strategy, follow-up copy, and sales-ready next steps.',
+    Icon: TbBuildingStore,
+  },
+  {
+    title: 'Automate recurring business tasks',
+    copy: 'Run repeatable processes for reporting, research, support prep, and client delivery.',
+    Icon: TbRoute,
+  },
+];
+
 export default function Landing() {
   const reducedMotion = usePrymalReducedMotion();
   const { isSignedIn } = useAuth();
@@ -104,9 +176,6 @@ export default function Landing() {
   const scopeRef = useRef(null);
 
   const nexusEntryHref = isSignedIn ? '/app/workflows' : '/signup';
-  const atlasEntryHref = isSignedIn ? '/app/agents/atlas' : '/agents/atlas';
-  const loreEntryHref = isSignedIn ? '/app/lore' : '/agents/lore';
-
   const freePlan = getWorkspacePlanMeta('free');
 
   const waitlistMutation = useMutation({
@@ -270,8 +339,8 @@ export default function Landing() {
   return (
     <div ref={scopeRef} className="marketing-page prymal-marketing prymal-marketing--home">
       <PageMeta
-        title="Prymal | The premium AI operating system for business execution"
-        description="14 user-facing specialist agents, SENTINEL QA, grounded retrieval, workflow orchestration, configurable voice, and an operator-grade control plane in one premium operating system."
+        title="Prymal | Run your business with AI, not just prompts"
+        description="Prymal is a multi-agent AI operating system for workflows, memory, validation, and predictable execution control."
         canonicalPath="/"
       />
       <JsonLd
@@ -283,7 +352,7 @@ export default function Landing() {
           applicationCategory: 'BusinessApplication',
           operatingSystem: 'Web',
           description:
-            'Prymal is a premium AI operating system with 14 user-facing specialist agents, SENTINEL QA, hybrid RAG, workflow orchestration, and an operator-grade SaaS control plane.',
+            'Prymal is a multi-agent AI operating system with specialist agents, SENTINEL QA, grounded memory, workflow orchestration, and an operator-grade control plane.',
           offers: [
             { '@type': 'Offer', name: freePlan.name, price: '0', priceCurrency: 'GBP' },
             ...PLAN_LIBRARY.map((plan) => ({
@@ -309,88 +378,123 @@ export default function Landing() {
               <div className="pm-hero__intro">
                 <div className="pm-hero__badge">
                   <span className="pm-hero__badge-dot" />
-                  <span className="prymal-hero-stat--count">15</span> Specialist AI Agents · Now Live
+                  AI operating system for business execution
                 </div>
 
                 <h1 className="pm-hero__headline">
-                  Your Business.<br />
-                  <span className="pm-hero__headline--glow">Orchestrated.</span>
+                  Run your business with AI <span className="pm-hero__headline--glow">not just prompts</span>
                 </h1>
 
                 <p className="pm-hero__sub">
-                  Not one chatbot — a structured operating system. Core orchestration, an intelligence layer, execution tools, and specialists that only surface when they matter.
+                  Prymal is a multi-agent AI system that executes real workflows, remembers context, and delivers validated outputs.
                 </p>
               </div>
 
-              <div className="pm-core-constellation" aria-label="Core Prymal agents">
-                <svg className="pm-core-constellation__wires" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true">
-                  <defs>
-                    <linearGradient id="pm-wire-nexus" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="rgba(189,224,254,0.15)" />
-                      <stop offset="50%" stopColor="rgba(199,125,255,0.55)" />
-                      <stop offset="100%" stopColor="rgba(189,224,254,0.15)" />
-                    </linearGradient>
-                  </defs>
-                  <path
-                    className="pm-core-constellation__path pm-core-constellation__path--left"
-                    d="M 12 88 Q 92 24 200 56"
-                    fill="none"
-                    stroke="url(#pm-wire-nexus)"
-                    strokeWidth="1.2"
-                  />
-                  <path
-                    className="pm-core-constellation__path pm-core-constellation__path--right"
-                    d="M 388 88 Q 308 24 200 56"
-                    fill="none"
-                    stroke="url(#pm-wire-nexus)"
-                    strokeWidth="1.2"
-                  />
-                </svg>
-
-                <div className="pm-core-constellation__grid">
-                  {CORE_TRIO_VISUAL.map((agent) => {
-                    const isNexus = agent.id === 'nexus';
-                    const href =
-                      agent.id === 'nexus' ? nexusEntryHref : agent.id === 'atlas' ? atlasEntryHref : loreEntryHref;
-                    return (
-                      <Link
-                        key={agent.id}
-                        to={href}
-                        className={`pm-core-constellation__card${isNexus ? ' pm-core-constellation__card--nexus' : ' pm-core-constellation__card--wing'}`}
-                        style={{ '--agent-color': agent.color }}
-                      >
-                        <span className="pm-core-constellation__halo" aria-hidden="true" />
-                        <div className="pm-core-constellation__avatar-wrap">
-                          <AgentAvatarDisplay agent={agent} className="pm-core-constellation__avatar" />
-                        </div>
-                        <div className="pm-core-constellation__copy">
-                          <span className="pm-core-constellation__name">{agent.name}</span>
-                          <span className="pm-core-constellation__title">{agent.title}</span>
-                          <p className="pm-core-constellation__why">{CORE_TRIO_HERO_BLURB[agent.id]}</p>
-                        </div>
-                      </Link>
-                    );
-                  })}
+              <div className="pm-hero-flow" aria-label="Prymal execution flow">
+                <div className="pm-hero-flow__beam" aria-hidden="true" />
+                <div className="pm-hero-flow__grid">
+                  {HERO_FLOW.map(({ label, detail, Icon, color }, index) => (
+                    <div
+                      key={label}
+                      className="pm-hero-flow__node"
+                      style={{ '--flow-color': color, '--flow-delay': `${index * 0.12}s` }}
+                    >
+                      <span className="pm-hero-flow__icon" aria-hidden="true">
+                        <Icon />
+                      </span>
+                      <span className="pm-hero-flow__label">{label}</span>
+                      <span className="pm-hero-flow__detail">{detail}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
               <div className="pm-hero__ctas">
                 <SignedOut>
-                  <Link to={nexusEntryHref} className="pm-btn pm-btn--primary">Start with Prymal</Link>
-                  <Link to="/pricing" className="pm-btn pm-btn--ghost">See plans</Link>
+                  <Link to={nexusEntryHref} className="pm-btn pm-btn--primary">Start building workflows</Link>
+                  <a href="#how-it-works" className="pm-btn pm-btn--ghost">See how it works</a>
                 </SignedOut>
                 <SignedIn>
-                  <Link to={nexusEntryHref} className="pm-btn pm-btn--primary">Start with Prymal</Link>
-                  <Link to="/app/dashboard" className="pm-btn pm-btn--ghost">Open workspace</Link>
+                  <Link to={nexusEntryHref} className="pm-btn pm-btn--primary">Start building workflows</Link>
+                  <a href="#how-it-works" className="pm-btn pm-btn--ghost">See how it works</a>
                 </SignedIn>
               </div>
 
-              <div className="pm-hero__trust">
-                <span>✓ No credit card</span>
-                <span>✓ Setup in 3 minutes</span>
-                <span>✓ Cancel anytime</span>
+              <div className="pm-hero__trust" aria-label="Prymal trust signals">
+                {HERO_TRUST.map((item) => (
+                  <span key={item}><TbCircleCheck aria-hidden="true" /> {item}</span>
+                ))}
               </div>
             </section>
+
+            <section id="how-it-works" className="pm-difference">
+              <div className="pm-section__header">
+                <div className="pm-section__eyebrow" style={{ '--section-accent': '#9cf5e0' }}>Why this is different</div>
+                <h2 className="pm-section__title">Most AI tools help you write. Prymal helps you execute.</h2>
+              </div>
+              <div className="pm-difference__grid">
+                {DIFFERENCE_COLUMNS.map((column) => {
+                  const Mark = column.tone === 'brand' ? TbCircleCheck : TbCircleX;
+                  return (
+                    <div key={column.title} className={`pm-difference__panel pm-difference__panel--${column.tone}`}>
+                      <h3>{column.title}</h3>
+                      <ul>
+                        {column.items.map((item) => (
+                          <li key={item}>
+                            <Mark aria-hidden="true" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="pm-system-stack">
+              <div className="pm-section__header">
+                <div className="pm-section__eyebrow" style={{ '--section-accent': '#C77DFF' }}>System stack</div>
+                <h2 className="pm-section__title">An AI system, not a single tool</h2>
+                <p className="pm-section__sub">Prymal connects specialists, memory, automation, validation, and cost controls into one execution layer.</p>
+              </div>
+              <div className="pm-system-stack__diagram">
+                {SYSTEM_STACK.map(({ title, meta, copy, Icon, color }, index) => (
+                  <div
+                    key={title}
+                    className="pm-system-stack__block"
+                    style={{ '--stack-color': color, '--stack-delay': `${index * 0.12}s` }}
+                  >
+                    <span className="pm-system-stack__icon" aria-hidden="true">
+                      <Icon />
+                    </span>
+                    <span className="pm-system-stack__meta">{meta}</span>
+                    <h3>{title}</h3>
+                    <p>{copy}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="pm-use-cases">
+              <div className="pm-section__header">
+                <div className="pm-section__eyebrow" style={{ '--section-accent': '#FFD166' }}>What you can actually do</div>
+                <h2 className="pm-section__title">Turn business work into repeatable execution.</h2>
+              </div>
+              <div className="pm-use-cases__grid">
+                {USE_CASES.map(({ title, copy, Icon }) => (
+                  <article key={title} className="pm-use-cases__card">
+                    <span className="pm-use-cases__icon" aria-hidden="true"><Icon /></span>
+                    <h3>{title}</h3>
+                    <p>{copy}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <SimpleAdvancedModeSection surface="landing" />
+
+            <SeePrymalInActionSection surface="landing" />
 
             {/* ── Layered agent system ── */}
             <section id="agents" className="pm-agent-showcase">
@@ -597,7 +701,7 @@ export default function Landing() {
               </div>
               <h2 className="pm-pricing-ladder__title">Simple plans for serious work</h2>
               <p className="pm-pricing-ladder__lede" style={{ maxWidth: 560 }}>
-                Execution credits for AI tasks and agents, plus AI video credits when you need renders. Pro is the best balance for most
+                Execution credits for workflow runs, agents, and AI video renders. Pro is the best balance for most
                 teams — see every tier, limits, and FAQs on the dedicated pricing page.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 20 }}>

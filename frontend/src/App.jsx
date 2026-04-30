@@ -50,6 +50,22 @@ const queryClient = new QueryClient({
 });
 
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const SIGNUP_ALLOWED_REDIRECTS = ['/app/workflows', '/app/dashboard', '/app/dashboard?intent=simple'];
+
+export function resolveSignupOnboardingUrl(search = '') {
+  const params = new URLSearchParams(search);
+  const intent = params.get('intent');
+  const redirectUrl = params.get('redirect_url');
+  const onboardingParams = new URLSearchParams();
+  if (['simple', 'advanced'].includes(intent)) onboardingParams.set('intent', intent);
+  if (SIGNUP_ALLOWED_REDIRECTS.includes(redirectUrl)) {
+    onboardingParams.set('redirect_url', redirectUrl);
+  }
+
+  return onboardingParams.toString()
+    ? `/app/onboarding?${onboardingParams.toString()}`
+    : '/app/onboarding';
+}
 
 export default function App() {
   return (
@@ -191,9 +207,11 @@ function LazyPage({ label, children }) {
 }
 
 function AuthPage({ mode }) {
+  const location = useLocation();
+  const onboardingUrl = resolveSignupOnboardingUrl(location.search);
   const panel =
     mode === 'sign-up' ? (
-      <SignUp routing="path" path="/signup" afterSignUpUrl="/app/onboarding" />
+      <SignUp routing="path" path="/signup" afterSignUpUrl={onboardingUrl} />
     ) : (
       <SignIn routing="path" path="/login" afterSignInUrl="/app/dashboard" />
     );
