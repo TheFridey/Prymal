@@ -13,7 +13,7 @@ import { createScheduledWorkflowRunHandler } from '../services/inline-scheduler.
 import { recordAuditLog, recordProductEvent, recordProductEventOnce } from '../services/telemetry.js';
 import { recordCatalogueRun } from '../services/workflow-catalogue.js';
 import { validateWorkflowDefinition } from '../services/workflow-engine.js';
-import { scanPastedContent, WARDEN_VERDICTS } from '../services/warden/index.js';
+import { scanWorkflowPlan, WARDEN_VERDICTS } from '../services/warden/index.js';
 
 const router = new Hono();
 const WORKFLOW_WEBHOOK_EVENT_TYPES = [
@@ -1012,45 +1012,29 @@ function appendRunAgainInput(workflow, runInput) {
 }
 
 async function scanWorkflowRunSafety({ workflow, input, userId, orgId }) {
-  const templateText = JSON.stringify({
-    triggerType: workflow.triggerType,
-    triggerConfig: workflow.triggerConfig ?? {},
-    nodes: (workflow.nodes ?? []).map((node) => ({
-      id: node.id,
-      agentId: node.agentId,
-      prompt: node.prompt,
-    })),
+  const decision = await scanWorkflowPlan({
+    workflow,
+    inputs: input,
+    nodes: workflow.nodes ?? [],
+    edges: workflow.edges ?? [],
+    userId,
+    orgId,
   });
-  const inputText = typeof input === 'string' ? input : JSON.stringify(input ?? {}, null, 2);
-  const [templateDecision, inputDecision] = await Promise.all([
-    scanPastedContent({ text: templateText, userId, orgId }),
-    scanPastedContent({ text: inputText, userId, orgId }),
-  ]);
 
-  const blockedDecision = [templateDecision, inputDecision].find((decision) => decision.verdict === WARDEN_VERDICTS.BLOCK);
-  if (blockedDecision) {
+  if (
+    decision.verdict === WARDEN_VERDICTS.BLOCK
+    || decision.verdict === WARDEN_VERDICTS.REQUIRE_CONFIRMATION
+  ) {
     return {
       allowed: false,
-      auditId: blockedDecision.auditId,
-      message: 'The workflow contains blocked content.',
+      auditId: decision.auditId,
+      message: decision.verdict === WARDEN_VERDICTS.REQUIRE_CONFIRMATION
+        ? 'This workflow needs confirmation before it can run because it mixes external input with tool execution.'
+        : 'The workflow contains blocked content.',
     };
   }
 
-  const highRiskDecision = [templateDecision, inputDecision].find(
-    (decision) =>
-      decision.categories.includes('secret_exfiltration')
-      || decision.categories.includes('role_injection'),
-  );
-
-  if (highRiskDecision) {
-    return {
-      allowed: false,
-      auditId: highRiskDecision.auditId,
-      message: 'The workflow contains instructions that look like an attempt to manipulate tools or privileged instructions.',
-    };
-  }
-
-  return { allowed: true, auditId: inputDecision.auditId };
+  return { allowed: true, auditId: decision.auditId };
 }
 
 function serializeWorkflowWebhook(entry) {

@@ -23,7 +23,7 @@ Prymal packages those jobs into a business-ready system:
 - **Specialist agents** for revenue, support, content, strategy, operations, research, finance, visual assets, and workflows.
 - **LORE** for uploaded and crawled knowledge, retrieval diagnostics, contradiction signals, and source-aware answers.
 - **NEXUS** for validated workflow graphs, manual/webhook/scheduled triggers, run history, replay, and webhook delivery.
-- **WARDEN** for input-side scanning before external content can reach LORE, agents, workflows, media generation, or tools as trusted instructions.
+- **WARDEN** for deterministic and model-assisted input-side scanning before external content can reach LORE, agents, workflows, media generation, or tools as trusted instructions.
 - **SENTINEL** for QA enforcement before risky or low-confidence outputs reach the user.
 - **Operator-grade SaaS controls** for plans, seats, credits, API keys, staff admin, traces, billing, and audit logs.
 
@@ -93,7 +93,7 @@ Prymal exposes 14 user-facing agents and runs SENTINEL internally as the QA gate
 - LORE ingest for pasted text, crawled URLs, `.txt`, `.md`, `.markdown`, `.csv`, `.pdf`, and `.docx`.
 - Workflow create/update/toggle/run/replay/delete, idempotency, retry classification, timeout handling, and run history.
 - Workflow Catalogue tables, validation, installs, user submissions, admin approval, and official seed workflows.
-- WARDEN audit events, deterministic prompt-injection checks, URL/upload/pasted-content sanitisation, media prompt blocking, and tool execution authorization.
+- WARDEN audit events, deterministic prompt-injection checks, model-assisted classification for ambiguous high-risk inputs, URL/upload/pasted-content sanitisation, media prompt blocking, and tool execution authorization.
 - Manual, webhook, and scheduled workflow support. Trigger.dev is optional; inline scheduling is the local/default fallback.
 - Outbound workflow webhook delivery with HMAC-SHA256 signing.
 - OAuth account linking for Gmail, Google Drive, Notion, and Slack.
@@ -278,7 +278,7 @@ npm run verify-build -- --clean
 - `EMAIL_LOGO_URL`, defaults to the inline CID `prymal-logo`
 - `EMAIL_HERALD_AVATAR_URL`, defaults to the inline CID `herald-avatar`
 - `EMAIL_EMBED_INLINE_ASSETS`, defaults to enabled for repo-hosted Prymal and Herald assets
-- WARDEN: `WARDEN_ENABLED`, `WARDEN_STRICT_MODE`, `WARDEN_MAX_CONTENT_CHARS`, `WARDEN_MAX_URL_TEXT_CHARS`, `WARDEN_AUDIT_EXCERPT_CHARS`, `WARDEN_MEDIA_SAFETY_STRICTNESS`
+- WARDEN: `WARDEN_ENABLED`, `WARDEN_STRICT_MODE`, `WARDEN_MAX_CONTENT_CHARS`, `WARDEN_MAX_URL_TEXT_CHARS`, `WARDEN_AUDIT_EXCERPT_CHARS`, `WARDEN_MEDIA_SAFETY_STRICTNESS`, `WARDEN_MODEL_CLASSIFIER_ENABLED`, `WARDEN_MODEL_CLASSIFIER_MODE`, `WARDEN_MODEL_CLASSIFIER_MODEL`, `WARDEN_MODEL_CLASSIFIER_TIMEOUT_MS`, `WARDEN_MODEL_CLASSIFIER_MAX_CHARS`, `WARDEN_MODEL_CLASSIFIER_CACHE_TTL_SECONDS`, `WARDEN_MODEL_CLASSIFIER_CACHE_MAX`
 - Staff access lists for internal admin users
 
 ### Backend Optional Features

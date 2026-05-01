@@ -3,6 +3,11 @@ import { detectPromptInjection } from './prompt-injection-detector.js';
 import { classifyMediaPromptSafety } from './media-safety.js';
 import { authorizeToolCall as authorizeToolCallDecision } from './tool-safety.js';
 import { recordWardenAuditEvent } from './warden-audit.js';
+import {
+  classifyWithWardenModel,
+  mergeWardenDecisions,
+  shouldRunModelClassifier,
+} from './warden-model-classifier.js';
 import { sanitizeExternalContent, wrapUntrustedEvidence } from './warden-sanitizer.js';
 import {
   WARDEN_CATEGORIES,
@@ -27,18 +32,58 @@ export async function createWardenDecision(input = {}, { dbClient } = {}) {
   }
 
   const riskLevel = input.riskLevel ?? deriveRiskLevel(categories, sourceType);
-  const verdict = input.verdict ?? deriveVerdict({ categories, sourceType, riskLevel });
-  const sourceTrust = buildSourceTrust({ sourceType, verdict, categories });
+  const derivedVerdict = deriveVerdict({ categories, sourceType, riskLevel });
+  const verdict = config.strictMode && riskLevel === WARDEN_RISK_LEVELS.HIGH
+    ? WARDEN_VERDICTS.BLOCK
+    : input.verdict ?? derivedVerdict;
+  const deterministicDecision = {
+    verdict,
+    riskLevel,
+    categories,
+    reasons,
+    safeContent: sanitized.content,
+    redactions: sanitized.redactions,
+    sourceTrust: buildSourceTrust({ sourceType, verdict, categories }),
+    surface: input.surface ?? 'unknown',
+  };
+  const shouldClassify = shouldRunModelClassifier(deterministicDecision, {
+    surface: input.surface ?? 'unknown',
+    sourceType,
+    metadata: input.metadata ?? {},
+  });
+  const modelDecision = shouldClassify
+    ? await classifyWithWardenModel({
+      surface: input.surface ?? 'unknown',
+      content: sanitized.content,
+      userIntent: input.userIntent ?? '',
+      sourceType,
+      categories,
+      deterministicVerdict: verdict,
+      deterministicRiskLevel: riskLevel,
+      metadata: {
+        ...(input.metadata ?? {}),
+        contentHash: sanitized.contentHash,
+      },
+      orgId: input.orgId ?? null,
+      userId: input.userId ?? null,
+    })
+    : { usedModel: false, skipped: true, fallback: false, model: config.modelClassifierModel };
+  const merged = mergeWardenDecisions(deterministicDecision, modelDecision);
+  const sourceTrust = buildSourceTrust({
+    sourceType,
+    verdict: merged.verdict,
+    categories: merged.categories,
+  });
   const audit = await recordWardenAuditEvent({
     orgId: input.orgId ?? null,
     userId: input.userId ?? null,
     surface: input.surface ?? 'unknown',
     sourceType,
     action: input.action ?? 'scan',
-    verdict,
-    riskLevel,
-    categories,
-    reasons,
+    verdict: merged.verdict,
+    riskLevel: merged.riskLevel,
+    categories: merged.categories,
+    reasons: merged.reasons,
     content: sanitized.content,
     redactionCount: sanitized.redactions.length,
     sourceUrl: input.sourceUrl ?? null,
@@ -49,24 +94,42 @@ export async function createWardenDecision(input = {}, { dbClient } = {}) {
       ...(input.metadata ?? {}),
       contentHash: sanitized.contentHash,
       truncated: sanitized.truncated,
+      modelClassifier: merged.modelClassifier,
     },
     dbClient,
   });
 
+  const auditId = audit?.id ?? `warden-${randomUUID()}`;
+  const trace = buildWardenTrace({
+    auditId,
+    verdict: merged.verdict,
+    riskLevel: merged.riskLevel,
+    categories: merged.categories,
+  });
+
   return {
-    verdict,
-    riskLevel,
-    categories,
-    reasons,
+    verdict: merged.verdict,
+    riskLevel: merged.riskLevel,
+    categories: merged.categories,
+    reasons: merged.reasons,
     safeContent: sanitized.content,
     redactions: sanitized.redactions,
     sourceTrust,
-    canReachLore: verdict !== WARDEN_VERDICTS.BLOCK,
-    canReachAgentPrompt: verdict !== WARDEN_VERDICTS.BLOCK,
-    canTriggerTools: verdict === WARDEN_VERDICTS.ALLOW || verdict === WARDEN_VERDICTS.REDACT,
-    canTriggerMediaGeneration: verdict === WARDEN_VERDICTS.ALLOW || verdict === WARDEN_VERDICTS.REDACT,
-    requiresHumanConfirmation: verdict === WARDEN_VERDICTS.REQUIRE_CONFIRMATION,
-    auditId: audit?.id ?? `warden-${randomUUID()}`,
+    canReachLore: merged.verdict !== WARDEN_VERDICTS.BLOCK,
+    canReachAgentPrompt: merged.verdict === WARDEN_VERDICTS.ALLOW || merged.verdict === WARDEN_VERDICTS.REDACT,
+    canReachAgentPromptAsEvidence: merged.verdict === WARDEN_VERDICTS.ALLOW_WITH_SANDBOX,
+    canTriggerTools: merged.verdict === WARDEN_VERDICTS.ALLOW || merged.verdict === WARDEN_VERDICTS.REDACT,
+    canTriggerMediaGeneration: merged.verdict === WARDEN_VERDICTS.ALLOW || merged.verdict === WARDEN_VERDICTS.REDACT,
+    requiresHumanConfirmation: merged.verdict === WARDEN_VERDICTS.REQUIRE_CONFIRMATION,
+    auditId,
+    modelClassifier: merged.modelClassifier,
+    metadata: {
+      ...(input.metadata ?? {}),
+      contentHash: sanitized.contentHash,
+      truncated: sanitized.truncated,
+      warden: trace,
+      modelClassifier: merged.modelClassifier,
+    },
   };
 }
 
@@ -192,12 +255,18 @@ function deriveRiskLevel(categories = [], sourceType) {
 }
 
 function deriveVerdict({ categories, sourceType, riskLevel }) {
+  const config = getWardenConfig();
+
   if (categories.includes(WARDEN_CATEGORIES.DANGEROUS_UPLOAD) || riskLevel === WARDEN_RISK_LEVELS.CRITICAL) {
     return WARDEN_VERDICTS.BLOCK;
   }
 
   if (categories.includes(WARDEN_CATEGORIES.SECRET_LEAK)) {
     return WARDEN_VERDICTS.REDACT;
+  }
+
+  if (config.strictMode && riskLevel === WARDEN_RISK_LEVELS.HIGH) {
+    return WARDEN_VERDICTS.BLOCK;
   }
 
   if (sourceType !== WARDEN_SOURCE_TYPES.USER) {
@@ -223,5 +292,14 @@ function buildSourceTrust({ sourceType, verdict, categories }) {
     type: sourceType,
     trusted: trusted && !suspicious,
     trustScore,
+  };
+}
+
+export function buildWardenTrace(decision = {}) {
+  return {
+    auditId: decision.auditId ?? null,
+    verdict: decision.verdict ?? null,
+    riskLevel: decision.riskLevel ?? null,
+    categories: [...new Set(decision.categories ?? [])],
   };
 }

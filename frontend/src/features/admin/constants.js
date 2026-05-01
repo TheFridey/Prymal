@@ -14,6 +14,7 @@ export const TABS = [
   { id: 'workflow-ops', label: 'Workflow Ops' },
   { id: 'activity', label: 'Activity' },
   { id: 'audit-logs', label: 'Audit Logs' },
+  { id: 'warden-events', label: 'WARDEN' },
   { id: 'credit-usage', label: 'Credit Usage' },
   { id: 'product-events', label: 'Product Events' },
   { id: 'waitlist', label: 'Waitlist' },
@@ -39,7 +40,7 @@ export const ADMIN_NAV_GROUPS = [
   },
   {
     label: 'Support',
-    tabs: ['product-events', 'audit-logs', 'waitlist', 'email-queue', 'powerups', 'growth'],
+    tabs: ['product-events', 'audit-logs', 'warden-events', 'waitlist', 'email-queue', 'powerups', 'growth'],
   },
 ];
 

@@ -20,6 +20,7 @@ import { recordLoreFeedback } from '../services/moat-feedback.js';
 import {
   prepareUploadForLore,
   prepareUrlContentForLore,
+  buildWardenTrace,
   scanPastedContent,
   WARDEN_VERDICTS,
 } from '../services/warden/index.js';
@@ -555,5 +556,6 @@ function buildWardenLoreMetadata({ decision, sourceType }) {
     allowAsInstruction: false,
     ingestedAt: new Date().toISOString(),
     redactionCount: decision.redactions?.length ?? 0,
+    warden: buildWardenTrace(decision),
   };
 }

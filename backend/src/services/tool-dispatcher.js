@@ -9,7 +9,7 @@ import { retrieveRankedMemories } from './memory-retrieval.js';
 import { formatLoreChunkForPrompt, ragSearch } from './rag.js';
 import { fetchLiveWebContext } from './web-research.js';
 import { getAccessToken } from '../routes/integrations.js';
-import { scanToolRequest, WARDEN_VERDICTS } from './warden/index.js';
+import { buildWardenTrace, scanToolRequest, WARDEN_VERDICTS } from './warden/index.js';
 
 export const KNOWN_TOOLS = new Set([
   'lore_search',
@@ -117,6 +117,9 @@ export async function dispatchTool({
         tool,
         verdict: `warden_${wardenDecision.verdict.toLowerCase()}`,
         reason: error,
+        metadata: {
+          warden: buildWardenTrace(wardenDecision),
+        },
       });
       return {
         tool,
@@ -149,10 +152,13 @@ export async function dispatchTool({
         tool,
         verdict: 'side_effect_completed',
         reason: `Side-effect tool '${tool}' completed`,
+        metadata: {
+          warden: buildWardenTrace(wardenDecision),
+        },
       });
     }
 
-    return { tool, success: true, result, error: null };
+    return { tool, success: true, result, error: null, metadata: { warden: buildWardenTrace(wardenDecision) } };
   } catch (err) {
     console.error(`[TOOL-DISPATCH] Tool '${tool}' failed for agent ${agentId}:`, err.message);
     if (policy.requiresAudit) {
@@ -175,7 +181,17 @@ export async function dispatchTool({
  * Single-line structured audit log entry for tool dispatch decisions.
  * Designed to be parseable by log-aggregation tooling without a DB write.
  */
-function recordToolPolicyEvent({ agentId, orgId, userId = null, conversationId = null, workflowRunId = null, tool, verdict, reason }) {
+function recordToolPolicyEvent({
+  agentId,
+  orgId,
+  userId = null,
+  conversationId = null,
+  workflowRunId = null,
+  tool,
+  verdict,
+  reason,
+  metadata = {},
+}) {
   const payload = {
     event: 'tool_policy',
     verdict,
@@ -186,6 +202,7 @@ function recordToolPolicyEvent({ agentId, orgId, userId = null, conversationId =
     conversationId,
     workflowRunId,
     reason,
+    metadata,
     sideEffect: isSideEffectTool(tool),
     timestamp: new Date().toISOString(),
   };

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { detectPromptInjection } from './prompt-injection-detector.js';
-import { sanitizeExternalContent, wrapUntrustedEvidence } from './warden-sanitizer.js';
+import { sanitizeExternalContent } from './warden-sanitizer.js';
 import { createWardenDecision } from './warden-service.js';
 import {
   DANGEROUS_UPLOAD_EXTENSIONS,
@@ -36,11 +36,7 @@ export async function prepareUploadForLore({ file, extractedText = '', mimeType,
   }
 
   const sanitized = sanitizeExternalContent(extractedText);
-  const evidenceText = wrapUntrustedEvidence(sanitized.content, {
-    fileName: file?.name ?? null,
-    sourceType: 'UPLOAD',
-    wardenAuditId: decision.auditId,
-  });
+  const evidenceText = sanitized.content;
 
   return {
     allowed: true,
@@ -77,7 +73,13 @@ export function scanUploadedFile({ file, extractedText = '', mimeType, userId = 
     reasons.push(`Upload MIME type is not supported for LORE ingestion: ${normalizedMime}`);
   }
 
-  const injection = detectPromptInjection(extractedText);
+  const injection = detectPromptInjection([
+    extractedText,
+    fileName,
+    file?.altText,
+    file?.caption,
+    file?.metadata?.text,
+  ].filter(Boolean).join('\n'));
   categories.push(...injection.categories);
   reasons.push(...injection.reasons);
 

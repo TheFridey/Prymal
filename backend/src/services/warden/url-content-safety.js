@@ -1,5 +1,5 @@
 import { detectPromptInjection, hashContent, stripZeroWidthChars } from './prompt-injection-detector.js';
-import { sanitizeExternalContent, wrapUntrustedEvidence } from './warden-sanitizer.js';
+import { sanitizeExternalContent } from './warden-sanitizer.js';
 import { createWardenDecision } from './warden-service.js';
 import { WARDEN_SOURCE_TYPES, WARDEN_VERDICTS } from './warden-policy.js';
 
@@ -86,9 +86,7 @@ export async function prepareUrlContentForLore({ url, html, userId, orgId, dbCli
   }
 
   const sanitized = sanitizeExternalContent(extracted.text, { maxChars: Number(process.env.WARDEN_MAX_URL_TEXT_CHARS ?? 240_000) });
-  const evidenceText = decision.verdict === WARDEN_VERDICTS.ALLOW_WITH_SANDBOX
-    ? wrapUntrustedEvidence(sanitized.content, { sourceUrl: url, wardenAuditId: decision.auditId })
-    : sanitized.content;
+  const evidenceText = sanitized.content;
   const chunks = splitTextIntoChunks(evidenceText);
 
   return {

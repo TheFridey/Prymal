@@ -106,8 +106,12 @@ Record Stripe event IDs and workspace IDs in the private launch log, not in publ
 - Upload a text file containing `ignore previous instructions` and verify it is stored only as untrusted evidence.
 - Crawl a page with hidden prompt-injection text and verify LORE does not treat it as instructions.
 - Attempt an unsafe image/video prompt and verify it is blocked before provider submission.
+- Attempt ambiguous media wording such as "young but legal" and verify WARDEN blocks or escalates it before provider submission.
+- Verify reference image text, alt text, filename, and metadata text are scanned as untrusted OCR safety text.
 - Attempt a tool/billing instruction from retrieved content and verify WARDEN denies the tool action.
-- Verify `warden_audit_event` records verdict, risk, categories, redaction count, and source metadata without storing raw unsafe content.
+- Verify a workflow that routes URL/upload/LORE input into email, posting, billing, admin, or destructive actions is blocked or requires confirmation.
+- Verify `warden_audit_event` records deterministic verdict, model classifier metadata, final verdict, risk, categories, redaction count, and source metadata without storing raw unsafe content.
+- Verify model classifier timeout or invalid JSON falls back to deterministic WARDEN without user-visible errors.
 - Verify the Herald signature renders with avatar or monogram fallback.
 - Verify Resend receives the delivery event.
 - Verify a Resend failure records an `email_events` row and does not break onboarding, billing webhooks or workflow installs.

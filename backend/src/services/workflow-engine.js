@@ -19,7 +19,7 @@ import { deliverWorkflowWebhook } from './webhook-delivery.js';
 import { estimateTokens, runAgentNode } from './llm.js';
 import { emitWorkflowTimelineEvent } from './memory-events.js';
 import { maybeRecordFirstWinAggregate, recordProductEvent, recordProductEventOnce } from './telemetry.js';
-import { scanPastedContent, WARDEN_VERDICTS } from './warden/index.js';
+import { scanPastedContent, scanWorkflowPlan, WARDEN_VERDICTS } from './warden/index.js';
 
 const WORKFLOW_NODE_TIMEOUT_MS = Number(process.env.WORKFLOW_NODE_TIMEOUT_MS ?? 90_000);
 const WORKFLOW_RUN_TIMEOUT_MS = Number(process.env.WORKFLOW_RUN_TIMEOUT_MS ?? 15 * 60_000);
@@ -179,6 +179,23 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
   }
 
   const sortedNodes = topologicalSort(workflow.nodes, workflow.edges);
+  const workflowSafety = await scanWorkflowPlan({
+    workflow,
+    inputs: workflow.triggerConfig ?? {},
+    nodes: sortedNodes,
+    edges: workflow.edges ?? [],
+    userId: orgContext.userId ?? null,
+    orgId: workflow.orgId,
+  });
+
+  if ([WARDEN_VERDICTS.BLOCK, WARDEN_VERDICTS.REQUIRE_CONFIRMATION].includes(workflowSafety.verdict)) {
+    const error = new Error('This workflow plan was blocked by WARDEN before execution.');
+    error.code = 'WARDEN_WORKFLOW_PLAN_BLOCKED';
+    error.status = 400;
+    error.wardenAuditId = workflowSafety.auditId;
+    throw error;
+  }
+
   const nodeOutputs = { ...(existingRun.nodeOutputs ?? {}) };
   const runLog = [...(existingRun.runLog ?? [])];
   let totalCredits = existingRun.creditsUsed ?? 0;

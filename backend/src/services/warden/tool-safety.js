@@ -46,9 +46,9 @@ export function authorizeToolCall({
     reasons.push(...injection.reasons);
   }
 
-  if (untrustedOrigin && risk !== WARDEN_TOOL_RISK.LOW) {
+  if (untrustedOrigin) {
     categories.push(WARDEN_CATEGORIES.TOOL_ABUSE);
-    reasons.push('A non-read-only tool call was requested from untrusted or retrieved content.');
+    reasons.push('Tool calls cannot originate from untrusted or retrieved content.');
   }
 
   if (risk === WARDEN_TOOL_RISK.HIGH && !confirmed && untrustedOrigin) {
@@ -77,13 +77,13 @@ export function authorizeToolCall({
   if (risk === WARDEN_TOOL_RISK.CRITICAL && (!confirmed || !isAdmin)) {
     verdict = WARDEN_VERDICTS.REQUIRE_CONFIRMATION;
     riskLevel = WARDEN_RISK_LEVELS.CRITICAL;
-  } else if (untrustedOrigin && risk !== WARDEN_TOOL_RISK.LOW) {
+  } else if (untrustedOrigin) {
     verdict = WARDEN_VERDICTS.BLOCK;
     riskLevel = WARDEN_RISK_LEVELS.HIGH;
   } else if (redactedArgs.redactions.length > 0) {
     verdict = WARDEN_VERDICTS.REDACT;
     riskLevel = WARDEN_RISK_LEVELS.MEDIUM;
-  } else if (injection.detected) {
+  } else if (injection.detected && !isConfirmedAdminCriticalTool({ risk, confirmed, isAdmin, categories })) {
     verdict = WARDEN_VERDICTS.REQUIRE_CONFIRMATION;
     riskLevel = WARDEN_RISK_LEVELS.HIGH;
   }
@@ -99,6 +99,18 @@ export function authorizeToolCall({
     requiresHumanConfirmation: verdict === WARDEN_VERDICTS.REQUIRE_CONFIRMATION,
     canTriggerTools: verdict === WARDEN_VERDICTS.ALLOW || verdict === WARDEN_VERDICTS.REDACT,
   };
+}
+
+function isConfirmedAdminCriticalTool({ risk, confirmed, isAdmin, categories = [] }) {
+  if (risk !== WARDEN_TOOL_RISK.CRITICAL || !confirmed || !isAdmin) {
+    return false;
+  }
+
+  const categorySet = new Set(categories);
+  return !categorySet.has(WARDEN_CATEGORIES.ROLE_INJECTION)
+    && !categorySet.has(WARDEN_CATEGORIES.SECRET_EXFILTRATION)
+    && !categorySet.has(WARDEN_CATEGORIES.HIDDEN_PROMPT)
+    && !categorySet.has(WARDEN_CATEGORIES.ENCODED_PAYLOAD);
 }
 
 function safeJsonParse(value, fallback) {

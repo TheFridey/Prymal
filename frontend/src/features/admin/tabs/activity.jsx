@@ -168,6 +168,52 @@ export function AuditLogsTab({ query }) {
   );
 }
 
+export function WardenEventsTab({ query }) {
+  const events = query.data?.events ?? [];
+
+  return (
+    <div className="staff-admin__tab-body">
+      <section className="staff-admin__section">
+        <header className="staff-admin__section-head">
+          <h2 className="staff-admin__section-title">WARDEN events</h2>
+          <span className="staff-admin__section-meta">{formatNumber(events.length)} decisions</span>
+        </header>
+        {query.isLoading ? (
+          <div className="staff-admin__empty">Loading WARDEN events...</div>
+        ) : events.length === 0 ? (
+          <div className="staff-admin__empty">No WARDEN events found.</div>
+        ) : (
+          <div className="staff-admin__queue-list">
+            {events.map((event) => {
+              const classifier = event.modelClassifier ?? event.metadata?.modelClassifier ?? {};
+              return (
+                <article key={event.id} className="staff-admin__queue-item">
+                  <div className="staff-admin__queue-head">
+                    <strong>{event.verdict} · {event.riskLevel}</strong>
+                    <span>{formatDateTime(event.createdAt)}</span>
+                  </div>
+                  <p>
+                    {event.surface || 'unknown surface'}
+                    {event.sourceType ? ` · ${event.sourceType}` : ''}
+                    {event.toolName ? ` · tool: ${event.toolName}` : ''}
+                    {event.provider ? ` · provider: ${event.provider}` : ''}
+                  </p>
+                  <small>
+                    {classifier.usedModel ? `Model-assisted · confidence ${Math.round((classifier.confidence ?? 0) * 100)}%` : 'Deterministic'}
+                    {event.categories?.length ? ` · ${event.categories.join(', ')}` : ''}
+                  </small>
+                  {event.reasons?.length ? <small>{event.reasons.slice(0, 2).join(' ')}</small> : null}
+                  <small>Audit ID: {truncate(event.id, 36)}</small>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 export function CreditUsageTab({ query }) {
   const orgs = query.data?.organisations ?? [];
   const totalCreditsUsed = query.data?.totalCreditsUsed ?? 0;

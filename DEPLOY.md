@@ -339,6 +339,14 @@ WARDEN safety firewall:
 - `WARDEN_MAX_URL_TEXT_CHARS=240000`
 - `WARDEN_AUDIT_EXCERPT_CHARS=500`
 - `WARDEN_MEDIA_SAFETY_STRICTNESS=standard`
+- `WARDEN_MODEL_CLASSIFIER_ENABLED=true`
+- `WARDEN_MODEL_CLASSIFIER_MODE=auto`
+- `WARDEN_MODEL_CLASSIFIER_MODEL=gpt-5-mini`
+- `WARDEN_MODEL_CLASSIFIER_TIMEOUT_MS=3000`
+- `WARDEN_MODEL_CLASSIFIER_MAX_CHARS=12000`
+- `WARDEN_MODEL_CLASSIFIER_CACHE_TTL_SECONDS=900`
+- `WARDEN_MODEL_CLASSIFIER_CACHE_MAX=1000`
+- WARDEN v2 falls back to deterministic checks if the model classifier, cache, or audit write fails.
 - verify the Resend sender domain before production traffic
 
 Operational mail:

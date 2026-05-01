@@ -109,6 +109,13 @@ export const DEFAULT_WARDEN_CONFIG = {
   maxUrlTextChars: 240_000,
   maxAuditExcerptChars: 500,
   mediaStrictness: 'standard',
+  modelClassifierEnabled: true,
+  modelClassifierMode: 'auto',
+  modelClassifierModel: 'gpt-5-mini',
+  modelClassifierTimeoutMs: 3000,
+  modelClassifierMaxChars: 12000,
+  modelClassifierCacheTtlSeconds: 900,
+  modelClassifierCacheMax: 1000,
 };
 
 export function getWardenConfig(env = process.env) {
@@ -119,11 +126,23 @@ export function getWardenConfig(env = process.env) {
     maxUrlTextChars: Number(env.WARDEN_MAX_URL_TEXT_CHARS ?? DEFAULT_WARDEN_CONFIG.maxUrlTextChars),
     maxAuditExcerptChars: Number(env.WARDEN_AUDIT_EXCERPT_CHARS ?? DEFAULT_WARDEN_CONFIG.maxAuditExcerptChars),
     mediaStrictness: String(env.WARDEN_MEDIA_SAFETY_STRICTNESS ?? DEFAULT_WARDEN_CONFIG.mediaStrictness),
+    modelClassifierEnabled: String(env.WARDEN_MODEL_CLASSIFIER_ENABLED ?? DEFAULT_WARDEN_CONFIG.modelClassifierEnabled).toLowerCase() !== 'false',
+    modelClassifierMode: String(env.WARDEN_MODEL_CLASSIFIER_MODE ?? DEFAULT_WARDEN_CONFIG.modelClassifierMode).toLowerCase(),
+    modelClassifierModel: String(env.WARDEN_MODEL_CLASSIFIER_MODEL ?? DEFAULT_WARDEN_CONFIG.modelClassifierModel),
+    modelClassifierTimeoutMs: Number(env.WARDEN_MODEL_CLASSIFIER_TIMEOUT_MS ?? DEFAULT_WARDEN_CONFIG.modelClassifierTimeoutMs),
+    modelClassifierMaxChars: Number(env.WARDEN_MODEL_CLASSIFIER_MAX_CHARS ?? DEFAULT_WARDEN_CONFIG.modelClassifierMaxChars),
+    modelClassifierCacheTtlSeconds: Number(env.WARDEN_MODEL_CLASSIFIER_CACHE_TTL_SECONDS ?? DEFAULT_WARDEN_CONFIG.modelClassifierCacheTtlSeconds),
+    modelClassifierCacheMax: Number(env.WARDEN_MODEL_CLASSIFIER_CACHE_MAX ?? DEFAULT_WARDEN_CONFIG.modelClassifierCacheMax),
   };
 }
 
 export function getToolRisk(toolName) {
   const normalized = String(toolName ?? '').trim();
+
+  if (!normalized) {
+    return WARDEN_TOOL_RISK.HIGH;
+  }
+
   if (CRITICAL_RISK_TOOLS.has(normalized) || /billing|admin|permission|delete_org|delete_user|secret|env/i.test(normalized)) {
     return WARDEN_TOOL_RISK.CRITICAL;
   }
@@ -133,5 +152,6 @@ export function getToolRisk(toolName) {
   if (MEDIUM_RISK_TOOLS.has(normalized) || /request|create|draft/i.test(normalized)) {
     return WARDEN_TOOL_RISK.MEDIUM;
   }
-  return WARDEN_TOOL_RISK.LOW;
+
+  return WARDEN_TOOL_RISK.HIGH;
 }

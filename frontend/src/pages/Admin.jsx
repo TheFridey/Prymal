@@ -45,7 +45,7 @@ import {
 } from '../features/admin/tabs/runtime-ops';
 import { OverviewTab, OrganisationInspector, UserInspector } from '../features/admin/tabs/overview';
 import { BillingTab, RevenueTab, ReferralsTab } from '../features/admin/tabs/billing';
-import { ActivityTab, AuditLogsTab, CreditUsageTab, ProductEventsTab } from '../features/admin/tabs/activity';
+import { ActivityTab, AuditLogsTab, CreditUsageTab, ProductEventsTab, WardenEventsTab } from '../features/admin/tabs/activity';
 import { EmailQueueTab, WaitlistTab, PowerUpsTab } from '../features/admin/tabs/support';
 import { GrowthTab } from '../features/admin/tabs/growth';
 import { OperatorTab } from '../features/admin/tabs/operator';
@@ -158,6 +158,13 @@ export default function Admin() {
     queryFn: () => api.get('/admin/audit-logs?limit=200'),
     enabled: isStaff && activeTab === 'audit-logs',
     refetchInterval: activeTab === 'audit-logs' ? 30_000 : false,
+  });
+
+  const wardenEventsQuery = useQuery({
+    queryKey: ['staff-admin-warden-events'],
+    queryFn: () => api.get('/admin/warden-events?limit=200'),
+    enabled: isStaff && activeTab === 'warden-events',
+    refetchInterval: activeTab === 'warden-events' ? 30_000 : false,
   });
 
   const creditUsageQuery = useQuery({
@@ -1026,6 +1033,9 @@ export default function Admin() {
         ) : null}
         {activeTab === 'audit-logs' ? (
           <AuditLogsTab query={auditLogsQuery} />
+        ) : null}
+        {activeTab === 'warden-events' ? (
+          <WardenEventsTab query={wardenEventsQuery} />
         ) : null}
         {activeTab === 'credit-usage' ? (
           <CreditUsageTab query={creditUsageQuery} />
