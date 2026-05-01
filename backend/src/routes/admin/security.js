@@ -221,7 +221,7 @@ function boundedLimit(value, fallback = 100) {
 }
 
 function getScopedOrgId(context) {
-  const staff = context.get('staffMember') ?? context.get('user');
+  const staff = context.get('staff') ?? context.get('staffMember') ?? context.get('user');
   return staff?.scopedOrgId ?? null;
 }
 
@@ -464,15 +464,31 @@ function extractWorkflowSummary(metadata) {
   return null;
 }
 
+export function stripUnsafeMetadataForSecurityResponse(metadata) {
+  return stripUnsafeMetadata(metadata);
+}
+
 function stripUnsafeMetadata(metadata) {
-  const clone = JSON.parse(JSON.stringify(metadata ?? {}));
-  delete clone.content;
-  delete clone.text;
-  delete clone.html;
-  delete clone.prompt;
-  delete clone.uploadedImageText;
-  delete clone.rawContent;
-  return clone;
+  return removeUnsafeMetadataKeys(JSON.parse(JSON.stringify(metadata ?? {})));
+}
+
+function removeUnsafeMetadataKeys(value) {
+  if (Array.isArray(value)) {
+    return value.map(removeUnsafeMetadataKeys);
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const unsafeKeys = new Set(['content', 'text', 'html', 'prompt', 'uploadedImageText', 'rawContent']);
+  for (const key of Object.keys(value)) {
+    if (unsafeKeys.has(key)) {
+      delete value[key];
+    } else {
+      value[key] = removeUnsafeMetadataKeys(value[key]);
+    }
+  }
+  return value;
 }
 
 function safeConversation(conversation) {
