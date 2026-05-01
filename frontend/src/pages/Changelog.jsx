@@ -8,19 +8,39 @@ import '../styles/changelog-premium.css';
 
 const CHANGELOG = [
   {
+    version: '1.0.4',
+    date: '2026-05-01',
+    tag: 'Security',
+    badge: 'WARDEN',
+    milestone: true,
+    title: 'WARDEN Input Safety Firewall',
+    impact: 'Prymal now protects execution surfaces before unsafe or manipulative input can be treated as trusted instructions.',
+    entries: [
+      'Added WARDEN as an input-side firewall before LORE ingestion, media generation, workflows, and tool execution.',
+      'External URLs, uploads, pasted content, OCR text, and retrieved LORE are now treated as untrusted evidence rather than instructions.',
+      'Added deterministic detection for prompt injection, role spoofing, tool-abuse instructions, hidden prompt content, encoded payloads, and secret leakage.',
+      'Media generation requests are scanned before provider calls, with clean refusals for blocked unsafe image or video prompts.',
+      'Tool execution now checks source trust, action risk, confirmation needs, and org scope before allowing side-effect actions.',
+      'Added WARDEN audit events so operators can investigate blocked input, sandboxed content, redactions, media refusals, and tool denials without storing unsafe raw content.',
+    ],
+  },
+  {
     version: '1.0.3',
     date: '2026-04-30',
     tag: 'Update',
-    badge: 'Launch',
+    badge: 'Workflows',
     milestone: true,
-    title: 'Execution-First Launch Readiness',
-    impact: 'Prymal now explains its operating-system depth faster while keeping onboarding approachable.',
+    title: 'Workflow Catalogue Foundation',
+    impact: 'Prymal now has the foundation for curated workflow discovery, installation, and reviewed community submissions.',
     entries: [
       'Rebuilt the landing experience around business execution, workflows, memory, validation, and cost control.',
       'Added Simple Mode and Advanced Mode so new users can start with a guided task and grow into deeper workflows when ready.',
       'Introduced real example outputs that show how Prymal turns a request into structured, usable business work.',
       'Strengthened pricing and usage clarity around execution credits, AI video credits, add-on packs, and team-scale governance.',
       'Prepared production billing configuration for Founding Access and preferred usage packs while keeping plan limits server-enforced.',
+      'Added Workflow Catalogue foundations for official workflows, free installs, creator drafts, submissions, and staff approval review.',
+      'Expanded the official Workflow Catalogue with deeper coverage across content, marketing, sales, agencies, support, finance, automation, research, and strategy.',
+      'Added Prymal-branded transactional emails for onboarding, invites, billing, usage alerts, Founder Access, and workflow installs.',
     ],
   },
   {

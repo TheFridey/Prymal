@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { db } from '../db/index.js';
 import { loreChunks, loreDocuments } from '../db/schema.js';
+import { formatUntrustedEvidenceBlock } from './warden/index.js';
 
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 const APPROX_CHUNK_TOKENS = 450;
@@ -89,6 +90,11 @@ export async function ingestDocument({ documentId, orgId, content, metadata = {}
           ...metadata,
           ...chunk.metadata,
           sourceType,
+          ...buildWardenChunkMetadata({
+            document,
+            metadata,
+            sourceType,
+          }),
           documentVersion: document?.version ?? 1,
           trustScore: trust.score,
           trustLabel: trust.label,
@@ -113,6 +119,20 @@ export async function ingestDocument({ documentId, orgId, content, metadata = {}
     await markDocument(documentId, { status: 'failed' });
     throw error;
   }
+}
+
+export function formatLoreChunkForPrompt(chunk, index = 0) {
+  return formatUntrustedEvidenceBlock({
+    content: chunk.content,
+    source: chunk.sourceType ?? chunk.metadata?.sourceType ?? 'LORE_RETRIEVAL',
+    metadata: {
+      sourceType: 'LORE_RETRIEVAL',
+      sourceUrl: chunk.sourceUrl ?? chunk.metadata?.sourceUrl ?? null,
+      wardenAuditId: chunk.metadata?.wardenAuditId ?? chunk.metadata?.warden?.auditId ?? null,
+      chunkIndex: index,
+      documentTitle: chunk.documentTitle,
+    },
+  });
 }
 
 export async function ragSearch({ orgId, query, limit = 5, includeWeakMatches = false }) {
@@ -710,6 +730,43 @@ function buildTrustMetadata({ sourceType, sourceUrl, metadata = {} }) {
     authorityScore: 0.68,
     verified: isVerified,
     verifiedAt,
+  };
+}
+
+function buildWardenChunkMetadata({ document, metadata = {}, sourceType }) {
+  const warden = metadata.warden ?? document?.metadata?.warden ?? {};
+  const externalSource = ['url', 'pdf', 'docx', 'csv', 'markdown', 'text'].includes(sourceType);
+  const sourceTypeLabel = metadata.sourceType ?? document?.metadata?.sourceType ?? (
+    sourceType === 'url' ? 'EXTERNAL_URL' : externalSource ? 'UPLOAD' : 'USER_NOTE'
+  );
+
+  return {
+    sourceType: sourceTypeLabel,
+    trustLevel: metadata.trustLevel ?? document?.metadata?.trustLevel ?? warden.trustLevel ?? 'UNTRUSTED',
+    wardenAuditId: metadata.wardenAuditId ?? document?.metadata?.wardenAuditId ?? warden.auditId ?? null,
+    containsPromptInjection: Boolean(
+      metadata.containsPromptInjection
+      ?? document?.metadata?.containsPromptInjection
+      ?? warden.containsPromptInjection
+      ?? false,
+    ),
+    containsToolInstruction: Boolean(
+      metadata.containsToolInstruction
+      ?? document?.metadata?.containsToolInstruction
+      ?? warden.containsToolInstruction
+      ?? false,
+    ),
+    containsPolicyBypass: Boolean(
+      metadata.containsPolicyBypass
+      ?? document?.metadata?.containsPolicyBypass
+      ?? warden.containsPolicyBypass
+      ?? false,
+    ),
+    allowAsInstruction: false,
+    sourceUrl: document?.sourceUrl ?? metadata.sourceUrl ?? null,
+    fileId: metadata.fileId ?? null,
+    contentHash: metadata.contentHash ?? document?.metadata?.contentHash ?? null,
+    ingestedAt: metadata.ingestedAt ?? document?.metadata?.ingestedAt ?? document?.createdAt ?? new Date().toISOString(),
   };
 }
 

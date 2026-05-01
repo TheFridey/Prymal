@@ -2,7 +2,7 @@
 import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { db } from '../../db/index.js';
-import { adminActionLogs, auditLogs, productEvents } from '../../db/schema.js';
+import { adminActionLogs, auditLogs, productEvents, wardenAuditEvents } from '../../db/schema.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
 
 const router = new Hono();
@@ -36,6 +36,19 @@ router.get('/product-events', requireStaff, requireStaffPermission('admin.activi
     where: eventName ? eq(productEvents.eventName, eventName) : undefined,
     orderBy: [desc(productEvents.createdAt)],
     limit, offset,
+  });
+  return context.json({ events: rows, count: rows.length });
+});
+
+router.get('/warden-events', requireStaff, requireStaffPermission('admin.activity.read'), async (context) => {
+  const limit = Math.min(Number(context.req.query('limit') ?? 100), 500);
+  const offset = Math.max(Number(context.req.query('offset') ?? 0), 0);
+  const verdict = context.req.query('verdict');
+  const rows = await db.query.wardenAuditEvents.findMany({
+    where: verdict ? eq(wardenAuditEvents.verdict, verdict) : undefined,
+    orderBy: [desc(wardenAuditEvents.createdAt)],
+    limit,
+    offset,
   });
   return context.json({ events: rows, count: rows.length });
 });

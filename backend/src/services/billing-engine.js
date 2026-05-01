@@ -33,6 +33,7 @@ import {
 import { evaluateExecutionUsageGate, evaluateVideoUsageGate } from './usage-policy.js';
 import { recordUsageEstimateEvent } from './usage-ledger.js';
 import { recordProductEvent } from './telemetry.js';
+import { fireAndForgetEmail, notifyCreditsLow, notifyUsageCapReached } from './email/email-trigger-utils.js';
 
 const SOLO_VIDEO_SPIKE_WARN_USD = Number(process.env.SOLO_VIDEO_SPIKE_WARN_USD ?? 2);
 
@@ -155,6 +156,14 @@ export async function reserveExecutionCredits({
     });
 
     if (!usageGate.allowed) {
+      fireAndForgetEmail(notifyUsageCapReached({
+        orgId,
+        userId,
+        planId: organisation.plan,
+        capState: usageGate.code,
+        billingPeriodKey: buildCycleKey(lockedSubscription.currentPeriodStart),
+        creditType: CREDIT_TYPES.execution,
+      }), 'execution usage cap email');
       const status =
         usageGate.code === 'FAIR_USE_RATE_LIMIT' ? 429 : 402;
       throw buildBillingError(usageGate.message, status, usageGate.code);
@@ -1639,6 +1648,16 @@ async function refreshThresholdState(tx, { orgId, subscription, creditType }) {
           updatedAt: new Date(),
         },
       });
+
+    if (nextThreshold >= 70 && nextThreshold < 100) {
+      fireAndForgetEmail(notifyCreditsLow({
+        orgId,
+        planId: subscription.plan,
+        thresholdPercent: nextThreshold,
+        billingPeriodKey: cycleKey,
+        creditType,
+      }), 'credits low email');
+    }
   }
 
   return summary.threshold;

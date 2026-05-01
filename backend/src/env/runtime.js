@@ -65,7 +65,7 @@ export function hasConfiguredStripeWebhook(env = process.env) {
 }
 
 export function hasConfiguredEmailDelivery(env = process.env) {
-  return hasConfiguredEnvValue(env.RESEND_API_KEY) && Boolean(env.EMAIL_FROM?.trim());
+  return hasConfiguredEnvValue(env.RESEND_API_KEY) && Boolean(env.RESEND_FROM_EMAIL?.trim() || env.EMAIL_FROM?.trim());
 }
 
 export function hasConfiguredIntegrationProvider(env = process.env) {
@@ -145,7 +145,7 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
   }
 
   if (env.RESEND_API_KEY?.trim() && !hasConfiguredEmailDelivery(env)) {
-    warnings.push('Invitation email delivery is disabled because RESEND_API_KEY is still a placeholder.');
+    warnings.push('Transactional email delivery is disabled because the Resend sender is not fully configured.');
   }
 
   if (

@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { getAgentMeta } from '../lib/constants';
 import WorkflowTemplateCard from '../features/workspace/workflows/WorkflowTemplateCard';
@@ -196,6 +196,7 @@ export default function Workflows() {
         accent="#F72585"
         actions={
           <div style={{ display: 'flex', gap: '8px' }}>
+            <Link className="pm-btn pm-btn--ghost" to="/app/workflows/catalogue">Catalogue</Link>
             <Button tone={view === 'monitor' ? 'accent' : 'ghost'} onClick={openMonitor}>Monitor</Button>
             <Button tone={view === 'builder' ? 'accent' : 'ghost'} onClick={() => openBuilder(selectedTemplate?.slug ?? null)}>Builder</Button>
           </div>

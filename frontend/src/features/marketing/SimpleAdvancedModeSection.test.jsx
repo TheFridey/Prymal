@@ -49,7 +49,7 @@ test('SimpleAdvancedModeSection reveals advanced content after toggle click', as
   expect(screen.getByText("You don't need to start here, but it's ready when you need more control.")).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'Used for serious execution' })).toBeInTheDocument();
   expect(screen.getByText('Running client workflows')).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Build a workflow' })).toHaveAttribute('href', '/signup?intent=advanced&redirect_url=%2Fapp%2Fworkflows');
+  expect(screen.getByRole('link', { name: 'Build a workflow' })).toHaveAttribute('href', '/signup?intent=advanced&redirect_url=%2Fapp%2Fworkflows%2Fcatalogue%3Fmode%3Dadvanced');
   expect(screen.getByRole('link', { name: 'Build a workflow' })).toHaveAttribute('data-event', 'advanced_mode_cta_clicked');
   expect(window.prymalTrack).toHaveBeenCalledWith(
     'advanced_mode_selected',
@@ -93,11 +93,11 @@ test('SimpleAdvancedModeSection tracks CTA clicks', async () => {
       surface: 'landing',
       selectedMode: 'simple',
       ctaType: 'default_win',
-      route: '/signup?intent=simple&redirect_url=%2Fapp%2Fdashboard%3Fintent%3Dsimple',
+      route: '/signup?intent=simple&redirect_url=%2Fapp%2Fworkflows%2Fcatalogue%2F30-day-content-engine',
     }),
   );
   expect(window.sessionStorage.getItem('prymal_start_intent')).toBe('simple');
-  expect(window.sessionStorage.getItem('prymal_start_redirect')).toBe('/app/dashboard?intent=simple');
+  expect(window.sessionStorage.getItem('prymal_start_redirect')).toBe('/app/workflows/catalogue/30-day-content-engine');
 });
 
 test('SimpleAdvancedModeSection routes signed-out CTAs through signup with intent', async () => {
@@ -106,14 +106,18 @@ test('SimpleAdvancedModeSection routes signed-out CTAs through signup with inten
 
   expect(screen.getByRole('link', { name: 'Start with a task' })).toHaveAttribute(
     'href',
-    '/signup?intent=simple&redirect_url=%2Fapp%2Fdashboard%3Fintent%3Dsimple',
+    '/signup?intent=simple&redirect_url=%2Fapp%2Fworkflows%2Fcatalogue%3Fmode%3Dsimple',
+  );
+  expect(screen.getByRole('link', { name: 'Start with this' })).toHaveAttribute(
+    'href',
+    '/signup?intent=simple&redirect_url=%2Fapp%2Fworkflows%2Fcatalogue%2F30-day-content-engine',
   );
 
   await user.click(screen.getByRole('tab', { name: 'Advanced Mode' }));
 
   expect(screen.getByRole('link', { name: 'Build a workflow' })).toHaveAttribute(
     'href',
-    '/signup?intent=advanced&redirect_url=%2Fapp%2Fworkflows',
+    '/signup?intent=advanced&redirect_url=%2Fapp%2Fworkflows%2Fcatalogue%3Fmode%3Dadvanced',
   );
 });
 
@@ -122,10 +126,10 @@ test('SimpleAdvancedModeSection routes signed-in CTAs directly into the app', as
   authState.isSignedIn = true;
   renderWithProviders(<SimpleAdvancedModeSection />);
 
-  expect(screen.getByRole('link', { name: 'Start with a task' })).toHaveAttribute('href', '/app/dashboard?intent=simple');
-  expect(screen.getByRole('link', { name: 'Start with this' })).toHaveAttribute('href', '/app/dashboard?intent=simple');
+  expect(screen.getByRole('link', { name: 'Start with a task' })).toHaveAttribute('href', '/app/workflows/catalogue?mode=simple');
+  expect(screen.getByRole('link', { name: 'Start with this' })).toHaveAttribute('href', '/app/workflows/catalogue/30-day-content-engine');
 
   await user.click(screen.getByRole('tab', { name: 'Advanced Mode' }));
 
-  expect(screen.getByRole('link', { name: 'Build a workflow' })).toHaveAttribute('href', '/app/workflows');
+  expect(screen.getByRole('link', { name: 'Build a workflow' })).toHaveAttribute('href', '/app/workflows/catalogue?mode=advanced');
 });

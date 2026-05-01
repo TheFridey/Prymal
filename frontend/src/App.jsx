@@ -21,6 +21,7 @@ import { useAppStore } from './stores/useAppStore';
 const lazyPage = (importer, key) => lazyWithRetry(importer, `route:${key}`);
 
 const Admin = lazyPage(() => import('./pages/Admin'), 'admin');
+const AdminWorkflowCatalogue = lazyPage(() => import('./pages/AdminWorkflowCatalogue'), 'admin-workflow-catalogue');
 const AgentChat = lazyPage(() => import('./pages/AgentChat'), 'agent-chat');
 const AgentProfile = lazyPage(() => import('./pages/AgentProfile'), 'agent-profile');
 const Changelog = lazyPage(() => import('./pages/Changelog'), 'changelog');
@@ -38,6 +39,10 @@ const Pricing = lazyPage(() => import('./pages/Pricing'), 'pricing');
 const Settings = lazyPage(() => import('./pages/Settings'), 'settings');
 const Terms = lazyPage(() => import('./pages/Terms'), 'terms');
 const Workflows = lazyPage(() => import('./pages/Workflows'), 'workflows');
+const WorkflowCatalogue = lazyPage(() => import('./pages/WorkflowCatalogue'), 'workflow-catalogue');
+const WorkflowCatalogueCreate = lazyPage(() => import('./pages/WorkflowCatalogueCreate'), 'workflow-catalogue-create');
+const WorkflowCatalogueDetail = lazyPage(() => import('./pages/WorkflowCatalogueDetail'), 'workflow-catalogue-detail');
+const WorkflowCatalogueSubmissions = lazyPage(() => import('./pages/WorkflowCatalogueSubmissions'), 'workflow-catalogue-submissions');
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,7 +55,14 @@ const queryClient = new QueryClient({
 });
 
 const CLERK_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const SIGNUP_ALLOWED_REDIRECTS = ['/app/workflows', '/app/dashboard', '/app/dashboard?intent=simple'];
+const SIGNUP_ALLOWED_REDIRECTS = [
+  '/app/workflows',
+  '/app/dashboard',
+  '/app/dashboard?intent=simple',
+  '/app/workflows/catalogue?mode=simple',
+  '/app/workflows/catalogue?mode=advanced',
+  '/app/workflows/catalogue/30-day-content-engine',
+];
 
 export function resolveSignupOnboardingUrl(search = '') {
   const params = new URLSearchParams(search);
@@ -184,10 +196,15 @@ function AppRoutes() {
             <Route index element={<Navigate to="/app/dashboard" replace />} />
             <Route path="dashboard" element={<LazyPage label="Loading dashboard..."><Dashboard /></LazyPage>} />
             <Route path="admin" element={<LazyPage label="Loading admin console..."><Admin /></LazyPage>} />
+            <Route path="admin/workflow-catalogue" element={<LazyPage label="Loading catalogue review..."><AdminWorkflowCatalogue /></LazyPage>} />
             <Route path="agents/:agentId" element={<LazyPage label="Loading agent workspace..."><AgentChat /></LazyPage>} />
             <Route path="lore" element={<LazyPage label="Loading LORE workspace..."><Lore /></LazyPage>} />
             <Route path="memory" element={<LazyPage label="Loading Memory Centre..."><Memory /></LazyPage>} />
             <Route path="workflows" element={<LazyPage label="Loading workflows..."><Workflows /></LazyPage>} />
+            <Route path="workflows/catalogue" element={<LazyPage label="Loading workflow catalogue..."><WorkflowCatalogue /></LazyPage>} />
+            <Route path="workflows/catalogue/create" element={<LazyPage label="Loading workflow sharing..."><WorkflowCatalogueCreate /></LazyPage>} />
+            <Route path="workflows/catalogue/submissions" element={<LazyPage label="Loading workflow submissions..."><WorkflowCatalogueSubmissions /></LazyPage>} />
+            <Route path="workflows/catalogue/:slug" element={<LazyPage label="Loading workflow catalogue item..."><WorkflowCatalogueDetail /></LazyPage>} />
             <Route path="integrations" element={<LazyPage label="Loading integrations..."><Integrations /></LazyPage>} />
             <Route path="settings" element={<LazyPage label="Loading settings..."><Settings /></LazyPage>} />
           </Route>

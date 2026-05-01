@@ -62,6 +62,12 @@ test('preserves signup intent and allowed redirect for onboarding', () => {
   expect(resolveSignupOnboardingUrl('?intent=simple&redirect_url=/app/dashboard?intent=simple')).toBe(
     '/app/onboarding?intent=simple&redirect_url=%2Fapp%2Fdashboard%3Fintent%3Dsimple',
   );
+  expect(resolveSignupOnboardingUrl('?intent=simple&redirect_url=/app/workflows/catalogue?mode=simple')).toBe(
+    '/app/onboarding?intent=simple&redirect_url=%2Fapp%2Fworkflows%2Fcatalogue%3Fmode%3Dsimple',
+  );
+  expect(resolveSignupOnboardingUrl('?intent=simple&redirect_url=/app/workflows/catalogue/30-day-content-engine')).toBe(
+    '/app/onboarding?intent=simple&redirect_url=%2Fapp%2Fworkflows%2Fcatalogue%2F30-day-content-engine',
+  );
   expect(resolveSignupOnboardingUrl('?intent=advanced&redirect_url=https://example.com')).toBe(
     '/app/onboarding?intent=advanced',
   );

@@ -17,6 +17,12 @@ import {
   ragSearch,
 } from '../services/rag.js';
 import { recordLoreFeedback } from '../services/moat-feedback.js';
+import {
+  prepareUploadForLore,
+  prepareUrlContentForLore,
+  scanPastedContent,
+  WARDEN_VERDICTS,
+} from '../services/warden/index.js';
 
 import { recordProductEventOnce } from '../services/telemetry.js';
 
@@ -127,6 +133,21 @@ router.post('/feedback', requireOrg, zValidator('json', feedbackSchema), async (
 router.post('/text', requireOrg, loreIngestRateLimit, zValidator('json', uploadTextSchema), async (context) => {
   const org = context.get('org');
   const payload = context.req.valid('json');
+  const wardenDecision = await scanPastedContent({
+    text: payload.content,
+    userId: org.userId,
+    orgId: org.orgId,
+  });
+
+  if (wardenDecision.verdict === WARDEN_VERDICTS.BLOCK) {
+    return context.json({
+      error: 'That content cannot be added to LORE.',
+      message: 'The pasted content contains unsafe instructions or material that cannot be stored.',
+      wardenAuditId: wardenDecision.auditId,
+    }, 400);
+  }
+
+  const safeContent = wardenDecision.safeContent;
   const versioning = await resolveVersioning({
     orgId: org.orgId,
     title: payload.title,
@@ -135,7 +156,7 @@ router.post('/text', requireOrg, loreIngestRateLimit, zValidator('json', uploadT
   });
   const contradictions = await runContradictionCheckSafely({
     orgId: org.orgId,
-    newContent: payload.content,
+    newContent: safeContent,
     sourceLabel: 'Text ingest',
   });
 
@@ -149,7 +170,13 @@ router.post('/text', requireOrg, loreIngestRateLimit, zValidator('json', uploadT
       sourceUrl: payload.sourceUrl ?? null,
       status: 'pending',
       version: versioning.nextVersion,
-      metadata: versioning.metadata,
+      metadata: {
+        ...versioning.metadata,
+        ...buildWardenLoreMetadata({
+          decision: wardenDecision,
+          sourceType: payload.sourceType === 'url' ? 'EXTERNAL_URL' : 'PASTED',
+        }),
+      },
     })
     .returning();
 
@@ -158,7 +185,8 @@ router.post('/text', requireOrg, loreIngestRateLimit, zValidator('json', uploadT
   ingestDocument({
     documentId: document.id,
     orgId: org.orgId,
-    content: payload.content,
+    content: safeContent,
+    metadata: document.metadata,
   }).catch((error) => {
     console.error('[LORE] Text ingest failed:', error.message);
   });
@@ -195,6 +223,22 @@ router.post('/upload', requireOrg, loreIngestRateLimit, async (context) => {
   }
 
   const parsed = await parseUploadedFile(file);
+  const uploadSafety = await prepareUploadForLore({
+    file,
+    extractedText: parsed.text,
+    mimeType: parsed.metadata?.mimeType,
+    userId: org.userId,
+    orgId: org.orgId,
+  });
+
+  if (!uploadSafety.allowed) {
+    return context.json({
+      error: 'That file cannot be added to LORE.',
+      message: 'The uploaded file type or contents were blocked by Prymal safety checks.',
+      wardenAuditId: uploadSafety.wardenDecision.auditId,
+    }, 400);
+  }
+
   const versioning = await resolveVersioning({
     orgId: org.orgId,
     title: explicitTitle || file.name,
@@ -203,7 +247,7 @@ router.post('/upload', requireOrg, loreIngestRateLimit, async (context) => {
   });
   const contradictions = await runContradictionCheckSafely({
     orgId: org.orgId,
-    newContent: parsed.text,
+    newContent: uploadSafety.sanitizedText,
     sourceLabel: 'File upload',
   });
 
@@ -218,6 +262,7 @@ router.post('/upload', requireOrg, loreIngestRateLimit, async (context) => {
       version: versioning.nextVersion,
       metadata: {
         ...parsed.metadata,
+        ...uploadSafety.metadata,
         ...versioning.metadata,
       },
     })
@@ -228,8 +273,8 @@ router.post('/upload', requireOrg, loreIngestRateLimit, async (context) => {
   ingestDocument({
     documentId: document.id,
     orgId: org.orgId,
-    content: parsed.text,
-    metadata: parsed.metadata,
+    content: uploadSafety.sanitizedText,
+    metadata: document.metadata,
   }).catch((error) => {
     console.error('[LORE] Upload ingest failed:', error.message);
   });
@@ -278,15 +323,24 @@ router.post('/crawl', requireOrg, loreIngestRateLimit, zValidator('json', crawlS
     return context.json({ error: `Could not fetch URL: ${error.message}` }, 400);
   }
 
-  const normalized = responseText
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+  const preparedUrl = await prepareUrlContentForLore({
+    url,
+    html: responseText,
+    userId: org.userId,
+    orgId: org.orgId,
+  });
+
+  if (!preparedUrl.allowed) {
+    return context.json({
+      error: 'That URL cannot be added to LORE.',
+      message: 'The page contains unsafe content that cannot be ingested.',
+      wardenAuditId: preparedUrl.wardenDecision.auditId,
+    }, 400);
+  }
+
   const contradictions = await runContradictionCheckSafely({
     orgId: org.orgId,
-    newContent: normalized,
+    newContent: preparedUrl.sanitizedText,
     sourceLabel: 'URL crawl',
   });
 
@@ -300,7 +354,10 @@ router.post('/crawl', requireOrg, loreIngestRateLimit, zValidator('json', crawlS
       sourceUrl: url,
       status: 'pending',
       version: versioning.nextVersion,
-      metadata: versioning.metadata,
+      metadata: {
+        ...versioning.metadata,
+        ...preparedUrl.metadata,
+      },
     })
     .returning();
 
@@ -309,7 +366,8 @@ router.post('/crawl', requireOrg, loreIngestRateLimit, zValidator('json', crawlS
   ingestDocument({
     documentId: document.id,
     orgId: org.orgId,
-    content: normalized,
+    content: preparedUrl.sanitizedText,
+    metadata: document.metadata,
   }).catch((error) => {
     console.error('[LORE] URL ingest failed:', error.message);
   });
@@ -483,4 +541,19 @@ async function runContradictionCheckSafely({ orgId, newContent, documentId, sour
     console.warn(`[LORE] ${sourceLabel} contradiction pre-check skipped:`, error.message);
     return [];
   }
+}
+
+function buildWardenLoreMetadata({ decision, sourceType }) {
+  return {
+    sourceType,
+    trustLevel: decision.verdict === WARDEN_VERDICTS.ALLOW_WITH_SANDBOX ? 'SANDBOXED' : 'UNTRUSTED',
+    trustScore: decision.sourceTrust?.trustScore ?? 0,
+    wardenAuditId: decision.auditId,
+    containsPromptInjection: decision.categories.includes('prompt_injection') || decision.categories.includes('role_injection'),
+    containsToolInstruction: decision.categories.includes('tool_abuse'),
+    containsPolicyBypass: decision.categories.includes('prompt_injection'),
+    allowAsInstruction: false,
+    ingestedAt: new Date().toISOString(),
+    redactionCount: decision.redactions?.length ?? 0,
+  };
 }

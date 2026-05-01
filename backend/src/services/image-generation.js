@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { getMediaStorage } from './media-storage/index.js';
+import { recordWardenAuditEvent } from './warden/index.js';
 
 const IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL?.trim() || 'gpt-image-1.5';
 const REQUIRED_IMAGE_FORMAT = 'webp';
@@ -90,7 +91,22 @@ export async function generateImageAsset({
       cleanupStatus: storedAsset.cleanupStatus ?? 'retained',
     };
   } catch (error) {
-    throw normalizeImageError(error);
+    const normalized = normalizeImageError(error);
+    if (normalized.code === 'IMAGE_PROVIDER_SAFETY_REJECTED') {
+      await recordWardenAuditEvent({
+        orgId,
+        surface: 'media_generation',
+        sourceType: 'USER',
+        action: 'provider_rejected_image',
+        verdict: 'BLOCK',
+        riskLevel: 'HIGH',
+        categories: ['provider_safety_rejection'],
+        reasons: ['Image provider rejected the content request.'],
+        provider: 'openai',
+        metadata: { model: IMAGE_MODEL, size, quality },
+      });
+    }
+    throw normalized;
   }
 }
 
@@ -153,8 +169,15 @@ function normalizeImageError(error) {
     return normalized;
   }
 
+  if (/safety|policy|moderation|content/i.test(rawMessage)) {
+    normalized.message = "I can't help create that image.";
+    normalized.status = 400;
+    normalized.code = 'IMAGE_PROVIDER_SAFETY_REJECTED';
+    return normalized;
+  }
+
   if (rawMessage) {
-    normalized.message = rawMessage;
+    normalized.message = 'Prymal could not generate the image.';
   }
 
   return normalized;

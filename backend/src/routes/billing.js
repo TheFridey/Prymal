@@ -40,6 +40,12 @@ import {
   fetchLedgerMonetisationFlags,
   getUpgradeSuggestion,
 } from '../services/usage-pressure.js';
+import {
+  fireAndForgetEmail,
+  notifyFounderAccess,
+  notifyPaymentFailed,
+  notifySubscriptionStarted,
+} from '../services/email/email-trigger-utils.js';
 
 const router = new Hono();
 
@@ -638,6 +644,16 @@ router.post('/webhook/stripe', async (context) => {
             interval: session.metadata.interval ?? 'monthly',
           },
         });
+
+        if (!sync.skipped) {
+          fireAndForgetEmail(notifySubscriptionStarted({
+            orgId: session.metadata.orgId,
+            userId: session.metadata.userId ?? null,
+            planId: session.metadata.plan,
+            subscriptionId: typeof session.subscription === 'string' ? session.subscription : null,
+            checkoutSessionId: session.id,
+          }), 'subscription started email');
+        }
       }
       break;
     }
@@ -767,13 +783,22 @@ router.post('/webhook/stripe', async (context) => {
           });
 
           if (invoice.billing_reason === 'subscription_create') {
-            await activateFoundingAccessClaim({
+            const founderActivation = await activateFoundingAccessClaim({
               orgId,
               stripeSubscriptionId: invoiceSubscriptionId ?? existingSubscription?.metadata?.stripe?.subscriptionId ?? null,
               stripeCustomerId: typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? null,
               stripeInvoiceId: invoice.id,
               stripeEventId: event.id,
             });
+            if (founderActivation.applied) {
+              fireAndForgetEmail(notifyFounderAccess({
+                orgId,
+                userId: founderActivation.claim?.userId ?? null,
+                claim: founderActivation.claim,
+                boost: founderActivation.boost,
+                subscriptionId: invoiceSubscriptionId,
+              }), 'founder access email');
+            }
           }
 
           await recordBillingSyncOutcome({
@@ -822,6 +847,14 @@ router.post('/webhook/stripe', async (context) => {
             currency: invoice.currency ?? 'gbp',
           },
         });
+
+        fireAndForgetEmail(notifyPaymentFailed({
+          orgId,
+          invoiceId: invoice.id,
+          amountDue: invoice.amount_due ?? null,
+          currency: invoice.currency ?? 'gbp',
+          subscriptionId: typeof invoice.subscription === 'string' ? invoice.subscription : null,
+        }), 'payment failed email');
       }
       break;
     }

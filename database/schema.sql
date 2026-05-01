@@ -30,6 +30,24 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'run_status') THEN
     CREATE TYPE run_status AS ENUM ('queued','running','completed','failed','cancelled');
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'workflow_catalogue_visibility') THEN
+    CREATE TYPE workflow_catalogue_visibility AS ENUM ('draft','private','submitted','approved','rejected','published','archived');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'workflow_catalogue_review_status') THEN
+    CREATE TYPE workflow_catalogue_review_status AS ENUM ('not_submitted','pending','approved','rejected');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'workflow_catalogue_publisher_type') THEN
+    CREATE TYPE workflow_catalogue_publisher_type AS ENUM ('prymal_official','user_creator');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'workflow_catalogue_pricing_type') THEN
+    CREATE TYPE workflow_catalogue_pricing_type AS ENUM ('free','premium');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'workflow_catalogue_difficulty') THEN
+    CREATE TYPE workflow_catalogue_difficulty AS ENUM ('beginner','intermediate','advanced');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'workflow_catalogue_purchase_status') THEN
+    CREATE TYPE workflow_catalogue_purchase_status AS ENUM ('pending','paid','refunded','failed');
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'memory_type') THEN
     CREATE TYPE memory_type AS ENUM (
       'preference','fact','instruction','pattern',
@@ -52,6 +70,9 @@ BEGIN
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'invitation_status') THEN
     CREATE TYPE invitation_status AS ENUM ('pending','accepted','revoked','expired');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'email_event_status') THEN
+    CREATE TYPE email_event_status AS ENUM ('pending','sent','skipped','failed');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'founding_access_claim_status') THEN
     CREATE TYPE founding_access_claim_status AS ENUM ('claimed','active','cancelled','revoked');
@@ -536,6 +557,33 @@ CREATE TABLE audit_logs (
 CREATE INDEX audit_logs_org_idx ON audit_logs(org_id);
 CREATE INDEX audit_logs_action_idx ON audit_logs(action);
 
+CREATE TABLE warden_audit_event (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  user_id         TEXT REFERENCES users(id) ON DELETE SET NULL,
+  surface         TEXT NOT NULL,
+  source_type     TEXT NOT NULL,
+  action          TEXT NOT NULL,
+  verdict         TEXT NOT NULL,
+  risk_level      TEXT NOT NULL,
+  categories      JSONB NOT NULL DEFAULT '[]',
+  reasons         JSONB NOT NULL DEFAULT '[]',
+  content_hash    TEXT,
+  redaction_count INTEGER NOT NULL DEFAULT 0,
+  source_url      TEXT,
+  file_id         TEXT,
+  tool_name       TEXT,
+  provider        TEXT,
+  metadata        JSONB NOT NULL DEFAULT '{}',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX warden_audit_org_idx ON warden_audit_event(org_id, created_at);
+CREATE INDEX warden_audit_surface_idx ON warden_audit_event(surface);
+CREATE INDEX warden_audit_verdict_idx ON warden_audit_event(verdict);
+CREATE INDEX warden_audit_risk_idx ON warden_audit_event(risk_level);
+CREATE INDEX warden_audit_tool_idx ON warden_audit_event(tool_name);
+
 CREATE TABLE admin_action_logs (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id           UUID REFERENCES organisations(id) ON DELETE CASCADE,
@@ -570,6 +618,29 @@ CREATE TABLE product_events (
 
 CREATE INDEX product_events_org_idx ON product_events(org_id);
 CREATE INDEX product_events_name_idx ON product_events(event_name);
+
+CREATE TABLE email_events (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id             TEXT REFERENCES users(id) ON DELETE SET NULL,
+  org_id              UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  recipient           TEXT NOT NULL,
+  email_type          TEXT NOT NULL,
+  provider            TEXT NOT NULL DEFAULT 'resend',
+  provider_message_id TEXT,
+  status              email_event_status NOT NULL DEFAULT 'pending',
+  idempotency_key     TEXT,
+  metadata            JSONB NOT NULL DEFAULT '{}',
+  error               TEXT,
+  sent_at             TIMESTAMPTZ,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX email_events_org_idx ON email_events(org_id, created_at);
+CREATE INDEX email_events_user_idx ON email_events(user_id);
+CREATE INDEX email_events_type_idx ON email_events(email_type);
+CREATE INDEX email_events_status_idx ON email_events(status);
+CREATE UNIQUE INDEX email_events_idempotency_unique ON email_events(idempotency_key);
 
 CREATE TABLE credit_adjustments (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -709,6 +780,117 @@ CREATE TABLE workflow_templates (
 CREATE INDEX workflow_templates_org_idx ON workflow_templates(org_id);
 CREATE UNIQUE INDEX workflow_templates_share_idx ON workflow_templates(share_id);
 CREATE INDEX workflow_templates_public_idx ON workflow_templates(is_public);
+
+CREATE TABLE workflow_catalogue_items (
+  id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug                        TEXT NOT NULL UNIQUE,
+  title                       TEXT NOT NULL,
+  short_description           TEXT NOT NULL,
+  long_description            TEXT,
+  category                    TEXT NOT NULL,
+  tags                        JSONB NOT NULL DEFAULT '[]',
+  visibility                  workflow_catalogue_visibility NOT NULL DEFAULT 'draft',
+  source_workflow_id          UUID REFERENCES workflows(id) ON DELETE SET NULL,
+  template_workflow_definition JSONB NOT NULL,
+  creator_user_id             TEXT REFERENCES users(id) ON DELETE SET NULL,
+  creator_org_id              UUID REFERENCES organisations(id) ON DELETE SET NULL,
+  creator_display_name        TEXT,
+  publisher_type              workflow_catalogue_publisher_type NOT NULL DEFAULT 'user_creator',
+  pricing_type                workflow_catalogue_pricing_type NOT NULL DEFAULT 'free',
+  price_gbp_pence             INTEGER,
+  stripe_price_id             TEXT,
+  revenue_share_bps           INTEGER,
+  status_note                 TEXT,
+  review_status               workflow_catalogue_review_status NOT NULL DEFAULT 'not_submitted',
+  reviewed_by_user_id         TEXT REFERENCES users(id) ON DELETE SET NULL,
+  reviewed_at                 TIMESTAMPTZ,
+  rejection_reason            TEXT,
+  install_count               INTEGER NOT NULL DEFAULT 0,
+  run_count                   INTEGER NOT NULL DEFAULT 0,
+  rating_average              REAL,
+  rating_count                INTEGER NOT NULL DEFAULT 0,
+  estimated_execution_credits INTEGER,
+  estimated_video_credits     INTEGER,
+  estimated_cost_gbp          REAL,
+  difficulty                  workflow_catalogue_difficulty NOT NULL DEFAULT 'beginner',
+  expected_runtime_label      TEXT,
+  required_plan               plan,
+  expected_output             JSONB NOT NULL DEFAULT '[]',
+  required_inputs             JSONB NOT NULL DEFAULT '[]',
+  validation_warnings         JSONB NOT NULL DEFAULT '[]',
+  created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  published_at                TIMESTAMPTZ,
+  archived_at                 TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX workflow_catalogue_items_slug_idx ON workflow_catalogue_items(slug);
+CREATE INDEX workflow_catalogue_items_visibility_idx ON workflow_catalogue_items(visibility);
+CREATE INDEX workflow_catalogue_items_review_idx ON workflow_catalogue_items(review_status);
+CREATE INDEX workflow_catalogue_items_creator_org_idx ON workflow_catalogue_items(creator_org_id);
+CREATE INDEX workflow_catalogue_items_category_idx ON workflow_catalogue_items(category);
+
+CREATE TABLE workflow_catalogue_installs (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  catalogue_item_id     UUID NOT NULL REFERENCES workflow_catalogue_items(id) ON DELETE CASCADE,
+  installed_workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+  org_id                UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  user_id               TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  installed_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  source_version        INTEGER,
+  customised            BOOLEAN NOT NULL DEFAULT false
+);
+
+CREATE INDEX workflow_catalogue_installs_item_idx ON workflow_catalogue_installs(catalogue_item_id);
+CREATE INDEX workflow_catalogue_installs_org_idx ON workflow_catalogue_installs(org_id);
+CREATE UNIQUE INDEX workflow_catalogue_installs_workflow_idx ON workflow_catalogue_installs(installed_workflow_id);
+
+CREATE TABLE workflow_catalogue_reviews (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  catalogue_item_id UUID NOT NULL REFERENCES workflow_catalogue_items(id) ON DELETE CASCADE,
+  user_id           TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  org_id            UUID REFERENCES organisations(id) ON DELETE SET NULL,
+  rating            INTEGER NOT NULL,
+  review_text       TEXT,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX workflow_catalogue_reviews_item_idx ON workflow_catalogue_reviews(catalogue_item_id);
+CREATE UNIQUE INDEX workflow_catalogue_reviews_user_item_idx ON workflow_catalogue_reviews(catalogue_item_id, user_id);
+
+CREATE TABLE workflow_catalogue_purchases (
+  id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  catalogue_item_id          UUID NOT NULL REFERENCES workflow_catalogue_items(id) ON DELETE CASCADE,
+  buyer_user_id              TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  buyer_org_id               UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  seller_user_id             TEXT REFERENCES users(id) ON DELETE SET NULL,
+  seller_org_id              UUID REFERENCES organisations(id) ON DELETE SET NULL,
+  stripe_checkout_session_id TEXT,
+  stripe_payment_intent_id   TEXT,
+  amount_gbp_pence           INTEGER NOT NULL,
+  platform_fee_gbp_pence     INTEGER NOT NULL,
+  creator_payout_gbp_pence   INTEGER NOT NULL,
+  status                     workflow_catalogue_purchase_status NOT NULL DEFAULT 'pending',
+  created_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX workflow_catalogue_purchases_item_idx ON workflow_catalogue_purchases(catalogue_item_id);
+CREATE INDEX workflow_catalogue_purchases_buyer_org_idx ON workflow_catalogue_purchases(buyer_org_id);
+CREATE UNIQUE INDEX workflow_catalogue_purchases_session_idx ON workflow_catalogue_purchases(stripe_checkout_session_id);
+
+CREATE TABLE workflow_catalogue_versions (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  catalogue_item_id  UUID NOT NULL REFERENCES workflow_catalogue_items(id) ON DELETE CASCADE,
+  version_number     INTEGER NOT NULL,
+  workflow_definition JSONB NOT NULL,
+  changelog          TEXT,
+  created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX workflow_catalogue_versions_item_version_idx ON workflow_catalogue_versions(catalogue_item_id, version_number);
 
 CREATE TABLE workflow_runs (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -10,6 +10,8 @@ This repository currently ships from the `master` branch. CI and branch protecti
 - Live Stripe Prices have been provisioned for Founding Access and preferred usage packs; real checkout/webhook lifecycle proof is still required before controlled beta.
 - Preferred add-on packs are now standardised around `exec_boost_1000`, `video_pack_small`, and `video_pack_pro`; older pack IDs are legacy compatibility only.
 - Landing and pricing surfaces now position Prymal around execution, Simple/Advanced adoption paths, structured examples, memory, validation, and cost-controlled workflows.
+- Workflow Catalogue foundation added for curated official workflows, user submission drafts, staff review, free installs, and premium marketplace structure kept disabled behind a feature flag.
+- Transactional email system added for launch with Prymal-branded templates, Herald signature, Resend delivery, idempotent event tracking, and best-effort trigger wiring.
 - Admin economics now separates current-cycle ledger burn from all-time burn and highlights top cycle users/workspaces for operator review.
 - Production media storage validation now rejects local disk storage by default in staging/production.
 - Guided `/image` and `/video` builders now open modal-based brief composers instead of relying on long free-form slash commands.

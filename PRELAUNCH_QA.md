@@ -82,6 +82,38 @@ Record Stripe event IDs and workspace IDs in the private launch log, not in publ
 - Scheduled workflow copy appears only when Trigger.dev or inline scheduling is actually configured.
 - Integration secrets save encrypted and test actions do not expose raw tokens.
 
+## Workflow Catalogue
+
+- `WORKFLOW_CATALOGUE_ENABLED=true` in target environment.
+- `WORKFLOW_CATALOGUE_PREMIUM_ENABLED=false` until marketplace payments are fully proven.
+- Official seed script runs idempotently and creates the five curated starting workflows.
+- Catalogue list shows only published items to normal users.
+- User drafts/private submissions are visible only to the creator organisation.
+- Installing a free catalogue workflow creates a normal workspace workflow and does not consume execution credits.
+- Running an installed workflow uses the existing workflow execution path, credits, usage policy, burn caps, and org isolation.
+- Premium purchase/install attempts are rejected while premium is disabled.
+
+## Transactional Email
+
+- Send a test welcome email with `npm run email:test -- --to <address> --type welcome`.
+- Send a test billing email with `npm run email:test -- --to <address> --type subscription-started`.
+- Send a test invite email through the team invite flow.
+- Verify the Prymal logo renders from `EMAIL_LOGO_URL` or the inline CID `prymal-logo`.
+- Verify Herald renders from `EMAIL_HERALD_AVATAR_URL` or the inline CID `herald-avatar`.
+
+### WARDEN safety
+
+- Upload a text file containing `ignore previous instructions` and verify it is stored only as untrusted evidence.
+- Crawl a page with hidden prompt-injection text and verify LORE does not treat it as instructions.
+- Attempt an unsafe image/video prompt and verify it is blocked before provider submission.
+- Attempt a tool/billing instruction from retrieved content and verify WARDEN denies the tool action.
+- Verify `warden_audit_event` records verdict, risk, categories, redaction count, and source metadata without storing raw unsafe content.
+- Verify the Herald signature renders with avatar or monogram fallback.
+- Verify Resend receives the delivery event.
+- Verify a Resend failure records an `email_events` row and does not break onboarding, billing webhooks or workflow installs.
+- Staff review queue requires staff permissions and shows validation warnings before approval.
+- Published workflow definitions contain no secrets, private customer data, hidden webhook destinations, or unsafe prompt instructions.
+
 ## Media
 
 - Cloudinary is configured before staging/production video rollout.

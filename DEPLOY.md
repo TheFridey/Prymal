@@ -300,6 +300,14 @@ Required for real product behaviour:
 - `ANTHROPIC_API_KEY`
 - `ANTHROPIC_MODEL_PREMIUM=claude-opus-4-7` or the current approved Opus model
 
+Workflow Catalogue:
+
+- `WORKFLOW_CATALOGUE_ENABLED=true`
+- `WORKFLOW_CATALOGUE_USER_SUBMISSIONS_ENABLED=true` for beta submissions
+- `WORKFLOW_CATALOGUE_PREMIUM_ENABLED=false` until marketplace checkout/webhook/payout proof is complete
+- `WORKFLOW_CATALOGUE_PLATFORM_FEE_BPS=2500`
+- run `npm run catalogue:seed` after migrations to install official curated workflows
+
 Optional but supported:
 
 - `GEMINI_API_KEY`
@@ -316,8 +324,22 @@ Current media-generation constraints to keep honest in deploy/runbooks:
 Email:
 
 - `RESEND_API_KEY`
-- `EMAIL_FROM`
-- optional `INVITE_EMAIL_REPLY_TO`
+- `RESEND_FROM_EMAIL` or legacy `EMAIL_FROM`
+- `REPLY_TO_EMAIL` or legacy `INVITE_EMAIL_REPLY_TO`
+- `APP_URL` or `FRONTEND_URL`
+- optional `EMAIL_LOGO_URL`, defaults to the inline CID `prymal-logo`
+- optional `EMAIL_HERALD_AVATAR_URL`, defaults to the inline CID `herald-avatar`
+- optional `EMAIL_EMBED_INLINE_ASSETS`, defaults to enabled so the Prymal logo and Herald avatar are attached from repo assets
+
+WARDEN safety firewall:
+
+- `WARDEN_ENABLED=true`
+- `WARDEN_STRICT_MODE=false`
+- `WARDEN_MAX_CONTENT_CHARS=500000`
+- `WARDEN_MAX_URL_TEXT_CHARS=240000`
+- `WARDEN_AUDIT_EXCERPT_CHARS=500`
+- `WARDEN_MEDIA_SAFETY_STRICTNESS=standard`
+- verify the Resend sender domain before production traffic
 
 Operational mail:
 

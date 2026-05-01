@@ -240,6 +240,9 @@ router.post('/onboard', zValidator('json', onboardSchema), async (context) => {
       orgName: organisation.name,
       recommendedAgentId,
       recommendedAgentName,
+    }, {
+      orgId: organisation.id,
+      userId: auth.userId,
     }).catch((error) => {
       console.error('[EMAIL] Welcome email failed:', error.message);
     });
@@ -533,6 +536,9 @@ router.post('/team/invitations', requireOrg, requireRole('owner', 'admin'), zVal
     inviteUrl,
     role: payload.role,
     expiresAt: invitation.expiresAt,
+    inviteId: invitation.id,
+    orgId: org.orgId,
+    userId: org.userId,
   }).catch(async (error) => {
     await recordAuditLog({
       orgId: org.orgId,
@@ -600,6 +606,9 @@ router.post('/team/invitations/:id/resend', requireOrg, requireRole('owner', 'ad
     inviteUrl: refreshed.inviteUrl,
     role: invitation.role,
     expiresAt: refreshed.invitation.expiresAt,
+    inviteId: invitation.id,
+    orgId: org.orgId,
+    userId: org.userId,
   }).catch(async (error) => {
     await recordAuditLog({
       orgId: org.orgId,

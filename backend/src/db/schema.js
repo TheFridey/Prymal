@@ -49,6 +49,40 @@ export const sourceTypeEnum = pgEnum('source_type', [
 export const docStatusEnum = pgEnum('doc_status', ['pending', 'indexing', 'indexed', 'failed']);
 export const triggerTypeEnum = pgEnum('trigger_type', ['manual', 'schedule', 'webhook', 'event']);
 export const runStatusEnum = pgEnum('run_status', ['queued', 'running', 'completed', 'failed', 'cancelled']);
+export const workflowCatalogueVisibilityEnum = pgEnum('workflow_catalogue_visibility', [
+  'draft',
+  'private',
+  'submitted',
+  'approved',
+  'rejected',
+  'published',
+  'archived',
+]);
+export const workflowCatalogueReviewStatusEnum = pgEnum('workflow_catalogue_review_status', [
+  'not_submitted',
+  'pending',
+  'approved',
+  'rejected',
+]);
+export const workflowCataloguePublisherTypeEnum = pgEnum('workflow_catalogue_publisher_type', [
+  'prymal_official',
+  'user_creator',
+]);
+export const workflowCataloguePricingTypeEnum = pgEnum('workflow_catalogue_pricing_type', [
+  'free',
+  'premium',
+]);
+export const workflowCatalogueDifficultyEnum = pgEnum('workflow_catalogue_difficulty', [
+  'beginner',
+  'intermediate',
+  'advanced',
+]);
+export const workflowCataloguePurchaseStatusEnum = pgEnum('workflow_catalogue_purchase_status', [
+  'pending',
+  'paid',
+  'refunded',
+  'failed',
+]);
 export const memoryTypeEnum = pgEnum('memory_type', [
   'preference',
   'fact',
@@ -94,6 +128,7 @@ export const memoryVisibilityEnum = pgEnum('memory_visibility', [
   'restricted_visible',
 ]);
 export const invitationStatusEnum = pgEnum('invitation_status', ['pending', 'accepted', 'revoked', 'expired']);
+export const emailEventStatusEnum = pgEnum('email_event_status', ['pending', 'sent', 'skipped', 'failed']);
 export const foundingAccessClaimStatusEnum = pgEnum('founding_access_claim_status', [
   'claimed',
   'active',
@@ -707,6 +742,37 @@ export const auditLogs = pgTable(
   }),
 );
 
+export const wardenAuditEvents = pgTable(
+  'warden_audit_event',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').references(() => organisations.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    surface: text('surface').notNull(),
+    sourceType: text('source_type').notNull(),
+    action: text('action').notNull(),
+    verdict: text('verdict').notNull(),
+    riskLevel: text('risk_level').notNull(),
+    categories: jsonb('categories').notNull().default(sql`'[]'::jsonb`),
+    reasons: jsonb('reasons').notNull().default(sql`'[]'::jsonb`),
+    contentHash: text('content_hash'),
+    redactionCount: integer('redaction_count').notNull().default(0),
+    sourceUrl: text('source_url'),
+    fileId: text('file_id'),
+    toolName: text('tool_name'),
+    provider: text('provider'),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index('warden_audit_org_idx').on(table.orgId, table.createdAt),
+    surfaceIdx: index('warden_audit_surface_idx').on(table.surface),
+    verdictIdx: index('warden_audit_verdict_idx').on(table.verdict),
+    riskIdx: index('warden_audit_risk_idx').on(table.riskLevel),
+    toolIdx: index('warden_audit_tool_idx').on(table.toolName),
+  }),
+);
+
 export const adminActionLogs = pgTable(
   'admin_action_logs',
   {
@@ -751,6 +817,33 @@ export const productEvents = pgTable(
   (table) => ({
     orgIdx: index('product_events_org_idx').on(table.orgId),
     eventIdx: index('product_events_name_idx').on(table.eventName),
+  }),
+);
+
+export const emailEvents = pgTable(
+  'email_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    orgId: uuid('org_id').references(() => organisations.id, { onDelete: 'cascade' }),
+    recipient: text('recipient').notNull(),
+    emailType: text('email_type').notNull(),
+    provider: text('provider').notNull().default('resend'),
+    providerMessageId: text('provider_message_id'),
+    status: emailEventStatusEnum('status').notNull().default('pending'),
+    idempotencyKey: text('idempotency_key'),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    error: text('error'),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index('email_events_org_idx').on(table.orgId, table.createdAt),
+    userIdx: index('email_events_user_idx').on(table.userId),
+    typeIdx: index('email_events_type_idx').on(table.emailType),
+    statusIdx: index('email_events_status_idx').on(table.status),
+    idempotencyUnique: uniqueIndex('email_events_idempotency_unique').on(table.idempotencyKey),
   }),
 );
 
@@ -929,6 +1022,137 @@ export const workflowTemplates = pgTable(
     orgIdx: index('workflow_templates_org_idx').on(table.orgId),
     shareIdx: uniqueIndex('workflow_templates_share_idx').on(table.shareId),
     publicIdx: index('workflow_templates_public_idx').on(table.isPublic),
+  }),
+);
+
+export const workflowCatalogueItems = pgTable(
+  'workflow_catalogue_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slug: text('slug').notNull().unique(),
+    title: text('title').notNull(),
+    shortDescription: text('short_description').notNull(),
+    longDescription: text('long_description'),
+    category: text('category').notNull(),
+    tags: jsonb('tags').notNull().default(sql`'[]'::jsonb`),
+    visibility: workflowCatalogueVisibilityEnum('visibility').notNull().default('draft'),
+    sourceWorkflowId: uuid('source_workflow_id').references(() => workflows.id, { onDelete: 'set null' }),
+    templateWorkflowDefinition: jsonb('template_workflow_definition').notNull(),
+    creatorUserId: text('creator_user_id').references(() => users.id, { onDelete: 'set null' }),
+    creatorOrgId: uuid('creator_org_id').references(() => organisations.id, { onDelete: 'set null' }),
+    creatorDisplayName: text('creator_display_name'),
+    publisherType: workflowCataloguePublisherTypeEnum('publisher_type').notNull().default('user_creator'),
+    pricingType: workflowCataloguePricingTypeEnum('pricing_type').notNull().default('free'),
+    priceGbpPence: integer('price_gbp_pence'),
+    stripePriceId: text('stripe_price_id'),
+    revenueShareBps: integer('revenue_share_bps'),
+    statusNote: text('status_note'),
+    reviewStatus: workflowCatalogueReviewStatusEnum('review_status').notNull().default('not_submitted'),
+    reviewedByUserId: text('reviewed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    rejectionReason: text('rejection_reason'),
+    installCount: integer('install_count').notNull().default(0),
+    runCount: integer('run_count').notNull().default(0),
+    ratingAverage: real('rating_average'),
+    ratingCount: integer('rating_count').notNull().default(0),
+    estimatedExecutionCredits: integer('estimated_execution_credits'),
+    estimatedVideoCredits: integer('estimated_video_credits'),
+    estimatedCostGbp: real('estimated_cost_gbp'),
+    difficulty: workflowCatalogueDifficultyEnum('difficulty').notNull().default('beginner'),
+    expectedRuntimeLabel: text('expected_runtime_label'),
+    requiredPlan: planEnum('required_plan'),
+    expectedOutput: jsonb('expected_output').notNull().default(sql`'[]'::jsonb`),
+    requiredInputs: jsonb('required_inputs').notNull().default(sql`'[]'::jsonb`),
+    validationWarnings: jsonb('validation_warnings').notNull().default(sql`'[]'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+  },
+  (table) => ({
+    slugIdx: uniqueIndex('workflow_catalogue_items_slug_idx').on(table.slug),
+    visibilityIdx: index('workflow_catalogue_items_visibility_idx').on(table.visibility),
+    reviewIdx: index('workflow_catalogue_items_review_idx').on(table.reviewStatus),
+    creatorOrgIdx: index('workflow_catalogue_items_creator_org_idx').on(table.creatorOrgId),
+    categoryIdx: index('workflow_catalogue_items_category_idx').on(table.category),
+  }),
+);
+
+export const workflowCatalogueInstalls = pgTable(
+  'workflow_catalogue_installs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    catalogueItemId: uuid('catalogue_item_id').notNull().references(() => workflowCatalogueItems.id, { onDelete: 'cascade' }),
+    installedWorkflowId: uuid('installed_workflow_id').notNull().references(() => workflows.id, { onDelete: 'cascade' }),
+    orgId: uuid('org_id').notNull().references(() => organisations.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    installedAt: timestamp('installed_at', { withTimezone: true }).notNull().defaultNow(),
+    sourceVersion: integer('source_version'),
+    customised: boolean('customised').notNull().default(false),
+  },
+  (table) => ({
+    itemIdx: index('workflow_catalogue_installs_item_idx').on(table.catalogueItemId),
+    orgIdx: index('workflow_catalogue_installs_org_idx').on(table.orgId),
+    workflowIdx: uniqueIndex('workflow_catalogue_installs_workflow_idx').on(table.installedWorkflowId),
+  }),
+);
+
+export const workflowCatalogueReviews = pgTable(
+  'workflow_catalogue_reviews',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    catalogueItemId: uuid('catalogue_item_id').notNull().references(() => workflowCatalogueItems.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    orgId: uuid('org_id').references(() => organisations.id, { onDelete: 'set null' }),
+    rating: integer('rating').notNull(),
+    reviewText: text('review_text'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    itemIdx: index('workflow_catalogue_reviews_item_idx').on(table.catalogueItemId),
+    userItemIdx: uniqueIndex('workflow_catalogue_reviews_user_item_idx').on(table.catalogueItemId, table.userId),
+  }),
+);
+
+export const workflowCataloguePurchases = pgTable(
+  'workflow_catalogue_purchases',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    catalogueItemId: uuid('catalogue_item_id').notNull().references(() => workflowCatalogueItems.id, { onDelete: 'cascade' }),
+    buyerUserId: text('buyer_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    buyerOrgId: uuid('buyer_org_id').notNull().references(() => organisations.id, { onDelete: 'cascade' }),
+    sellerUserId: text('seller_user_id').references(() => users.id, { onDelete: 'set null' }),
+    sellerOrgId: uuid('seller_org_id').references(() => organisations.id, { onDelete: 'set null' }),
+    stripeCheckoutSessionId: text('stripe_checkout_session_id'),
+    stripePaymentIntentId: text('stripe_payment_intent_id'),
+    amountGbpPence: integer('amount_gbp_pence').notNull(),
+    platformFeeGbpPence: integer('platform_fee_gbp_pence').notNull(),
+    creatorPayoutGbpPence: integer('creator_payout_gbp_pence').notNull(),
+    status: workflowCataloguePurchaseStatusEnum('status').notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    itemIdx: index('workflow_catalogue_purchases_item_idx').on(table.catalogueItemId),
+    buyerOrgIdx: index('workflow_catalogue_purchases_buyer_org_idx').on(table.buyerOrgId),
+    sessionIdx: uniqueIndex('workflow_catalogue_purchases_session_idx').on(table.stripeCheckoutSessionId),
+  }),
+);
+
+export const workflowCatalogueVersions = pgTable(
+  'workflow_catalogue_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    catalogueItemId: uuid('catalogue_item_id').notNull().references(() => workflowCatalogueItems.id, { onDelete: 'cascade' }),
+    versionNumber: integer('version_number').notNull(),
+    workflowDefinition: jsonb('workflow_definition').notNull(),
+    changelog: text('changelog'),
+    createdByUserId: text('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    itemVersionIdx: uniqueIndex('workflow_catalogue_versions_item_version_idx').on(table.catalogueItemId, table.versionNumber),
   }),
 );
 

@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    include: ['react-icons/fa', 'react-icons/si', 'react-icons/tb'],
+  },
   server: {
     port: 5173,
     proxy: {

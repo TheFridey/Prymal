@@ -105,10 +105,12 @@ const COMPACT_MODE_CONTENT = {
   },
 };
 
-const SIGNED_IN_SIMPLE_ROUTE = '/app/dashboard?intent=simple';
-const SIGNED_IN_ADVANCED_ROUTE = '/app/workflows';
-const SIGNED_OUT_SIMPLE_ROUTE = '/signup?intent=simple&redirect_url=%2Fapp%2Fdashboard%3Fintent%3Dsimple';
-const SIGNED_OUT_ADVANCED_ROUTE = '/signup?intent=advanced&redirect_url=%2Fapp%2Fworkflows';
+const SIGNED_IN_SIMPLE_ROUTE = '/app/workflows/catalogue?mode=simple';
+const SIGNED_IN_ADVANCED_ROUTE = '/app/workflows/catalogue?mode=advanced';
+const SIGNED_IN_DEFAULT_WIN_ROUTE = '/app/workflows/catalogue/30-day-content-engine';
+const SIGNED_OUT_SIMPLE_ROUTE = '/signup?intent=simple&redirect_url=%2Fapp%2Fworkflows%2Fcatalogue%3Fmode%3Dsimple';
+const SIGNED_OUT_ADVANCED_ROUTE = '/signup?intent=advanced&redirect_url=%2Fapp%2Fworkflows%2Fcatalogue%3Fmode%3Dadvanced';
+const SIGNED_OUT_DEFAULT_WIN_ROUTE = '/signup?intent=simple&redirect_url=%2Fapp%2Fworkflows%2Fcatalogue%2F30-day-content-engine';
 
 function trackModeEvent(eventName, metadata = {}) {
   if (typeof window !== 'undefined' && typeof window.prymalTrack === 'function') {
@@ -217,7 +219,7 @@ export function SimpleAdvancedModeSection({
   const resolvedSimpleHref = simpleHref ?? (isSignedIn ? SIGNED_IN_SIMPLE_ROUTE : SIGNED_OUT_SIMPLE_ROUTE);
   const resolvedAdvancedHref = advancedHref ?? (isSignedIn ? SIGNED_IN_ADVANCED_ROUTE : SIGNED_OUT_ADVANCED_ROUTE);
   const ctaHref = mode === 'simple' ? resolvedSimpleHref : resolvedAdvancedHref;
-  const defaultWinHref = resolvedSimpleHref;
+  const defaultWinHref = isSignedIn ? SIGNED_IN_DEFAULT_WIN_ROUTE : SIGNED_OUT_DEFAULT_WIN_ROUTE;
 
   return (
     <section
@@ -268,7 +270,7 @@ export function SimpleAdvancedModeSection({
               data-selected-mode={mode}
               data-cta-type="default_win"
               onClick={() => {
-                if (!isSignedIn) persistStartIntent('simple', SIGNED_IN_SIMPLE_ROUTE);
+                if (!isSignedIn) persistStartIntent('simple', SIGNED_IN_DEFAULT_WIN_ROUTE);
                 trackCta('simple_mode_default_win_clicked', 'default_win', defaultWinHref);
               }}
             >

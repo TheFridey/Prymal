@@ -11,7 +11,7 @@ Prymal is built for businesses that need AI to move beyond chat. It gives teams 
 | Backend | Hono API, Drizzle, PostgreSQL, pgvector |
 | AI lanes | Anthropic, OpenAI, Google Gemini, OpenAI Realtime, Google Veo |
 | Revenue layer | Stripe plans, seats, execution credits, video credits, top-up packs |
-| Governance | SENTINEL PASS / REPAIR / HOLD gate, traces, immutable admin logs |
+| Governance | WARDEN input firewall, SENTINEL PASS / REPAIR / HOLD gate, traces, immutable admin logs |
 | Deployment posture | Cloudinary-ready media storage; local storage only as development fallback |
 
 ## Why Prymal Exists
@@ -23,6 +23,7 @@ Prymal packages those jobs into a business-ready system:
 - **Specialist agents** for revenue, support, content, strategy, operations, research, finance, visual assets, and workflows.
 - **LORE** for uploaded and crawled knowledge, retrieval diagnostics, contradiction signals, and source-aware answers.
 - **NEXUS** for validated workflow graphs, manual/webhook/scheduled triggers, run history, replay, and webhook delivery.
+- **WARDEN** for input-side scanning before external content can reach LORE, agents, workflows, media generation, or tools as trusted instructions.
 - **SENTINEL** for QA enforcement before risky or low-confidence outputs reach the user.
 - **Operator-grade SaaS controls** for plans, seats, credits, API keys, staff admin, traces, billing, and audit logs.
 
@@ -36,9 +37,12 @@ Prymal packages those jobs into a business-ready system:
 | Agent chat | SSE streaming, LORE grounding, memory, media artifacts, voice input, and structured output rendering |
 | LORE | Text, URL, file upload, search, inventory, contradiction warnings, and reindex/delete flows |
 | Workflows | Template library, visual builder, run monitor, replay, webhook subscriptions, and execution logs |
+| Workflow Catalogue | Curated workflow library for installing official workflows, drafting community submissions, and staff-reviewed publishing |
+| WARDEN | Input-side safety firewall for prompt injection, unsafe media prompts, secret leakage, untrusted evidence, and tool-abuse attempts |
 | Integrations | OAuth/manual account linking, encrypted secrets, health checks, outbound publish lanes where implemented |
 | Settings | Billing, team seats, invitations, API keys, referrals, organisation routing controls |
 | Admin | Staff-only operations console for growth, support, billing, traces, runtime, audit, and workflow health |
+| Transactional Email | Resend-backed account, billing, usage, invite, Founder Access, and workflow-install emails signed by HERALD |
 
 ### Agent Roster
 
@@ -74,6 +78,8 @@ Prymal exposes 14 user-facing agents and runs SENTINEL internally as the QA gate
 - Media artifact rendering for generated images/videos, Veo lane metadata, reference-image counts, and schema/SENTINEL badges.
 - Voice input through realtime WebRTC when configured, with recording/transcription fallback paths.
 - Workflow template cards, visual builder, monitor, replay, and webhook subscription UI.
+- Workflow Catalogue browse, detail, install, submission, and staff review surfaces for curated free workflows.
+- WARDEN-aware LORE and media flows with untrusted-evidence boundaries and clean refusal copy for blocked input.
 - Integration account linking UI with sections for socials, messaging, email, files, knowledge, and custom endpoints.
 - Settings surfaces for seats, invites, billing, API keys, referrals, and model-routing controls.
 - Playwright smoke coverage and Vitest unit coverage for core frontend modules.
@@ -86,12 +92,15 @@ Prymal exposes 14 user-facing agents and runs SENTINEL internally as the QA gate
 - Hybrid RAG search with semantic, lexical, freshness, authority, contradiction, and knowledge-gap signals.
 - LORE ingest for pasted text, crawled URLs, `.txt`, `.md`, `.markdown`, `.csv`, `.pdf`, and `.docx`.
 - Workflow create/update/toggle/run/replay/delete, idempotency, retry classification, timeout handling, and run history.
+- Workflow Catalogue tables, validation, installs, user submissions, admin approval, and official seed workflows.
+- WARDEN audit events, deterministic prompt-injection checks, URL/upload/pasted-content sanitisation, media prompt blocking, and tool execution authorization.
 - Manual, webhook, and scheduled workflow support. Trigger.dev is optional; inline scheduling is the local/default fallback.
 - Outbound workflow webhook delivery with HMAC-SHA256 signing.
 - OAuth account linking for Gmail, Google Drive, Notion, and Slack.
 - Manual-token lanes for Outlook, OneDrive, Dropbox, Box, Discord, Telegram, X, Mastodon, LinkedIn, and custom webhooks.
 - Live outbound publish routes where implemented, with delivery receipts stored back to the integration record.
 - Stripe checkout, portal, subscription sync, usage stats, seats, execution credits, video credits, and top-up packs.
+- Transactional email templates, Herald signature, Resend delivery, and email event tracking.
 - Veo video queue with Lite and Standard lanes, 4/6/8 second renders, Standard reference images for 8 second jobs, and asset serving.
 - Staff admin control plane with RBAC, audit logs, feature flags, credit adjustments, traces, scorecards, failed-run explorer, and waitlist/referral tooling.
 
@@ -263,7 +272,13 @@ npm run verify-build -- --clean
 - `OPENAI_API_KEY`
 - `ENCRYPTION_KEY`
 - `RESEND_API_KEY`
-- `EMAIL_FROM`
+- `RESEND_FROM_EMAIL` or `EMAIL_FROM`
+- `REPLY_TO_EMAIL`
+- `APP_URL`
+- `EMAIL_LOGO_URL`, defaults to the inline CID `prymal-logo`
+- `EMAIL_HERALD_AVATAR_URL`, defaults to the inline CID `herald-avatar`
+- `EMAIL_EMBED_INLINE_ASSETS`, defaults to enabled for repo-hosted Prymal and Herald assets
+- WARDEN: `WARDEN_ENABLED`, `WARDEN_STRICT_MODE`, `WARDEN_MAX_CONTENT_CHARS`, `WARDEN_MAX_URL_TEXT_CHARS`, `WARDEN_AUDIT_EXCERPT_CHARS`, `WARDEN_MEDIA_SAFETY_STRICTNESS`
 - Staff access lists for internal admin users
 
 ### Backend Optional Features
@@ -275,6 +290,7 @@ npm run verify-build -- --clean
 - Gemini/Veo: `GEMINI_API_KEY`, model override env vars, `GEMINI_GROUNDING_ENABLED=false` for launch
 - Media storage: `MEDIA_STORAGE_DRIVER`, Cloudinary credentials, retention and timeout controls
 - Rate limiting: optional Upstash Redis REST URL/token
+- Workflow Catalogue: `WORKFLOW_CATALOGUE_ENABLED`, `WORKFLOW_CATALOGUE_USER_SUBMISSIONS_ENABLED`, `WORKFLOW_CATALOGUE_PREMIUM_ENABLED=false`, `WORKFLOW_CATALOGUE_PLATFORM_FEE_BPS`
 
 ### Frontend Essentials
 

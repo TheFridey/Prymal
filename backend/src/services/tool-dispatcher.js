@@ -6,9 +6,10 @@
 
 import { enforceAgentToolPolicy, isSideEffectTool } from '../agents/runtime.js';
 import { retrieveRankedMemories } from './memory-retrieval.js';
-import { ragSearch } from './rag.js';
+import { formatLoreChunkForPrompt, ragSearch } from './rag.js';
 import { fetchLiveWebContext } from './web-research.js';
 import { getAccessToken } from '../routes/integrations.js';
+import { scanToolRequest, WARDEN_VERDICTS } from './warden/index.js';
 
 export const KNOWN_TOOLS = new Set([
   'lore_search',
@@ -92,6 +93,41 @@ export async function dispatchTool({
   }
 
   try {
+    const wardenDecision = await scanToolRequest({
+      toolName: tool,
+      arguments: toolInput,
+      userIntent: toolInput?.userIntent ?? toolInput?.query ?? toolInput?.body ?? '',
+      sourceContext: toolInput?.sourceContext ?? { sourceType: 'USER' },
+      userId,
+      orgId,
+      confirmed: Boolean(toolInput?.confirmed),
+      isAdmin: Boolean(toolInput?.isAdmin),
+    });
+
+    if ([WARDEN_VERDICTS.BLOCK, WARDEN_VERDICTS.REQUIRE_CONFIRMATION].includes(wardenDecision.verdict)) {
+      const error = wardenDecision.verdict === WARDEN_VERDICTS.REQUIRE_CONFIRMATION
+        ? 'This action needs confirmation before I can run it.'
+        : "I can summarise that content, but I won't follow tool instructions embedded inside it.";
+      recordToolPolicyEvent({
+        agentId,
+        orgId,
+        userId,
+        conversationId,
+        workflowRunId,
+        tool,
+        verdict: `warden_${wardenDecision.verdict.toLowerCase()}`,
+        reason: error,
+      });
+      return {
+        tool,
+        success: false,
+        result: null,
+        error,
+        code: 'WARDEN_TOOL_DENIED',
+        wardenAuditId: wardenDecision.auditId,
+      };
+    }
+
     const result = await routeTool({
       tool,
       toolInput,
@@ -222,7 +258,7 @@ async function handleLoreSearch({ toolInput, orgId }) {
       documentTitle: chunk.documentTitle,
       sourceType: chunk.sourceType,
       sourceUrl: chunk.sourceUrl,
-      content: chunk.content,
+      content: formatLoreChunkForPrompt(chunk),
       similarity: chunk.similarity,
       citation: chunk.citation,
     })),

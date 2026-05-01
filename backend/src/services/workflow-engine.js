@@ -19,6 +19,7 @@ import { deliverWorkflowWebhook } from './webhook-delivery.js';
 import { estimateTokens, runAgentNode } from './llm.js';
 import { emitWorkflowTimelineEvent } from './memory-events.js';
 import { maybeRecordFirstWinAggregate, recordProductEvent, recordProductEventOnce } from './telemetry.js';
+import { scanPastedContent, WARDEN_VERDICTS } from './warden/index.js';
 
 const WORKFLOW_NODE_TIMEOUT_MS = Number(process.env.WORKFLOW_NODE_TIMEOUT_MS ?? 90_000);
 const WORKFLOW_RUN_TIMEOUT_MS = Number(process.env.WORKFLOW_RUN_TIMEOUT_MS ?? 15 * 60_000);
@@ -241,6 +242,23 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
           skipped: true,
         });
         continue;
+      }
+
+      const nodeSafety = await scanPastedContent({
+        text: JSON.stringify({ prompt: node.prompt, upstreamContext }),
+        userId: orgContext.userId ?? null,
+        orgId: workflow.orgId,
+      });
+
+      if (
+        nodeSafety.verdict === WARDEN_VERDICTS.BLOCK
+        || nodeSafety.categories.includes('secret_exfiltration')
+        || nodeSafety.categories.includes('role_injection')
+      ) {
+        const error = new Error('This workflow step contains unsafe instructions and was blocked before execution.');
+        error.code = 'WARDEN_WORKFLOW_STEP_BLOCKED';
+        error.status = 400;
+        throw error;
       }
 
       const nodeStartedAt = Date.now();
