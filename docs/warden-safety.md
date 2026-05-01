@@ -90,7 +90,16 @@ Retrieved chunks are wrapped in an untrusted evidence block before reaching an a
 
 ## Media Safety
 
-Image and video prompts are scanned before provider calls. WARDEN also scans reference-image safety text from provided `ocrText`, `altText`, captions, filenames, and metadata text. No real OCR provider is configured by default.
+Image and video prompts are scanned before provider calls. WARDEN scans reference-image safety text from provided `ocrText`, `altText`, captions, filenames, and metadata text. WARDEN also has a provider-backed OCR adapter layer. OCR is disabled by default and fails safely back to metadata-only extraction if the provider is unavailable or times out.
+
+Supported OCR adapters:
+
+- `none`
+- `cloudinary`
+- `google_vision`
+- `tesseract`
+
+OCR audit metadata stores provider, attempt status, timeout state, source count and text hash. It does not store raw OCR text.
 
 WARDEN blocks requests involving:
 
@@ -105,6 +114,10 @@ Provider-side safety rejections are recorded as WARDEN audit events and returned
 
 ## Tool Safety
 
+Tool calls are governed by a manifest registry in `backend/src/services/tools/tool-manifest.js`. The manifest defines risk, side effects, confirmation needs, admin needs, source-type rules, schemas and redaction paths.
+
+The dispatcher has a separate executable allowlist. A tool can be present in the manifest for future governance without becoming executable until a real handler exists.
+
 Tool calls are risk-ranked:
 
 - LOW: retrieval and read-only search
@@ -118,6 +131,8 @@ Retrieved, pasted, uploaded, OCR, or external content cannot directly trigger to
 
 WARDEN scans workflow plans before run creation, replay, and node execution. It blocks or requires confirmation when a workflow appears to route URL, upload, pasted, OCR, webhook, or LORE input into email, posting, destructive, admin, billing, permission, export, or secret-related actions.
 
+When a workflow requires confirmation, Prymal creates a single-use `workflow_risk_confirmation` record. The approval is scoped to the org, user and workflow, expires after a short TTL, and can be approved or denied through workflow confirmation routes. `BLOCK` remains non-overridable.
+
 ## Audit Table
 
 WARDEN stores audit records in `warden_audit_event`.
@@ -125,6 +140,22 @@ WARDEN stores audit records in `warden_audit_event`.
 The table stores hashes, categories, reasons, source metadata, tool names, provider labels, deterministic verdicts, model classifier metadata, and final verdicts. It does not store full unsafe content.
 
 Admins can filter WARDEN events by verdict, risk level, category, surface, source type, user, org, tool, provider, and date range.
+
+Admin security endpoints:
+
+- `GET /admin/security/warden`
+- `GET /admin/security/warden/:auditId`
+- `GET /admin/security/classifier-metrics`
+- `GET /admin/security/workflow-confirmations`
+- `GET /admin/security/trace/:traceId/safety`
+
+Security traces aggregate WARDEN, model classifier, OCR, workflow confirmation, tool, SENTINEL and billing-safe metadata where available. Raw unsafe content is not returned.
+
+## Classifier Observability And Caps
+
+WARDEN records in-memory classifier metrics for attempted calls, used model calls, fallback rate, timeout rate, cache hit rate, latency, estimated tokens, estimated cost, top categories and blocked surfaces.
+
+Daily caps can skip model classification while preserving deterministic WARDEN decisions.
 
 ## Env Flags
 
@@ -141,6 +172,24 @@ Admins can filter WARDEN events by verdict, risk level, category, surface, sourc
 - `WARDEN_MODEL_CLASSIFIER_MAX_CHARS=12000`
 - `WARDEN_MODEL_CLASSIFIER_CACHE_TTL_SECONDS=900`
 - `WARDEN_MODEL_CLASSIFIER_CACHE_MAX=1000`
+- `WARDEN_MODEL_CLASSIFIER_DAILY_CALL_CAP=500`
+- `WARDEN_MODEL_CLASSIFIER_DAILY_COST_CAP_USD=5`
+- `WARDEN_MODEL_CLASSIFIER_INPUT_TOKEN_PRICE_USD=`
+- `WARDEN_MODEL_CLASSIFIER_OUTPUT_TOKEN_PRICE_USD=`
+- `WARDEN_OCR_ENABLED=false`
+- `WARDEN_OCR_PROVIDER=none`
+- `WARDEN_OCR_TIMEOUT_MS=3000`
+- `WARDEN_OCR_MAX_IMAGES=4`
+- `WARDEN_OCR_CACHE_TTL_SECONDS=900`
+- `WARDEN_OCR_CACHE_MAX=500`
+
+## Red-Team Fixtures
+
+Regression fixtures live in `backend/src/services/warden/red-team-fixtures.js` with tests in `red-team-fixtures.test.js`. They cover hidden URL prompts, pasted role injection, encoded jailbreaks, upload abuse, OCR/image metadata prompt injection, media safety, tool abuse, workflow abuse and secret redaction.
+
+## Migration
+
+Workflow confirmation state uses migration `0011_workflow_risk_confirmation` and the `workflow_risk_confirmation` table. Keep `database/schema.sql`, `backend/src/db/schema.js` and the Drizzle journal aligned.
 
 ## Adding New Surfaces
 

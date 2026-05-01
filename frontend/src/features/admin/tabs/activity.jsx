@@ -168,11 +168,35 @@ export function AuditLogsTab({ query }) {
   );
 }
 
-export function WardenEventsTab({ query }) {
+export function WardenEventsTab({ query, metricsQuery }) {
   const events = query.data?.events ?? [];
+  const metrics = metricsQuery?.data?.snapshot;
+  const cap = metricsQuery?.data?.cap;
 
   return (
     <div className="staff-admin__tab-body">
+      <section className="staff-admin__grid staff-admin__grid--metrics">
+        <article className="staff-admin__metric-card">
+          <span>Classifier calls</span>
+          <strong>{formatNumber(metrics?.totals?.usedModel ?? 0)}</strong>
+          <small>{formatNumber(metrics?.totals?.attempted ?? 0)} attempted in window</small>
+        </article>
+        <article className="staff-admin__metric-card">
+          <span>Cache hit rate</span>
+          <strong>{Math.round((metrics?.rates?.cacheHitRate ?? 0) * 100)}%</strong>
+          <small>{formatNumber(metrics?.totals?.cacheHits ?? 0)} cache hits</small>
+        </article>
+        <article className="staff-admin__metric-card">
+          <span>Fallback rate</span>
+          <strong>{Math.round((metrics?.rates?.fallbackRate ?? 0) * 100)}%</strong>
+          <small>{formatNumber(metrics?.totals?.fallbacks ?? 0)} fallbacks</small>
+        </article>
+        <article className="staff-admin__metric-card">
+          <span>Daily cap</span>
+          <strong>{cap?.capActive ? 'Active' : 'Clear'}</strong>
+          <small>{cap?.callsExceeded ? 'Call cap reached' : cap?.costExceeded ? 'Cost cap reached' : 'Deterministic layer active'}</small>
+        </article>
+      </section>
       <section className="staff-admin__section">
         <header className="staff-admin__section-head">
           <h2 className="staff-admin__section-title">WARDEN events</h2>

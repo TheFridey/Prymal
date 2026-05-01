@@ -346,6 +346,18 @@ WARDEN safety firewall:
 - `WARDEN_MODEL_CLASSIFIER_MAX_CHARS=12000`
 - `WARDEN_MODEL_CLASSIFIER_CACHE_TTL_SECONDS=900`
 - `WARDEN_MODEL_CLASSIFIER_CACHE_MAX=1000`
+- `WARDEN_MODEL_CLASSIFIER_DAILY_CALL_CAP=500`
+- `WARDEN_MODEL_CLASSIFIER_DAILY_COST_CAP_USD=5`
+- optional token pricing vars: `WARDEN_MODEL_CLASSIFIER_INPUT_TOKEN_PRICE_USD`, `WARDEN_MODEL_CLASSIFIER_OUTPUT_TOKEN_PRICE_USD`
+- `WARDEN_OCR_ENABLED=false`
+- `WARDEN_OCR_PROVIDER=none`
+- `WARDEN_OCR_TIMEOUT_MS=3000`
+- `WARDEN_OCR_MAX_IMAGES=4`
+- `WARDEN_OCR_CACHE_TTL_SECONDS=900`
+- `WARDEN_OCR_CACHE_MAX=500`
+- OCR provider credentials are optional. If OCR is enabled, configure the selected provider only: Cloudinary, Google Vision, or local Tesseract.
+- Workflow risk confirmations require migration `0011_workflow_risk_confirmation`.
+- Admin security endpoints expose WARDEN events, classifier metrics, confirmation state and safety traces without raw unsafe content.
 - WARDEN v2 falls back to deterministic checks if the model classifier, cache, or audit write fails.
 - verify the Resend sender domain before production traffic
 

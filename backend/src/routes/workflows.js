@@ -14,6 +14,15 @@ import { recordAuditLog, recordProductEvent, recordProductEventOnce } from '../s
 import { recordCatalogueRun } from '../services/workflow-catalogue.js';
 import { validateWorkflowDefinition } from '../services/workflow-engine.js';
 import { scanWorkflowPlan, WARDEN_VERDICTS } from '../services/warden/index.js';
+import {
+  approveWorkflowConfirmation,
+  consumeWorkflowConfirmation,
+  createWorkflowConfirmation,
+  denyWorkflowConfirmation,
+  getWorkflowConfirmation,
+  isCriticalAdminWorkflow,
+  summarizeWorkflowRisk,
+} from '../services/warden/workflow-confirmation.js';
 
 const router = new Hono();
 const WORKFLOW_WEBHOOK_EVENT_TYPES = [
@@ -615,19 +624,27 @@ router.post('/:id/run', requireOrg, planAwareRateLimit({
     return context.json({ error: 'Workflow not found.' }, 404);
   }
 
+  const confirmationId = context.req.header('X-Workflow-Confirmation-Id') ?? null;
   const workflowSafety = await scanWorkflowRunSafety({
     workflow,
     input: workflow.triggerConfig ?? {},
     userId: org.userId,
     orgId: org.orgId,
+    confirmationId,
+    isAdmin: org.role === 'owner' || org.role === 'admin',
   });
 
   if (!workflowSafety.allowed) {
+    const status = workflowSafety.code === 'WARDEN_WORKFLOW_CONFIRMATION_REQUIRED' ? 409 : 400;
     return context.json({
       error: 'This workflow cannot be run safely.',
       message: workflowSafety.message,
+      code: workflowSafety.code,
       wardenAuditId: workflowSafety.auditId,
-    }, 400);
+      confirmationId: workflowSafety.confirmationId ?? null,
+      riskSummary: workflowSafety.riskSummary ?? null,
+      expiresAt: workflowSafety.expiresAt ?? null,
+    }, status);
   }
 
   const executionAvailable = org.credits?.execution?.available ?? 0;
@@ -725,19 +742,27 @@ router.post('/:id/run-again', requireOrg, requireRole('owner', 'admin'), zValida
   }
 
   const runInput = payload.input ?? {};
+  const confirmationIdRunAgain = context.req.header('X-Workflow-Confirmation-Id') ?? null;
   const workflowSafety = await scanWorkflowRunSafety({
     workflow,
     input: runInput,
     userId: org.userId,
     orgId: org.orgId,
+    confirmationId: confirmationIdRunAgain,
+    isAdmin: org.role === 'owner' || org.role === 'admin',
   });
 
   if (!workflowSafety.allowed) {
+    const status = workflowSafety.code === 'WARDEN_WORKFLOW_CONFIRMATION_REQUIRED' ? 409 : 400;
     return context.json({
       error: 'This workflow input cannot be run safely.',
       message: workflowSafety.message,
+      code: workflowSafety.code,
       wardenAuditId: workflowSafety.auditId,
-    }, 400);
+      confirmationId: workflowSafety.confirmationId ?? null,
+      riskSummary: workflowSafety.riskSummary ?? null,
+      expiresAt: workflowSafety.expiresAt ?? null,
+    }, status);
   }
 
   const workflowForRun = appendRunAgainInput(workflow, runInput);
@@ -861,6 +886,93 @@ router.get('/:id/runs', requireOrg, async (context) => {
   });
 
   return context.json({ runs });
+});
+
+router.get('/confirmations/:id', requireOrg, async (context) => {
+  const org = context.get('org');
+  const { id } = context.req.param();
+  const confirmation = await getWorkflowConfirmation({ confirmationId: id, orgId: org.orgId, userId: org.userId });
+  if (!confirmation) {
+    return context.json({ error: 'Confirmation not found.' }, 404);
+  }
+  return context.json({
+    confirmation: {
+      id: confirmation.id,
+      status: confirmation.status,
+      workflowId: confirmation.workflowId,
+      workflowRunId: confirmation.workflowRunId,
+      wardenAuditId: confirmation.wardenAuditId,
+      riskSummary: confirmation.riskSummary,
+      expiresAt: confirmation.expiresAt,
+      createdAt: confirmation.createdAt,
+      usedAt: confirmation.usedAt,
+    },
+  });
+});
+
+router.post('/confirmations/:id/approve', requireOrg, requireRole('owner', 'admin', 'editor'), zValidator('json', z.object({ acknowledged: z.boolean() })), async (context) => {
+  const org = context.get('org');
+  const { id } = context.req.param();
+  const payload = context.req.valid('json');
+  const isAdmin = org.role === 'owner' || org.role === 'admin';
+  const result = await approveWorkflowConfirmation({
+    confirmationId: id,
+    orgId: org.orgId,
+    userId: org.userId,
+    isAdmin,
+    acknowledged: payload.acknowledged === true,
+  });
+  if (!result.ok) {
+    const statusByCode = {
+      NOT_FOUND: 404,
+      EXPIRED: 410,
+      INVALID_STATE: 409,
+      BLOCK_NOT_OVERRIDABLE: 403,
+      ADMIN_REQUIRED: 403,
+      ACKNOWLEDGEMENT_REQUIRED: 400,
+    };
+    return context.json({ error: 'Could not approve confirmation.', code: result.code }, statusByCode[result.code] ?? 400);
+  }
+
+  await recordAuditLog({
+    orgId: org.orgId,
+    actorUserId: org.userId,
+    action: 'workflow.confirmation.approved',
+    targetType: 'workflow_risk_confirmation',
+    targetId: id,
+    metadata: { wardenAuditId: result.confirmation.wardenAuditId ?? null, workflowId: result.confirmation.workflowId },
+  });
+
+  return context.json({
+    confirmation: {
+      id: result.confirmation.id,
+      status: result.confirmation.status,
+      expiresAt: result.confirmation.expiresAt,
+    },
+  });
+});
+
+router.post('/confirmations/:id/deny', requireOrg, requireRole('owner', 'admin', 'editor'), async (context) => {
+  const org = context.get('org');
+  const { id } = context.req.param();
+  const result = await denyWorkflowConfirmation({
+    confirmationId: id,
+    orgId: org.orgId,
+    userId: org.userId,
+  });
+  if (!result.ok) {
+    const statusByCode = { NOT_FOUND: 404, INVALID_STATE: 409 };
+    return context.json({ error: 'Could not deny confirmation.', code: result.code }, statusByCode[result.code] ?? 400);
+  }
+  await recordAuditLog({
+    orgId: org.orgId,
+    actorUserId: org.userId,
+    action: 'workflow.confirmation.denied',
+    targetType: 'workflow_risk_confirmation',
+    targetId: id,
+    metadata: { workflowId: result.confirmation.workflowId },
+  });
+  return context.json({ confirmation: { id: result.confirmation.id, status: result.confirmation.status } });
 });
 
 router.get('/runs/:runId', requireOrg, async (context) => {
@@ -1011,7 +1123,7 @@ function appendRunAgainInput(workflow, runInput) {
   };
 }
 
-async function scanWorkflowRunSafety({ workflow, input, userId, orgId }) {
+async function scanWorkflowRunSafety({ workflow, input, userId, orgId, confirmationId = null, isAdmin = false }) {
   const decision = await scanWorkflowPlan({
     workflow,
     inputs: input,
@@ -1021,20 +1133,68 @@ async function scanWorkflowRunSafety({ workflow, input, userId, orgId }) {
     orgId,
   });
 
-  if (
-    decision.verdict === WARDEN_VERDICTS.BLOCK
-    || decision.verdict === WARDEN_VERDICTS.REQUIRE_CONFIRMATION
-  ) {
+  if (decision.verdict === WARDEN_VERDICTS.BLOCK) {
     return {
       allowed: false,
       auditId: decision.auditId,
-      message: decision.verdict === WARDEN_VERDICTS.REQUIRE_CONFIRMATION
-        ? 'This workflow needs confirmation before it can run because it mixes external input with tool execution.'
-        : 'The workflow contains blocked content.',
+      decision,
+      code: 'WARDEN_WORKFLOW_BLOCKED',
+      message: 'The workflow contains blocked content.',
     };
   }
 
-  return { allowed: true, auditId: decision.auditId };
+  if (decision.verdict === WARDEN_VERDICTS.REQUIRE_CONFIRMATION) {
+    if (!confirmationId) {
+      const summary = summarizeWorkflowRisk(decision, workflow);
+      const created = await createWorkflowConfirmation({
+        orgId,
+        userId,
+        workflowId: workflow.id,
+        wardenAuditId: decision.auditId ?? null,
+        riskSummary: summary,
+      });
+      return {
+        allowed: false,
+        auditId: decision.auditId,
+        code: 'WARDEN_WORKFLOW_CONFIRMATION_REQUIRED',
+        message: 'This workflow needs confirmation before it can run because it mixes external input with tool execution.',
+        confirmationId: created.confirmationId,
+        riskSummary: created.riskSummary,
+        expiresAt: created.expiresAt,
+      };
+    }
+
+    const summary = summarizeWorkflowRisk(decision, workflow);
+    if (isCriticalAdminWorkflow(summary) && !isAdmin) {
+      return {
+        allowed: false,
+        auditId: decision.auditId,
+        code: 'WARDEN_WORKFLOW_ADMIN_REQUIRED',
+        message: 'Critical admin/billing/destructive workflows require admin approval even with confirmation.',
+      };
+    }
+
+    const consumed = await consumeWorkflowConfirmation({
+      confirmationId,
+      orgId,
+      userId,
+      workflowId: workflow.id,
+    });
+    if (!consumed.ok) {
+      return {
+        allowed: false,
+        auditId: decision.auditId,
+        code: consumed.code === 'EXPIRED'
+          ? 'WARDEN_WORKFLOW_CONFIRMATION_EXPIRED'
+          : 'WARDEN_WORKFLOW_CONFIRMATION_INVALID',
+        message: consumed.code === 'EXPIRED'
+          ? 'The confirmation has expired. Please re-request approval.'
+          : 'The confirmation is not valid for this workflow run.',
+      };
+    }
+  }
+
+  return { allowed: true, auditId: decision.auditId, decision };
 }
 
 function serializeWorkflowWebhook(entry) {

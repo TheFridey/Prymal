@@ -1,8 +1,8 @@
 import { hashContent, stripZeroWidthChars } from './prompt-injection-detector.js';
 
 const SECRET_PATTERNS = [
-  { type: 'openai_key', pattern: /\bsk-[A-Za-z0-9_-]{20,}\b/g },
   { type: 'anthropic_key', pattern: /\bsk-ant-[A-Za-z0-9_-]{20,}\b/g },
+  { type: 'openai_key', pattern: /\bsk-[A-Za-z0-9_-]{20,}\b/g },
   { type: 'stripe_secret_key', pattern: /\bsk_(?:live|test)_[A-Za-z0-9]{20,}\b/g },
   { type: 'stripe_webhook_secret', pattern: /\bwhsec_[A-Za-z0-9]{20,}\b/g },
   { type: 'clerk_secret_key', pattern: /\bsk_(?:live|test)_[A-Za-z0-9]{24,}\b/g },

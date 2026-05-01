@@ -1,3 +1,4 @@
+import { getToolManifest, isSourceAllowedByManifest } from '../../services/tools/tool-manifest.js';
 import { detectPromptInjection } from './prompt-injection-detector.js';
 import { redactSecrets } from './warden-sanitizer.js';
 import {
@@ -27,7 +28,10 @@ export function authorizeToolCall({
   isAdmin = false,
   confirmed = false,
 } = {}) {
-  const risk = getToolRisk(toolName);
+  const normalizedToolName = String(toolName ?? '').trim();
+  const manifest = getToolManifest(normalizedToolName);
+  const knownInManifest = Boolean(manifest);
+  const risk = getToolRisk(normalizedToolName, { manifest });
   const categories = [];
   const reasons = [];
   const redactedArgs = redactSecrets(JSON.stringify(args ?? {}));
@@ -35,10 +39,18 @@ export function authorizeToolCall({
   const instructionOrigin = sourceContext?.instructionOrigin ?? sourceType;
   const untrustedOrigin = UNTRUSTED_SOURCE_TYPES.has(instructionOrigin) || UNTRUSTED_SOURCE_TYPES.has(sourceType);
   const injection = detectPromptInjection(`${userIntent}\n${JSON.stringify(args ?? {})}\n${sourceContext?.content ?? ''}`);
+  const manifestSourceAllowed = manifest ? isSourceAllowedByManifest(manifest, sourceType) : !untrustedOrigin;
+  const requiresConfirmation = manifest?.requiresConfirmation ?? (risk === WARDEN_TOOL_RISK.CRITICAL);
+  const requiresAdmin = manifest?.requiresAdmin ?? (risk === WARDEN_TOOL_RISK.CRITICAL);
 
   if (!userId || !orgId) {
     categories.push(WARDEN_CATEGORIES.CROSS_ORG_ACCESS);
     reasons.push('Tool calls require authenticated user and organisation scope.');
+  }
+
+  if (!normalizedToolName || (!knownInManifest && !categoryMatchesAlias(normalizedToolName))) {
+    categories.push(WARDEN_CATEGORIES.TOOL_ABUSE);
+    reasons.push(`Tool '${normalizedToolName || 'unknown'}' is not registered in the tool manifest.`);
   }
 
   if (injection.detected) {
@@ -46,22 +58,29 @@ export function authorizeToolCall({
     reasons.push(...injection.reasons);
   }
 
-  if (untrustedOrigin) {
+  if (untrustedOrigin || !manifestSourceAllowed) {
     categories.push(WARDEN_CATEGORIES.TOOL_ABUSE);
-    reasons.push('Tool calls cannot originate from untrusted or retrieved content.');
+    if (manifest && !manifestSourceAllowed && !untrustedOrigin) {
+      reasons.push(`Tool '${normalizedToolName}' does not allow source type '${sourceType}'.`);
+    } else {
+      reasons.push('Tool calls cannot originate from untrusted or retrieved content.');
+    }
   }
 
-  if (risk === WARDEN_TOOL_RISK.HIGH && !confirmed && untrustedOrigin) {
+  if (manifest?.sideEffect && untrustedOrigin && !confirmed) {
+    categories.push(WARDEN_CATEGORIES.DESTRUCTIVE_ACTION);
+    reasons.push('Side-effect tool calls from untrusted content require explicit human confirmation.');
+  } else if (risk === WARDEN_TOOL_RISK.HIGH && !confirmed && untrustedOrigin) {
     categories.push(WARDEN_CATEGORIES.DESTRUCTIVE_ACTION);
     reasons.push('High-risk tool calls from untrusted content require explicit human confirmation.');
   }
 
-  if (risk === WARDEN_TOOL_RISK.CRITICAL) {
+  if (risk === WARDEN_TOOL_RISK.CRITICAL || requiresAdmin) {
     categories.push(WARDEN_CATEGORIES.BILLING_ADMIN_ACTION);
     if (!confirmed) {
       reasons.push('Critical billing/admin/export/permission actions require explicit confirmation.');
     }
-    if (!isAdmin) {
+    if (requiresAdmin && !isAdmin) {
       reasons.push('Critical tool calls require admin permission.');
     }
   }
@@ -74,18 +93,32 @@ export function authorizeToolCall({
   let verdict = WARDEN_VERDICTS.ALLOW;
   let riskLevel = WARDEN_RISK_LEVELS.LOW;
 
-  if (risk === WARDEN_TOOL_RISK.CRITICAL && (!confirmed || !isAdmin)) {
-    verdict = WARDEN_VERDICTS.REQUIRE_CONFIRMATION;
-    riskLevel = WARDEN_RISK_LEVELS.CRITICAL;
-  } else if (untrustedOrigin) {
+  if (!knownInManifest && !normalizedToolName) {
     verdict = WARDEN_VERDICTS.BLOCK;
     riskLevel = WARDEN_RISK_LEVELS.HIGH;
-  } else if (redactedArgs.redactions.length > 0) {
-    verdict = WARDEN_VERDICTS.REDACT;
-    riskLevel = WARDEN_RISK_LEVELS.MEDIUM;
-  } else if (injection.detected && !isConfirmedAdminCriticalTool({ risk, confirmed, isAdmin, categories })) {
-    verdict = WARDEN_VERDICTS.REQUIRE_CONFIRMATION;
+  } else if (!knownInManifest) {
+    // Unknown but non-empty tool: deny by default unless legacy code supplies safe context.
+    verdict = WARDEN_VERDICTS.BLOCK;
     riskLevel = WARDEN_RISK_LEVELS.HIGH;
+  }
+
+  if (verdict === WARDEN_VERDICTS.ALLOW) {
+    if (untrustedOrigin || !manifestSourceAllowed) {
+      verdict = WARDEN_VERDICTS.BLOCK;
+      riskLevel = risk === WARDEN_TOOL_RISK.CRITICAL ? WARDEN_RISK_LEVELS.CRITICAL : WARDEN_RISK_LEVELS.HIGH;
+    } else if (risk === WARDEN_TOOL_RISK.CRITICAL && (!confirmed || (requiresAdmin && !isAdmin))) {
+      verdict = WARDEN_VERDICTS.REQUIRE_CONFIRMATION;
+      riskLevel = WARDEN_RISK_LEVELS.CRITICAL;
+    } else if (requiresConfirmation && !confirmed) {
+      verdict = WARDEN_VERDICTS.REQUIRE_CONFIRMATION;
+      riskLevel = risk === WARDEN_TOOL_RISK.CRITICAL ? WARDEN_RISK_LEVELS.CRITICAL : WARDEN_RISK_LEVELS.HIGH;
+    } else if (redactedArgs.redactions.length > 0) {
+      verdict = WARDEN_VERDICTS.REDACT;
+      riskLevel = WARDEN_RISK_LEVELS.MEDIUM;
+    } else if (injection.detected && !isConfirmedAdminCriticalTool({ risk, confirmed, isAdmin, categories })) {
+      verdict = WARDEN_VERDICTS.REQUIRE_CONFIRMATION;
+      riskLevel = WARDEN_RISK_LEVELS.HIGH;
+    }
   }
 
   return {
@@ -98,6 +131,8 @@ export function authorizeToolCall({
     safeArgs: safeJsonParse(redactedArgs.content, args),
     requiresHumanConfirmation: verdict === WARDEN_VERDICTS.REQUIRE_CONFIRMATION,
     canTriggerTools: verdict === WARDEN_VERDICTS.ALLOW || verdict === WARDEN_VERDICTS.REDACT,
+    manifest: manifest ? { name: manifest.name, risk: manifest.risk, sideEffect: manifest.sideEffect } : null,
+    knownInManifest,
   };
 }
 
@@ -111,6 +146,13 @@ function isConfirmedAdminCriticalTool({ risk, confirmed, isAdmin, categories = [
     && !categorySet.has(WARDEN_CATEGORIES.SECRET_EXFILTRATION)
     && !categorySet.has(WARDEN_CATEGORIES.HIDDEN_PROMPT)
     && !categorySet.has(WARDEN_CATEGORIES.ENCODED_PAYLOAD);
+}
+
+function categoryMatchesAlias(toolName) {
+  // Legacy fallback: never returns true any more — every tool must be in the manifest.
+  // Kept as a single seam in case we later want to grandfather a specific alias.
+  void toolName;
+  return false;
 }
 
 function safeJsonParse(value, fallback) {

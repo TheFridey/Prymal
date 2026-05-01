@@ -162,7 +162,14 @@ export default function Admin() {
 
   const wardenEventsQuery = useQuery({
     queryKey: ['staff-admin-warden-events'],
-    queryFn: () => api.get('/admin/warden-events?limit=200'),
+    queryFn: () => api.get('/admin/security/warden?limit=200'),
+    enabled: isStaff && activeTab === 'warden-events',
+    refetchInterval: activeTab === 'warden-events' ? 30_000 : false,
+  });
+
+  const wardenMetricsQuery = useQuery({
+    queryKey: ['staff-admin-warden-metrics'],
+    queryFn: () => api.get('/admin/security/classifier-metrics'),
     enabled: isStaff && activeTab === 'warden-events',
     refetchInterval: activeTab === 'warden-events' ? 30_000 : false,
   });
@@ -1035,7 +1042,7 @@ export default function Admin() {
           <AuditLogsTab query={auditLogsQuery} />
         ) : null}
         {activeTab === 'warden-events' ? (
-          <WardenEventsTab query={wardenEventsQuery} />
+          <WardenEventsTab query={wardenEventsQuery} metricsQuery={wardenMetricsQuery} />
         ) : null}
         {activeTab === 'credit-usage' ? (
           <CreditUsageTab query={creditUsageQuery} />

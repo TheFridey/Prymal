@@ -136,11 +136,15 @@ export function getWardenConfig(env = process.env) {
   };
 }
 
-export function getToolRisk(toolName) {
+export function getToolRisk(toolName, { manifest = null } = {}) {
   const normalized = String(toolName ?? '').trim();
 
   if (!normalized) {
     return WARDEN_TOOL_RISK.HIGH;
+  }
+
+  if (manifest && Object.values(WARDEN_TOOL_RISK).includes(manifest.risk)) {
+    return manifest.risk;
   }
 
   if (CRITICAL_RISK_TOOLS.has(normalized) || /billing|admin|permission|delete_org|delete_user|secret|env/i.test(normalized)) {

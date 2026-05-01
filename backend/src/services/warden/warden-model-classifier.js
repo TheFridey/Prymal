@@ -2,6 +2,11 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { hashContent } from './prompt-injection-detector.js';
 import {
+  estimateCallCost,
+  evaluateClassifierCap,
+  recordClassifierEvent,
+} from './warden-classifier-metrics.js';
+import {
   WARDEN_CATEGORIES,
   WARDEN_RISK_LEVELS,
   WARDEN_SOURCE_TYPES,
@@ -62,9 +67,37 @@ export async function classifyWithWardenModel({
   const cached = getCachedClassifierResult(cacheKey);
 
   if (cached) {
+    recordClassifierEvent({
+      surface,
+      attempted: true,
+      usedModel: false,
+      cacheHit: true,
+      verdict: cached.verdict,
+      riskLevel: cached.riskLevel,
+      categories: cached.categories,
+      blocked: cached.verdict === WARDEN_VERDICTS.BLOCK,
+    });
     return { ...cached, cached: true };
   }
 
+  const cap = evaluateClassifierCap();
+  if (cap.capActive) {
+    recordClassifierEvent({
+      surface,
+      attempted: false,
+      usedModel: false,
+      skippedDueToCap: true,
+    });
+    return {
+      usedModel: false,
+      fallback: true,
+      classifierSkippedDueToCap: true,
+      capReason: cap.callsExceeded ? 'daily_call_cap' : 'daily_cost_cap',
+      model,
+    };
+  }
+
+  const startedAt = Date.now();
   try {
     const classifierClient = metadata.classifierClient ?? defaultClassifierClient;
     const result = await withTimeout(
@@ -84,6 +117,8 @@ export async function classifyWithWardenModel({
       config.modelClassifierTimeoutMs,
     );
     const parsed = classifierSchema.parse(result);
+    const usage = result?.__usage ?? {};
+    const totalTokens = Number(usage.totalTokens ?? usage.total_tokens ?? 0);
     const safeResult = {
       usedModel: true,
       verdict: parsed.verdict,
@@ -94,15 +129,41 @@ export async function classifyWithWardenModel({
       recommendedHandling: parsed.recommendedHandling,
       safeSummary: parsed.safeSummary,
       model,
+      durationMs: Date.now() - startedAt,
+      estimatedTokens: totalTokens,
+      estimatedCostUsd: estimateCallCost({ tokens: totalTokens }),
     };
 
     setCachedClassifierResult(cacheKey, safeResult);
+    recordClassifierEvent({
+      surface,
+      attempted: true,
+      usedModel: true,
+      durationMs: safeResult.durationMs,
+      estimatedTokens: safeResult.estimatedTokens,
+      estimatedCostUsd: safeResult.estimatedCostUsd,
+      verdict: safeResult.verdict,
+      riskLevel: safeResult.riskLevel,
+      categories: safeResult.categories,
+      blocked: safeResult.verdict === WARDEN_VERDICTS.BLOCK,
+    });
     return safeResult;
   } catch (error) {
+    const message = error?.message || 'WARDEN model classifier failed.';
+    const timedOut = /timed? out/i.test(message);
+    recordClassifierEvent({
+      surface,
+      attempted: true,
+      usedModel: false,
+      fallback: true,
+      timedOut,
+      durationMs: Date.now() - startedAt,
+    });
     return {
       usedModel: false,
-      error: error?.message || 'WARDEN model classifier failed.',
+      error: message,
       fallback: true,
+      timedOut,
       model,
     };
   }
@@ -368,6 +429,13 @@ function buildClassifierMetadata(deterministicDecision = {}, modelDecision = {},
     confidence: modelDecision?.confidence ?? null,
     fallback: Boolean(modelDecision?.fallback),
     error: modelDecision?.error ?? null,
+    cached: Boolean(modelDecision?.cached),
+    timedOut: Boolean(modelDecision?.timedOut),
+    durationMs: modelDecision?.durationMs ?? null,
+    estimatedTokens: modelDecision?.estimatedTokens ?? null,
+    estimatedCostUsd: modelDecision?.estimatedCostUsd ?? null,
+    classifierSkippedDueToCap: Boolean(modelDecision?.classifierSkippedDueToCap),
+    capReason: modelDecision?.capReason ?? null,
     deterministicVerdict: deterministicDecision.verdict ?? null,
     deterministicRiskLevel: deterministicDecision.riskLevel ?? null,
     modelVerdict: modelDecision?.verdict ?? null,

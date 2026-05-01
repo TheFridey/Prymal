@@ -11,3 +11,6 @@ export * from './url-content-safety.js';
 export * from './upload-safety.js';
 export * from './workflow-safety.js';
 export * from './warden-model-classifier.js';
+export * from './warden-classifier-metrics.js';
+export * from './workflow-confirmation.js';
+export { OCR_PROVIDER_NAMES, getOcrConfig, isOcrProviderActive, buildOcrAuditMetadata } from './ocr-providers/index.js';

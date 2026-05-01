@@ -6,7 +6,9 @@
       "Bash(npx vite:*)",
       "Read(//tmp/**)",
       "Bash(find /c/Users/rhysl/OneDrive/Documents/axiom/axiom/frontend/src -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.js\" \\\\\\) -exec wc -l {} +)",
-      "Bash(node --test src)"
+      "Bash(node --test src)",
+      "Bash(node --test \"src/services/tools/tool-manifest.test.js\" \"src/services/warden/warden.test.js\")",
+      "Bash(node --test \"src/services/warden/warden-classifier-metrics.test.js\" \"src/services/warden/workflow-confirmation.test.js\")"
     ]
   }
 }

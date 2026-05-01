@@ -108,8 +108,12 @@ Record Stripe event IDs and workspace IDs in the private launch log, not in publ
 - Attempt an unsafe image/video prompt and verify it is blocked before provider submission.
 - Attempt ambiguous media wording such as "young but legal" and verify WARDEN blocks or escalates it before provider submission.
 - Verify reference image text, alt text, filename, and metadata text are scanned as untrusted OCR safety text.
+- If `WARDEN_OCR_ENABLED=true`, verify the configured OCR provider extracts text, times out safely, and stores only OCR hashes/summary metadata in audit records.
 - Attempt a tool/billing instruction from retrieved content and verify WARDEN denies the tool action.
 - Verify a workflow that routes URL/upload/LORE input into email, posting, billing, admin, or destructive actions is blocked or requires confirmation.
+- Verify a workflow requiring confirmation creates a pending confirmation, can be approved once by the scoped user/org, expires correctly, and cannot override `BLOCK`.
+- Verify the admin WARDEN view shows events, classifier metrics, confirmation state and security traces without raw unsafe content.
+- Run the red-team fixture pack with `node --test src/services/warden/red-team-fixtures.test.js`.
 - Verify `warden_audit_event` records deterministic verdict, model classifier metadata, final verdict, risk, categories, redaction count, and source metadata without storing raw unsafe content.
 - Verify model classifier timeout or invalid JSON falls back to deterministic WARDEN without user-visible errors.
 - Verify the Herald signature renders with avatar or monogram fallback.

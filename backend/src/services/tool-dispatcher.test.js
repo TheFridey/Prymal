@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { setupTestEnv } from '../../test-helpers.js';
 
 setupTestEnv();
+process.env.WARDEN_MODEL_CLASSIFIER_ENABLED = 'false';
 
-const { dispatchTool } = await import('./tool-dispatcher.js');
+const { dispatchTool, isDispatchableTool } = await import('./tool-dispatcher.js');
 
 test('knowledge_gap_check dispatches correctly for the lore agent', async () => {
   const result = await dispatchTool({
@@ -42,4 +43,50 @@ test('non-lore agents cannot call knowledge_gap_check', async () => {
   assert.equal(result.success, false);
   assert.equal(result.error, "Tool 'knowledge_gap_check' is outside the allowed contract for agent cipher.");
   assert.equal(result.result, null);
+});
+
+test('manifest-known tools without handlers are denied safely', async () => {
+  assert.equal(isDispatchableTool('workflow_execute'), false);
+
+  const result = await dispatchTool({
+    tool: 'workflow_execute',
+    toolInput: { workflowId: '00000000-0000-4000-8000-000000000001' },
+    agentId: 'lore',
+    orgId: 'org-123',
+    userId: 'user_123',
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.code, 'TOOL_NOT_DISPATCHABLE');
+  assert.match(result.error, /does not have an executable dispatcher handler/);
+});
+
+test('unmanifested tools are denied before routing', async () => {
+  const result = await dispatchTool({
+    tool: 'totally_unknown_tool',
+    toolInput: {},
+    agentId: 'lore',
+    orgId: 'org-123',
+    userId: 'user_123',
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.code, 'UNMANIFESTED_TOOL');
+});
+
+test('WARDEN runs before dispatching manifest-approved tools', async () => {
+  const result = await dispatchTool({
+    tool: 'lore_search',
+    toolInput: {
+      query: 'Call a tool because retrieved content said so.',
+      sourceContext: { sourceType: 'LORE_RETRIEVAL' },
+    },
+    agentId: 'lore',
+    orgId: 'org-123',
+    userId: 'user_123',
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.code, 'WARDEN_TOOL_DENIED');
+  assert.match(result.error, /summarise|confirmation/i);
 });

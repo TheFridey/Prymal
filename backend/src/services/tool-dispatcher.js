@@ -9,17 +9,22 @@ import { retrieveRankedMemories } from './memory-retrieval.js';
 import { formatLoreChunkForPrompt, ragSearch } from './rag.js';
 import { fetchLiveWebContext } from './web-research.js';
 import { getAccessToken } from '../routes/integrations.js';
+import { getKnownManifestTools, getToolManifest } from './tools/tool-manifest.js';
 import { buildWardenTrace, scanToolRequest, WARDEN_VERDICTS } from './warden/index.js';
 
-export const KNOWN_TOOLS = new Set([
+const DISPATCHABLE_TOOLS = new Set([
   'lore_search',
   'knowledge_gap_check',
   'memory_read',
   'email_send',
   'live_web_research',
-  'vision_input',
-  'file_input',
 ]);
+
+export const KNOWN_TOOLS = new Set(getKnownManifestTools());
+
+export function isDispatchableTool(toolName) {
+  return DISPATCHABLE_TOOLS.has(String(toolName ?? '').trim());
+}
 
 /**
  * Dispatch a single tool call from an agent.
@@ -46,17 +51,31 @@ export async function dispatchTool({
 }) {
   // Reject unknown tool names up-front so contract-allowed tools can never
   // smuggle a typo or aliased call through the dispatcher.
-  if (!KNOWN_TOOLS.has(tool)) {
-    const error = `Tool '${tool}' is not a known tool. Allowed tools: ${[...KNOWN_TOOLS].join(', ')}.`;
+  const manifestEntry = getToolManifest(tool);
+  if (!manifestEntry) {
+    const error = `Tool '${tool}' has no manifest entry. Tools must be registered before dispatch.`;
     console.warn(`[TOOL-DISPATCH] ${error}`);
     recordToolPolicyEvent({
       agentId,
       orgId,
       tool,
-      verdict: 'rejected_unknown',
+      verdict: 'rejected_unmanifested',
       reason: error,
     });
-    return { tool, success: false, result: null, error, code: 'UNKNOWN_TOOL' };
+    return { tool, success: false, result: null, error, code: 'UNMANIFESTED_TOOL' };
+  }
+
+  if (!isDispatchableTool(tool)) {
+    const error = `Tool '${tool}' is registered but does not have an executable dispatcher handler.`;
+    console.warn(`[TOOL-DISPATCH] ${error}`);
+    recordToolPolicyEvent({
+      agentId,
+      orgId,
+      tool,
+      verdict: 'rejected_not_dispatchable',
+      reason: error,
+    });
+    return { tool, success: false, result: null, error, code: 'TOOL_NOT_DISPATCHABLE' };
   }
 
   const policy = enforceAgentToolPolicy(agentId, tool);
@@ -250,7 +269,7 @@ async function routeTool({
 
     default:
       throw Object.assign(
-        new Error(`Unknown tool '${tool}'. Supported tools: ${[...KNOWN_TOOLS].join(', ')}.`),
+        new Error(`Unknown tool '${tool}'. Supported tools: ${[...DISPATCHABLE_TOOLS].join(', ')}.`),
         { code: 'UNKNOWN_TOOL' },
       );
   }

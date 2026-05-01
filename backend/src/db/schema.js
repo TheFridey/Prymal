@@ -1156,6 +1156,30 @@ export const workflowCatalogueVersions = pgTable(
   }),
 );
 
+export const workflowRiskConfirmations = pgTable(
+  'workflow_risk_confirmation',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull().references(() => organisations.id, { onDelete: 'cascade' }),
+    userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+    workflowId: uuid('workflow_id').notNull().references(() => workflows.id, { onDelete: 'cascade' }),
+    workflowRunId: uuid('workflow_run_id'),
+    wardenAuditId: uuid('warden_audit_id'),
+    riskSummary: jsonb('risk_summary').notNull().default(sql`'{}'::jsonb`),
+    status: text('status').notNull().default('pending'),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+  },
+  (table) => ({
+    orgIdx: index('workflow_risk_confirmation_org_idx').on(table.orgId),
+    workflowIdx: index('workflow_risk_confirmation_workflow_idx').on(table.workflowId),
+    statusIdx: index('workflow_risk_confirmation_status_idx').on(table.status),
+    expiresIdx: index('workflow_risk_confirmation_expires_idx').on(table.expiresAt),
+  }),
+);
+
 export const workflowRuns = pgTable(
   'workflow_runs',
   {

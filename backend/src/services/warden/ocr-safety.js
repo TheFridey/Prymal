@@ -1,3 +1,21 @@
+import {
+  buildOcrAuditMetadata,
+  buildOcrProvider,
+  getOcrConfig,
+  isOcrProviderActive,
+  OCR_PROVIDER_NAMES,
+  runProviderOcr,
+} from './ocr-providers/index.js';
+
+export {
+  buildOcrAuditMetadata,
+  buildOcrProvider,
+  getOcrConfig,
+  isOcrProviderActive,
+  OCR_PROVIDER_NAMES,
+  runProviderOcr,
+};
+
 export async function extractSafetyTextFromImages(images = [], options = {}) {
   const normalizedImages = Array.isArray(images) ? images : [];
   const sources = [];
@@ -12,11 +30,34 @@ export async function extractSafetyTextFromImages(images = [], options = {}) {
     collectNestedMetadataText({ image, index, sources, textParts });
   }
 
+  let providerSummary = null;
+  const config = options.ocrConfig ?? getOcrConfig();
+  const provider = options.ocrProvider ?? (isOcrProviderActive(config) ? buildOcrProvider({ config }) : null);
+
+  if (provider) {
+    providerSummary = await runProviderOcr({ images: normalizedImages, provider, config });
+    for (const result of providerSummary.results) {
+      const safeText = String(result.text ?? '').trim();
+      if (!safeText) continue;
+      sources.push({
+        index: result.index,
+        source: 'provider_ocr',
+        length: safeText.length,
+        provider: providerSummary.provider,
+        fromCache: Boolean(result.fromCache),
+        textHash: result.textHash,
+      });
+      textParts.push(`[image:${result.index}:provider_ocr]\n${safeText}`);
+    }
+  }
+
   return {
     text: textParts.join('\n\n'),
     sources,
-    ocrAvailable: Boolean(options.ocrProvider),
-    provider: options.ocrProvider ?? null,
+    ocrAvailable: Boolean(provider),
+    provider: provider?.name ?? options.providerName ?? null,
+    providerSummary,
+    auditMetadata: buildOcrAuditMetadata(providerSummary),
   };
 }
 
