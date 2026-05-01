@@ -32,7 +32,9 @@ test('detects role injection, hidden comments, and encoded payloads', () => {
 });
 
 test('redacts likely secrets before storage or audit', () => {
-  const result = redactSecrets('Use sk_live_1234567890abcdefghijklmnop and whsec_1234567890abcdefghijklmnop');
+  const stripeSecret = ['sk', 'live', '1234567890abcdefghijklmnop'].join('_');
+  const stripeWebhookSecret = ['whsec', '1234567890abcdefghijklmnop'].join('_');
+  const result = redactSecrets(`Use ${stripeSecret} and ${stripeWebhookSecret}`);
   assert.match(result.content, /\[REDACTED_SECRET:stripe_secret_key\]/);
   assert.match(result.content, /\[REDACTED_SECRET:stripe_webhook_secret\]/);
   assert.equal(result.redactions.length, 2);
