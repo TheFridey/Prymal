@@ -79,6 +79,20 @@ function ChurnSignalCard({ orgName, plan, riskLevel, signals }) {
   );
 }
 
+function formatCompactDate(value) {
+  if (!value) return '-';
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(value));
+  } catch {
+    return '-';
+  }
+}
+
 export function GrowthTab({ query }) {
   const data = query?.data ?? {};
 
@@ -112,6 +126,7 @@ export function GrowthTab({ query }) {
     inactivityAlerts = [],
     cohortRetention = [],
     featureAdoptionByPlan = [],
+    betaActivation = {},
   } = data?.growth ?? {};
 
   const {
@@ -145,6 +160,8 @@ export function GrowthTab({ query }) {
   } = loreUsage;
 
   const totalAgentRuns = agentUsage.reduce((sum, entry) => sum + (entry.runs ?? 0), 0);
+  const betaSummaryCards = betaActivation.summaryCards ?? [];
+  const betaUsers = betaActivation.users ?? [];
 
   return (
     <>
@@ -170,6 +187,77 @@ export function GrowthTab({ query }) {
           <small>{formatNumber(workflowsActivated)} of {formatNumber(workflowsCreated)} workflows live</small>
         </MotionListItem>
       </MotionList>
+
+      <MotionSection className="staff-admin__surface" reveal={{ y: 18 }}>
+        <div className="staff-admin__surface-head">
+          <div>
+            <div className="staff-admin__surface-label">Beta activation</div>
+            <h2>First 10 user first-win path</h2>
+            <p className="staff-admin__surface-meta">Tenant-scoped product events only. No raw prompts or unsafe content.</p>
+          </div>
+        </div>
+
+        <div className="staff-admin__runtime-summary-grid">
+          {betaSummaryCards.map((card) => {
+              const isRateCard = ['Activation rate', 'First useful output rate', 'LORE adoption', 'Workflow adoption', 'Media adoption'].includes(card.label);
+              return (
+                <div key={card.label} className="staff-admin__runtime-summary-card">
+                  <div className="staff-admin__surface-label">{card.label}</div>
+                  <strong>
+                    {isRateCard ? `${Math.round((card.value ?? 0) * 100)}%` : formatNumber(card.count ?? card.value ?? 0)}
+                  </strong>
+                  <span className="staff-admin__surface-meta">
+                    {isRateCard && card.total ? `${formatNumber(card.count ?? 0)} of ${formatNumber(card.total)}` : `${formatNumber(card.count ?? 0)} events`}
+                  </span>
+                </div>
+              );
+            })}
+        </div>
+
+        {betaUsers.length > 0 ? (
+          <div className="staff-admin__table-wrap" style={{ marginTop: '14px', overflowX: 'auto' }}>
+            <table className="staff-admin__table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Outcome</th>
+                  <th>Prompt</th>
+                  <th>Output</th>
+                  <th>LORE</th>
+                  <th>Workflow</th>
+                  <th>Run</th>
+                  <th>WARDEN</th>
+                  <th>Credits</th>
+                  <th>Media</th>
+                  <th>Last active</th>
+                </tr>
+              </thead>
+              <tbody>
+                {betaUsers.map((user) => (
+                  <tr key={user.userId}>
+                    <td>
+                      <strong>{user.email}</strong>
+                      <div className="staff-admin__surface-meta">{formatCompactDate(user.signedUpAt)}</div>
+                    </td>
+                    <td>{user.selectedOutcome ?? '-'}</td>
+                    <td>{formatCompactDate(user.firstPromptSubmittedAt)}</td>
+                    <td>{formatCompactDate(user.firstOutputCompletedAt)}</td>
+                    <td>{formatCompactDate(user.loreSourceAddedAt)}</td>
+                    <td>{formatCompactDate(user.workflowDraftCreatedAt)}</td>
+                    <td>{formatCompactDate(user.firstWorkflowRunAt)}</td>
+                    <td>{formatNumber(user.wardenBlockCount ?? 0)}</td>
+                    <td>{formatNumber(user.creditBlockCount ?? 0)}</td>
+                    <td>{formatNumber(user.mediaAttempts ?? 0)}</td>
+                    <td>{formatCompactDate(user.lastActiveAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="staff-admin__empty">No beta-user activation events captured yet.</div>
+        )}
+      </MotionSection>
 
       <div className="staff-admin__overview-grid">
         <MotionSection className="staff-admin__surface" reveal={{ y: 18 }}>

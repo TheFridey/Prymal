@@ -9,6 +9,8 @@ export function buildGrowthSnapshot({
   workflowRuns = [],
   documents = [],
   apiKeys = [],
+  wardenEvents = [],
+  videoEvents = [],
   now = new Date(),
 }) {
   const since7 = daysAgo(now, 7);
@@ -146,6 +148,15 @@ export function buildGrowthSnapshot({
     docsByOrg30,
     apiKeys,
   });
+  const betaActivation = buildBetaActivationSummary({
+    users,
+    events,
+    documents,
+    workflows,
+    workflowRuns,
+    wardenEvents,
+    videoEvents,
+  });
 
   return {
     activationFunnel,
@@ -159,6 +170,7 @@ export function buildGrowthSnapshot({
     inactivityAlerts,
     cohortRetention,
     featureAdoptionByPlan,
+    betaActivation,
   };
 }
 
@@ -436,6 +448,94 @@ function buildFeatureAdoptionByPlan({
       };
     })
     .filter(Boolean);
+}
+
+function buildBetaActivationSummary({
+  users,
+  events,
+  documents,
+  workflows,
+  workflowRuns,
+  wardenEvents,
+  videoEvents,
+}) {
+  const betaUsers = [...users]
+    .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime())
+    .slice(0, 10);
+  const total = betaUsers.length;
+  const eventNames = {
+    outcome: 'first_run_outcome_selected',
+    prompt: 'first_win_prompt_submitted',
+    output: 'first_useful_output_candidate',
+    workflowDraft: 'workflow_draft_created_from_chat',
+    creditBlock: 'credit_block_seen',
+  };
+
+  const rows = betaUsers.map((user) => {
+    const userEvents = events
+      .filter((event) => event.userId === user.id)
+      .sort((left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime());
+    const orgEvents = events.filter((event) => event.orgId === user.orgId);
+    const first = (name) => userEvents.find((event) => event.eventName === name) ?? null;
+    const byCreatedAsc = (left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+    const userDocs = documents.filter((document) => document.uploadedBy === user.id || document.orgId === user.orgId).sort(byCreatedAsc);
+    const userWorkflows = workflows.filter((workflow) => workflow.createdBy === user.id || workflow.orgId === user.orgId).sort(byCreatedAsc);
+    const userWorkflowRuns = workflowRuns.filter((run) => run.triggeredBy === user.id || run.orgId === user.orgId).sort(byCreatedAsc);
+    const userWarden = wardenEvents.filter((event) => event.userId === user.id || event.orgId === user.orgId);
+    const userVideos = videoEvents.filter((event) => event.userId === user.id || event.orgId === user.orgId);
+    const latestActivity = [
+      user.lastSeenAt,
+      ...userEvents.map((event) => event.createdAt),
+      ...userWorkflowRuns.map((run) => run.createdAt),
+      ...userDocs.map((document) => document.createdAt),
+      ...userVideos.map((event) => event.createdAt),
+    ]
+      .filter(Boolean)
+      .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0] ?? null;
+    const selectedOutcome = first(eventNames.outcome)?.metadata?.outcome_id
+      ?? first(eventNames.outcome)?.metadata?.outcomeId
+      ?? null;
+
+    return {
+      userId: user.id,
+      email: user.email,
+      orgId: user.orgId,
+      signedUpAt: user.createdAt,
+      selectedOutcome,
+      firstPromptSubmittedAt: first(eventNames.prompt)?.createdAt ?? null,
+      firstOutputCompletedAt: first(eventNames.output)?.createdAt ?? first('first_agent_response_completed')?.createdAt ?? null,
+      loreSourceAddedAt: first('first_lore_source_added')?.createdAt ?? userDocs[0]?.createdAt ?? null,
+      workflowDraftCreatedAt: first(eventNames.workflowDraft)?.createdAt ?? userWorkflows[0]?.createdAt ?? null,
+      firstWorkflowRunAt: userWorkflowRuns[0]?.createdAt ?? null,
+      wardenBlockCount: userWarden.filter((event) => event.verdict === 'block').length
+        + orgEvents.filter((event) => event.eventName === 'warden_block_user_seen').length,
+      creditBlockCount: userEvents.filter((event) => event.eventName === eventNames.creditBlock).length,
+      mediaAttempts: userEvents.filter((event) => event.eventName === 'media_generation_started').length + userVideos.length,
+      lastActiveAt: latestActivity,
+    };
+  });
+
+  const countRows = (predicate) => rows.filter(predicate).length;
+  const activationCount = countRows((row) => Boolean(row.selectedOutcome));
+  const firstOutputCount = countRows((row) => Boolean(row.firstOutputCompletedAt));
+  const loreCount = countRows((row) => Boolean(row.loreSourceAddedAt));
+  const workflowCount = countRows((row) => Boolean(row.workflowDraftCreatedAt || row.firstWorkflowRunAt));
+  const mediaCount = countRows((row) => row.mediaAttempts > 0);
+  const safetyCount = rows.reduce((sum, row) => sum + row.wardenBlockCount, 0);
+  const creditCount = rows.reduce((sum, row) => sum + row.creditBlockCount, 0);
+
+  return {
+    summaryCards: [
+      { label: 'Activation rate', value: safeShare(activationCount, total), count: activationCount, total },
+      { label: 'First useful output rate', value: safeShare(firstOutputCount, total), count: firstOutputCount, total },
+      { label: 'LORE adoption', value: safeShare(loreCount, total), count: loreCount, total },
+      { label: 'Workflow adoption', value: safeShare(workflowCount, total), count: workflowCount, total },
+      { label: 'Media adoption', value: safeShare(mediaCount, total), count: mediaCount, total },
+      { label: 'Safety friction', value: safetyCount, count: safetyCount, total },
+      { label: 'Credit friction', value: creditCount, count: creditCount, total },
+    ],
+    users: rows,
+  };
 }
 
 function hasActivityInWeek(orgId, createdAt, weekOffset, { events, traces, workflowRuns }) {

@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { getRecommendedAgentsForWorkspaceProfile } from '../lib/constants';
+import { FIRST_RUN_OUTCOMES } from '../lib/first-run-outcomes';
+import { trackProductEvent } from '../lib/product-events';
 import { getRecommendedWorkflowTemplateForProfile } from '../lib/workflow-templates';
 import { getErrorMessage } from '../lib/utils';
 import { BrandMark, Button, InlineNotice, TextInput, ThemeToggle } from '../components/ui';
@@ -93,6 +95,7 @@ export default function Onboarding() {
   const [primaryGoal, setPrimaryGoal] = useState(PRIMARY_GOALS[0]);
   const [workspaceFocus, setWorkspaceFocus] = useState('agency');
   const [startMode, setStartMode] = useState(initialStart.startMode);
+  const [firstRunOutcomeId, setFirstRunOutcomeId] = useState('create_content');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const notify = useAppStore((state) => state.addNotification);
@@ -126,6 +129,12 @@ export default function Onboarding() {
       sessionStorage.removeItem('prymal_start_intent');
       sessionStorage.removeItem('prymal_start_redirect');
       await queryClient.invalidateQueries({ queryKey: ['viewer'] });
+      const selectedOutcome = FIRST_RUN_OUTCOMES.find((outcome) => outcome.id === firstRunOutcomeId) ?? FIRST_RUN_OUTCOMES[0];
+      void trackProductEvent('first_run_outcome_selected', {
+        outcome_id: selectedOutcome.id,
+        recommended_agent_id: selectedOutcome.recommendedAgentId,
+        surface: 'onboarding',
+      });
       notify({
         type: 'success',
         title: inviteToken ? 'Workspace joined' : 'Workspace ready',
@@ -151,6 +160,7 @@ export default function Onboarding() {
           recommendedAgentIds: recommendedAgents.map((agent) => agent.id),
           recommendedFirstAgentId,
           recommendedWorkflowName: recommendedWorkflow?.name ?? 'Weekly Client Report',
+          firstRunOutcomeId: selectedOutcome.id,
         },
       });
     },
@@ -273,6 +283,30 @@ export default function Onboarding() {
                     <option key={option} value={option}>{option}</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="pm-onboarding__summary">
+                <div>
+                  <div className="pm-onboarding__summary-title">What do you want to do first?</div>
+                  <div className="pm-onboarding__summary-body">
+                    Pick the outcome. Prymal will choose the specialist and guided prompt after setup.
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gap: '10px' }}>
+                  {FIRST_RUN_OUTCOMES.map((outcome) => (
+                    <button
+                      key={outcome.id}
+                      type="button"
+                      onClick={() => setFirstRunOutcomeId(outcome.id)}
+                      className={`pm-onboarding__option${firstRunOutcomeId === outcome.id ? ' pm-onboarding__option--selected' : ''}`}
+                    >
+                      <div className="pm-onboarding__option-label">{outcome.title}</div>
+                      <div className="pm-onboarding__option-desc">
+                        {outcome.plainOutcome} Recommended: {outcome.recommendedAgentId.toUpperCase()} | {outcome.creditIntensity} cost | {outcome.timeToResult}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <InlineNotice tone="default">

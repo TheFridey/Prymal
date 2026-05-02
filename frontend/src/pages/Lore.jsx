@@ -1,20 +1,26 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { LORE_STATUS_META } from '../lib/constants';
 import { formatDateTime, formatNumber, getErrorMessage, truncate } from '../lib/utils';
 import { Button, EmptyState, InlineNotice, PageHeader, PageShell, SectionLabel, StatGrid, StatusPill, SurfaceCard, TextArea, TextInput } from '../components/ui';
 import { useAppStore } from '../stores/useAppStore';
+import { trackProductEvent } from '../lib/product-events';
+import { FIRST_WIN_STATES, writeFirstWinState } from '../lib/first-run-outcomes';
 
 export default function Lore() {
   const notify = useAppStore((state) => state.addNotification);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const fileInputRef = useRef(null);
   const [tab, setTab] = useState('documents');
   const [searchValue, setSearchValue] = useState('');
   const [searchResult, setSearchResult] = useState(null);
   const [urlValue, setUrlValue] = useState('');
   const [textDraft, setTextDraft] = useState({ title: '', content: '' });
+  const isBusinessKnowledgeRoute = searchParams.get('outcome') === 'business_knowledge';
 
   const loreQuery = useQuery({
     queryKey: ['lore-documents'],
@@ -30,6 +36,7 @@ export default function Lore() {
     onSuccess: async (result) => {
       setTextDraft({ title: '', content: '' });
       await queryClient.invalidateQueries({ queryKey: ['lore-documents'] });
+      handleFirstLoreSourceAdded('manual');
       notify({
         type: 'success',
         title: 'Knowledge queued',
@@ -49,6 +56,7 @@ export default function Lore() {
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ['lore-documents'] });
+      handleFirstLoreSourceAdded('file');
       notify({
         type: 'success',
         title: 'File queued',
@@ -65,6 +73,7 @@ export default function Lore() {
     onSuccess: async () => {
       setUrlValue('');
       await queryClient.invalidateQueries({ queryKey: ['lore-documents'] });
+      handleFirstLoreSourceAdded('url');
       notify({ type: 'success', title: 'URL queued', message: 'The page is being fetched and indexed.' });
     },
     onError: (error) => {
@@ -98,6 +107,17 @@ export default function Lore() {
   const acceptedUploads = loreQuery.data?.acceptedUploads ?? '.txt,.md,.markdown,.csv,.pdf,.docx';
   const indexedCount = documents.filter((document) => document.status === 'indexed').length;
 
+  useEffect(() => {
+    if (!isBusinessKnowledgeRoute || loreQuery.isLoading || documents.length > 0) {
+      return;
+    }
+    setTab('add');
+    void trackProductEvent('lore_empty_state_seen', {
+      outcome_id: 'business_knowledge',
+      surface: 'lore',
+    });
+  }, [documents.length, isBusinessKnowledgeRoute, loreQuery.isLoading]);
+
   const stats = useMemo(
     () => [
       { label: 'Documents', value: formatNumber(documents.length), helper: 'Stored in this organisation', accent: '#C77DFF' },
@@ -120,6 +140,23 @@ export default function Lore() {
     }
   }
 
+  function handleFirstLoreSourceAdded(sourceType) {
+    writeFirstWinState('local', {
+      state: FIRST_WIN_STATES.LORE_SOURCE_ADDED,
+      outcomeId: 'business_knowledge',
+      sourceType,
+    });
+    void trackProductEvent('first_lore_source_added', {
+      source_type: sourceType,
+      outcome_id: isBusinessKnowledgeRoute ? 'business_knowledge' : undefined,
+    });
+    if (isBusinessKnowledgeRoute) {
+      setTimeout(() => {
+        navigate('/app/agents/lore?new=1&outcome=business_knowledge&composer=1');
+      }, 350);
+    }
+  }
+
   return (
     <PageShell>
       <PageHeader
@@ -130,6 +167,22 @@ export default function Lore() {
       />
 
       <StatGrid items={stats} />
+
+      {isBusinessKnowledgeRoute && documents.length === 0 ? (
+        <SurfaceCard title="Add your first business document" subtitle="Then ask LORE a source-backed question" accent="#C77DFF" style={{ marginBottom: '14px' }}>
+          <div style={{ display: 'grid', gap: '10px' }}>
+            <InlineNotice tone="default">
+              Paste text, upload a supported file, or add a URL. LORE will use your business knowledge to ground the first answer instead of guessing from generic chat context.
+            </InlineNotice>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <Button tone="accent" onClick={() => setTab('add')}>Add knowledge</Button>
+              <Button tone="ghost" onClick={() => navigate('/app/agents/lore?new=1&outcome=business_knowledge&composer=1')}>
+                Ask without sources
+              </Button>
+            </div>
+          </div>
+        </SurfaceCard>
+      ) : null}
 
       <SurfaceCard accent="#C77DFF" style={{ marginBottom: '14px' }}>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

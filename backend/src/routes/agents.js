@@ -519,6 +519,17 @@ router.post('/chat', requireOrg, planAwareRateLimit({
                 outputType: 'chat_response',
               },
             }),
+            recordProductEvent({
+              orgId: org.orgId,
+              userId: org.userId,
+              eventName: 'first_useful_output_candidate',
+              metadata: {
+                agentId: payload.agentId,
+                conversationId: conversation.id,
+                messageId: savedMessage.id,
+                outputType: 'chat_response',
+              },
+            }),
           ]);
 
           await recordProductEventOnce({
@@ -542,6 +553,19 @@ router.post('/chat', requireOrg, planAwareRateLimit({
           }
 
           const sourceTotal = Array.isArray(event.sources) ? event.sources.length : 0;
+          if (sourceTotal > 0) {
+            await recordProductEvent({
+              orgId: org.orgId,
+              userId: org.userId,
+              eventName: 'lore_source_used_in_response',
+              metadata: {
+                agentId: payload.agentId,
+                conversationId: conversation.id,
+                messageId: savedMessage.id,
+                sourceCount: sourceTotal,
+              },
+            });
+          }
           if (payload.agentId === 'lore' && payload.useLore !== false && sourceTotal > 0) {
             await recordProductEventOnce({
               orgId: org.orgId,

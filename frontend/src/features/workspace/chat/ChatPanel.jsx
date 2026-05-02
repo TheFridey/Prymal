@@ -8,8 +8,9 @@ import { useState } from 'react';
 import { Button, EmptyState, InlineNotice } from '../../../components/ui';
 import { MotionPresence, MotionSection, motion } from '../../../components/motion';
 import { StudioMessage } from './renderers';
+import { getAgentMeta } from '../../../lib/constants';
 
-function SentinelHoldBlock({ holdData, onRequestReview }) {
+function SentinelHoldBlock({ holdData, onRequestReview, onEditRequest, onCancel }) {
   const [requested, setRequested] = useState(false);
   const concerns = holdData?.concerns ?? [];
   const repairActions = holdData?.repairActions ?? [];
@@ -33,10 +34,10 @@ function SentinelHoldBlock({ holdData, onRequestReview }) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF3B6B" strokeWidth="2" style={{ flexShrink: 0 }}>
           <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
-        <strong style={{ color: '#FF3B6B', fontSize: '14px' }}>Internal QA hold</strong>
+        <strong style={{ color: '#FF3B6B', fontSize: '14px' }}>SENTINEL paused this output</strong>
       </div>
       <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '0 0 10px', lineHeight: 1.65 }}>
-        {holdData?.message ?? 'SENTINEL held this response until it clears review. Narrow the request, add clearer source material, or refine intent — then retry or request operator review.'}
+        {holdData?.message ?? 'SENTINEL paused this output because it may need evidence, repair, or review before it is safe to deliver. You can edit the request, add clearer source material, or request review.'}
       </p>
       {concerns.length > 0 ? (
         <ul style={{ margin: '0 0 10px', paddingLeft: '18px', color: 'var(--muted)', fontSize: '13px' }}>
@@ -48,13 +49,21 @@ function SentinelHoldBlock({ holdData, onRequestReview }) {
           Suggested: {repairActions[0]}
         </p>
       ) : null}
-      <Button
-        tone="ghost"
-        onClick={handleRequest}
-        disabled={requested}
-      >
-        {requested ? 'Review requested' : 'Request review'}
-      </Button>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <Button tone="ghost" onClick={onEditRequest}>
+          Edit request
+        </Button>
+        <Button
+          tone="ghost"
+          onClick={handleRequest}
+          disabled={requested}
+        >
+          {requested ? 'Review requested' : 'Request review'}
+        </Button>
+        <Button tone="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 }
@@ -94,6 +103,7 @@ function AgentErrorBlock({ errorData, onRetry }) {
 export default function ChatPanel({
   // Agent
   activeAgent,
+  firstRunOutcome = null,
 
   // Messages
   messages,
@@ -123,12 +133,43 @@ export default function ChatPanel({
   onRequestReview,
   onDismissFirstRunHint,
   onHandoff,
+  onChangeRecommendedAgent,
 
   conversationId = '',
   onInsertDraft = () => {},
 }) {
+  const showOutcomeBanner = Boolean(firstRunOutcome);
+  const alternateAgents = (firstRunOutcome?.alternateAgentIds ?? [])
+    .map((agentId) => getAgentMeta(agentId))
+    .filter(Boolean);
+
   return (
     <>
+      {showOutcomeBanner ? (
+        <MotionSection className="workspace-studio__first-run-hint" reveal={{ y: 14, blur: 6 }}>
+          <div>
+            <strong>Recommended path: {firstRunOutcome.title} {'->'} {firstRunOutcome.recommendedAgentId.toUpperCase()}</strong>
+            <span>
+              Using {activeAgent.name} because {(firstRunOutcome.recommendationReason ?? 'this agent is the best fit for the outcome.').replace(/^[A-Z]+ is best at /, 'it is best at ')}
+            </span>
+          </div>
+          {alternateAgents.length > 0 ? (
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {alternateAgents.slice(0, 2).map((agent) => (
+                <button
+                  key={agent.id}
+                  type="button"
+                  onClick={() => onChangeRecommendedAgent?.(agent.id)}
+                  title={`Change agent to ${agent.name}`}
+                >
+                  {agent.name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </MotionSection>
+      ) : null}
+
       {activeAgent.id === 'oracle' ? (
         <div className="workspace-studio__url-audit-bar">
           <input
@@ -200,6 +241,8 @@ export default function ChatPanel({
                     <SentinelHoldBlock
                       holdData={message.holdData}
                       onRequestReview={onRequestReview}
+                      onEditRequest={() => onSetDraft('Please revise my last request so it can be answered safely with clear evidence and no unsupported claims.')}
+                      onCancel={() => onSetDraft('')}
                     />
                   </motion.div>
                 ) : message._error ? (

@@ -16,6 +16,7 @@ import {
   shouldConfirmVideoRender,
 } from './media-generation';
 import { convertImageFileToWebpPayload } from './imageUpload';
+import { trackProductEvent } from '../../../lib/product-events';
 
 const MAX_REFERENCE_IMAGES = 3;
 const MAX_REFERENCE_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -93,6 +94,16 @@ export default function MediaGenerationModal({
       { label: 'References', value: String(draft.referenceImages?.length ?? 0) },
     ]
     : [];
+
+  useEffect(() => {
+    void trackProductEvent('media_estimate_seen', {
+      media_type: isVideo ? 'video' : 'image',
+      mode: isVideo ? draft.mode : undefined,
+      estimated_credits: estimatedCredits,
+      duration_seconds: isVideo ? draft.durationSeconds : undefined,
+      resolution: isVideo ? draft.resolution : undefined,
+    });
+  }, [draft.durationSeconds, draft.mode, draft.resolution, estimatedCredits, isVideo]);
 
   function updateDraft(patch) {
     setDraft((current) => ({ ...current, ...patch }));
@@ -263,7 +274,9 @@ export default function MediaGenerationModal({
                       : 'Lite is best for quick drafts and simple promos. Lower credit burn.'}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                      <strong style={{ fontSize: '14px' }}>{mode.label}</strong>
+                      <strong style={{ fontSize: '14px' }}>
+                        {mode.id === 'standard' ? 'Cinematic' : 'Fast draft'} · {mode.label}
+                      </strong>
                       <span
                         style={{
                           fontSize: '11px',
@@ -397,7 +410,7 @@ export default function MediaGenerationModal({
           {isVideo ? (
             <div style={{ display: 'grid', gap: '12px' }}>
               <InlineNotice tone="default">
-                {videoMode.description} Google&apos;s current Veo API still limits one-shot renders to 4, 6, or 8 seconds.
+                {videoMode.description} Google&apos;s current Veo API still limits one-shot renders to 4, 6, or 8 seconds. Outputs may vary, so treat the first render as a draft you can refine.
               </InlineNotice>
               {draft.mode === 'standard' ? (
                 <InlineNotice tone="default">

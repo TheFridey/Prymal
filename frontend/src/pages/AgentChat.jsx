@@ -8,6 +8,8 @@ export default function AgentChat() {
   const initialDraft = searchParams.get('draft')?.trim() || '';
   const forceNewChat = searchParams.get('new') === '1';
   const initialPowerupSlug = searchParams.get('powerup')?.trim() || '';
+  const initialOutcomeId = searchParams.get('outcome')?.trim() || '';
+  const showFirstWinComposer = searchParams.get('composer') === '1';
   const initialConversationId = searchParams.get('cid')?.trim()
     || searchParams.get('conversation')?.trim()
     || '';
@@ -20,6 +22,8 @@ export default function AgentChat() {
       initialDraft={initialDraft}
       forceNewChat={forceNewChat}
       initialPowerupSlug={initialPowerupSlug}
+      initialOutcomeId={initialOutcomeId}
+      showFirstWinComposer={showFirstWinComposer}
       initialConversationId={initialConversationId}
       routeMode
     />

@@ -38,6 +38,18 @@ export default function Workflows() {
   const queryClient = useQueryClient();
   const view = searchParams.get('view') === 'builder' ? 'builder' : 'monitor';
   const selectedTemplate = findWorkflowTemplate(searchParams.get('template'));
+  const chatDraftTemplate = useMemo(() => {
+    if (searchParams.get('draft') !== 'chat' || typeof window === 'undefined') {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(window.sessionStorage.getItem('prymal:workflow-draft') || 'null');
+      return parsed?.slug && Array.isArray(parsed.nodes) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }, [searchParams]);
+  const builderTemplate = selectedTemplate ?? chatDraftTemplate;
 
   const workflowsQuery = useQuery({
     queryKey: ['workflows'],
@@ -72,6 +84,7 @@ export default function Workflows() {
     const next = new URLSearchParams(searchParams);
     next.delete('view');
     next.delete('template');
+    next.delete('draft');
     setSearchParams(next, { replace: true });
   };
 
@@ -207,8 +220,13 @@ export default function Workflows() {
 
       {view === 'builder' ? (
         <SurfaceCard title="Visual workflow builder" subtitle="Drag agents, connect steps, save" accent="#F72585">
+          {chatDraftTemplate ? (
+            <InlineNotice tone="default">
+              Draft loaded from chat. Review each step, then save it as an inactive workflow when the blueprint feels right.
+            </InlineNotice>
+          ) : null}
           <Suspense fallback={<LoadingPanel label="Loading workflow builder..." />}>
-            <WorkflowBuilder key={selectedTemplate?.slug ?? 'blank-builder'} initialTemplate={selectedTemplate} onClose={openMonitor} />
+            <WorkflowBuilder key={builderTemplate?.slug ?? 'blank-builder'} initialTemplate={builderTemplate} onClose={openMonitor} />
           </Suspense>
         </SurfaceCard>
       ) : null}

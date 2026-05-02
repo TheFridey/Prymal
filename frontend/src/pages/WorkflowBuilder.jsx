@@ -702,13 +702,13 @@ export default function WorkflowBuilder({ onClose, initialTemplate = null }) {
       ]);
 
       setSaveFeedback({
-        message: 'Your workflow was validated and added to the workspace.',
+        message: 'Your workflow was validated and saved inactive. Turn it on when you are ready to run it.',
         showWebhookTip: triggerType !== 'webhook',
       });
       notify({
         type: 'success',
         title: 'Workflow saved',
-        message: 'Your workflow was validated and added to the workspace.',
+        message: 'Your workflow was validated and saved inactive until you enable it.',
       });
     },
     onError: (error) => {

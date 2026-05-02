@@ -19,10 +19,15 @@ import MessageInput from './MessageInput';
 import ChatSettingsModal from './ChatSettingsModal';
 import MediaGenerationModal from './MediaGenerationModal';
 import { VideoPackPaywallModal } from '../billing/VideoPackPaywallModal';
+import FirstWinPromptComposer from '../first-win/FirstWinPromptComposer';
 import { useAgentStripDrag } from './hooks/useAgentStripDrag';
 import { useConversationManager, DEFAULT_CHAT_SETTINGS } from './hooks/useConversationManager';
 import { useChatSend } from './hooks/useChatSend';
 import { useVoiceInput } from './hooks/useVoiceInput';
+import {
+  getFirstRunOutcome,
+  getStarterPromptsForOutcome,
+} from '../../../lib/first-run-outcomes';
 
 const FIRST_USER_PROMPTS = [
   'Create a 7-day content plan for my business · add your offer in the next message.',
@@ -38,6 +43,8 @@ export default function WorkspaceChatExperience({
   initialDraft = '',
   forceNewChat = false,
   initialPowerupSlug = '',
+  initialOutcomeId = '',
+  showFirstWinComposer = false,
   initialConversationId = '',
   routeMode = false,
   panelSwitcher = null,
@@ -67,6 +74,7 @@ export default function WorkspaceChatExperience({
   const [showFirstRunHint, setShowFirstRunHint] = useState(false);
   const [mediaComposer, setMediaComposer] = useState(null);
   const [videoPaywallOpen, setVideoPaywallOpen] = useState(false);
+  const [firstWinComposerOpen, setFirstWinComposerOpen] = useState(Boolean(showFirstWinComposer && initialOutcomeId));
 
   useEffect(() => { draftRef.current = draft; }, [draft]);
 
@@ -89,6 +97,12 @@ export default function WorkspaceChatExperience({
   }, [initialAgentId]);
 
   useEffect(() => {
+    if (showFirstWinComposer && initialOutcomeId) {
+      setFirstWinComposerOpen(true);
+    }
+  }, [initialOutcomeId, showFirstWinComposer]);
+
+  useEffect(() => {
     if (!unlockedAgents.some((a) => a.id === activeAgentId) && unlockedAgents[0]) {
       setActiveAgentId(unlockedAgents[0].id);
     }
@@ -96,6 +110,7 @@ export default function WorkspaceChatExperience({
 
   const activeAgent = unlockedAgents.find((a) => a.id === activeAgentId) ?? unlockedAgents[0] ?? null;
   const storageSuffix = viewer?.user?.id ?? 'local';
+  const firstRunOutcome = useMemo(() => getFirstRunOutcome(initialOutcomeId), [initialOutcomeId]);
   const agentPromptCards = useMemo(() => activeAgent?.prompts?.slice(0, 4) ?? [], [activeAgent]);
   const powerCards = activeAgent?.focusAreas?.slice(0, 2) ?? [];
   const firstRunHintStorageKey = `${FIRST_RUN_HINT_STORAGE_KEY}:${storageSuffix}`;
@@ -125,6 +140,8 @@ export default function WorkspaceChatExperience({
     setDraft,
     fileInputRef,
     onVideoCreditsBlocked: () => setVideoPaywallOpen(true),
+    userId: storageSuffix,
+    firstRunOutcomeId: firstRunOutcome?.id ?? '',
   });
 
   const voice = useVoiceInput({
@@ -142,12 +159,15 @@ export default function WorkspaceChatExperience({
     conv.messages.length > 0 || chat.isStreaming || Boolean(chat.streamingText) || !conv.isDraftingNewChat;
 
   const promptCards = useMemo(() => {
+    const outcomePrompts = firstRunOutcome && activeAgent?.id === firstRunOutcome.recommendedAgentId
+      ? getStarterPromptsForOutcome(firstRunOutcome.id)
+      : [];
     const prompts = hasConversationContent
       ? agentPromptCards
-      : [...FIRST_USER_PROMPTS, ...agentPromptCards];
+      : [...outcomePrompts, ...FIRST_USER_PROMPTS, ...agentPromptCards];
 
     return [...new Set(prompts.filter(Boolean))].slice(0, 4);
-  }, [agentPromptCards, hasConversationContent]);
+  }, [activeAgent?.id, agentPromptCards, firstRunOutcome, hasConversationContent]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -534,8 +554,21 @@ export default function WorkspaceChatExperience({
 
           <div className="workspace-studio__main">
             {panelSwitcher}
+            {firstWinComposerOpen && firstRunOutcome && !hasConversationContent ? (
+              <FirstWinPromptComposer
+                outcomeId={firstRunOutcome.id}
+                activeAgent={activeAgent}
+                userId={viewer?.user?.id ?? 'local'}
+                onClose={() => setFirstWinComposerOpen(false)}
+                onConfirm={(prompt) => {
+                  setFirstWinComposerOpen(false);
+                  void chat.handleSend(prompt);
+                }}
+              />
+            ) : null}
             <ChatPanel
               activeAgent={activeAgent}
+              firstRunOutcome={firstRunOutcome}
               messages={conv.messages}
               streamingText={chat.streamingText}
               isStreaming={chat.isStreaming}
@@ -555,6 +588,7 @@ export default function WorkspaceChatExperience({
               onRequestReview={chat.handleRequestReview}
               onDismissFirstRunHint={markFirstRunHintSeen}
               onHandoff={handleHandoff}
+              onChangeRecommendedAgent={(agentId) => handleHandoff(agentId, '')}
               conversationId={conv.currentConversationId ?? ''}
               onInsertDraft={setDraft}
             />

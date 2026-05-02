@@ -20,52 +20,52 @@ export function getChatUsageGateNotify(code) {
   switch (code) {
     case 'EXECUTION_CREDITS_EXHAUSTED':
       return {
-        title: 'Execution credits exhausted',
+        title: 'Execution credits needed',
         message:
-          'This action needs execution capacity. Upgrade for a higher monthly pool, or buy an execution pack for a short burst.',
+          'This action needs more execution credits than are currently available. Add a pack or upgrade when you are ready to continue.',
         action,
       };
     case 'EXECUTION_CONCURRENCY_LIMIT':
       return {
-        title: 'Concurrency limit reached',
+        title: 'Another run is already active',
         message:
-          'Your plan only allows a fixed number of simultaneous runs. Upgrade tiers add parallel capacity and client-scale orchestration.',
+          'Your plan has a set number of simultaneous runs. Wait for the current run to finish, or upgrade for more parallel capacity.',
         action,
       };
     case 'INTERNAL_BURN_CAP_HIGH_COST':
       return {
-        title: 'High-cost workloads',
+        title: 'Higher-capacity action',
         message:
-          'This request would exceed fair-use cost controls for your tier. Use a higher plan, add an execution pack, or narrow context for this run.',
+          'This request is larger than your current plan controls allow. You can narrow the context, add usage, or upgrade for heavier work.',
         action,
       };
     case 'INTERNAL_BURN_CAP_VIDEO':
       return {
-        title: 'Video cost limit',
+        title: 'Video credits needed',
         message:
-          'Premium video is metered separately. Add a Video Pack or upgrade for a higher monthly video allowance.',
+          'AI video uses a separate allowance. Add a Video Pack or use a plan with more video credits before rendering.',
         action,
       };
     case 'FAIR_USE_HIGH_COST_DAILY':
     case 'FAIR_USE_HIGH_COST_MONTHLY':
       return {
-        title: 'Fair-use cost guard',
+        title: 'Plan guardrail is active',
         message:
-          'Daily or monthly internal cost limits for your plan are in effect. Upgrade or add packs, or try again later in the cycle.',
+          'Prymal paused this higher-cost action to keep usage within your plan. Add usage, upgrade, or try again later in the cycle.',
         action,
       };
     case 'FAIR_USE_MEDIA_MONTHLY':
       return {
-        title: 'Heavy media lane',
+        title: 'Media guardrail is active',
         message:
-          'This workload hit media fair-use thresholds. Upgrade, add packs, or reduce media depth for this request.',
+          'This media workload is above the current plan guardrail. Reduce the media depth, add a pack, or upgrade before retrying.',
         action,
       };
     case 'FAIR_USE_RATE_LIMIT':
       return {
-        title: 'Usage temporarily throttled',
+        title: 'Usage is being paced',
         message:
-          'Fair-use pacing slowed this request. Retry shortly, upgrade your plan, or add execution packs from Billing.',
+          'Prymal is pacing requests for your plan. Retry shortly, or add more capacity from Billing.',
         action,
       };
     default:
@@ -79,7 +79,7 @@ export function getChatUsageGateNotify(code) {
 export function getChatUsageGateUserMessage(code) {
   switch (code) {
     case 'EXECUTION_CREDITS_EXHAUSTED':
-      return 'Execution credits are exhausted for this cycle. Open Billing to upgrade or buy a pack.';
+      return 'This action needs execution credits before Prymal can continue. Open Billing to add a pack or upgrade.';
     case 'INTERNAL_BURN_CAP_HIGH_COST':
       return 'This action requires higher plan capacity or fair-use headroom — open Billing to upgrade or add execution usage.';
     case 'INTERNAL_BURN_CAP_VIDEO':
@@ -103,6 +103,30 @@ export function getChatUsageGateUserMessage(code) {
  */
 export function getWorkflowRunBlockedMessage(error) {
   const code = error?.code ?? error?.data?.code;
+  if (code === 'WARDEN_WORKFLOW_CONFIRMATION_REQUIRED') {
+    return {
+      tone: 'warning',
+      body:
+        'This workflow could send, change, delete, publish, bill, or expose information. Confirm the action before Prymal continues.',
+      showBillingLink: false,
+    };
+  }
+  if (code === 'WARDEN_WORKFLOW_BLOCKED') {
+    return {
+      tone: 'warning',
+      body:
+        'Prymal blocked this workflow before it ran because part of the input looked unsafe for tool execution. Edit the workflow or remove the risky input, then try again.',
+      showBillingLink: false,
+    };
+  }
+  if (code === 'WARDEN_WORKFLOW_ADMIN_REQUIRED') {
+    return {
+      tone: 'warning',
+      body:
+        'This workflow touches a high-impact action and needs admin review before it can run.',
+      showBillingLink: false,
+    };
+  }
   if (code === 'EXECUTION_CREDITS_EXHAUSTED') {
     return {
       tone: 'danger',

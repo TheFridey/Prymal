@@ -16,6 +16,9 @@ import AgentMessageFeedback from './AgentMessageFeedback';
 import { buildMessagePresentation } from './messagePresentation';
 import { getAgentHandoffs } from '../../../lib/agentHandoffs';
 import { getAgentMeta } from '../../../lib/constants';
+import { trackProductEvent } from '../../../lib/product-events';
+import { FIRST_WIN_STATES, writeFirstWinState } from '../../../lib/first-run-outcomes';
+import { createWorkflowDraftFromChat, isWorkflowCandidate } from '../../../lib/chat-to-workflow';
 
 function CipherScorecard({ data }) {
   const { summary, keyMetrics, anomalies, recommendations, confidence, dataQuality } = data ?? {};
@@ -529,6 +532,137 @@ function ResearchTrace({ sources }) {
   );
 }
 
+function LoreImpactPanel({ sources, agentId, conversationId }) {
+  const [expanded, setExpanded] = useState(false);
+  const sourceCount = sources.length;
+  const titles = sources
+    .map((source) => source.documentTitle ?? source.title ?? source.sourceUrl ?? source.documentId)
+    .filter(Boolean)
+    .slice(0, 3);
+  const hasTrustSignals = sources.some((source) =>
+    source.confidenceLabel
+    || source.trustLabel
+    || source.freshnessScore != null
+    || source.authorityScore != null
+    || source.staleWarning
+    || (source.contradictionSignals ?? []).length > 0
+  );
+
+  useEffect(() => {
+    if (!sourceCount) return;
+    void trackProductEvent('lore_source_used_in_response', {
+      agent_id: agentId,
+      conversation_id: conversationId || undefined,
+      source_count: sourceCount,
+    });
+  }, [agentId, conversationId, sourceCount]);
+
+  return (
+    <div
+      style={{
+        marginTop: '12px',
+        padding: '12px 14px',
+        borderRadius: '12px',
+        border: '1px solid rgba(199,125,255,0.24)',
+        background: 'rgba(199,125,255,0.07)',
+        display: 'grid',
+        gap: '8px',
+      }}
+    >
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <strong style={{ color: '#C77DFF', fontSize: '13px' }}>Grounded by LORE</strong>
+        <span style={{ color: 'var(--muted)', fontSize: '12px' }}>
+          Used {sourceCount} business source{sourceCount === 1 ? '' : 's'}
+        </span>
+      </div>
+      {titles.length > 0 ? (
+        <div style={{ color: 'var(--muted)', fontSize: '12px', lineHeight: 1.6 }}>
+          This answer used your workspace knowledge: {titles.join(', ')}{sourceCount > titles.length ? ` and ${sourceCount - titles.length} more` : ''}.
+        </div>
+      ) : null}
+      <details open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)}>
+        <summary style={{ cursor: 'pointer', color: 'var(--text-strong)', fontSize: '12px' }}>
+          Why this is better with LORE
+        </summary>
+        <div style={{ marginTop: '8px', color: 'var(--muted)', fontSize: '12px', lineHeight: 1.7 }}>
+          Prymal matched this response to your organisation's own documents, so the answer can use your terminology, policies, offers, and evidence instead of generic chat context.
+          {hasTrustSignals ? ' Trust, freshness, and contradiction signals are shown on the source cards below when available.' : ' Add more source material if you want stronger authority and freshness signals.'}
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function WorkflowFromChatCta({ agentId, content, conversationId }) {
+  const [dismissed, setDismissed] = useState(false);
+  const show = !dismissed && isWorkflowCandidate({ agentId, content });
+
+  useEffect(() => {
+    if (!show) return;
+    void trackProductEvent('workflow_cta_shown', {
+      agent_id: agentId,
+      conversation_id: conversationId || undefined,
+    });
+  }, [agentId, conversationId, show]);
+
+  if (!show) {
+    return null;
+  }
+
+  function handleClick() {
+    const draft = createWorkflowDraftFromChat({ agentId, content });
+    try {
+      window.sessionStorage.setItem('prymal:workflow-draft', JSON.stringify(draft));
+    } catch {
+      // Session storage is optional; the builder can still open blank.
+    }
+    writeFirstWinState('local', {
+      state: FIRST_WIN_STATES.WORKFLOW_DRAFT_CREATED,
+      agentId,
+      conversationId: conversationId || undefined,
+    });
+    void trackProductEvent('workflow_cta_clicked', {
+      agent_id: agentId,
+      conversation_id: conversationId || undefined,
+    });
+    void trackProductEvent('workflow_draft_created_from_chat', {
+      agent_id: agentId,
+      conversation_id: conversationId || undefined,
+      step_count: draft.nodes.length,
+    });
+    window.location.assign('/app/workflows?view=builder&draft=chat');
+  }
+
+  return (
+    <div
+      style={{
+        marginTop: '12px',
+        padding: '12px 14px',
+        borderRadius: '12px',
+        border: '1px dashed rgba(247,37,133,0.34)',
+        background: 'rgba(247,37,133,0.06)',
+        display: 'grid',
+        gap: '8px',
+      }}
+    >
+      <div>
+        <strong style={{ fontSize: '13px', color: 'var(--text-strong)' }}>Turn this into a workflow</strong>
+        <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>
+          Workflows are how Prymal turns one useful result into a repeatable system.
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <button type="button" className="button button--ghost" onClick={handleClick}>
+          Create draft blueprint
+        </button>
+        <button type="button" className="button button--ghost" onClick={() => setDismissed(true)}>
+          Not now
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function StudioMessage({
   message,
   agent,
@@ -651,16 +785,19 @@ export function StudioMessage({
           </div>
         ) : null}
         {sources.length > 0 ? (
-          <MotionList className="workspace-studio__source-row" staggerChildren={0.04}>
-            {sources.map((source, index) => (
-              <MotionListItem
-                key={`${source.documentId ?? source.documentTitle ?? source.sourceUrl ?? 'source'}-${index}`}
-                reveal={{ y: 8, blur: 4 }}
-              >
-                <SourceCard source={source} />
-              </MotionListItem>
-            ))}
-          </MotionList>
+          <>
+            <LoreImpactPanel sources={sources} agentId={agent?.id} conversationId={conversationId} />
+            <MotionList className="workspace-studio__source-row" staggerChildren={0.04}>
+              {sources.map((source, index) => (
+                <MotionListItem
+                  key={`${source.documentId ?? source.documentTitle ?? source.sourceUrl ?? 'source'}-${index}`}
+                  reveal={{ y: 8, blur: 4 }}
+                >
+                  <SourceCard source={source} />
+                </MotionListItem>
+              ))}
+            </MotionList>
+          </>
         ) : null}
         {sources.length === 0 && presentation?.traceSources?.length ? (
           <ResearchTrace sources={presentation.traceSources} />
@@ -672,6 +809,13 @@ export function StudioMessage({
             sourceAgentId={agent?.id}
             messageContent={message.content}
             onHandoff={onHandoff}
+          />
+        ) : null}
+        {!isUser && !streaming ? (
+          <WorkflowFromChatCta
+            agentId={agent?.id}
+            content={message.content}
+            conversationId={conversationId}
           />
         ) : null}
         {!isUser && !streaming && conversationId && message.id ? (

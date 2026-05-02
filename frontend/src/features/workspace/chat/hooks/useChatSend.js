@@ -17,6 +17,8 @@ import {
   getChatUsageGateUserMessage,
   isVideoPaywallCode,
 } from '../../../../lib/usageGateCopy';
+import { trackProductEvent } from '../../../../lib/product-events';
+import { FIRST_WIN_STATES, writeFirstWinState } from '../../../../lib/first-run-outcomes';
 
 const WORKFLOW_RUN_UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -113,6 +115,8 @@ export function useChatSend({
   setDraft,
   fileInputRef,
   onVideoCreditsBlocked,
+  userId = 'local',
+  firstRunOutcomeId = '',
 }) {
   const activeWorkflowRunId = useAppStore((state) => state.activeWorkflowRunId);
   const activeWorkflowRunStatus = useAppStore((state) => state.activeWorkflowRunStatus);
@@ -183,6 +187,12 @@ export function useChatSend({
       ...current,
       { id: `pending-user-${Date.now()}`, role: 'user', content: userContent },
     ]);
+    void trackProductEvent('media_generation_started', {
+      media_type: 'image',
+      agent_id: targetAgent.id,
+      quality: finalQuality,
+      size,
+    });
 
     try {
       const response = await api.post('/agents/generate-image', {
@@ -216,6 +226,12 @@ export function useChatSend({
         type: 'success',
         title: 'Image generated',
         message: `${targetAgent.name} created a new visual draft in this chat.`,
+      });
+      void trackProductEvent('media_generation_completed', {
+        media_type: 'image',
+        agent_id: targetAgent.id,
+        conversation_id: response.conversationId,
+        credits_used: response.creditsUsed,
       });
     } catch (error) {
       setIsStreaming(false);
@@ -252,6 +268,15 @@ export function useChatSend({
       ...current,
       { id: `pending-user-${Date.now()}`, role: 'user', content: `/video ${prompt}` },
     ]);
+    void trackProductEvent('media_generation_started', {
+      media_type: 'video',
+      agent_id: targetAgent.id,
+      duration_seconds: durationSeconds,
+      resolution,
+      aspect_ratio: aspectRatio,
+      mode,
+      reference_image_count: referenceImages.length,
+    });
 
     try {
       const response = await api.post('/agents/generate-video', {
@@ -309,15 +334,37 @@ export function useChatSend({
         title: 'Video generated',
         message: `${targetAgent.name} finished a queued video render for this chat.${actualSuffix}`,
       });
+      void trackProductEvent('media_generation_completed', {
+        media_type: 'video',
+        agent_id: targetAgent.id,
+        conversation_id: response.conversationId,
+        job_id: response.jobId,
+        duration_seconds: durationSeconds,
+        resolution,
+        aspect_ratio: aspectRatio,
+        mode,
+        reference_image_count: referenceImages.length,
+        credits_used: actualCredits,
+      });
     } catch (error) {
       setIsStreaming(false);
       setStreamingTask(null);
       const code = error?.code;
       if (isVideoPaywallCode(code)) {
         onVideoCreditsBlocked?.();
+        void trackProductEvent('credit_block_seen', {
+          code,
+          surface: 'video_generation',
+          agent_id: targetAgent.id,
+        });
+        void trackProductEvent('topup_cta_seen', {
+          code,
+          surface: 'video_generation',
+          credit_type: 'video',
+        });
         appendFailureMessage({
           message:
-            'Video generation requires a Video Pack or a plan with allowance. Open Billing to purchase credits — Prymal never downgrades quality silently.',
+            'This video needs AI video credits before Prymal can start the render. Add a Video Pack or use a plan with video allowance, then retry when ready.',
           retryText: `/video ${prompt}`,
           code,
           agentId: targetAgent.id,
@@ -325,7 +372,7 @@ export function useChatSend({
         notify({
           type: 'warning',
           title: 'Video credits required',
-          message: 'Add a Video Pack or upgrade — then retry your prompt.',
+          message: 'Add a Video Pack or upgrade, then retry your prompt.',
           action: { label: 'Billing & packs', href: '/app/settings?tab=Billing' },
         });
         await queryClient.invalidateQueries({ queryKey: ['billing-stats'] });
@@ -461,6 +508,12 @@ export function useChatSend({
           setStreamingText((current) => current + text);
         },
         onHold: (event) => {
+          void trackProductEvent('sentinel_hold_seen', {
+            agent_id: event.agentId ?? targetAgent.id,
+            conversation_id: event.conversationId,
+            hold_reason: event.sentinelHoldReason ?? null,
+            risk_score: event.sentinelRiskScore ?? null,
+          });
           setStreamingText('');
           setIsStreaming(false);
           setStreamingTask(null);
@@ -518,6 +571,41 @@ export function useChatSend({
               },
             },
           ]);
+          writeFirstWinState(userId, {
+            state: FIRST_WIN_STATES.OUTPUT_COMPLETED,
+            outcomeId: firstRunOutcomeId || undefined,
+            agentId: targetAgent.id,
+            conversationId: event.conversationId,
+          });
+          void trackProductEvent('first_agent_response_completed', {
+            agent_id: targetAgent.id,
+            conversation_id: event.conversationId,
+            message_id: event.messageId,
+            outcome_id: firstRunOutcomeId || undefined,
+          });
+          void trackProductEvent('first_useful_output_candidate', {
+            agent_id: targetAgent.id,
+            conversation_id: event.conversationId,
+            message_id: event.messageId,
+            outcome_id: firstRunOutcomeId || undefined,
+            output_type: 'chat_response',
+          });
+          if (Number.isFinite(Number(event.creditsUsed))) {
+            void trackProductEvent('credit_actual_shown', {
+              surface: 'chat',
+              agent_id: targetAgent.id,
+              conversation_id: event.conversationId,
+              outcome_id: firstRunOutcomeId || undefined,
+              credits_used: Number(event.creditsUsed),
+            });
+          }
+          if ((event.sources ?? []).length > 0) {
+            void trackProductEvent('lore_source_used_in_response', {
+              agent_id: targetAgent.id,
+              conversation_id: event.conversationId,
+              source_count: event.sources.length,
+            });
+          }
 
           notifyMemoryFeedbackEvents(event.memoryEvents, notify);
 
@@ -594,8 +682,40 @@ export function useChatSend({
         return;
       }
 
+      if (error.code === 'WARDEN_CHAT_BLOCKED') {
+        void trackProductEvent('warden_block_user_seen', {
+          surface: 'chat',
+          agent_id: targetAgent.id,
+          conversation_id: conversationId,
+        });
+        appendFailureMessage({
+          message:
+            'Prymal blocked this before it reached an agent because it looked like external content trying to issue instructions. You can still use the information, but not as a command. Edit the request or ask Prymal to summarise the content safely.',
+          retryText: finalMessage,
+          code: error.code,
+          agentId: targetAgent.id,
+        });
+        notify({
+          type: 'warning',
+          title: 'Guardrail paused the request',
+          message: 'Edit the request or ask for a safe summary of the external content.',
+        });
+        return;
+      }
+
       const usageGate = getChatUsageGateNotify(error.code);
       if (usageGate) {
+        void trackProductEvent('credit_block_seen', {
+          code: error.code,
+          surface: 'chat',
+          agent_id: targetAgent.id,
+          outcome_id: firstRunOutcomeId || undefined,
+        });
+        void trackProductEvent('topup_cta_seen', {
+          code: error.code,
+          surface: 'chat',
+          credit_type: isVideoPaywallCode(error.code) ? 'video' : 'execution',
+        });
         const userLine =
           getChatUsageGateUserMessage(error.code)
           ?? getErrorMessage(error, 'Prymal could not complete this response.');

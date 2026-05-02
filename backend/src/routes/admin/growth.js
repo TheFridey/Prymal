@@ -8,6 +8,8 @@ import {
   organisations,
   productEvents,
   users,
+  videoGenerationEvents,
+  wardenAuditEvents,
   workflowRuns,
   workflows,
 } from '../../db/schema.js';
@@ -26,6 +28,8 @@ router.get('/growth', requireStaff, requireStaffPermission('admin.activity.read'
     workflowRunRows,
     documentRows,
     apiKeyRows,
+    wardenRows,
+    videoRows,
   ] = await Promise.all([
     db.query.organisations.findMany({ orderBy: [desc(organisations.createdAt)] }),
     db.query.users.findMany({ orderBy: [desc(users.createdAt)] }),
@@ -35,6 +39,8 @@ router.get('/growth', requireStaff, requireStaffPermission('admin.activity.read'
     db.query.workflowRuns.findMany({ orderBy: [desc(workflowRuns.createdAt)] }),
     db.query.loreDocuments.findMany({ orderBy: [desc(loreDocuments.createdAt)] }),
     db.query.apiKeys.findMany({ orderBy: [desc(apiKeys.createdAt)] }),
+    db.query.wardenAuditEvents.findMany({ orderBy: [desc(wardenAuditEvents.createdAt)] }),
+    db.query.videoGenerationEvents.findMany({ orderBy: [desc(videoGenerationEvents.createdAt)] }),
   ]);
 
   return context.json({
@@ -47,6 +53,8 @@ router.get('/growth', requireStaff, requireStaffPermission('admin.activity.read'
       workflowRuns: workflowRunRows,
       documents: documentRows,
       apiKeys: apiKeyRows,
+      wardenEvents: wardenRows,
+      videoEvents: videoRows,
     }),
   });
 });

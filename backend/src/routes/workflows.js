@@ -1139,7 +1139,7 @@ async function scanWorkflowRunSafety({ workflow, input, userId, orgId, confirmat
       auditId: decision.auditId,
       decision,
       code: 'WARDEN_WORKFLOW_BLOCKED',
-      message: 'The workflow contains blocked content.',
+      message: 'Prymal blocked this workflow before it ran because part of the input looked unsafe for tool execution. Edit the workflow or remove the risky input, then try again.',
     };
   }
 
@@ -1157,7 +1157,7 @@ async function scanWorkflowRunSafety({ workflow, input, userId, orgId, confirmat
         allowed: false,
         auditId: decision.auditId,
         code: 'WARDEN_WORKFLOW_CONFIRMATION_REQUIRED',
-        message: 'This workflow needs confirmation before it can run because it mixes external input with tool execution.',
+        message: 'This workflow could send, change, delete, publish, bill, or expose information. Confirm the action before Prymal continues.',
         confirmationId: created.confirmationId,
         riskSummary: created.riskSummary,
         expiresAt: created.expiresAt,
@@ -1170,7 +1170,7 @@ async function scanWorkflowRunSafety({ workflow, input, userId, orgId, confirmat
         allowed: false,
         auditId: decision.auditId,
         code: 'WARDEN_WORKFLOW_ADMIN_REQUIRED',
-        message: 'Critical admin/billing/destructive workflows require admin approval even with confirmation.',
+        message: 'This workflow touches a high-impact action and needs admin review before it can run.',
       };
     }
 

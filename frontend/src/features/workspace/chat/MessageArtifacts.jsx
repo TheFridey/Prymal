@@ -562,6 +562,10 @@ export function GeneratedVideoCard({ video }) {
   if (Number(video.referenceImageCount) > 0) {
     metaParts.push(`refs: ${video.referenceImageCount}`);
   }
+  if (Number(video.creditsUsed ?? video.creditsCommitted ?? 0) > 0) {
+    const credits = Number(video.creditsUsed ?? video.creditsCommitted);
+    metaParts.push(`${credits} credit${credits === 1 ? '' : 's'} used`);
+  }
 
   return (
     <div className="workspace-studio__generated-card">
@@ -589,6 +593,9 @@ export function GeneratedVideoCard({ video }) {
         ) : null}
       </div>
       {video.prompt ? <div className="workspace-studio__source-summary">{video.prompt}</div> : null}
+      <div className="workspace-studio__source-summary">
+        Refine the prompt, regenerate, or hand this asset to FORGE/ECHO for campaign copy.
+      </div>
     </div>
   );
 }

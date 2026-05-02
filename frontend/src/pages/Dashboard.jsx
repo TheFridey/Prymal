@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { AgentAvatar, EmptyState, PageShell } from '../components/ui';
@@ -15,7 +15,14 @@ import WorkflowTemplateCard from '../features/workspace/workflows/WorkflowTempla
 import { getFeaturedWorkflowTemplates } from '../lib/workflow-templates';
 import { api } from '../lib/api';
 import '../styles/app-rebuild.css';
-import { enrichFirstWinPathsWithTemplates, DEMO_SCENARIOS } from '../lib/first-win-paths';
+import { DEMO_SCENARIOS } from '../lib/first-win-paths';
+import {
+  FIRST_RUN_OUTCOMES,
+  FIRST_WIN_STATES,
+  readFirstWinState,
+  writeFirstWinState,
+} from '../lib/first-run-outcomes';
+import { trackProductEvent } from '../lib/product-events';
 
 const FIRST_WIN_LIBRARY = {
   nexus: {
@@ -338,11 +345,29 @@ export default function Dashboard() {
   const activeWorkflows = workflows.filter((workflow) => workflow.isActive);
   const latestConversation = recentConversations[0] ?? null;
   const featuredWorkflowTemplates = useMemo(() => getFeaturedWorkflowTemplates(4), []);
-  const firstWinPaths = useMemo(() => enrichFirstWinPathsWithTemplates(), []);
+  const firstWinPaths = [];
   const hasMeaningfulProgress =
     conversationCount >= 3
     || workflows.some((w) => (Number(w.runCount ?? 0) > 0))
     || trainedOnRuns > 2;
+  const userId = viewer?.user?.id ?? 'local';
+  const [firstWinState, setFirstWinState] = useState(() => readFirstWinState(userId));
+
+  useEffect(() => {
+    const outcomeId = location.state?.firstRunOutcomeId;
+    if (!outcomeId || firstWinState?.outcomeId === outcomeId) {
+      return;
+    }
+    const selectedOutcome = FIRST_RUN_OUTCOMES.find((outcome) => outcome.id === outcomeId);
+    if (!selectedOutcome) {
+      return;
+    }
+    setFirstWinState(writeFirstWinState(userId, {
+      state: FIRST_WIN_STATES.OUTCOME_SELECTED,
+      outcomeId,
+      recommendedAgentId: selectedOutcome.recommendedAgentId,
+    }));
+  }, [firstWinState?.outcomeId, location.state?.firstRunOutcomeId, userId]);
 
   const recentConversationAgents = useMemo(
     () => recentConversations.map((conv) => getAgentMeta(conv.agentId)).filter(Boolean),
@@ -409,6 +434,29 @@ export default function Dashboard() {
     [navigate],
   );
 
+  const handleOutcomeSelect = useCallback(
+    (outcome) => {
+      const nextState = writeFirstWinState(userId, {
+        state: FIRST_WIN_STATES.OUTCOME_SELECTED,
+        outcomeId: outcome.id,
+        recommendedAgentId: outcome.recommendedAgentId,
+      });
+      setFirstWinState(nextState);
+      void trackProductEvent('first_run_outcome_selected', {
+        outcome_id: outcome.id,
+        recommended_agent_id: outcome.recommendedAgentId,
+        credit_intensity: outcome.creditIntensity,
+      });
+      void trackProductEvent('credit_estimate_shown', {
+        surface: 'dashboard_first_run',
+        outcome_id: outcome.id,
+        credit_intensity: outcome.creditIntensity,
+      });
+      navigate(outcome.route);
+    },
+    [navigate, userId],
+  );
+
   const heroPrimaryAction = latestConversation
     ? () => navigate(`/app/agents/${latestConversation.agentId}?cid=${latestConversation.id}`)
     : () => navigate(`/app/agents/${recommendedFirstAgentId}`);
@@ -419,6 +467,16 @@ export default function Dashboard() {
   const videoBalance = viewer?.credits?.video;
   const executionPct = Math.min(Number(executionBalance?.percentUsed ?? 0), 100);
   const videoPct = Math.min(Number(videoBalance?.percentUsed ?? 0), 100);
+  const firstWinNudge = {
+    [FIRST_WIN_STATES.NO_OUTCOME]: 'Choose your first outcome',
+    [FIRST_WIN_STATES.OUTCOME_SELECTED]: 'Finish your first guided prompt',
+    [FIRST_WIN_STATES.PROMPT_STARTED]: 'Finish your first guided prompt',
+    [FIRST_WIN_STATES.PROMPT_SUBMITTED]: 'Your first result is being prepared',
+    [FIRST_WIN_STATES.OUTPUT_COMPLETED]: 'Want to make this repeatable?',
+    [FIRST_WIN_STATES.LORE_SOURCE_ADDED]: 'Ask a question from your business knowledge',
+    [FIRST_WIN_STATES.WORKFLOW_DRAFT_CREATED]: 'Run or refine your first workflow',
+    [FIRST_WIN_STATES.BETA_SUCCESS]: 'First beta success achieved',
+  }[firstWinState?.state ?? FIRST_WIN_STATES.NO_OUTCOME];
 
   return (
     <PageShell width="1260px">
@@ -431,14 +489,44 @@ export default function Dashboard() {
                 <div>
                   <div className="pm-dash__flow-eyebrow">Get your first win</div>
                   <h2 id="first-win-title" className="pm-dash__first-win-title">
-                    Prymal pairs specialist agents with LORE and NEXUS — pick one outcome and finish it in minutes.
+                    Choose what you want done first. Prymal will pick the right specialist and path.
                   </h2>
                   <p className="pm-dash__first-win-sub">
-                    Each path tells you what you will get, which agents to open, and prewrites a first prompt.
+                    Each path shows the first result, recommended agent, LORE fit, and cost intensity before you send.
                   </p>
                 </div>
               </div>
+              <p className="pm-dash__first-win-sub">
+                {firstWinNudge}. Choose the outcome first; Prymal will pick the best agent and show the cost intensity before you send.
+              </p>
               <div className="pm-dash__first-win-grid">
+                {FIRST_RUN_OUTCOMES.map((outcome) => {
+                  const agent = getAgentMeta(outcome.recommendedAgentId);
+                  return (
+                    <article key={outcome.id} className="pm-dash__first-win-card">
+                      <div className="pm-dash__first-win-card-top">
+                        <strong>{outcome.title}</strong>
+                        <p>{outcome.plainOutcome}</p>
+                        <div className="pm-dash__first-win-agents">
+                          <span>{outcome.timeToResult}</span>
+                          <span>{agent?.name ?? outcome.recommendedAgentId.toUpperCase()}</span>
+                          <span>{outcome.creditIntensity} cost</span>
+                        </div>
+                      </div>
+                      <p className="pm-dash__first-win-micro">LORE: {outcome.loreHelps}</p>
+                      <p className="pm-dash__first-win-micro">{outcome.recommendationReason}</p>
+                      <div className="pm-dash__first-win-actions">
+                        <button
+                          type="button"
+                          className="pm-btn pm-btn--primary"
+                          onClick={() => handleOutcomeSelect(outcome)}
+                        >
+                          {outcome.cta}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
                 {firstWinPaths.map((path) => (
                   <article key={path.id} className="pm-dash__first-win-card">
                     <div className="pm-dash__first-win-card-top">
