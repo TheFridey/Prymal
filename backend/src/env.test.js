@@ -135,6 +135,42 @@ test('validateRuntimeEnv blocks live video environments from using local media s
   assert.match(result.errors.join('\n'), /Local media storage is not allowed/i);
 });
 
+test('bootstrapRuntimeEnv blocks production startup when local media storage is configured', () => {
+  process.env.NODE_ENV = 'production';
+  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5433/prymal';
+  process.env.CLERK_PUBLISHABLE_KEY = 'pk_test_prymaltestkey';
+  process.env.CLERK_SECRET_KEY = 'sk_test_prymaltestkey';
+  process.env.FRONTEND_URL = 'https://staging.prymal.io';
+  process.env.API_URL = 'https://prymal-staging-api.up.railway.app/api';
+  process.env.OPENAI_API_KEY = 'sk-real-ish-openai-key';
+  process.env.ANTHROPIC_API_KEY = 'sk-ant-real-ish-key';
+  process.env.MEDIA_STORAGE_DRIVER = 'local';
+  process.env.ALLOW_LOCAL_MEDIA_STORAGE_IN_PRODUCTION = 'false';
+
+  assert.throws(
+    () => bootstrapRuntimeEnv({ mode: 'production', force: true }),
+    /MEDIA_STORAGE_DRIVER must be set to "cloudinary"|Local media storage is not allowed/i,
+  );
+});
+
+test('bootstrapRuntimeEnv allows production startup with Cloudinary media storage configured', () => {
+  process.env.NODE_ENV = 'production';
+  process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5433/prymal';
+  process.env.CLERK_PUBLISHABLE_KEY = 'pk_test_prymaltestkey';
+  process.env.CLERK_SECRET_KEY = 'sk_test_prymaltestkey';
+  process.env.FRONTEND_URL = 'https://staging.prymal.io';
+  process.env.API_URL = 'https://prymal-staging-api.up.railway.app/api';
+  process.env.OPENAI_API_KEY = 'sk-real-ish-openai-key';
+  process.env.ANTHROPIC_API_KEY = 'sk-ant-real-ish-key';
+  process.env.MEDIA_STORAGE_DRIVER = 'cloudinary';
+  process.env.CLOUDINARY_CLOUD_NAME = 'demo';
+  process.env.CLOUDINARY_API_KEY = '123456';
+  process.env.CLOUDINARY_API_SECRET = 'secret';
+  process.env.CLOUDINARY_FOLDER = 'prymal-test';
+
+  assert.doesNotThrow(() => bootstrapRuntimeEnv({ mode: 'production', force: true }));
+});
+
 test('bootstrapRuntimeEnv throws in development when strict validation fails', () => {
   process.env.NODE_ENV = 'development';
   process.env.DATABASE_URL = 'postgresql://postgres:postgres@localhost:5433/prymal';

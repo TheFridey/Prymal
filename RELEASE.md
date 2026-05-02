@@ -30,9 +30,9 @@ This repository currently ships from the `master` branch. CI and branch protecti
 The GitHub Actions workflow at `.github/workflows/ci.yml` is the release gate for:
 
 - dependency install
-- backend lint
+- Backend lint
 - backend test execution
-- frontend lint
+- Frontend lint
 - frontend clean-checkout reproducibility via `npm run verify-build`
 - frontend production build
 - bundle budget enforcement
@@ -55,11 +55,13 @@ This is not treated as a regression waiver: the budget still sits close to the c
 
 Configure these exact GitHub status checks as required on `master`:
 
-1. `Backend tests`
-2. `Frontend verify-build`
-3. `Frontend performance budget`
-4. `E2E marketing smoke`
-5. `E2E authenticated regression`
+1. `Backend lint`
+2. `Frontend lint`
+3. `Backend tests`
+4. `Frontend verify-build`
+5. `Frontend performance budget`
+6. `E2E marketing smoke`
+7. `E2E authenticated regression`
 
 ## Branch protection recommendations
 
@@ -69,7 +71,7 @@ In GitHub repository settings for `master`:
 2. Require at least one approval.
 3. Dismiss stale pull request approvals when new commits are pushed.
 4. Require branches to be up to date before merging.
-5. Require the five status checks listed above to pass.
+5. Require the seven status checks listed above to pass.
 6. Restrict direct pushes to `master`.
 7. Include administrators so emergency changes do not bypass CI by default.
 
@@ -77,14 +79,32 @@ If `develop` is used as a staging branch, mirror the same rule there, but keep `
 
 ## Authenticated Playwright coverage
 
-The authenticated Playwright job is safe to run without secrets because the tests skip gracefully when credentials are missing. For real release confidence, add these repository secrets:
+The authenticated Playwright job now fails fast when required staging credentials are missing. For real release confidence, add these repository secrets:
 
+- `PLAYWRIGHT_BASE_URL`
+- `PLAYWRIGHT_API_URL`
 - `PLAYWRIGHT_TEST_USER_EMAIL`
 - `PLAYWRIGHT_TEST_USER_PASSWORD`
 - `PLAYWRIGHT_TEST_STAFF_EMAIL`
 - `PLAYWRIGHT_TEST_STAFF_PASSWORD`
+- `PLAYWRIGHT_TEST_INVITEE_EMAIL`
+- `PLAYWRIGHT_TEST_INVITEE_PASSWORD`
+- `PLAYWRIGHT_TEST_ONBOARDING_EMAIL`
+- `PLAYWRIGHT_TEST_ONBOARDING_PASSWORD`
+- `PLAYWRIGHT_TEST_BILLING_EMAIL`
+- `PLAYWRIGHT_TEST_BILLING_PASSWORD`
 
-Until those secrets are configured, `E2E authenticated regression` will stay green but only prove that the authenticated suites bootstrap and skip correctly. Staff-only admin/operator flows skip independently when staff credentials are not present.
+Use `cd backend && node scripts/validate-playwright-secrets.mjs` against `.env.playwright` before copying the values into GitHub Actions secrets.
+
+## Versioned releases
+
+`v1.0.0-beta.1` is the first controlled-beta release tag. Use annotated SemVer prerelease tags for beta milestones:
+
+- `v1.0.0-beta.N` for controlled beta release candidates.
+- `v1.0.0-rc.N` for release candidates after beta feedback closes.
+- `v1.0.0` for the first general-availability release.
+
+Create GitHub releases from annotated tags and mark beta/RC releases as prereleases.
 
 ## Recommended merge flow
 

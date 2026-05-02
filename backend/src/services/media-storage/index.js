@@ -160,10 +160,20 @@ export function validateMediaStorageConfiguration(env = process.env) {
     errors.push('MEDIA_STORAGE_DRIVER must be either "local" or "cloudinary".');
   }
 
+  if (config.mode === 'production' && explicitDriver !== MEDIA_STORAGE_DRIVERS.cloudinary) {
+    errors.push(
+      'MEDIA_STORAGE_DRIVER must be set to "cloudinary" in production. Local media storage is a development fallback only.',
+    );
+  }
+
   if (config.driver === MEDIA_STORAGE_DRIVERS.cloudinary && !config.cloudinaryConfigured) {
     errors.push(
       'Cloudinary media storage is enabled, but CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET are not all configured.',
     );
+  }
+
+  if (config.driver === MEDIA_STORAGE_DRIVERS.cloudinary && !hasConfiguredValue(env.CLOUDINARY_FOLDER)) {
+    errors.push('Cloudinary media storage is enabled, but CLOUDINARY_FOLDER is not configured.');
   }
 
   if (
@@ -195,6 +205,11 @@ export function validateMediaStorageConfiguration(env = process.env) {
 }
 
 export function createMediaStorage({ env = process.env } = {}) {
+  const validation = validateMediaStorageConfiguration(env);
+  if (!validation.valid) {
+    throw new Error(validation.errors.join('\n'));
+  }
+
   const config = getMediaStorageConfig(env);
 
   if (config.driver === MEDIA_STORAGE_DRIVERS.cloudinary) {

@@ -31,6 +31,7 @@ test('media storage chooses Cloudinary when explicitly configured', () => {
     CLOUDINARY_CLOUD_NAME: 'demo',
     CLOUDINARY_API_KEY: '123456',
     CLOUDINARY_API_SECRET: 'secret',
+    CLOUDINARY_FOLDER: 'prymal-test',
   };
 
   assert.equal(resolveMediaStorageDriver(env), MEDIA_STORAGE_DRIVERS.cloudinary);
@@ -43,10 +44,21 @@ test('production local media storage is rejected by default', () => {
   const result = validateMediaStorageConfiguration({
     NODE_ENV: 'production',
     MEDIA_STORAGE_DRIVER: 'local',
+    ALLOW_LOCAL_MEDIA_STORAGE_IN_PRODUCTION: 'false',
   });
 
   assert.equal(result.valid, false);
   assert.match(result.errors.join('\n'), /Local media storage is not allowed/i);
+  assert.throws(
+    () => createMediaStorage({
+      env: {
+        NODE_ENV: 'production',
+        MEDIA_STORAGE_DRIVER: 'local',
+        ALLOW_LOCAL_MEDIA_STORAGE_IN_PRODUCTION: 'false',
+      },
+    }),
+    /Local media storage is not allowed/i,
+  );
 });
 
 test('cloudinary mode requires cloud name, API key, and API secret', () => {
@@ -56,10 +68,40 @@ test('cloudinary mode requires cloud name, API key, and API secret', () => {
     CLOUDINARY_CLOUD_NAME: 'demo',
     CLOUDINARY_API_KEY: '',
     CLOUDINARY_API_SECRET: 'secret',
+    CLOUDINARY_FOLDER: 'prymal-test',
   });
 
   assert.equal(result.valid, false);
   assert.match(result.errors.join('\n'), /Cloudinary media storage is enabled/i);
+});
+
+test('production requires explicit Cloudinary driver and folder', () => {
+  const result = validateMediaStorageConfiguration({
+    NODE_ENV: 'production',
+    MEDIA_STORAGE_DRIVER: '',
+    CLOUDINARY_CLOUD_NAME: 'demo',
+    CLOUDINARY_API_KEY: '123456',
+    CLOUDINARY_API_SECRET: 'secret',
+    CLOUDINARY_FOLDER: 'prymal-test',
+  });
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /MEDIA_STORAGE_DRIVER must be set to "cloudinary"/i);
+});
+
+test('production Cloudinary storage starts when credentials and folder are configured', () => {
+  const env = {
+    NODE_ENV: 'production',
+    MEDIA_STORAGE_DRIVER: 'cloudinary',
+    CLOUDINARY_CLOUD_NAME: 'demo',
+    CLOUDINARY_API_KEY: '123456',
+    CLOUDINARY_API_SECRET: 'secret',
+    CLOUDINARY_FOLDER: 'prymal-test',
+  };
+
+  const result = validateMediaStorageConfiguration(env);
+  assert.equal(result.valid, true);
+  assert.equal(createMediaStorage({ env }).constructor.name, 'CloudinaryStorage');
 });
 
 test('video job timing config respects new timeout and poll env vars', () => {

@@ -487,6 +487,15 @@ PLAYWRIGHT_AUTH_REQUIRED=true node scripts/validate-env.mjs --scope playwright -
 
 `PLAYWRIGHT_BASE_URL` should point at the deployed frontend. `PLAYWRIGHT_API_URL` should point at the matching backend API root, including `/api`, for example `https://prymal-staging-api.up.railway.app/api`. The validation step fails on partial credential pairs so skipped tests mean “role intentionally absent,” not “half-configured login.”
 
+Before pushing CI secret changes, you can validate a local staging credential set from `.env.playwright`:
+
+```bash
+cd backend
+node scripts/validate-playwright-secrets.mjs
+```
+
+The script checks every authenticated Playwright role pair plus `PLAYWRIGHT_BASE_URL` and `PLAYWRIGHT_API_URL`, then exits non-zero if anything is missing or partial.
+
 The authenticated suite covers:
 
 - Clerk login
@@ -544,6 +553,7 @@ Configure Cloudinary before any staging or production rollout that enables video
 - [ ] Set `CLOUDINARY_FOLDER=prymal` or another environment-specific folder prefix
 - [ ] Decide `VIDEO_REFERENCE_ASSET_RETENTION`
 - [ ] Confirm `ALLOW_LOCAL_MEDIA_STORAGE_IN_PRODUCTION` remains `false`
+- [ ] Run `cd backend && npm run env:validate` and confirm production validation passes only with Cloudinary configured
 
 Folder convention used by the backend:
 

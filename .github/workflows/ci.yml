@@ -20,6 +20,38 @@ env:
   VITE_API_URL: http://localhost:3001/api
 
 jobs:
+  backend-lint:
+    name: Backend lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  frontend-lint:
+    name: Frontend lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
   backend-test:
     name: Backend tests
     runs-on: ubuntu-latest
@@ -34,7 +66,6 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - run: npm run lint
       - run: npm test
         env:
           NODE_ENV: test
@@ -72,7 +103,6 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm run lint
       - run: npm run build
         env:
           VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
@@ -93,7 +123,6 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm run lint
       - run: npx playwright install chromium --with-deps
       - run: npm run test:e2e -- tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
         env:
@@ -115,7 +144,20 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm run lint
+      - run: node ../backend/scripts/validate-playwright-secrets.mjs
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
+          PLAYWRIGHT_API_URL: ${{ secrets.PLAYWRIGHT_API_URL || '' }}
+          PLAYWRIGHT_TEST_USER_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_USER_EMAIL || '' }}
+          PLAYWRIGHT_TEST_USER_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_USER_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_STAFF_EMAIL || '' }}
+          PLAYWRIGHT_TEST_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_STAFF_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_INVITEE_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_INVITEE_EMAIL || '' }}
+          PLAYWRIGHT_TEST_INVITEE_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_INVITEE_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_ONBOARDING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_ONBOARDING_EMAIL || '' }}
+          PLAYWRIGHT_TEST_ONBOARDING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_ONBOARDING_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_BILLING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_BILLING_EMAIL || '' }}
+          PLAYWRIGHT_TEST_BILLING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_BILLING_PASSWORD || '' }}
       - run: node ../backend/scripts/validate-env.mjs --scope playwright --mode staging
         env:
           PLAYWRIGHT_AUTH_REQUIRED: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
