@@ -156,14 +156,15 @@ export function BillingSettingsTab({
   portalMutation,
   creditPackCheckoutMutation,
   usageBreakdownQuery,
+  usageSummaryQuery,
   currentPlan,
   currentPlanMeta,
   creditPercent,
   seatSummary,
   billingInterval,
   setBillingInterval,
-  usageDays,
-  setUsageDays,
+  usagePeriod,
+  setUsagePeriod,
 }) {
   const executionCredits = billingQuery.data?.executionCredits ?? billingQuery.data?.credits?.execution ?? null;
   const videoCredits = billingQuery.data?.videoCredits ?? billingQuery.data?.credits?.video ?? null;
@@ -202,6 +203,16 @@ export function BillingSettingsTab({
   const usageElevated =
     showExecutionWarning || showVideoWarning || executionPercent >= 70 || videoPercent >= 70;
   const showHeavyUsageRow = Boolean(billingQuery.data?.canManageBilling && usageElevated);
+  const usageSummary = usageSummaryQuery?.data ?? null;
+  const usageByAgent = usageBreakdownQuery.data?.byAgent ?? [];
+  const usageByWorkflow = usageBreakdownQuery.data?.byWorkflow ?? [];
+  const totalAgentCredits = usageByAgent.reduce((sum, row) => sum + Number(row.creditsUsed ?? 0), 0);
+  const usageTotalCredits = Number(usageSummary?.creditsRemaining ?? 0)
+    + Number(usageSummary?.creditsUsedThisPeriod ?? 0);
+  const usageConsumedPercent = usageTotalCredits > 0
+    ? Math.min(100, Math.round((Number(usageSummary?.creditsUsedThisPeriod ?? 0) / usageTotalCredits) * 100))
+    : 0;
+  const showFullUsageBreakdown = currentPlan !== 'free';
 
   return (
     <div style={{ display: 'grid', gap: '14px' }}>
@@ -232,16 +243,9 @@ export function BillingSettingsTab({
             . List pricing applies afterward unless your Stripe subscription shows a different schedule.
           </div>
         ) : null}
-        {billingQuery.data?.usageEconomics?.monthlyInternalBurnCapGbp != null ? (
-          <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '10px' }}>
-            Estimated provider cost this cycle:{' '}
-            {typeof billingQuery.data.usageEconomics.estimatedProviderCostGbpThisCycle === 'number'
-              ? billingQuery.data.usageEconomics.estimatedProviderCostGbpThisCycle.toFixed(2)
-              : '—'}{' '}
-            GBP (internal burn cap approx. {billingQuery.data.usageEconomics.monthlyInternalBurnCapGbp} GBP — fair-use
-            thresholds may slow or block high-cost work before credits are exhausted).
-          </div>
-        ) : null}
+        <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '10px' }}>
+          Usage is managed per your current plan.
+        </div>
         {foundingAccess?.offerKey === 'FOUNDING_ACCESS' ? (
           <InlineNotice tone="success" style={{ marginBottom: '12px' }}>
             Founding Access is active — subscription pricing reflects the founding window where applicable. Founder badge and
@@ -348,7 +352,7 @@ export function BillingSettingsTab({
                   <div key={pack.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', padding: '12px 14px', borderRadius: '14px', border: '1px solid var(--line)', background: 'rgba(255,255,255,0.02)' }}>
                     <div>
                       <div style={{ color: 'var(--text-strong)', marginBottom: '4px' }}>{pack.label}</div>
-                      <div style={{ color: 'var(--muted)', fontSize: '12px' }}>£{Number(pack.amountGbp).toFixed(Number(pack.amountGbp) % 1 === 0 ? 0 : 2)}</div>
+                      <div style={{ color: 'var(--muted)', fontSize: '12px' }}>Price shown in checkout</div>
                     </div>
                     <Button
                       tone="ghost"
@@ -365,30 +369,55 @@ export function BillingSettingsTab({
         </div>
       </SurfaceCard>
 
-      <SurfaceCard title="Usage by agent" accent="#00FFD1">
-        <MotionSection once={true} reveal={{ y: 10, blur: 4 }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
-          {[7, 30, 90].map((days) => (
-            <Button key={days} tone={usageDays === days ? 'accent' : 'ghost'} onClick={() => setUsageDays(days)}>
-              {days === 7 ? 'Last 7 days' : days === 30 ? 'Last 30 days' : 'Last 90 days'}
-            </Button>
-          ))}
+      <SurfaceCard title="Credit usage" accent="#00FFD1">
+        {usageSummary ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+            <div style={{ padding: '14px 16px', borderRadius: '18px', border: '1px solid var(--line)', background: 'var(--panel-soft)' }}>
+              <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '4px' }}>Credits remaining</div>
+              <strong style={{ fontSize: '22px' }}>{Number(usageSummary.creditsRemaining ?? 0).toLocaleString('en-GB')}</strong>
+            </div>
+            <div style={{ padding: '14px 16px', borderRadius: '18px', border: '1px solid var(--line)', background: 'var(--panel-soft)' }}>
+              <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '4px' }}>Used this billing period</div>
+              <strong style={{ fontSize: '22px' }}>{Number(usageSummary.creditsUsedThisPeriod ?? 0).toLocaleString('en-GB')}</strong>
+            </div>
+            <div style={{ gridColumn: '1 / -1', height: '8px', borderRadius: '999px', background: 'var(--panel-soft)', overflow: 'hidden' }}>
+              <div style={{ width: `${usageConsumedPercent}%`, height: '100%', background: '#00FFD1', opacity: 0.65 }} />
+            </div>
           </div>
-        </MotionSection>
-        {usageBreakdownQuery.isLoading ? (
+        ) : null}
+        {showFullUsageBreakdown ? (
+          <MotionSection once={true} reveal={{ y: 10, blur: 4 }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+              {[
+                ['week', 'This week'],
+                ['month', 'This month'],
+                ['all', 'All time'],
+              ].map(([period, label]) => (
+                <Button key={period} tone={usagePeriod === period ? 'accent' : 'ghost'} onClick={() => setUsagePeriod(period)}>
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </MotionSection>
+        ) : null}
+        {!showFullUsageBreakdown ? (
+          <div style={{ color: 'var(--muted)', lineHeight: 1.8 }}>Usage is managed per your current plan.</div>
+        ) : usageBreakdownQuery.isLoading ? (
           <div style={{ display: 'grid', gap: '8px' }}>
             {[0, 1, 2].map((index) => (
               <div key={index} style={{ height: '36px', borderRadius: '8px', background: 'var(--panel-soft)', animation: 'pulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
-        ) : (usageBreakdownQuery.data?.breakdown ?? []).length === 0 ? (
-          <div style={{ color: 'var(--muted)', lineHeight: 1.8 }}>No agent activity in this period.</div>
+        ) : usageByAgent.length === 0 && usageByWorkflow.length === 0 ? (
+          <div style={{ color: 'var(--muted)', lineHeight: 1.8 }}>No credit activity in this period.</div>
         ) : (
           <>
+            <SectionLabel>By agent</SectionLabel>
             <MotionList staggerChildren={0.035} style={{ display: 'grid', gap: '8px' }}>
-              {(usageBreakdownQuery.data.breakdown ?? []).map((row) => {
+              {usageByAgent.map((row) => {
                 const agentMeta = AGENT_LIBRARY.find((agent) => agent.id === row.agentId);
                 const color = agentMeta?.color ?? '#00FFD1';
+                const share = totalAgentCredits > 0 ? Number(row.creditsUsed ?? 0) / totalAgentCredits : 0;
                 return (
                   <MotionListItem key={row.agentId} reveal={{ y: 8, blur: 3 }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '16px 1fr auto auto', gap: '10px', alignItems: 'center' }}>
@@ -401,18 +430,27 @@ export function BillingSettingsTab({
                         </span>
                       </div>
                       <div style={{ height: '6px', borderRadius: '999px', background: 'var(--panel-soft)', overflow: 'hidden' }}>
-                        <div style={{ width: `${(row.shareOfTotal * 100).toFixed(1)}%`, height: '100%', background: color, opacity: 0.45 }} />
+                        <div style={{ width: `${(share * 100).toFixed(1)}%`, height: '100%', background: color, opacity: 0.45 }} />
                       </div>
                     </div>
-                    <div style={{ fontSize: '13px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>${Number(row.estimatedCostUsd).toFixed(2)}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>{Number(row.creditsUsed ?? 0).toLocaleString('en-GB')} credits</div>
                     </div>
                   </MotionListItem>
                 );
               })}
             </MotionList>
-            <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--line)', color: 'var(--muted)', fontSize: '13px' }}>
-              Total: {usageBreakdownQuery.data.totalRuns} run{usageBreakdownQuery.data.totalRuns !== 1 ? 's' : ''} | ${Number(usageBreakdownQuery.data.totalCostUsd).toFixed(2)}
-            </div>
+            {usageByWorkflow.length > 0 ? (
+              <div style={{ display: 'grid', gap: '8px', marginTop: '16px' }}>
+                <SectionLabel>By workflow</SectionLabel>
+                {usageByWorkflow.map((row) => (
+                  <div key={row.workflowId} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '10px', alignItems: 'center', padding: '10px 0', borderTop: '1px solid var(--line)' }}>
+                    <div style={{ color: 'var(--text-strong)' }}>{row.workflowName}</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '12px' }}>{row.runs} run{row.runs === 1 ? '' : 's'}</div>
+                    <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{Number(row.creditsUsed ?? 0).toLocaleString('en-GB')} credits</div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </>
         )}
       </SurfaceCard>
@@ -918,11 +956,9 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
         : formState.fastLane === 'openai_router'
           ? 'Route fast chat toward the OpenAI router lane'
           : 'Route fast chat toward Gemini Flash';
-    const budgetSummary = formState.budgetCap.maxCostUsdPerRun || formState.budgetCap.maxOutputTokensPerRun
-      ? `Cap runs at ${formState.budgetCap.maxCostUsdPerRun || 'no $ cap'} USD and ${formState.budgetCap.maxOutputTokensPerRun || 'no token cap'} tokens.`
-      : formState.spendThresholds.warnUsdMonthly || formState.spendThresholds.hardCapUsdMonthly
-        ? `Track monthly warning at ${formState.spendThresholds.warnUsdMonthly || 'n/a'} USD and hard cap at ${formState.spendThresholds.hardCapUsdMonthly || 'n/a'} USD.`
-        : 'No budget caps or spend thresholds configured.';
+    const budgetSummary = formState.budgetCap.maxOutputTokensPerRun
+      ? `Output token guardrail set to ${formState.budgetCap.maxOutputTokensPerRun} tokens per run.`
+      : 'Usage is managed per your current plan.';
 
     return [
       { label: 'Provider strategy', value: selectedProvider, accent: '#7CFFCB' },
@@ -1065,39 +1101,12 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
             <TextInput
-              value={String(formState.budgetCap.maxCostUsdPerRun)}
-              onChange={(event) => setFormState((current) => ({
-                ...current,
-                budgetCap: { ...current.budgetCap, maxCostUsdPerRun: event.target.value },
-              }))}
-              placeholder="Max cost per run (USD)"
-              disabled={!canManageControls || controlsQuery.isLoading}
-            />
-            <TextInput
               value={String(formState.budgetCap.maxOutputTokensPerRun)}
               onChange={(event) => setFormState((current) => ({
                 ...current,
                 budgetCap: { ...current.budgetCap, maxOutputTokensPerRun: event.target.value },
               }))}
               placeholder="Max output tokens per run"
-              disabled={!canManageControls || controlsQuery.isLoading}
-            />
-            <TextInput
-              value={String(formState.spendThresholds.warnUsdMonthly)}
-              onChange={(event) => setFormState((current) => ({
-                ...current,
-                spendThresholds: { ...current.spendThresholds, warnUsdMonthly: event.target.value },
-              }))}
-              placeholder="Monthly warning threshold (USD)"
-              disabled={!canManageControls || controlsQuery.isLoading}
-            />
-            <TextInput
-              value={String(formState.spendThresholds.hardCapUsdMonthly)}
-              onChange={(event) => setFormState((current) => ({
-                ...current,
-                spendThresholds: { ...current.spendThresholds, hardCapUsdMonthly: event.target.value },
-              }))}
-              placeholder="Monthly hard cap (USD)"
               disabled={!canManageControls || controlsQuery.isLoading}
             />
           </div>

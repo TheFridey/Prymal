@@ -17,6 +17,7 @@ const WEBHOOK_EVENT_OPTIONS = [
   'workflow.failed',
   'workflow.node.completed',
   'workflow.node.failed',
+  'workflow.node.held',
 ];
 
 const SECRET_REVEAL_MS = 30_000;

@@ -8,6 +8,7 @@ export const WORKFLOW_WEBHOOK_EVENTS = [
   'workflow.failed',
   'workflow.node.completed',
   'workflow.node.failed',
+  'workflow.node.held',
 ];
 
 const DEFAULT_TIMEOUT_MS = 10_000;

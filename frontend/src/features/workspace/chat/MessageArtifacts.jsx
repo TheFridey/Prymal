@@ -303,7 +303,7 @@ export function TrustGrammarPanel({ enforcementSummary, geminiGrounding }) {
   if (retrieval?.expanded) {
     chips.push({
       key: 'retrieval-expand',
-      label: `Retrieval +${(retrieval.hardCap ?? 0) - (retrieval.baseLimit ?? 0)}`,
+      label: 'Retrieval expanded',
       tone: 'default',
       title: `Adaptive retrieval pulled ${retrieval.fetchedCount ?? 0} chunks, kept ${retrieval.selectedCount ?? 0} (${retrieval.confidentCount ?? 0} confident)`,
     });
@@ -402,7 +402,6 @@ export function TrustGrammarPanel({ enforcementSummary, geminiGrounding }) {
             <div>
               <div style={{ fontWeight: 600, color: 'var(--text-strong)', marginBottom: '4px' }}>Retrieval</div>
               <div>
-                Budget {retrieval.baseLimit ?? '—'} → cap {retrieval.hardCap ?? '—'} ·
                 fetched {retrieval.fetchedCount ?? 0} ·
                 kept {retrieval.selectedCount ?? 0} ·
                 confident {retrieval.confidentCount ?? 0}

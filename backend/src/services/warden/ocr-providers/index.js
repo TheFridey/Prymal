@@ -25,6 +25,20 @@ export function getOcrConfig(env = process.env) {
   };
 }
 
+export function getPlanAwareOcrConfig({ orgPlan = 'free', isStaff = false, env = process.env } = {}) {
+  const config = getOcrConfig(env);
+  const planEnabled = ['agency', 'teams'].includes(String(orgPlan ?? '').toLowerCase());
+  const enabled = config.enabled || planEnabled || Boolean(isStaff);
+
+  return {
+    ...config,
+    enabled,
+    provider: enabled && config.provider === OCR_PROVIDER_NAMES.NONE
+      ? OCR_PROVIDER_NAMES.CLOUDINARY
+      : config.provider,
+  };
+}
+
 export function isOcrProviderActive(config = getOcrConfig()) {
   return Boolean(config.enabled) && config.provider !== OCR_PROVIDER_NAMES.NONE;
 }
@@ -33,16 +47,15 @@ export function buildOcrProvider({ config = getOcrConfig(), env = process.env } 
   if (!isOcrProviderActive(config)) {
     return null;
   }
-  switch (config.provider) {
-    case OCR_PROVIDER_NAMES.CLOUDINARY:
-      return createCloudinaryOcrProvider({ env });
-    case OCR_PROVIDER_NAMES.GOOGLE_VISION:
-      return createGoogleVisionOcrProvider({ env });
-    case OCR_PROVIDER_NAMES.TESSERACT:
-      return createTesseractOcrProvider({ env });
-    default:
-      return null;
+
+  for (const providerName of buildProviderPriority(config.provider)) {
+    const provider = createProviderByName(providerName, env);
+    if (provider) {
+      return provider;
+    }
   }
+
+  return null;
 }
 
 export async function runProviderOcr({
@@ -112,25 +125,57 @@ export function buildOcrAuditMetadata(summary) {
       ocrAttempted: false,
       ocrAvailable: false,
       ocrProvider: OCR_PROVIDER_NAMES.NONE,
+      ocr_provider_used: OCR_PROVIDER_NAMES.NONE,
       ocrSourceCount: 0,
       ocrTimedOut: false,
       ocrTextHash: null,
+      ocr_result_flagged: false,
     };
   }
   return {
     ocrAttempted: summary.attempted > 0 || summary.cacheHits > 0,
     ocrAvailable: Boolean(summary.providerAvailable),
     ocrProvider: summary.provider,
+    ocr_provider_used: summary.provider,
     ocrSourceCount: summary.results.length,
     ocrTimedOut: summary.timedOut > 0,
     ocrTextHash: summary.aggregateHash,
     ocrCacheHits: summary.cacheHits,
     ocrFailed: summary.failed,
+    ocr_result_flagged: false,
   };
 }
 
 export function clearOcrCacheForTests() {
   OCR_CACHE.clear();
+}
+
+function buildProviderPriority(provider) {
+  const defaultPriority = [
+    OCR_PROVIDER_NAMES.CLOUDINARY,
+    OCR_PROVIDER_NAMES.GOOGLE_VISION,
+    OCR_PROVIDER_NAMES.TESSERACT,
+  ];
+  if (!provider || provider === OCR_PROVIDER_NAMES.NONE) {
+    return [];
+  }
+  if (!defaultPriority.includes(provider)) {
+    return [provider];
+  }
+  return [provider, ...defaultPriority.filter((entry) => entry !== provider)];
+}
+
+function createProviderByName(providerName, env) {
+  switch (providerName) {
+    case OCR_PROVIDER_NAMES.CLOUDINARY:
+      return createCloudinaryOcrProvider({ env });
+    case OCR_PROVIDER_NAMES.GOOGLE_VISION:
+      return createGoogleVisionOcrProvider({ env });
+    case OCR_PROVIDER_NAMES.TESSERACT:
+      return createTesseractOcrProvider({ env });
+    default:
+      return null;
+  }
 }
 
 function createSummary({ provider, config }) {

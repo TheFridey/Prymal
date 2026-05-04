@@ -26,7 +26,7 @@ export default function Settings() {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('Account');
   const [billingInterval, setBillingInterval] = useState('monthly');
-  const [usageDays, setUsageDays] = useState(30);
+  const [usagePeriod, setUsagePeriod] = useState('month');
   const [seatAddonOpen, setSeatAddonOpen] = useState(false);
   const [seatAddonQty, setSeatAddonQty] = useState(1);
   const [keyName, setKeyName] = useState('');
@@ -56,8 +56,14 @@ export default function Settings() {
   });
 
   const usageBreakdownQuery = useQuery({
-    queryKey: ['usage-breakdown', usageDays],
-    queryFn: () => api.get(`/billing/usage-breakdown?days=${usageDays}`),
+    queryKey: ['usage-breakdown', usagePeriod],
+    queryFn: () => api.get(`/usage/breakdown?period=${usagePeriod}`),
+    enabled: activeTab === 'Billing',
+  });
+
+  const usageSummaryQuery = useQuery({
+    queryKey: ['usage-summary'],
+    queryFn: () => api.get('/usage/summary'),
     enabled: activeTab === 'Billing',
   });
 
@@ -344,14 +350,15 @@ export default function Settings() {
               portalMutation={portalMutation}
               creditPackCheckoutMutation={creditPackCheckoutMutation}
               usageBreakdownQuery={usageBreakdownQuery}
+              usageSummaryQuery={usageSummaryQuery}
               currentPlan={currentPlan}
               currentPlanMeta={currentPlanMeta}
               creditPercent={creditPercent}
               seatSummary={seatSummary}
               billingInterval={billingInterval}
               setBillingInterval={setBillingInterval}
-              usageDays={usageDays}
-              setUsageDays={setUsageDays}
+              usagePeriod={usagePeriod}
+              setUsagePeriod={setUsagePeriod}
             />
           ) : null}
           {activeTab === 'Team' ? (

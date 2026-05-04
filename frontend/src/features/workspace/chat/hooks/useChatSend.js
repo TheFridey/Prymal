@@ -19,6 +19,7 @@ import {
 } from '../../../../lib/usageGateCopy';
 import { trackProductEvent } from '../../../../lib/product-events';
 import { FIRST_WIN_STATES, writeFirstWinState } from '../../../../lib/first-run-outcomes';
+import { IMAGE_GENERATION_REQUEST_TIMEOUT_MS } from '../media-generation';
 
 const WORKFLOW_RUN_UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -203,7 +204,7 @@ export function useChatSend({
         size,
         outputFormat,
         background,
-      });
+      }, {}, { timeoutMs: IMAGE_GENERATION_REQUEST_TIMEOUT_MS });
 
       setIsStreaming(false);
       setStreamingTask(null);

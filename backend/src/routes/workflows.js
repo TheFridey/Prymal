@@ -12,6 +12,7 @@ import { dispatchWorkflowRun, registerCron, unregisterCron } from '../queue/trig
 import { createScheduledWorkflowRunHandler } from '../services/inline-scheduler.js';
 import { recordAuditLog, recordProductEvent, recordProductEventOnce } from '../services/telemetry.js';
 import { recordCatalogueRun } from '../services/workflow-catalogue.js';
+import { runControlPlaneShadowSafely } from '../services/control-plane/shadow-mode.js';
 import { validateWorkflowDefinition } from '../services/workflow-engine.js';
 import { scanWorkflowPlan, WARDEN_VERDICTS } from '../services/warden/index.js';
 import {
@@ -30,6 +31,7 @@ const WORKFLOW_WEBHOOK_EVENT_TYPES = [
   'workflow.failed',
   'workflow.node.completed',
   'workflow.node.failed',
+  'workflow.node.held',
 ];
 const webhookUrlSchema = z
   .string()
@@ -692,6 +694,7 @@ router.post('/:id/run', requireOrg, planAwareRateLimit({
     workflow,
     orgContext: org,
   });
+  queueControlPlaneShadow({ workflow, input: workflow.triggerConfig ?? {}, org, runId: run.id });
 
   await db
     .update(workflowRuns)
@@ -787,6 +790,7 @@ router.post('/:id/run-again', requireOrg, requireRole('owner', 'admin'), zValida
     workflow: workflowForRun,
     orgContext: org,
   });
+  queueControlPlaneShadow({ workflow: workflowForRun, input: runInput, org, runId: run.id });
 
   await db
     .update(workflowRuns)
@@ -864,6 +868,15 @@ router.post('/webhook/:id/:secret', async (context) => {
       orgName: organisation.name,
       credits: billingSnapshot.credits,
     },
+  });
+  queueControlPlaneShadow({
+    workflow,
+    input: workflow.triggerConfig ?? {},
+    org: {
+      orgId: organisation.id,
+      userId: null,
+    },
+    runId: run.id,
   });
 
   await db
@@ -1026,6 +1039,7 @@ router.post('/runs/:runId/replay', requireOrg, requireRole('owner', 'admin'), as
     workflow,
     orgContext: org,
   });
+  queueControlPlaneShadow({ workflow, input: sourceRun.nodeOutputs ?? {}, org, runId: replayRun.id });
 
   await db
     .update(workflowRuns)
@@ -1208,4 +1222,16 @@ function serializeWorkflowWebhook(entry) {
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
   };
+}
+
+function queueControlPlaneShadow({ workflow, input, org, runId }) {
+  queueMicrotask(() => {
+    void runControlPlaneShadowSafely({
+      workflow,
+      input,
+      userId: org?.userId ?? null,
+      orgId: org?.orgId ?? workflow?.orgId ?? null,
+      runId,
+    });
+  });
 }

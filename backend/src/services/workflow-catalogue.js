@@ -11,6 +11,7 @@ import {
 } from '../db/schema.js';
 import { recordProductEvent } from './telemetry.js';
 import { validateWorkflowDefinition } from './workflow-engine.js';
+import { scanWorkflowPlan, WARDEN_VERDICTS } from './warden/index.js';
 
 export const WORKFLOW_CATALOGUE_PLATFORM_FEE_BPS = Number(process.env.WORKFLOW_CATALOGUE_PLATFORM_FEE_BPS ?? 2500);
 
@@ -1132,23 +1133,22 @@ export async function duplicateCatalogueWorkflowIntoOrg({ catalogueItemId, targe
     throw catalogueValidationError('Workflow catalogue item not found.', 404);
   }
 
-  if (item.pricingType === 'premium') {
-    if (!isWorkflowCataloguePremiumEnabled()) {
-      throw catalogueValidationError('Premium workflow installs are not available yet.', 403);
-    }
-    const paid = await hasPaidPurchase({ itemId: item.id, orgId: targetOrgId, userId });
-    if (!paid) {
-      throw catalogueValidationError('Purchase this premium workflow before installing it.', 402);
-    }
-  }
-
   const org = await db.query.organisations.findFirst({ where: eq(organisations.id, targetOrgId) });
   if (!org) throw catalogueValidationError('Organisation not found.', 404);
+
+  assertCatalogueInstallPlanAllowed({ item, org });
+
   if (!planAllows(org.plan, item.requiredPlan)) {
     throw catalogueValidationError(`This workflow requires the ${item.requiredPlan} plan or higher.`, 403);
   }
 
   const { definition } = validateCatalogueWorkflowDefinition(item.templateWorkflowDefinition);
+  await scanCatalogueWorkflowDefinition({
+    definition,
+    item,
+    org,
+    userId,
+  });
   const triggerConfig = {
     ...(definition.triggerConfig ?? {}),
     catalogueItemId: item.id,
@@ -1179,6 +1179,44 @@ export async function duplicateCatalogueWorkflowIntoOrg({ catalogueItemId, targe
   });
 
   return { workflow, item };
+}
+
+export function assertCatalogueInstallPlanAllowed({ item, org }) {
+  if (item?.pricingType !== 'premium') {
+    return true;
+  }
+
+  if (!isWorkflowCataloguePremiumEnabled()) {
+    throw catalogueValidationError('Premium workflow installs are not available yet.', 403);
+  }
+
+  if (!planAllows(org?.plan, 'pro')) {
+    throw catalogueValidationError('Upgrade to Pro, Teams, or Agency to install premium workflows.', 402);
+  }
+
+  return true;
+}
+
+async function scanCatalogueWorkflowDefinition({ definition, item, org, userId }) {
+  const scan = await scanWorkflowPlan({
+    workflow: definition,
+    inputs: definition.triggerConfig ?? {},
+    nodes: definition.nodes ?? [],
+    edges: definition.edges ?? [],
+    userId,
+    orgId: org.id,
+    metadata: {
+      source: 'workflow_catalogue_install',
+      catalogueItemId: item.id,
+      catalogueSlug: item.slug,
+    },
+  });
+
+  if ([WARDEN_VERDICTS.BLOCK, WARDEN_VERDICTS.REQUIRE_CONFIRMATION].includes(scan.verdict)) {
+    throw catalogueValidationError('WARDEN blocked this catalogue workflow definition before install.', 400);
+  }
+
+  return scan;
 }
 
 export async function submitCatalogueItemForReview(itemId, userId, orgId) {
@@ -1472,18 +1510,6 @@ function buildCatalogueOrder(sort) {
   if (sort === 'rating') return [desc(workflowCatalogueItems.ratingAverage), desc(workflowCatalogueItems.ratingCount)];
   if (sort === 'official') return [desc(workflowCatalogueItems.publisherType), desc(workflowCatalogueItems.installCount)];
   return [desc(workflowCatalogueItems.installCount), desc(workflowCatalogueItems.publishedAt)];
-}
-
-async function hasPaidPurchase({ itemId, orgId, userId }) {
-  const purchase = await db.query.workflowCataloguePurchases.findFirst({
-    where: and(
-      eq(workflowCataloguePurchases.catalogueItemId, itemId),
-      eq(workflowCataloguePurchases.buyerOrgId, orgId),
-      eq(workflowCataloguePurchases.buyerUserId, userId),
-      eq(workflowCataloguePurchases.status, 'paid'),
-    ),
-  });
-  return Boolean(purchase);
 }
 
 function planAllows(actualPlan = 'free', requiredPlan = null) {

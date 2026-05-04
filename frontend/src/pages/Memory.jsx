@@ -116,8 +116,7 @@ export default function Memory() {
             <TextInput value={q} onChange={(event) => setQ(event.target.value)} placeholder="Key, value, title..." />
             {capsQuery.data?.counts ? (
               <p className="memory-page__muted">
-                User preferences stored: {capsQuery.data.counts.user_preference ?? 0} /{' '}
-                {capsQuery.data.caps?.user_preference?.hard ?? 50} (hard cap)
+                User preferences stored: {capsQuery.data.counts.user_preference ?? 0}. Usage is managed per your current plan.
               </p>
             ) : null}
             <label className="memory-page__select-label">

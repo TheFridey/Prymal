@@ -5,6 +5,7 @@ import {
   estimateImageExecutionCredits,
   estimatePromptTokens,
   estimateVideoCredits,
+  IMAGE_GENERATION_REQUEST_TIMEOUT_MS,
   shouldConfirmVideoRender,
 } from './media-generation';
 
@@ -18,6 +19,10 @@ describe('media-generation helpers', () => {
     expect(estimateImageExecutionCredits({ quality: 'low' })).toBe(2);
     expect(estimateImageExecutionCredits({ quality: 'medium' })).toBe(4);
     expect(estimateImageExecutionCredits({ quality: 'high' })).toBe(8);
+  });
+
+  test('allows image generation requests to run longer than the default API timeout', () => {
+    expect(IMAGE_GENERATION_REQUEST_TIMEOUT_MS).toBe(180_000);
   });
 
   test('keeps standard video estimates materially higher than lite', () => {

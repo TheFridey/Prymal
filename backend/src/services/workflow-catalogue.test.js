@@ -5,6 +5,7 @@ process.env.WORKFLOW_CATALOGUE_PREMIUM_ENABLED = 'false';
 
 const {
   OFFICIAL_WORKFLOW_CATALOGUE_ITEMS,
+  assertCatalogueInstallPlanAllowed,
   estimateCatalogueWorkflowCost,
   isWorkflowCataloguePremiumEnabled,
   validateCatalogueWorkflowDefinition,
@@ -90,4 +91,27 @@ test('catalogue estimates expose execution and video signals', () => {
 
 test('premium workflow catalogue support is disabled by default', () => {
   assert.equal(isWorkflowCataloguePremiumEnabled(), false);
+});
+
+test('premium catalogue install smoke gate blocks Free plan users with upgrade response', () => {
+  process.env.WORKFLOW_CATALOGUE_PREMIUM_ENABLED = 'true';
+
+  assert.throws(
+    () => assertCatalogueInstallPlanAllowed({
+      item: { pricingType: 'premium' },
+      org: { plan: 'free' },
+    }),
+    (error) => {
+      assert.equal(error.status, 402);
+      assert.match(error.message, /upgrade to pro/i);
+      return true;
+    },
+  );
+
+  assert.equal(assertCatalogueInstallPlanAllowed({
+    item: { pricingType: 'premium' },
+    org: { plan: 'pro' },
+  }), true);
+
+  process.env.WORKFLOW_CATALOGUE_PREMIUM_ENABLED = 'false';
 });

@@ -78,7 +78,6 @@ export default function WorkflowCatalogueDetail() {
               <div className="workflow-catalogue-detail__stat-grid">
                 <Stat label="Execution credits" value={formatNumber(item.estimatedExecutionCredits ?? 0)} />
                 <Stat label="Video credits" value={formatNumber(item.estimatedVideoCredits ?? 0)} />
-                <Stat label="Cost estimate" value={`£${Number(item.estimatedCostGbp ?? 0).toFixed(2)}`} />
                 <Stat label="Runtime" value={item.expectedRuntimeLabel || 'Varies'} />
               </div>
             </aside>

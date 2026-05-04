@@ -20,6 +20,7 @@ import { estimateTokens, runAgentNode } from './llm.js';
 import { emitWorkflowTimelineEvent } from './memory-events.js';
 import { maybeRecordFirstWinAggregate, recordProductEvent, recordProductEventOnce } from './telemetry.js';
 import { scanPastedContent, scanWorkflowPlan, WARDEN_VERDICTS } from './warden/index.js';
+import { reviewWorkflowNodeOutputWithSentinel } from './workflow-sentinel.js';
 
 const WORKFLOW_NODE_TIMEOUT_MS = Number(process.env.WORKFLOW_NODE_TIMEOUT_MS ?? 90_000);
 const WORKFLOW_RUN_TIMEOUT_MS = Number(process.env.WORKFLOW_RUN_TIMEOUT_MS ?? 15 * 60_000);
@@ -367,14 +368,180 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
         },
       });
 
+      let evaluation = evaluateAgentOutput({
+        agentId: node.agentId,
+        text: result.text,
+        sources: result.sources ?? [],
+        usedTools: result.trace?.toolsUsed ?? [],
+        structuredOutput: null,
+      });
+
+      const sentinelGate = await reviewWorkflowNodeOutputWithSentinel({
+        node,
+        workflow,
+        orgContext,
+        result,
+        evaluation,
+        repairOutput: async ({ review }) => runWithTimeout(
+          runAgentNode({
+            agentId: node.agentId,
+            orgId: workflow.orgId,
+            orgPlan: orgContext.orgPlan,
+            prompt: buildSentinelRepairPrompt({ node, review }),
+            context: {
+              ...upstreamContext,
+              __workflowRunId: runId,
+              __workflowNodeCount: sortedNodes.length,
+              __orgMetadata: orgContext.orgMetadata ?? {},
+              __sentinelRepairAttempt: true,
+            },
+          }),
+          WORKFLOW_NODE_TIMEOUT_MS,
+          `${node.label ?? node.id} exceeded the SENTINEL repair timeout.`,
+        ),
+      });
+
+      result = sentinelGate.result ?? result;
+      evaluation = evaluateAgentOutput({
+        agentId: node.agentId,
+        text: result.text,
+        sources: result.sources ?? [],
+        usedTools: result.trace?.toolsUsed ?? [],
+        structuredOutput: null,
+      });
+      const sentinelMetadata = {
+        sentinelVerdict: sentinelGate.verdict,
+        sentinelNodeId: node.id,
+        repairAttempted: sentinelGate.repairAttempted,
+        sentinelReview: sentinelGate.review ?? null,
+      };
+
+      if (sentinelGate.verdict === 'HOLD') {
+        const holdReason = `sentinel_hold_on_node_${node.id}`;
+        nodeOutputs[node.id] = {
+          outputVar: node.outputVar,
+          held: true,
+          sentinelVerdict: 'HOLD',
+          sentinelNodeId: node.id,
+          repairAttempted: sentinelGate.repairAttempted,
+          holdReason,
+          completedAt: new Date().toISOString(),
+          durationMs: Date.now() - nodeStartedAt,
+        };
+        appendRunLog(runLog, 'hold', `${node.label ?? node.id} held by SENTINEL before downstream handoff.`, {
+          nodeId: node.id,
+          agentId: node.agentId,
+          reason: holdReason,
+          repairAttempted: sentinelGate.repairAttempted,
+        });
+
+        await recordLLMExecutionTrace({
+          orgId: workflow.orgId,
+          userId: orgContext.userId ?? null,
+          workflowRunId: runId,
+          agentId: node.agentId,
+          provider: result.provider,
+          model: result.model,
+          policyKey: result.trace?.policyKey ?? 'workflow_automation',
+          route: result.route,
+          routeReason: result.routeReason ?? null,
+          fallbackUsed: result.trace?.fallbackUsed ?? false,
+          latencyMs: Date.now() - nodeStartedAt,
+          promptTokens: result.inputTokens ?? null,
+          completionTokens: result.outputTokens ?? null,
+          totalTokens: result.totalTokens ?? null,
+          toolsUsed: result.trace?.toolsUsed ?? [],
+          loreChunkIds: result.trace?.loreChunkIds ?? [],
+          loreDocumentIds: result.trace?.loreDocumentIds ?? [],
+          memoryReadIds: result.trace?.memoryReadIds ?? [],
+          memoryWriteKeys: [],
+          outcomeStatus: 'held',
+          failureClass: holdReason,
+          metadata: {
+            mode: 'workflow',
+            workflowId: workflow.id,
+            nodeId: node.id,
+            outputVar: node.outputVar,
+            sourceCount: result.sources?.length ?? 0,
+            sources: result.sources ?? [],
+            evaluation,
+            contract: result.trace?.selectionDetails?.contract ?? null,
+            policyClass: result.trace?.selectionDetails?.policyClass ?? result.trace?.policyKey ?? null,
+            fallbackModel: result.trace?.selectionDetails?.fallbackModelUsed ?? null,
+            schemaValidation: sentinelGate.schemaValidation ?? result.trace?.schemaValidation ?? null,
+            routing: result.trace?.selectionDetails ?? {},
+            ...sentinelMetadata,
+          },
+        });
+
+        await db
+          .update(workflowRuns)
+          .set({
+            status: 'completed',
+            completedAt: new Date(),
+            errorLog: holdReason,
+            failureClass: 'degraded',
+            nodeOutputs,
+            runLog,
+            creditsUsed: totalCredits,
+            lastHeartbeatAt: new Date(),
+          })
+          .where(sql`${workflowRuns.id} = ${runId}`);
+
+        await deliverWorkflowWebhook({
+          orgId: orgContext.orgId,
+          workflowId: workflow.id,
+          event: 'workflow.node.held',
+          payload: {
+            runId,
+            status: 'degraded',
+            creditsUsed: totalCredits,
+            nodeId: node.id,
+            agentId: node.agentId,
+            outputVar: node.outputVar,
+            reason: holdReason,
+            sentinelVerdict: 'HOLD',
+            repairAttempted: sentinelGate.repairAttempted,
+          },
+        }).catch((err) => console.error('[WEBHOOK] Delivery error:', err.message));
+
+        await emitWorkflowTimelineEvent({
+          orgId: workflow.orgId,
+          userId: orgContext.userId ?? null,
+          workflowRunId: runId,
+          agentId: node.agentId,
+          eventType: 'workflow_node_held',
+          title: `Step held: ${node.label ?? node.id}`,
+          description: holdReason,
+          importanceScore: 0.7,
+          metadata: {
+            workflowId: workflow.id,
+            nodeId: node.id,
+            nodeType: 'agent',
+            outputStatus: 'held',
+            ...sentinelMetadata,
+          },
+        }).catch(() => {});
+
+        return {
+          nodeOutputs,
+          creditsUsed: totalCredits,
+          degraded: true,
+          reason: holdReason,
+        };
+      }
+
       nodeOutputs[node.id] = {
         outputVar: node.outputVar,
         text: result.text,
         model: result.model,
         totalTokens: result.totalTokens,
-        sourceCount: result.sources.length,
+        sourceCount: result.sources?.length ?? 0,
         completedAt: new Date().toISOString(),
         durationMs: Date.now() - nodeStartedAt,
+        sentinelVerdict: sentinelGate.verdict,
+        sentinelNodeId: node.id,
+        repairAttempted: sentinelGate.repairAttempted,
       };
       appendRunLog(runLog, 'node', `${node.label ?? node.id} completed successfully.`, {
         nodeId: node.id,
@@ -382,6 +549,8 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
         totalTokens: result.totalTokens ?? 0,
         creditsUsed: nodeCreditCost,
         durationMs: Date.now() - nodeStartedAt,
+        sentinelVerdict: sentinelGate.verdict,
+        repairAttempted: sentinelGate.repairAttempted,
       });
 
       await emitWorkflowTimelineEvent({
@@ -399,16 +568,9 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
           nodeType: 'agent',
           durationMs: Date.now() - nodeStartedAt,
           outputStatus: 'ok',
+          ...sentinelMetadata,
         },
       }).catch(() => {});
-
-      const evaluation = evaluateAgentOutput({
-        agentId: node.agentId,
-        text: result.text,
-        sources: result.sources ?? [],
-        usedTools: result.trace?.toolsUsed ?? [],
-        structuredOutput: null,
-      });
 
       await recordLLMExecutionTrace({
         orgId: workflow.orgId,
@@ -442,8 +604,9 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
           contract: result.trace?.selectionDetails?.contract ?? null,
           policyClass: result.trace?.selectionDetails?.policyClass ?? result.trace?.policyKey ?? null,
           fallbackModel: result.trace?.selectionDetails?.fallbackModelUsed ?? null,
-          schemaValidation: result.trace?.schemaValidation ?? null,
+          schemaValidation: sentinelGate.schemaValidation ?? result.trace?.schemaValidation ?? null,
           routing: result.trace?.selectionDetails ?? {},
+          ...sentinelMetadata,
         },
       });
 
@@ -782,6 +945,24 @@ function shouldRunNode(node, context) {
         return true;
     }
   });
+}
+
+function buildSentinelRepairPrompt({ node, review }) {
+  const concerns = (review?.concerns ?? [])
+    .map((concern, index) => `${index + 1}. ${concern}`)
+    .join('\n');
+  const actions = (review?.repair_actions ?? [])
+    .map((action, index) => `${index + 1}. ${action}`)
+    .join('\n');
+
+  return [
+    node.prompt,
+    '',
+    'SENTINEL requested one correction pass before this workflow output can be used by downstream nodes.',
+    concerns ? `Concerns:\n${concerns}` : null,
+    actions ? `Required corrections:\n${actions}` : null,
+    'Return the corrected workflow node output only. Keep the same task scope and do not add unrelated commentary.',
+  ].filter(Boolean).join('\n\n');
 }
 
 function workflowValidationError(message) {

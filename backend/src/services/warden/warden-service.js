@@ -181,6 +181,10 @@ export async function scanPastedContent({ text, userId, orgId, dbClient } = {}) 
 
 export async function scanMediaPrompt({ prompt, uploadedImageText = '', imageMetadata = {}, userId, orgId, dbClient, provider = null } = {}) {
   const media = classifyMediaPromptSafety({ prompt, uploadedImageText, imageMetadata });
+  const normalizedImageMetadata = {
+    ...imageMetadata,
+    ocr_result_flagged: Boolean(uploadedImageText) && media.verdict !== WARDEN_VERDICTS.ALLOW,
+  };
   return createWardenDecision({
     input: [prompt, uploadedImageText].filter(Boolean).join('\n\n'),
     surface: 'media_generation',
@@ -193,7 +197,7 @@ export async function scanMediaPrompt({ prompt, uploadedImageText = '', imageMet
     reasons: media.reasons,
     verdict: media.verdict,
     riskLevel: media.riskLevel,
-    metadata: { imageMetadata },
+    metadata: { imageMetadata: normalizedImageMetadata },
   }, { dbClient });
 }
 

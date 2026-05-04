@@ -19,10 +19,12 @@ const {
   hasUsableAnthropicKey,
   hasUsableGeminiKey,
   hasUsableOpenAIKey,
+  isGeminiGroundingEnabled,
   buildPolicyOutcomeSummary,
 } = await import('./model-policy.js');
 
 test('selectExecutionPlan routes grounded research to OpenAI analysis with fallbacks', () => {
+  process.env.GEMINI_GROUNDING_ENABLED = 'false';
   const plan = selectExecutionPlan({
     agent: { id: 'scout' },
     userMessage: 'Research the latest competitor positioning and cite sources from their website.',
@@ -35,6 +37,29 @@ test('selectExecutionPlan routes grounded research to OpenAI analysis with fallb
   assert.equal(plan.provider, 'openai');
   assert.equal(plan.model, 'gpt-5.4');
   assert.equal(plan.fallbackChain.length > 0, true);
+});
+
+test('grounded_research policy resolves to Gemini when live grounding is enabled', () => {
+  process.env.GEMINI_API_KEY = 'AIzaRealGeminiKeyHere';
+  process.env.GEMINI_GROUNDING_ENABLED = 'true';
+
+  const plan = selectExecutionPlan({
+    agent: { id: 'scout' },
+    userMessage: 'Research live competitor updates and cite sources.',
+    mode: 'chat',
+    orgPlan: 'pro',
+    attachments: [],
+  });
+
+  assert.equal(isGeminiGroundingEnabled(), true);
+  assert.equal(plan.policyKey, MODEL_POLICIES.grounded_research.key);
+  assert.equal(plan.provider, 'google');
+  assert.equal(plan.route, 'gemini-grounded-research');
+  assert.equal(plan.selectionDetails.geminiGroundingEnabled, true);
+  assert.equal(plan.fallbackChain.some((entry) => entry.provider === 'openai'), true);
+
+  process.env.GEMINI_GROUNDING_ENABLED = 'false';
+  delete process.env.GEMINI_API_KEY;
 });
 
 test('selectExecutionPlan routes workflow mode to workflow automation policy', () => {

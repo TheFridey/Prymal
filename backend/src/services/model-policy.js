@@ -150,6 +150,10 @@ export function hasUsableGeminiKey() {
   return Boolean(apiKey && apiKey.startsWith('AI') && !/xxxx|your_|placeholder/i.test(apiKey));
 }
 
+export function isGeminiGroundingEnabled() {
+  return String(process.env.GEMINI_GROUNDING_ENABLED ?? 'false').toLowerCase() === 'true';
+}
+
 export function getGeminiModels() {
   return {
     flash: process.env.GEMINI_MODEL_FLASH ?? 'gemini-2.5-flash',
@@ -611,6 +615,7 @@ export function selectExecutionPlan({
 
   if (policyKey === MODEL_POLICIES.grounded_research.key) {
     const prefersAnthropicGrounding = preferredLane === 'anthropic_premium' || preferredLane === 'anthropic_balanced';
+    const geminiGroundingAvailable = isGeminiGroundingEnabled() && geminiAvailable;
 
     if (prefersAnthropicGrounding && anthropicAvailable && !routingHints?.toolHeavy) {
       return buildExecutionPlan({
@@ -624,6 +629,25 @@ export function selectExecutionPlan({
           { provider: 'anthropic', model: anthropicModels.fast, route: 'anthropic-fast-fallback' },
         ],
         selectionDetails,
+      });
+    }
+
+    if (geminiGroundingAvailable) {
+      return buildExecutionPlan({
+        policyKey,
+        provider: 'google',
+        model: geminiModels.pro,
+        route: 'gemini-grounded-research',
+        reason: `Using ${geminiModels.pro} with Gemini live grounding for grounded research.`,
+        fallbackChain: [
+          ...(openAIAvailable ? [{ provider: 'openai', model: openAIModels.premium, route: 'openai-grounded-research-fallback' }] : []),
+          ...(anthropicAvailable ? [{ provider: 'anthropic', model: anthropicModels.default, route: 'anthropic-research-fallback' }] : []),
+          { provider: 'google', model: geminiModels.flash, route: 'gemini-flash-fallback' },
+        ],
+        selectionDetails: {
+          ...selectionDetails,
+          geminiGroundingEnabled: true,
+        },
       });
     }
 

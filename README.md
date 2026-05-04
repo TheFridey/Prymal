@@ -287,10 +287,10 @@ npm run verify-build -- --clean
 - Trigger.dev: `TRIGGER_API_KEY`, optional `TRIGGER_API_URL`
 - Integrations: Google, Notion, Slack OAuth credentials; manual-token providers use encrypted stored secrets
 - OAuth state: `INTEGRATION_STATE_SECRET`
-- Gemini/Veo: `GEMINI_API_KEY`, model override env vars, `GEMINI_GROUNDING_ENABLED=false` for launch
+- Gemini/Veo: `GEMINI_API_KEY`, model override env vars, `GEMINI_GROUNDING_ENABLED=true` for live grounded research
 - Media storage: `MEDIA_STORAGE_DRIVER`, Cloudinary credentials, retention and timeout controls
 - Rate limiting: optional Upstash Redis REST URL/token
-- Workflow Catalogue: `WORKFLOW_CATALOGUE_ENABLED`, `WORKFLOW_CATALOGUE_USER_SUBMISSIONS_ENABLED`, `WORKFLOW_CATALOGUE_PREMIUM_ENABLED=false`, `WORKFLOW_CATALOGUE_PLATFORM_FEE_BPS`
+- Workflow Catalogue: `WORKFLOW_CATALOGUE_ENABLED`, `WORKFLOW_CATALOGUE_USER_SUBMISSIONS_ENABLED`, `WORKFLOW_CATALOGUE_PREMIUM_ENABLED=true`, `WORKFLOW_CATALOGUE_PLATFORM_FEE_BPS`
 
 ### Frontend Essentials
 

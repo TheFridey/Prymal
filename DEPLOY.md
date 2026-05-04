@@ -304,7 +304,7 @@ Workflow Catalogue:
 
 - `WORKFLOW_CATALOGUE_ENABLED=true`
 - `WORKFLOW_CATALOGUE_USER_SUBMISSIONS_ENABLED=true` for beta submissions
-- `WORKFLOW_CATALOGUE_PREMIUM_ENABLED=false` until marketplace checkout/webhook/payout proof is complete
+- `WORKFLOW_CATALOGUE_PREMIUM_ENABLED=true` for premium catalogue installs; verify Free/Solo upgrade gates before deploy
 - `WORKFLOW_CATALOGUE_PLATFORM_FEE_BPS=2500`
 - run `npm run catalogue:seed` after migrations to install official curated workflows
 
@@ -313,7 +313,7 @@ Optional but supported:
 - `GEMINI_API_KEY`
 - `GEMINI_MODEL_VEO`
 - `GEMINI_MODEL_VEO_STANDARD`
-- `GEMINI_GROUNDING_ENABLED=false` for launch; live Gemini web grounding is intentionally deferred
+- `GEMINI_GROUNDING_ENABLED=true` for live Gemini web grounding; confirm `GEMINI_API_KEY` is present in Railway before deploy
 
 Current media-generation constraints to keep honest in deploy/runbooks:
 
@@ -349,7 +349,7 @@ WARDEN safety firewall:
 - `WARDEN_MODEL_CLASSIFIER_DAILY_CALL_CAP=500`
 - `WARDEN_MODEL_CLASSIFIER_DAILY_COST_CAP_USD=5`
 - optional token pricing vars: `WARDEN_MODEL_CLASSIFIER_INPUT_TOKEN_PRICE_USD`, `WARDEN_MODEL_CLASSIFIER_OUTPUT_TOKEN_PRICE_USD`
-- `WARDEN_OCR_ENABLED=false`
+- `WARDEN_OCR_ENABLED=false` by default; Teams, Agency, and staff upload paths enable OCR plan-aware at runtime
 - `WARDEN_OCR_PROVIDER=none`
 - `WARDEN_OCR_TIMEOUT_MS=3000`
 - `WARDEN_OCR_MAX_IMAGES=4`

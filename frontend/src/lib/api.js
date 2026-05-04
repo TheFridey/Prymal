@@ -100,7 +100,7 @@ async function request(path, init = {}, options = {}) {
       clearTimeout(timeout);
     }
 
-    if (error.name === 'AbortError') {
+    if (error.name === 'AbortError' || /timed out after \d+ms/i.test(error.message ?? '')) {
       throw new ApiError(`Request timed out after ${timeoutMs}ms. Check that the Prymal API is running.`, {
         status: 504,
       });
@@ -298,11 +298,11 @@ function resolveApiBaseUrl() {
 }
 
 export const api = {
-  get: (path, init) => request(path, { ...init, method: 'GET' }),
-  post: (path, body, init) => request(path, { ...init, method: 'POST', body }),
-  put: (path, body, init) => request(path, { ...init, method: 'PUT', body }),
-  patch: (path, body, init) => request(path, { ...init, method: 'PATCH', body }),
-  delete: (path, init) => request(path, { ...init, method: 'DELETE' }),
+  get: (path, init, options) => request(path, { ...init, method: 'GET' }, options),
+  post: (path, body, init, options) => request(path, { ...init, method: 'POST', body }, options),
+  put: (path, body, init, options) => request(path, { ...init, method: 'PUT', body }, options),
+  patch: (path, body, init, options) => request(path, { ...init, method: 'PATCH', body }, options),
+  delete: (path, init, options) => request(path, { ...init, method: 'DELETE' }, options),
   upload,
   sdp: (path, body, init) =>
     request(

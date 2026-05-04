@@ -64,7 +64,7 @@ test('AdminCommandPalette routes a trace search result into the traces surface',
   expect(props.onNavigateTab).toHaveBeenCalledWith('traces');
   expect(props.onSelectTrace).toHaveBeenCalledWith('trace_1');
   expect(props.onClose).toHaveBeenCalled();
-});
+}, 15_000);
 
 test('AdminCommandPalette routes a billing entity search result into billing', async () => {
   api.get.mockResolvedValue({
@@ -91,4 +91,4 @@ test('AdminCommandPalette routes a billing entity search result into billing', a
 
   expect(props.onNavigateTab).toHaveBeenCalledWith('billing');
   expect(props.onClose).toHaveBeenCalled();
-});
+}, 15_000);

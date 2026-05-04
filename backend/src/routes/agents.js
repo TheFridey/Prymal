@@ -42,6 +42,7 @@ import {
   buildWardenTrace,
   classifyUserIntent,
   extractSafetyTextFromImages,
+  getPlanAwareOcrConfig,
   scanMediaPrompt,
   scanPastedContent,
   wrapPastedReference,
@@ -748,7 +749,9 @@ router.post('/generate-image', requireOrg, mediaGenerationRateLimit, zValidator(
     );
   }
 
-  const imageSafetyText = await extractSafetyTextFromImages(payload.referenceImages || []);
+  const imageSafetyText = await extractSafetyTextFromImages(payload.referenceImages || [], {
+    ocrConfig: getPlanAwareOcrConfig({ orgPlan: org.orgPlan }),
+  });
   const mediaDecision = await scanMediaPrompt({
     prompt: payload.prompt,
     uploadedImageText: imageSafetyText.text,
@@ -1025,7 +1028,9 @@ router.post('/generate-video', requireOrg, mediaGenerationRateLimit, zValidator(
     );
   }
 
-  const imageSafetyText = await extractSafetyTextFromImages(payload.referenceImages || []);
+  const imageSafetyText = await extractSafetyTextFromImages(payload.referenceImages || [], {
+    ocrConfig: getPlanAwareOcrConfig({ orgPlan: org.orgPlan }),
+  });
   const mediaDecision = await scanMediaPrompt({
     prompt: payload.prompt,
     uploadedImageText: imageSafetyText.text,

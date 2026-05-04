@@ -23,7 +23,6 @@ import {
   updateSubscriptionBillingStatus,
 } from '../services/billing-engine.js';
 import { getPlanConfig } from '../services/entitlements.js';
-import { getMonthlyInternalBurnCapGbp } from '../services/billing-catalog.js';
 import {
   FOUNDING_ACCESS_OFFER_KEY,
   activateFoundingAccessClaim,
@@ -446,8 +445,8 @@ router.get('/stats', requireOrg, async (context) => {
       subline:
           ledgerFlags.heavyUserSignals?.orgLedgerSharePct != null
             && ledgerFlags.heavyUserSignals.orgLedgerSharePct > 33
-            ? `Your traces represent ~${Math.round(ledgerFlags.heavyUserSignals.orgLedgerSharePct)}% of shared workspace provider spend — layer packs ahead of spikes.`
-            : 'Burst packs map spend predictably ahead of spikes; upgrades unlock orchestration rails.',
+            ? `Your traces represent ~${Math.round(ledgerFlags.heavyUserSignals.orgLedgerSharePct)}% of shared workspace throughput — layer packs ahead of spikes.`
+            : 'Burst packs keep usage predictable ahead of spikes; upgrades unlock orchestration rails.',
     }
     : null;
 
@@ -489,8 +488,6 @@ router.get('/stats', requireOrg, async (context) => {
     foundingAccess: billingSnapshot.subscription.metadata?.foundingAccess ?? null,
     entitlements: billingSnapshot.subscription.metadata?.entitlements ?? {},
     usageEconomics: {
-      estimatedProviderCostGbpThisCycle: billingSnapshot.subscription.cumulativeEstimatedCostGbp ?? 0,
-      monthlyInternalBurnCapGbp: getMonthlyInternalBurnCapGbp(organisation?.plan),
       founderDiscountWindowEndsAt:
         billingSnapshot.subscription.metadata?.foundingAccess?.founderDiscountWindowEndsAt ?? null,
     },
@@ -875,19 +872,18 @@ router.get('/usage-breakdown', requireOrg, async (context) => {
       SUM(CASE WHEN outcome_status = 'succeeded' THEN 1 ELSE 0 END)::int AS success_count,
       SUM(CASE WHEN outcome_status = 'failed' THEN 1 ELSE 0 END)::int AS failure_count,
       COALESCE(SUM(total_tokens), 0)::bigint AS total_tokens,
-      COALESCE(SUM(estimated_cost_usd), 0)::double precision AS estimated_cost_usd
+      COALESCE(SUM(total_tokens), 0)::bigint AS sort_tokens
     FROM llm_execution_traces
     WHERE org_id = ${org.orgId}
       AND created_at > NOW() - (${days} || ' days')::interval
     GROUP BY agent_id
     HAVING COUNT(*) > 0
-    ORDER BY estimated_cost_usd DESC
+    ORDER BY sort_tokens DESC
   `);
 
   const rows = result.rows ?? result;
   const totalRuns = rows.reduce((sum, row) => sum + Number(row.runs ?? 0), 0);
   const totalTokens = rows.reduce((sum, row) => sum + Number(row.total_tokens ?? 0), 0);
-  const totalCostUsd = rows.reduce((sum, row) => sum + Number(row.estimated_cost_usd ?? 0), 0);
 
   const breakdown = rows.map((row) => ({
     agentId: row.agent_id,
@@ -895,15 +891,13 @@ router.get('/usage-breakdown', requireOrg, async (context) => {
     successCount: Number(row.success_count ?? 0),
     failureCount: Number(row.failure_count ?? 0),
     totalTokens: Number(row.total_tokens ?? 0),
-    estimatedCostUsd: Number(row.estimated_cost_usd ?? 0).toFixed(6),
-    shareOfTotal: totalCostUsd > 0 ? Number(row.estimated_cost_usd ?? 0) / totalCostUsd : 0,
+    shareOfTotal: totalRuns > 0 ? Number(row.runs ?? 0) / totalRuns : 0,
   }));
 
   return context.json({
     days,
     totalRuns,
     totalTokens,
-    totalCostUsd: totalCostUsd.toFixed(6),
     breakdown,
   });
 });

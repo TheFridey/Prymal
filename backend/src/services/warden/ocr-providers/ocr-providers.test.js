@@ -4,6 +4,7 @@ import {
   buildOcrAuditMetadata,
   clearOcrCacheForTests,
   getOcrConfig,
+  getPlanAwareOcrConfig,
   isOcrProviderActive,
   OCR_PROVIDER_NAMES,
   runProviderOcr,
@@ -30,6 +31,49 @@ test('OCR config respects env-driven enable', () => {
   assert.equal(config.timeoutMs, 1500);
   assert.equal(config.maxImages, 2);
   assert.equal(isOcrProviderActive(config), true);
+});
+
+test('Agency plan org triggers OCR on image upload', () => {
+  const config = getPlanAwareOcrConfig({
+    orgPlan: 'agency',
+    env: { WARDEN_OCR_ENABLED: 'false' },
+  });
+
+  assert.equal(config.enabled, true);
+  assert.equal(config.provider, OCR_PROVIDER_NAMES.CLOUDINARY);
+  assert.equal(isOcrProviderActive(config), true);
+});
+
+test('Teams plan org triggers OCR on image upload', () => {
+  const config = getPlanAwareOcrConfig({
+    orgPlan: 'teams',
+    env: { WARDEN_OCR_ENABLED: 'false' },
+  });
+
+  assert.equal(config.enabled, true);
+  assert.equal(config.provider, OCR_PROVIDER_NAMES.CLOUDINARY);
+});
+
+test('Staff upload context triggers OCR regardless of plan', () => {
+  const config = getPlanAwareOcrConfig({
+    orgPlan: 'free',
+    isStaff: true,
+    env: { WARDEN_OCR_ENABLED: 'false' },
+  });
+
+  assert.equal(config.enabled, true);
+  assert.equal(config.provider, OCR_PROVIDER_NAMES.CLOUDINARY);
+});
+
+test('Free plan org skips OCR on image upload', () => {
+  const config = getPlanAwareOcrConfig({
+    orgPlan: 'free',
+    env: { WARDEN_OCR_ENABLED: 'false' },
+  });
+
+  assert.equal(config.enabled, false);
+  assert.equal(config.provider, OCR_PROVIDER_NAMES.NONE);
+  assert.equal(isOcrProviderActive(config), false);
 });
 
 test('runProviderOcr returns no-op summary when provider missing', async () => {
@@ -74,6 +118,27 @@ test('runProviderOcr falls back safely on timeout', async () => {
   assert.equal(summary.timedOut, 1);
   assert.equal(summary.succeeded, 0);
   assert.equal(summary.errors.length, 1);
+});
+
+test('OCR provider failure does not block upload safety extraction', async () => {
+  clearOcrCacheForTests();
+  const provider = {
+    name: 'failing',
+    extractText: async () => {
+      throw new Error('provider unavailable');
+    },
+  };
+  const result = await extractSafetyTextFromImages(
+    [{ contentHash: 'image_provider_failure', name: 'reference.png' }],
+    {
+      ocrProvider: provider,
+      ocrConfig: { ...getOcrConfig({}), enabled: true, provider: 'failing', timeoutMs: 200, maxImages: 1, cacheTtlSeconds: 60, maxCacheEntries: 4 },
+    },
+  );
+
+  assert.match(result.text, /reference\.png/);
+  assert.equal(result.providerSummary.failed, 1);
+  assert.equal(result.auditMetadata.ocrFailed, 1);
 });
 
 test('runProviderOcr caches by content hash and serves cache hits', async () => {
