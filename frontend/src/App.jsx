@@ -1,6 +1,6 @@
 import { Suspense, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import {
   ClerkProvider,
@@ -228,7 +228,15 @@ function AuthPage({ mode }) {
   const onboardingUrl = resolveSignupOnboardingUrl(location.search);
   const panel =
     mode === 'sign-up' ? (
-      <SignUp routing="path" path="/signup" afterSignUpUrl={onboardingUrl} />
+      <>
+        <SignUp routing="path" path="/signup" afterSignUpUrl={onboardingUrl} />
+        <p style={{ fontSize: '12px', color: 'var(--muted, #9aa4b2)', textAlign: 'center', marginTop: '12px', lineHeight: 1.5 }}>
+          By creating an account you agree to our{' '}
+          <Link to="/terms" style={{ color: 'var(--accent, #00FFD1)', textDecoration: 'none' }}>Terms of Service</Link>
+          {' '}and{' '}
+          <Link to="/privacy" style={{ color: 'var(--accent, #00FFD1)', textDecoration: 'none' }}>Privacy Policy</Link>.
+        </p>
+      </>
     ) : (
       <SignIn routing="path" path="/login" afterSignInUrl="/app/dashboard" />
     );

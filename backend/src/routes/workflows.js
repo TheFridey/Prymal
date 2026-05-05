@@ -12,7 +12,7 @@ import { dispatchWorkflowRun, registerCron, unregisterCron } from '../queue/trig
 import { createScheduledWorkflowRunHandler } from '../services/inline-scheduler.js';
 import { recordAuditLog, recordProductEvent, recordProductEventOnce } from '../services/telemetry.js';
 import { recordCatalogueRun } from '../services/workflow-catalogue.js';
-import { runControlPlaneShadowSafely } from '../services/control-plane/shadow-mode.js';
+import { runControlPlaneShadow, runControlPlaneShadowSafely } from '../services/control-plane/shadow-mode.js';
 import { validateWorkflowDefinition } from '../services/workflow-engine.js';
 import { scanWorkflowPlan, WARDEN_VERDICTS } from '../services/warden/index.js';
 import {
@@ -458,6 +458,8 @@ router.post('/', requireOrg, requireRole('owner', 'admin'), async (context) => {
       nodes: payload.nodes,
       edges: payload.edges,
       isActive: false,
+      contractEnforced: true,
+      contractEnforcedAt: new Date(),
     })
     .returning();
 
@@ -647,6 +649,33 @@ router.post('/:id/run', requireOrg, planAwareRateLimit({
       riskSummary: workflowSafety.riskSummary ?? null,
       expiresAt: workflowSafety.expiresAt ?? null,
     }, status);
+  }
+
+  // Contract-enforced workflows are validated synchronously before execution.
+  // Legacy workflows (contractEnforced: false) continue via shadow mode only.
+  if (workflow.contractEnforced) {
+    const inputData = workflow.triggerConfig ?? {};
+    const contractResult = await runControlPlaneShadow({
+      workflow,
+      input: inputData,
+      orgId: org.orgId,
+      userId: org.userId,
+    });
+
+    if (!contractResult.contractValid || contractResult.violations.length > 0) {
+      const violations = contractResult.violations.map((v) => ({
+        nodeId: v.metadata?.nodeId ?? null,
+        field: v.type ?? 'contract',
+        reason: v.message,
+      }));
+
+      return context.json({
+        error: 'contract_validation_failed',
+        violations,
+        runId: null,
+        contractEnforced: true,
+      }, 422);
+    }
   }
 
   const executionAvailable = org.credits?.execution?.available ?? 0;
@@ -1062,6 +1091,62 @@ router.post('/runs/:runId/replay', requireOrg, requireRole('owner', 'admin'), as
   });
 
   return context.json({ runId: replayRun.id, status: 'queued', replayOfRunId: sourceRun.id }, 202);
+});
+
+// ── P4: Enable contract enforcement on a legacy workflow ─────────────────────
+
+router.post('/:id/enable-contract-enforcement', requireOrg, requireRole('owner', 'admin'), async (context) => {
+  const org = context.get('org');
+  const { id } = context.req.param();
+
+  const workflow = await db.query.workflows.findFirst({
+    where: and(eq(workflows.id, id), eq(workflows.orgId, org.orgId)),
+  });
+
+  if (!workflow) {
+    return context.json({ error: 'Workflow not found.' }, 404);
+  }
+
+  if (workflow.contractEnforced) {
+    return context.json({ success: true, contractEnforced: true, alreadyEnforced: true });
+  }
+
+  const shadowResult = await runControlPlaneShadow({
+    workflow,
+    input: workflow.triggerConfig ?? {},
+    orgId: org.orgId,
+    userId: org.userId,
+  });
+
+  if (!shadowResult.contractValid || shadowResult.violations.length > 0) {
+    const violations = shadowResult.violations.map((v) => ({
+      nodeId: v.metadata?.nodeId ?? null,
+      field: v.type ?? 'contract',
+      reason: v.message,
+    }));
+
+    return context.json({
+      success: false,
+      cannotEnforce: true,
+      violations,
+    }, 422);
+  }
+
+  await db
+    .update(workflows)
+    .set({ contractEnforced: true, contractEnforcedAt: new Date() })
+    .where(and(eq(workflows.id, id), eq(workflows.orgId, org.orgId)));
+
+  await recordAuditLog({
+    orgId: org.orgId,
+    actorUserId: org.userId,
+    action: 'workflow.contract_enforcement_enabled',
+    targetType: 'workflow',
+    targetId: id,
+    metadata: { workflowId: id },
+  }).catch(() => {});
+
+  return context.json({ success: true, contractEnforced: true });
 });
 
 export default router;

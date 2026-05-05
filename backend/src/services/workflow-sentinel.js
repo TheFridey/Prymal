@@ -2,6 +2,9 @@ import * as Sentry from '@sentry/node';
 import { validateJsonSchema } from './control-plane/schema-validator.js';
 import { reviewAgentOutputWithSentinel } from './sentinel-review.js';
 
+const MAX_REPAIR_ATTEMPTS = 2;
+const TEMPERATURE_REDUCTION = 0.2;
+
 export async function reviewWorkflowNodeOutputWithSentinel({
   node,
   workflow,
@@ -38,14 +41,18 @@ export async function reviewWorkflowNodeOutputWithSentinel({
         result,
         schemaValidation,
         repairAttempted: false,
+        sentinelRepairAttempts: 0,
       };
     }
 
-    if (firstReview.verdict !== 'REPAIR' || typeof repairOutput !== 'function') {
-      return buildHoldResult({ review: firstReview, result, schemaValidation, repairAttempted: false });
+    // Attempt repair for both REPAIR and HOLD verdicts — HOLD may still recover
+    // after repair. Only skip repair if no repairOutput function is provided.
+    if (typeof repairOutput !== 'function') {
+      return buildHoldResult({ review: firstReview, result, schemaValidation, repairAttempted: false, repairAttempts: 0 });
     }
 
-    const repairedResult = await repairOutput({ review: firstReview, schemaValidation });
+    // ── Attempt 1: standard repair ───────────────────────────────────────────
+    const repairedResult = await repairOutput({ review: firstReview, schemaValidation, attemptNumber: 1 });
     const repairedSchemaValidation = buildWorkflowSchemaValidation({
       outputSchema: getNodeOutputSchema(node),
       result: repairedResult,
@@ -72,14 +79,63 @@ export async function reviewWorkflowNodeOutputWithSentinel({
         result: repairedResult,
         schemaValidation: repairedSchemaValidation,
         repairAttempted: true,
+        sentinelRepairAttempts: 1,
+      };
+    }
+
+    // ── Attempt 2: temperature reduction or provider fallback ────────────────
+    // repairOutput receives a temperature hint and a flag indicating this is the
+    // final attempt before HOLD. Callers that support temperature override will
+    // reduce temperature by TEMPERATURE_REDUCTION; others will use their
+    // provider fallback chain.
+    const secondRepairedResult = await repairOutput({
+      review: repairedReview ?? firstReview,
+      schemaValidation: repairedSchemaValidation,
+      attemptNumber: 2,
+      temperatureReduction: TEMPERATURE_REDUCTION,
+      useProviderFallback: true,
+    });
+    const secondSchemaValidation = buildWorkflowSchemaValidation({
+      outputSchema: getNodeOutputSchema(node),
+      result: secondRepairedResult,
+    });
+    const secondReview = reviewer({
+      agentId: node.agentId,
+      orgPlan: orgContext.orgPlan,
+      assistantText: secondRepairedResult.text ?? '',
+      evaluation,
+      schemaValidation: secondSchemaValidation,
+      sources: secondRepairedResult.sources ?? [],
+      context: {
+        workflowId: workflow.id,
+        nodeId: node.id,
+        orgId: orgContext.orgId,
+        userId: orgContext.userId ?? null,
+      },
+    });
+
+    const providerFallbackUsed = Boolean(secondRepairedResult?.providerFallbackUsed ?? secondRepairedResult?.fallbackUsed);
+
+    if (secondReview?.verdict === 'PASS') {
+      return {
+        verdict: 'PASS',
+        review: secondReview,
+        result: secondRepairedResult,
+        schemaValidation: secondSchemaValidation,
+        repairAttempted: true,
+        sentinelRepairAttempts: MAX_REPAIR_ATTEMPTS,
+        sentinelProviderFallback: providerFallbackUsed,
       };
     }
 
     return buildHoldResult({
-      review: repairedReview ?? firstReview,
-      result: repairedResult,
-      schemaValidation: repairedSchemaValidation,
+      review: secondReview ?? repairedReview ?? firstReview,
+      result: secondRepairedResult,
+      schemaValidation: secondSchemaValidation,
       repairAttempted: true,
+      repairAttempts: MAX_REPAIR_ATTEMPTS,
+      sentinelFinalVerdict: 'HOLD',
+      sentinelProviderFallback: providerFallbackUsed,
     });
   } catch (error) {
     Sentry.captureException(error, {
@@ -104,6 +160,7 @@ export async function reviewWorkflowNodeOutputWithSentinel({
       result,
       schemaValidation: null,
       repairAttempted: false,
+      sentinelRepairAttempts: 0,
       error,
     };
   }
@@ -139,7 +196,7 @@ export function buildWorkflowSchemaValidation({ outputSchema, result }) {
     : { verdict: 'failed', errors: validation.errors };
 }
 
-function buildHoldResult({ review, result, schemaValidation, repairAttempted }) {
+function buildHoldResult({ review, result, schemaValidation, repairAttempted, repairAttempts = 0, sentinelFinalVerdict, sentinelProviderFallback }) {
   return {
     verdict: 'HOLD',
     review: {
@@ -150,6 +207,9 @@ function buildHoldResult({ review, result, schemaValidation, repairAttempted }) 
     result,
     schemaValidation,
     repairAttempted,
+    sentinelRepairAttempts: repairAttempts,
+    ...(sentinelFinalVerdict ? { sentinelFinalVerdict } : {}),
+    ...(sentinelProviderFallback != null ? { sentinelProviderFallback } : {}),
   };
 }
 

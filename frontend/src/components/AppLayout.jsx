@@ -244,6 +244,11 @@ export default function AppLayout({ viewer }) {
                 </span>
                 <span className="app-launcher__link-label">Settings</span>
               </NavLink>
+              <div className="app-launcher__legal">
+                <Link to="/privacy" className="app-launcher__legal-link">Privacy</Link>
+                <span className="app-launcher__legal-sep" aria-hidden="true">·</span>
+                <Link to="/terms" className="app-launcher__legal-link">Terms</Link>
+              </div>
             </div>
 
             <div className="app-launcher__profile">

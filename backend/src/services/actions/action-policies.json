@@ -1,0 +1,47 @@
+[
+  {
+    "id": "email_bulk_block",
+    "scope": { "tools": ["email.send"] },
+    "conditions": [
+      { "field": "recipient_count", "operator": "greater_than", "value": 5 }
+    ],
+    "action": "block",
+    "risk": { "score": 0.95, "level": "critical" }
+  },
+  {
+    "id": "slack_dm_block",
+    "scope": { "tools": ["slack.post"] },
+    "conditions": [
+      { "field": "channel_type", "operator": "equals", "value": "im" }
+    ],
+    "action": "block",
+    "risk": { "score": 0.9, "level": "high" }
+  },
+  {
+    "id": "email_external_approval",
+    "scope": { "tools": ["email.send"] },
+    "conditions": [
+      { "field": "recipient_domain", "operator": "not_in_org_domains", "value": null }
+    ],
+    "action": "require_approval",
+    "risk": { "score": 0.85, "level": "high" }
+  },
+  {
+    "id": "drive_write_approval",
+    "scope": { "tools": ["drive.write", "drive.append"] },
+    "conditions": [
+      { "field": "file_size_bytes", "operator": "greater_than", "value": 1048576 }
+    ],
+    "action": "require_approval",
+    "risk": { "score": 0.6, "level": "medium" }
+  },
+  {
+    "id": "slack_public_channel_approval",
+    "scope": { "tools": ["slack.post"] },
+    "conditions": [
+      { "field": "channel_type", "operator": "equals", "value": "public" }
+    ],
+    "action": "require_approval",
+    "risk": { "score": 0.65, "level": "medium" }
+  }
+]

@@ -22,6 +22,7 @@ import adminRoutes from './routes/admin.js';
 import unsubscribeRoutes from './routes/unsubscribe.js';
 import waitlistRoutes from './routes/waitlist.js';
 import memoryRoutes from './routes/memory.js';
+import actionRoutes from './routes/actions.js';
 import { db } from './db/index.js';
 import { hasTriggerDevConfig } from './queue/trigger.js';
 import { startInlineScheduler } from './services/inline-scheduler.js';
@@ -218,6 +219,7 @@ app.route('/api/usage', usageRoutes);
 app.route('/api/admin', adminRoutes);
 app.route('/api/unsubscribe', unsubscribeRoutes);
 app.route('/api/waitlist', waitlistRoutes);
+app.route('/api/actions', actionRoutes);
 
 app.notFound((context) => context.json({ error: 'Route not found' }, 404));
 

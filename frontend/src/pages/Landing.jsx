@@ -31,6 +31,7 @@ import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../compone
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
 import { FoundingAccessPopup } from '../features/marketing/FoundingAccessPopup';
+import CookieConsentBanner from '../components/CookieConsentBanner';
 import { SimpleAdvancedModeSection } from '../features/marketing/SimpleAdvancedModeSection';
 import { SeePrymalInActionSection } from '../features/marketing/SeePrymalInActionSection';
 import { useFoundingAccessOffer } from '../features/marketing/founding-access';
@@ -763,6 +764,7 @@ export default function Landing() {
         offer={foundingAccessState.status === 'ready' ? foundingAccessState.offer : null}
         surface="landing"
       />
+      <CookieConsentBanner />
     </div>
   );
 }

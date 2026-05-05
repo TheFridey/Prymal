@@ -52,6 +52,37 @@ Keep these environments separate:
 - Resend sender identities if needed
 - Playwright test accounts
 
+## Staging Auto-Deploy (CI)
+
+The CI pipeline automatically deploys to staging on every push to `master` that passes all tests. **Production deploys remain manual.**
+
+### How to set up Railway staging
+
+1. Create a Railway project for staging (separate from production)
+2. Add two services: `prymal-backend-staging` and `prymal-frontend-staging`
+3. Configure staging environment variables — mirror production with these differences:
+   - `NODE_ENV=staging`
+   - Use Stripe test mode keys (`sk_test_...`, `pk_test_...`)
+   - Use a staging Clerk instance (`pk_test_...`)
+   - Use a separate staging PostgreSQL database
+   - `SENTRY_ENVIRONMENT=staging`
+4. Create a Railway API token scoped to the staging project only
+5. Add the token to GitHub repository secrets as `RAILWAY_STAGING_TOKEN`
+
+### Staging environment variable differences from production
+
+| Variable | Staging value | Production value |
+|----------|--------------|-----------------|
+| `NODE_ENV` | `staging` | `production` |
+| `STRIPE_SECRET_KEY` | `sk_test_...` | `sk_live_...` |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | `pk_test_...` | `pk_live_...` |
+| `VITE_CLERK_PUBLISHABLE_KEY` | `pk_test_...` | `pk_live_...` |
+| `CLERK_SECRET_KEY` | staging secret | production secret |
+| `DATABASE_URL` | staging database | production database |
+| `SENTRY_ENVIRONMENT` | `staging` | `production` |
+
+The staging deployment is informational — it does not block the 7 required CI gates. The `deploy-staging` job depends on `backend-test`, `frontend-verify-build`, and `frontend-performance` passing.
+
 ## Before You Touch Infra
 
 Make sure the repo is deployable from the exact commit you are shipping:
@@ -646,6 +677,166 @@ Do not treat a green static build as production readiness. Prymal’s release co
 - authenticated staging Playwright
 - webhook health
 - live admin drilldown sanity
+
+## Post-deploy verification checklist
+
+Run this after every production deploy.
+
+### Environment variable verification
+
+- [ ] `GEMINI_GROUNDING_ENABLED=true` — required to activate Gemini web grounding for SCOUT, ORACLE, and SAGE. Set in Railway production environment.
+- [ ] `WORKFLOW_CATALOGUE_PREMIUM_ENABLED=true` — required to show premium workflow catalogue items to Pro/Teams/Agency users. Set in Railway production environment.
+- [ ] `WARDEN_OCR_ENABLED=false` — global flag; plan-aware logic handles OCR access for Teams/Agency plans. Confirm value is set.
+- [ ] `OPENAI_TTS_ENABLED=true` — enables voice output (TTS) for agents. Set when voice output feature is ready for production.
+- [ ] `OPENAI_TTS_HD_PLANS=teams,agency` — HD TTS model for Teams and Agency plan users.
+
+### Gemini grounding verification
+
+After setting `GEMINI_GROUNDING_ENABLED=true`:
+
+1. Open the SCOUT, ORACLE, or SAGE workspace
+2. Run a request that requires the `grounded_research` policy class (e.g. "What are the latest UK AI regulation updates?")
+3. Open the admin trace drilldown for this run (Admin → Traces)
+4. Confirm the trace shows `provider: gemini` and includes grounding metadata (source URLs in the response)
+5. If grounding metadata is absent: verify `GEMINI_API_KEY` is set and valid in the Railway environment
+
+### Premium catalogue verification
+
+After setting `WORKFLOW_CATALOGUE_PREMIUM_ENABLED=true`:
+
+1. Log in as a Pro, Teams, or Agency user
+2. Navigate to Workflows → Catalogue
+3. Confirm premium workflow items are visible and accessible
+4. Log in as a Free or Solo user
+5. Confirm premium items show an upgrade gate rather than being fully accessible
+6. If items are not showing: confirm `WORKFLOW_CATALOGUE_PREMIUM_ENABLED` is set (not empty/false)
+
+### Post-deploy setup steps
+
+```bash
+# Generate agent avatars (one-time, run against staging first)
+node frontend/scripts/generate-agent-avatars.mjs
+
+# Verify all 15 agent avatars are accessible at their Cloudinary URLs
+# Check the avatar output log for any failed uploads
+# Confirm avatars render in the agent selection UI (Dashboard → agent cards)
+```
+
+---
+
+## Staging environment
+
+### Overview
+
+The staging environment mirrors production with test-mode credentials. It is deployed automatically on every push to `master` that passes all required CI gates.
+
+**Staging URL convention:** `https://staging.prymal.io` or `https://prymal-staging.up.railway.app`
+
+### Creating a Railway staging project
+
+1. Log in to [railway.app](https://railway.app)
+2. Create a new project: **New Project → Empty Project**
+3. Name it `prymal-staging`
+4. Add two services: `prymal-backend-staging` and `prymal-frontend-staging`
+5. Provision a PostgreSQL database service in the same project
+6. Provision a Redis service (or use the same Redis with a key prefix like `staging:`)
+
+### Staging environment variables
+
+Set these in each Railway staging service. Differences from production are noted.
+
+```bash
+# Core
+NODE_ENV=staging
+SENTRY_ENVIRONMENT=staging
+
+# Auth — use a separate Clerk staging application
+CLERK_SECRET_KEY=sk_test_...
+CLERK_PUBLISHABLE_KEY=pk_test_...
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+
+# Database — separate staging PostgreSQL
+DATABASE_URL=postgresql://...  # staging DB, NOT production
+
+# Redis — separate staging instance or prefixed keys
+REDIS_URL=redis://...
+
+# Stripe — test mode keys only
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_test_...
+
+# Feature flags — match production
+GEMINI_GROUNDING_ENABLED=true
+WORKFLOW_CATALOGUE_PREMIUM_ENABLED=true
+OPENAI_TTS_ENABLED=true
+OPENAI_TTS_HD_PLANS=teams,agency
+
+# Cloudinary — can share production account, use separate folder prefix
+CLOUDINARY_FOLDER=prymal-staging
+```
+
+**Never set in staging:**
+- Production `DATABASE_URL`
+- Production `STRIPE_SECRET_KEY` (live mode)
+- Production Clerk `sk_live_...` keys
+
+### GitHub secrets and variables
+
+Add in GitHub repo Settings → Secrets / Variables → Actions:
+
+| Type | Name | Value |
+|------|------|-------|
+| Secret | `RAILWAY_STAGING_TOKEN` | Railway API token scoped to staging project only (Railway Dashboard → Account Settings → Tokens) |
+| Variable | `RAILWAY_STAGING_BACKEND_SERVICE` | Railway service name or ID for staging backend |
+| Variable | `RAILWAY_STAGING_FRONTEND_SERVICE` | Railway service name or ID for staging frontend |
+
+To find service names: Railway Dashboard → staging project → service → Settings → Service Name.
+
+### Running Playwright against staging
+
+```bash
+PLAYWRIGHT_BASE_URL=https://staging.prymal.io npx playwright test
+```
+
+Do not add this as an automatic CI step — staging must be fully deployed before E2E tests can run against it.
+
+---
+
+## Post-deploy verification log
+
+### Sprint 5 — 2026-05-05
+
+**Environment variables set in Railway production:**
+
+| Variable | Value |
+|----------|-------|
+| `GEMINI_GROUNDING_ENABLED` | `true` |
+| `WORKFLOW_CATALOGUE_PREMIUM_ENABLED` | `true` |
+| `OPENAI_TTS_ENABLED` | `true` |
+| `OPENAI_TTS_HD_PLANS` | `teams,agency` |
+| `WARDEN_OCR_ENABLED` | `false` |
+
+**Verification checklist:**
+
+- [ ] `GEMINI_GROUNDING_ENABLED=true` set in Railway production
+- [ ] `WORKFLOW_CATALOGUE_PREMIUM_ENABLED=true` set in Railway production
+- [ ] `OPENAI_TTS_ENABLED=true` confirmed set
+- [ ] `OPENAI_TTS_HD_PLANS=teams,agency` confirmed set
+- [ ] Gemini grounding verified: SCOUT/ORACLE/SAGE trace shows `provider: gemini` + grounding metadata
+- [ ] Premium catalogue verified: Pro user can install, Free user sees upgrade gate
+- [ ] WARDEN audit event confirmed on catalogue install
+- [ ] Fallback chain verified: Gemini failure routes to next provider cleanly
+
+**Verification steps:**
+
+1. Trigger an agent run using SCOUT, ORACLE, or SAGE with a live-data query
+2. Check staff admin execution trace: confirm `provider: gemini` and grounding source URLs
+3. Log in as Pro/Teams/Agency user — confirm premium catalogue items are visible and installable
+4. Log in as Free/Solo user — confirm premium items show upgrade gate (not 404)
+5. Install a premium workflow as a Pro user — check `warden_audit_events` for install scan
+6. Confirm community-submitted workflows still require staff review before appearing
+
+---
 
 ## Stripe final proof checklist
 

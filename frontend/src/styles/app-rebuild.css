@@ -290,6 +290,37 @@
   justify-items: stretch;
 }
 
+.app-launcher__legal {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.app-launcher:hover .app-launcher__legal,
+.app-launcher:focus-within .app-launcher__legal {
+  display: flex;
+  opacity: 1;
+}
+
+.app-launcher__legal-link {
+  font-size: 10px;
+  color: var(--muted, #9aa4b2);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.app-launcher__legal-link:hover {
+  color: var(--fg, #e5e7eb);
+}
+
+.app-launcher__legal-sep {
+  font-size: 10px;
+  color: var(--muted, #9aa4b2);
+}
+
 .app-launcher__link {
   grid-template-columns: 48px minmax(0, 1fr);
   justify-content: start;

@@ -968,6 +968,8 @@ export const workflows = pgTable(
     nodes: jsonb('nodes').notNull().default(sql`'[]'::jsonb`),
     edges: jsonb('edges').notNull().default(sql`'[]'::jsonb`),
     isActive: boolean('is_active').notNull().default(false),
+    contractEnforced: boolean('contract_enforced').notNull().default(false),
+    contractEnforcedAt: timestamp('contract_enforced_at', { withTimezone: true }),
     runCount: integer('run_count').notNull().default(0),
     lastRunAt: timestamp('last_run_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -975,6 +977,7 @@ export const workflows = pgTable(
   },
   (table) => ({
     orgIdx: index('workflows_org_idx').on(table.orgId),
+    contractEnforcedIdx: index('workflows_contract_enforced_idx').on(table.contractEnforced),
   }),
 );
 
@@ -1390,5 +1393,114 @@ export const referrals = pgTable(
   (table) => ({
     referrerIdx: index('referrals_referrer_idx').on(table.referrerOrgId),
     emailUnique: uniqueIndex('referrals_email_unique').on(table.referrerOrgId, table.refereeEmail),
+  }),
+);
+
+// ── Sprint 4 additions ────────────────────────────────────────────────────────
+
+export const agentEvalSummaries = pgTable(
+  'agent_eval_summaries',
+  {
+    agentId: text('agent_id').notNull(),
+    policyClass: text('policy_class').notNull(),
+    orgId: text('org_id').notNull(),
+    avgGroundedness: real('avg_groundedness'),
+    avgCitationScore: real('avg_citation_score'),
+    avgStructuredOutputScore: real('avg_structured_output_score'),
+    avgToolPolicyScore: real('avg_tool_policy_score'),
+    avgHallucinationRisk: real('avg_hallucination_risk'),
+    holdCount: integer('hold_count').notNull().default(0),
+    repairCount: integer('repair_count').notNull().default(0),
+    passCount: integer('pass_count').notNull().default(0),
+    sampleSize: integer('sample_size').notNull().default(0),
+    lastUpdatedAt: timestamp('last_updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: uniqueIndex('agent_eval_summaries_pk').on(table.agentId, table.policyClass, table.orgId),
+    orgIdx: index('agent_eval_summaries_org_idx').on(table.orgId),
+  }),
+);
+
+export const kgEntities = pgTable(
+  'kg_entities',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(),
+    type: text('type').notNull(),
+    name: text('name').notNull(),
+    properties: jsonb('properties').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index('kg_entities_org_idx').on(table.orgId),
+    typeIdx: index('kg_entities_type_idx').on(table.orgId, table.type),
+  }),
+);
+
+export const kgRelationships = pgTable(
+  'kg_relationships',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(),
+    fromEntityId: uuid('from_entity_id').notNull().references(() => kgEntities.id, { onDelete: 'cascade' }),
+    toEntityId: uuid('to_entity_id').notNull().references(() => kgEntities.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    properties: jsonb('properties').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgIdx: index('kg_relationships_org_idx').on(table.orgId),
+    fromIdx: index('kg_relationships_from_idx').on(table.fromEntityId),
+    toIdx: index('kg_relationships_to_idx').on(table.toEntityId),
+  }),
+);
+
+export const kgEntityEmbeddings = pgTable(
+  'kg_entity_embeddings',
+  {
+    entityId: uuid('entity_id').primaryKey().references(() => kgEntities.id, { onDelete: 'cascade' }),
+    embedding: vector('embedding', { dimensions: 1536 }),
+  },
+);
+
+export const loreQualitySignals = pgTable(
+  'lore_quality_signals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    documentId: text('document_id').notNull(),
+    orgId: text('org_id').notNull(),
+    agentId: text('agent_id').notNull(),
+    verdict: text('verdict').notNull(),
+    evalScores: jsonb('eval_scores').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    docIdx: index('lore_quality_signals_doc_idx').on(table.documentId, table.orgId),
+    orgIdx: index('lore_quality_signals_org_idx').on(table.orgId),
+  }),
+);
+
+// ── Sprint 5 additions ────────────────────────────────────────────────────────
+
+export const actionApprovals = pgTable(
+  'action_approvals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: text('org_id').notNull(),
+    userId: text('user_id').notNull(),
+    actionType: text('action_type').notNull(),
+    payload: jsonb('payload').notNull().default(sql`'{}'::jsonb`),
+    tokenHash: text('token_hash').notNull().unique(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    verdict: text('verdict'),
+    workflowId: text('workflow_id'),
+    nodeId: text('node_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    tokenIdx: index('idx_action_approvals_token').on(table.tokenHash),
+    orgIdx: index('idx_action_approvals_org').on(table.orgId, table.createdAt),
   }),
 );
