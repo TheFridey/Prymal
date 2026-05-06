@@ -24,7 +24,8 @@
     "clerk:align": "node scripts/clerk-env-align.mjs",
     "staff:set-owner-agency": "node scripts/set-owner-agency.mjs",
     "worker": "node src/queue/worker.js",
-    "worker:video": "node src/workers/video-worker.js"
+    "worker:video": "node src/workers/video-worker.js",
+    "migrate": "node scripts/run-migrations.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",

@@ -22,6 +22,7 @@ const lazyPage = (importer, key) => lazyWithRetry(importer, `route:${key}`);
 
 const Admin = lazyPage(() => import('./pages/Admin'), 'admin');
 const AdminWorkflowCatalogue = lazyPage(() => import('./pages/AdminWorkflowCatalogue'), 'admin-workflow-catalogue');
+const AgentPerformance = lazyPage(() => import('./pages/AgentPerformance'), 'agent-performance');
 const AgentChat = lazyPage(() => import('./pages/AgentChat'), 'agent-chat');
 const AgentProfile = lazyPage(() => import('./pages/AgentProfile'), 'agent-profile');
 const Changelog = lazyPage(() => import('./pages/Changelog'), 'changelog');
@@ -197,6 +198,7 @@ function AppRoutes() {
             <Route path="dashboard" element={<LazyPage label="Loading dashboard..."><Dashboard /></LazyPage>} />
             <Route path="admin" element={<LazyPage label="Loading admin console..."><Admin /></LazyPage>} />
             <Route path="admin/workflow-catalogue" element={<LazyPage label="Loading catalogue review..."><AdminWorkflowCatalogue /></LazyPage>} />
+            <Route path="admin/agent-performance" element={<LazyPage label="Loading agent performance..."><AgentPerformance /></LazyPage>} />
             <Route path="agents/:agentId" element={<LazyPage label="Loading agent workspace..."><AgentChat /></LazyPage>} />
             <Route path="lore" element={<LazyPage label="Loading LORE workspace..."><Lore /></LazyPage>} />
             <Route path="memory" element={<LazyPage label="Loading Memory Centre..."><Memory /></LazyPage>} />

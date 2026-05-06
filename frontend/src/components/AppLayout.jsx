@@ -26,7 +26,7 @@ const BASE_RAIL_ITEMS = [
   { to: '/app/dashboard', label: 'Dashboard', short: 'DB', icon: 'dashboard' },
   { to: '/app/memory', label: 'Memory', short: 'ME', icon: 'memory' },
   { to: '/app/lore', label: 'LORE', short: 'LO', icon: 'lore' },
-  { to: '/app/workflows', label: 'NEXUS', short: 'NX', icon: 'workflow' },
+  { to: '/app/workflows', label: 'NEXUS', short: 'NX', icon: 'workflow', badgeKey: 'approvals' },
   { to: '/app/integrations', label: 'Integrations', short: 'IO', icon: 'integrations' },
 ];
 
@@ -47,6 +47,14 @@ export default function AppLayout({ viewer }) {
     queryKey: ['agents'],
     queryFn: () => api.get('/agents'),
   });
+
+  const { data: approvalsData } = useQuery({
+    queryKey: ['pending-approvals'],
+    queryFn: () => api.get('/actions/approvals'),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const pendingApprovalsCount = approvalsData?.approvals?.length ?? 0;
 
   const agents = mergeAgentState(data?.agents ?? []);
   const railItems = useMemo(() => {
@@ -214,21 +222,48 @@ export default function AppLayout({ viewer }) {
             </div>
 
             <nav className="app-launcher__nav" aria-label="Primary workspace navigation">
-              {railItems.map((item) => (
+              {railItems.map((item) => {
+                const badgeCount = item.badgeKey === 'approvals' ? pendingApprovalsCount : 0;
+                return (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   className={({ isActive }) => `app-launcher__link${isActive ? ' active' : ''}`}
                   title={item.label}
-                  aria-label={item.label}
+                  aria-label={badgeCount > 0 ? `${item.label} — ${badgeCount} pending approval${badgeCount !== 1 ? 's' : ''}` : item.label}
                 >
                   <span className="app-launcher__link-indicator" aria-hidden="true" />
-                  <span className="app-launcher__link-icon" aria-hidden="true">
+                  <span className="app-launcher__link-icon" aria-hidden="true" style={{ position: 'relative' }}>
                     <RailIcon icon={item.icon} />
+                    {badgeCount > 0 ? (
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          position: 'absolute',
+                          top: -4,
+                          right: -4,
+                          minWidth: 16,
+                          height: 16,
+                          borderRadius: 999,
+                          background: '#7f8cff',
+                          color: '#fff',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '0 3px',
+                          lineHeight: 1,
+                        }}
+                      >
+                        {badgeCount > 99 ? '99+' : badgeCount}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="app-launcher__link-label">{item.label}</span>
                 </NavLink>
-              ))}
+                );
+              })}
             </nav>
 
             <div className="app-launcher__footer">

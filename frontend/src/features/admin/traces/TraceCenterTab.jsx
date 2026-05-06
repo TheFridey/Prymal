@@ -537,6 +537,51 @@ function TraceDetailContent({ detail, onOpenWorkflowRun, onOpenReceipt }) {
         </div>
       </section>
 
+      {(routing.weight != null || routing.confidence || routing.escalated) ? (
+        <section className="staff-admin__drawer-section">
+          <div className="staff-admin__surface-label">Routing intelligence</div>
+          {routing.weight != null ? (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-muted)', marginBottom: 5 }}>
+                <span>Agent weight</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{Math.round(routing.weight * 100)}%</span>
+              </div>
+              <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${Math.round(routing.weight * 100)}%`,
+                    borderRadius: 999,
+                    background: routing.weight >= 0.7 ? '#18c7a0' : routing.weight >= 0.5 ? '#f59e0b' : '#ef4444',
+                    transition: 'width 0.4s ease',
+                  }}
+                />
+              </div>
+            </div>
+          ) : null}
+          <div className="staff-admin__chip-row">
+            {routing.confidence ? (
+              <span
+                className="staff-admin__chip"
+                style={{
+                  color: routing.confidence === 'high' ? '#18c7a0' : routing.confidence === 'medium' ? '#f59e0b' : undefined,
+                }}
+              >
+                {humanize(routing.confidence)} confidence
+              </span>
+            ) : null}
+            {routing.escalated ? (
+              <span style={{ padding: '3px 9px', borderRadius: 999, background: 'rgba(247,37,133,0.12)', color: '#F72585', border: '1px solid rgba(247,37,133,0.25)', fontSize: 12, fontWeight: 600 }}>
+                Escalated{routing.escalatedFrom ? ` from ${humanize(routing.escalatedFrom)}` : ''}
+              </span>
+            ) : null}
+            {routing.sampleSize != null ? (
+              <span className="staff-admin__chip">Based on {formatNumber(routing.sampleSize)} run{routing.sampleSize !== 1 ? 's' : ''}</span>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
       {hasRepairLoop ? (
         <section className="staff-admin__drawer-section">
           <div className="staff-admin__surface-label">Repair and fallback loop</div>

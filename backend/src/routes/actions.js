@@ -8,7 +8,13 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireOrg } from '../middleware/auth.js';
 import { executeAction, getSupportedActionTypes, isKnownActionType } from '../services/actions/action-registry.js';
-import { getPendingApprovals, validateAndConsume, denyApproval } from '../services/actions/action-approval.js';
+import {
+  getPendingApprovals,
+  validateAndConsume,
+  denyApproval,
+  consumeByApprovalId,
+  denyByApprovalId,
+} from '../services/actions/action-approval.js';
 import { scanText, WARDEN_VERDICTS } from '../services/warden/index.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
 
@@ -105,6 +111,7 @@ router.post('/execute', requireOrg, zValidator('json', executeSchema), async (co
       success: false,
       awaitingApproval: true,
       approvalId: actionResult.approvalId,
+      approvalToken: actionResult.approvalToken,
       policyId: actionResult.policyId,
       risk: actionResult.risk,
       traceId: actionResult.traceId,
@@ -221,6 +228,70 @@ router.post('/approvals/:id/deny', requireOrg, async (context) => {
     userId: org.userId,
     action: 'action_approval_denied',
     metadata: { approvalId: context.req.param('id') },
+  }).catch(() => {});
+
+  return context.json({ denied: true });
+});
+
+// ── POST /approvals/:id/approve-inline ─────────────────────────────────────
+// In-app approval — authenticated org member approves without the HMAC token.
+
+router.post('/approvals/:id/approve-inline', requireOrg, async (context) => {
+  const org = context.get('org');
+  const approvalId = context.req.param('id');
+
+  if (!ACTION_PLANS.has(org.plan)) {
+    return context.json({ success: false, reason: 'plan_upgrade_required' }, 403);
+  }
+
+  const validation = await consumeByApprovalId(approvalId, { orgId: org.orgId });
+
+  if (!validation.valid) {
+    return context.json({ success: false, reason: validation.reason }, 400);
+  }
+
+  const actionContext = {
+    orgId: org.orgId,
+    userId: org.userId,
+    workflowId: validation.workflowId,
+    nodeId: validation.nodeId,
+    plan: org.plan,
+  };
+
+  const actionResult = await executeAction(validation.actionType, validation.payload, actionContext);
+
+  await recordProductEvent('action_approval_executed', {
+    orgId: org.orgId,
+    userId: org.userId,
+    actionType: validation.actionType,
+    approvalId,
+    success: actionResult.success,
+    inline: true,
+  }).catch(() => {});
+
+  return context.json({
+    success: actionResult.success,
+    result: actionResult.result,
+    error: actionResult.error,
+    code: actionResult.code,
+    traceId: actionResult.traceId,
+  });
+});
+
+// ── POST /approvals/:id/deny-inline ────────────────────────────────────────
+// In-app denial — authenticated org member denies without the HMAC token.
+
+router.post('/approvals/:id/deny-inline', requireOrg, async (context) => {
+  const org = context.get('org');
+  const approvalId = context.req.param('id');
+
+  await denyByApprovalId(approvalId, { orgId: org.orgId });
+
+  await recordAuditLog({
+    orgId: org.orgId,
+    userId: org.userId,
+    action: 'action_approval_denied',
+    metadata: { approvalId, inline: true },
   }).catch(() => {});
 
   return context.json({ denied: true });

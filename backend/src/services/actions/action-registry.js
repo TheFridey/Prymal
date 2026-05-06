@@ -168,7 +168,7 @@ export async function executeAction(type, payload, context) {
     } else {
       // No token — create approval record and return
       try {
-        const { approvalId } = await createApprovalRequest({
+        const { approvalId, token: approvalToken } = await createApprovalRequest({
           actionType: type,
           payload,
           orgId: context.orgId,
@@ -180,6 +180,7 @@ export async function executeAction(type, payload, context) {
           success: false,
           awaitingApproval: true,
           approvalId,
+          approvalToken,
           policyId: policyResult.policyId,
           risk: policyResult.risk,
           traceId,

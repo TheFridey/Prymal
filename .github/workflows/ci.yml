@@ -217,32 +217,20 @@ jobs:
       - run: npm ci
       - run: npm run lint
 
-  deploy-staging:
-    name: Deploy to staging
+  deploy-vps:
+    name: Deploy to VPS
     needs:
       - backend-test
       - frontend-verify-build
       - frontend-performance
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-    environment: staging
+    environment: production
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli@latest
-
-      - name: Deploy backend to staging
-        run: railway up --service ${{ vars.RAILWAY_STAGING_BACKEND_SERVICE }} --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}
-
-      - name: Deploy frontend to staging
-        run: railway up --service ${{ vars.RAILWAY_STAGING_FRONTEND_SERVICE }} --detach
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}
-
-      - name: Record staging deploy
-        run: |
-          echo "Staging deployed at $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host:     ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key:      ${{ secrets.VPS_SSH_KEY }}
+          script:   bash /home/deploy/prymal/scripts/deploy.sh

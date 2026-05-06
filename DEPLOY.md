@@ -855,3 +855,85 @@ Live Stripe Prices for standard plans, Founding Access, preferred usage packs, l
 - [ ] Confirm legacy Agency price IDs are webhook-only and blocked from new checkout
 - [ ] Replay one webhook event safely
 - [ ] Verify entitlement sync and billing UI state after replay
+
+---
+
+## VPS Migration Checklist
+
+Target: Ubuntu 24.04 LTS, nginx, PM2, SSH deploy via GitHub Actions.  
+Migration date: ~10 days from 2026-05-06. No Railway. No PaaS.
+
+### Before migration day
+
+- [ ] `.env.production.example` reviewed — all keys from `validate-env.mjs` are present
+- [ ] `backend/ecosystem.config.cjs` reviewed (cluster mode, `max` instances, 1G restart threshold)
+- [ ] `scripts/deploy.sh` reviewed and path `/home/deploy/prymal/backend` matches VPS layout
+- [ ] `docs/server/nginx-prymal.conf` reviewed — `proxy_buffering off` required for SSE
+- [ ] GitHub secrets prepared to add on migration day: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`
+
+### Migration day — VPS setup
+
+- [ ] VPS provisioned (Ubuntu 24.04 LTS recommended — Hetzner CX22 ~£4/mo)
+- [ ] System packages: `sudo apt install -y nginx postgresql-16 postgresql-16-pgvector redis-server nodejs npm git ufw`
+- [ ] Node.js: install via NodeSource (LTS) if distro package is too old
+- [ ] PM2: `sudo npm install -g pm2`
+- [ ] UFW configured: `sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw deny 3000 && sudo ufw enable`
+- [ ] Deploy user: `sudo adduser deploy`
+- [ ] SSH key added for deploy user (`~/.ssh/authorized_keys`)
+- [ ] Repo cloned: `git clone https://github.com/TheFridey/Prymal /home/deploy/prymal`
+- [ ] `.env` created: `cp backend/.env.production.example backend/.env` then fill all values
+- [ ] `npm ci --omit=dev` run in `/home/deploy/prymal/backend`
+- [ ] Migrations: `cd /home/deploy/prymal/backend && npm run migrate` — all Sprint 4–5 migrations confirmed
+- [ ] PM2 started: `pm2 start ecosystem.config.cjs` — process shows `online`
+- [ ] PM2 persisted: `pm2 save && pm2 startup` (run the printed `sudo` command)
+- [ ] nginx installed: `sudo cp docs/server/nginx-prymal.conf /etc/nginx/sites-available/prymal`
+- [ ] nginx enabled: `sudo ln -s /etc/nginx/sites-available/prymal /etc/nginx/sites-enabled/`
+- [ ] SSL cert: `sudo certbot --nginx -d api.prymal.io`
+- [ ] nginx restarted: `sudo systemctl restart nginx`
+- [ ] API health check: `curl https://api.prymal.io/health` → 200
+- [ ] GitHub secrets added: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`
+- [ ] CI deploy test: push a trivial commit, confirm `deploy-vps` job completes successfully
+
+### Post-migration
+
+- [ ] DNS updated: `api.prymal.io` A record → VPS IP
+- [ ] Stripe webhook URL updated to `https://api.prymal.io/webhooks/stripe`
+- [ ] Clerk webhook URL updated if applicable
+- [ ] `SENTRY_ENVIRONMENT=production` confirmed in `.env`
+- [ ] `pm2 logs prymal-backend` checked — no startup errors
+- [ ] Docker local environment preserved as fallback for 48 hours post-migration
+
+### Staging on VPS (after production is stable)
+
+- Deploy path: `/home/deploy/prymal-staging/backend`
+- PM2 app name: `prymal-backend-staging` (separate `ecosystem.config.cjs`)
+- Separate `.env` with test Stripe/Clerk keys and staging DB schema
+- nginx subdomain: `staging-api.prymal.io`
+
+---
+
+## SDK release checklist
+
+### Before publishing `@prymal/sdk`
+
+- [ ] Version bumped in `sdk/package.json` (`npm version patch|minor|major`)
+- [ ] `npm run build` passes in `sdk/`
+- [ ] `npm run lint` passes in `sdk/`
+- [ ] `CHANGELOG` updated with new version entry
+- [ ] `repository`, `homepage`, `bugs`, and `keywords` fields present in `sdk/package.json`
+
+### Publish
+
+```powershell
+cd sdk
+npm install
+npm run build
+npm login          # log in to npm as the prymal org account
+npm publish --access public
+```
+
+### After publishing
+
+- [ ] Package appears at `https://www.npmjs.com/package/@prymal/sdk`
+- [ ] Install test: `npm install @prymal/sdk` in a fresh directory
+- [ ] `docs/api/README.md` install command reflects the published version

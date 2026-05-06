@@ -110,6 +110,74 @@ export async function denyApproval(token, { orgId }) {
 }
 
 /**
+ * Consume an approval by its ID without requiring the plaintext token.
+ * Used for in-app approvals where the user is already authenticated.
+ * Marks the record as approved and returns action type + payload for re-execution.
+ *
+ * @param {string} approvalId
+ * @param {{ orgId: string }} context
+ * @returns {Promise<{ valid: boolean, actionType?: string, payload?: object, workflowId?: string, nodeId?: string, reason?: string }>}
+ */
+export async function consumeByApprovalId(approvalId, { orgId }) {
+  try {
+    const record = await db.query.actionApprovals.findFirst({
+      where: and(
+        eq(actionApprovals.id, approvalId),
+        eq(actionApprovals.orgId, orgId),
+      ),
+    });
+
+    if (!record) return { valid: false, reason: 'not_found' };
+    if (record.usedAt) return { valid: false, reason: 'already_used' };
+    if (new Date() > record.expiresAt) return { valid: false, reason: 'expired' };
+
+    await db
+      .update(actionApprovals)
+      .set({ usedAt: new Date(), verdict: 'approved' })
+      .where(eq(actionApprovals.id, record.id));
+
+    return {
+      valid: true,
+      actionType: record.actionType,
+      payload: record.payload,
+      workflowId: record.workflowId ?? undefined,
+      nodeId: record.nodeId ?? undefined,
+    };
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { component: 'action-approval', operation: 'consumeByApprovalId' },
+    });
+    return { valid: false, reason: 'internal_error' };
+  }
+}
+
+/**
+ * Deny an approval by its ID without requiring the plaintext token.
+ * Used for in-app denials.
+ *
+ * @param {string} approvalId
+ * @param {{ orgId: string }} context
+ */
+export async function denyByApprovalId(approvalId, { orgId }) {
+  try {
+    await db
+      .update(actionApprovals)
+      .set({ usedAt: new Date(), verdict: 'denied' })
+      .where(
+        and(
+          eq(actionApprovals.id, approvalId),
+          eq(actionApprovals.orgId, orgId),
+          isNull(actionApprovals.usedAt),
+        ),
+      );
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { component: 'action-approval', operation: 'denyByApprovalId' },
+    });
+  }
+}
+
+/**
  * Get pending (non-expired, non-used) approvals for an org.
  *
  * @param {{ orgId: string }} opts

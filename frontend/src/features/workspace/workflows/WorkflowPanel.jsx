@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../../../lib/api';
+import ActionApprovalCard from '../actions/ActionApprovalCard';
 import WorkflowTemplateCard from './WorkflowTemplateCard';
 import { WORKFLOW_TEMPLATES, createWorkflowTemplatePayload } from '../../../lib/workflow-templates';
 import { formatDateTime, formatNumber, getErrorMessage, truncate } from '../../../lib/utils';
@@ -88,6 +89,8 @@ export default function WorkflowPanel() {
   const [logRun, setLogRun] = useState(null);
   const [builderOpen, setBuilderOpen] = useState(false);
   const [builderTemplate, setBuilderTemplate] = useState(null);
+  const [pendingApproval, setPendingApproval] = useState(null);
+  const [enforcementViolations, setEnforcementViolations] = useState({});
   const notify = useAppStore((state) => state.addNotification);
 
   const workflowsQuery = useQuery({
@@ -153,7 +156,15 @@ export default function WorkflowPanel() {
           'Idempotency-Key': `workspace-manual-${workflowId}-${Date.now()}`,
         },
       }),
-    onSuccess: async (_, workflowId) => {
+    onSuccess: async (result, workflowId) => {
+      if (result?.awaitingApproval && result?.approvalId) {
+        setPendingApproval({ id: result.approvalId, approvalToken: result.approvalToken, ...result });
+      }
+      if (result?.error === 'contract_validation_failed' && result?.violations) {
+        setEnforcementViolations((prev) => ({ ...prev, [workflowId]: result.violations }));
+        notify({ type: 'warning', title: 'Contract validation failed', message: `${result.violations.length} violation${result.violations.length !== 1 ? 's' : ''} — fix the workflow definition and retry.` });
+        return;
+      }
       setExpandedWorkflowId(workflowId);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['workspace-workflows'] }),
@@ -204,6 +215,27 @@ export default function WorkflowPanel() {
         title: 'Template failed',
         message: getErrorMessage(error),
       });
+    },
+  });
+
+  const enableEnforcementMutation = useMutation({
+    mutationFn: (workflowId) => api.post(`/workflows/${workflowId}/enable-contract-enforcement`),
+    onSuccess: async (result, workflowId) => {
+      if (result.violations && result.violations.length > 0) {
+        setEnforcementViolations((prev) => ({ ...prev, [workflowId]: result.violations }));
+        notify({
+          type: 'warning',
+          title: 'Contract enforcement blocked',
+          message: `${result.violations.length} violation${result.violations.length !== 1 ? 's' : ''} found — fix the workflow definition before enabling enforcement.`,
+        });
+      } else {
+        setEnforcementViolations((prev) => { const next = { ...prev }; delete next[workflowId]; return next; });
+        await queryClient.invalidateQueries({ queryKey: ['workspace-workflows'] });
+        notify({ type: 'success', title: 'Contract enforcement enabled', message: 'This workflow now validates its contract before every run.' });
+      }
+    },
+    onError: (error) => {
+      notify({ type: 'error', title: 'Could not enable enforcement', message: getErrorMessage(error) });
     },
   });
 
@@ -346,6 +378,15 @@ export default function WorkflowPanel() {
                         </div>
                         <p>{workflow.description || 'No description provided yet.'}</p>
                         <div className="workspace-workflow-panel__workflow-meta">
+                          {workflow.contractEnforced ? (
+                            <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: 'rgba(76,201,240,0.12)', color: '#4CC9F0', border: '1px solid rgba(76,201,240,0.25)' }}>
+                              Contract enforced
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: 'rgba(245,158,11,0.10)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)' }}>
+                              Legacy mode
+                            </span>
+                          )}
                           <StatusPill color={triggerMeta.color}>{triggerMeta.label}</StatusPill>
                           {webhookCountByWorkflow[workflow.id] > 0 ? (
                             <span
@@ -389,6 +430,18 @@ export default function WorkflowPanel() {
                         >
                           Run now
                         </Button>
+                        {!workflow.contractEnforced ? (
+                          <Button
+                            tone="ghost"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              enableEnforcementMutation.mutate(workflow.id);
+                            }}
+                            disabled={enableEnforcementMutation.isPending}
+                          >
+                            Enable enforcement
+                          </Button>
+                        ) : null}
                         <Button
                           tone="ghost"
                           onClick={(event) => {
@@ -403,6 +456,35 @@ export default function WorkflowPanel() {
                         </Button>
                       </div>
                     </button>
+
+                    {enforcementViolations[workflow.id]?.length > 0 ? (
+                      <div style={{ padding: '10px 14px', borderTop: '1px solid rgba(245,158,11,0.15)', background: 'rgba(245,158,11,0.06)' }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#f59e0b', marginBottom: 6 }}>
+                          Contract violations — fix these before enabling enforcement or running:
+                        </div>
+                        <ul style={{ margin: 0, padding: '0 0 0 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {enforcementViolations[workflow.id].map((v, i) => (
+                            <li key={i} style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                              {v.nodeId ? <strong>{v.nodeId}</strong> : null}
+                              {v.nodeId ? ' — ' : null}
+                              {v.field ? <span style={{ color: '#f59e0b' }}>{v.field}</span> : null}
+                              {v.field ? ': ' : null}
+                              {v.reason}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+
+                    {pendingApproval ? (
+                      <div style={{ padding: '12px 14px', borderTop: '1px solid rgba(127,140,255,0.15)' }}>
+                        <ActionApprovalCard
+                          approval={pendingApproval}
+                          approvalToken={pendingApproval.approvalToken}
+                          onDone={() => setPendingApproval(null)}
+                        />
+                      </div>
+                    ) : null}
 
                     {isExpanded ? (
                       <MotionSection className="workspace-workflow-panel__history" reveal={{ y: 14, blur: 6 }}>
