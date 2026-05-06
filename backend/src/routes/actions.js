@@ -15,7 +15,7 @@ import {
   consumeByApprovalId,
   denyByApprovalId,
 } from '../services/actions/action-approval.js';
-import { scanText, WARDEN_VERDICTS } from '../services/warden/index.js';
+import { scanPastedContent, WARDEN_VERDICTS } from '../services/warden/index.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
 
 const router = new Hono();
@@ -61,10 +61,10 @@ router.post('/execute', requireOrg, zValidator('json', executeSchema), async (co
   // WARDEN: scan text fields in payload before execution
   const payloadText = extractPayloadText(payload);
   if (payloadText) {
-    const wardenResult = await scanText(payloadText, {
+    const wardenResult = await scanPastedContent({
+      text: payloadText,
       orgId: org.orgId,
       userId: org.userId,
-      context: `action:${type}`,
     }).catch(() => null);
 
     if (wardenResult?.verdict === WARDEN_VERDICTS.BLOCK) {
