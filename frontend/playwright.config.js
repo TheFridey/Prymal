@@ -7,6 +7,7 @@ import { defineConfig } from '@playwright/test';
 const configDir = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(configDir, '.env'), quiet: true });
 dotenv.config({ path: path.join(configDir, '.env.local'), override: true, quiet: true });
+loadPlaywrightEnv();
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173';
 
@@ -34,5 +35,25 @@ export default defineConfig({
         command: 'npm run build && npm exec vite preview -- --host 127.0.0.1 --port 4173',
         port: 4173,
         reuseExistingServer: !process.env.CI,
-      },
+  },
 });
+
+function loadPlaywrightEnv() {
+  for (const envPath of [
+    path.join(configDir, '..', '.env.playwright'),
+    path.join(configDir, '.env.playwright'),
+  ]) {
+    const result = dotenv.config({ path: envPath, quiet: true, override: false, processEnv: {} });
+    if (result.error || !result.parsed) {
+      continue;
+    }
+
+    for (const [key, value] of Object.entries(result.parsed)) {
+      if (!key.startsWith('PLAYWRIGHT_')) {
+        continue;
+      }
+
+      process.env[key] = value;
+    }
+  }
+}

@@ -4,12 +4,18 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { validateMediaStorageConfiguration } from '../src/services/media-storage/index.js';
+import {
+  classifyClerkKeyMode,
+  classifyStripeSecretMode,
+  isLocalLikeUrl,
+} from '../src/env/runtime.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 
 dotenv.config({ path: path.join(repoRoot, 'backend', '.env'), override: false });
 dotenv.config({ path: path.join(repoRoot, 'frontend', '.env'), override: false });
+loadPlaywrightOverrides();
 
 const args = process.argv.slice(2);
 const mode = getArgValue('--mode') ?? process.env.NODE_ENV ?? 'development';
@@ -60,6 +66,21 @@ function validateBackendEnv(currentMode) {
       requireValue(key, 'backend');
       rejectPlaceholder(key, 'backend');
     }
+
+    for (const key of ['FRONTEND_URL', 'API_URL']) {
+      rejectLocalUrl(key, 'backend', currentMode);
+      requireAbsoluteUrl(key, 'backend', currentMode);
+    }
+
+    if (hasConfigured('APP_URL')) {
+      rejectLocalUrl('APP_URL', 'backend', currentMode);
+      requireAbsoluteUrl('APP_URL', 'backend', currentMode);
+    }
+
+    const expectedClerkMode = currentMode === 'production' ? 'live' : 'test';
+    enforceClerkMode('CLERK_PUBLISHABLE_KEY', expectedClerkMode, currentMode, 'backend');
+    enforceClerkMode('CLERK_SECRET_KEY', expectedClerkMode, currentMode, 'backend');
+    ensureModesMatch('CLERK_PUBLISHABLE_KEY', 'CLERK_SECRET_KEY', 'backend Clerk');
   }
 
   if (hasConfigured('STRIPE_SECRET_KEY')) {
@@ -144,12 +165,25 @@ function validateStripeSecretMode(currentMode) {
   const secret = String(process.env.STRIPE_SECRET_KEY ?? '').trim();
   if (!secret) return;
 
-  if (currentMode === 'staging' && secret.startsWith('sk_live_')) {
+  const secretMode = classifyStripeSecretMode(secret);
+
+  if (currentMode === 'staging' && secretMode === 'live') {
     errors.push('backend STRIPE_SECRET_KEY must use Stripe test mode for staging verification.');
     return;
   }
 
-  if (currentMode === 'development' && secret.startsWith('sk_live_')) {
+  if (currentMode === 'production' && secretMode === 'test') {
+    errors.push('backend STRIPE_SECRET_KEY must use Stripe live mode for production verification.');
+  }
+
+  if (
+    secretMode === 'live'
+    && ['FRONTEND_URL', 'API_URL', 'APP_URL'].some((key) => isLocalLikeUrl(process.env[key]))
+  ) {
+    errors.push('backend live STRIPE_SECRET_KEY cannot be paired with localhost app or API URLs.');
+  }
+
+  if (currentMode === 'development' && secretMode === 'live') {
     warnings.push('backend STRIPE_SECRET_KEY is live mode in development; do not run checkout/webhook lifecycle tests against it.');
   }
 }
@@ -164,8 +198,14 @@ function validateFrontendEnv(currentMode) {
     rejectPlaceholder(key, 'frontend');
   }
 
-  if (hasConfigured('VITE_API_URL') && !/^https?:\/\//.test(process.env.VITE_API_URL)) {
-    warnings.push('frontend VITE_API_URL should be an absolute URL for staging/production builds.');
+  requireAbsoluteUrl('VITE_API_URL', 'frontend', currentMode);
+  rejectLocalUrl('VITE_API_URL', 'frontend', currentMode);
+
+  const expectedClerkMode = currentMode === 'production' ? 'live' : 'test';
+  enforceClerkMode('VITE_CLERK_PUBLISHABLE_KEY', expectedClerkMode, currentMode, 'frontend');
+
+  if (hasConfigured('CLERK_PUBLISHABLE_KEY') && hasConfigured('VITE_CLERK_PUBLISHABLE_KEY')) {
+    ensureExactMatch('CLERK_PUBLISHABLE_KEY', 'VITE_CLERK_PUBLISHABLE_KEY', 'Clerk publishable key');
   }
 }
 
@@ -233,8 +273,66 @@ function hasConfigured(key) {
   return Boolean(String(process.env[key] ?? '').trim());
 }
 
+function loadPlaywrightOverrides() {
+  for (const envPath of [
+    path.join(repoRoot, '.env.playwright'),
+    path.join(repoRoot, 'backend', '.env.playwright'),
+    path.join(repoRoot, 'frontend', '.env.playwright'),
+  ]) {
+    const result = dotenv.config({ path: envPath, override: false, processEnv: {} });
+    if (result.error || !result.parsed) {
+      continue;
+    }
+
+    for (const [key, value] of Object.entries(result.parsed)) {
+      if (!key.startsWith('PLAYWRIGHT_')) {
+        continue;
+      }
+
+      process.env[key] = value;
+    }
+  }
+}
+
 function isPlaceholder(value) {
   return /xxxx|placeholder|your_|generate_a_long_random_secret/i.test(value);
+}
+
+function rejectLocalUrl(key, scopeLabel, currentMode) {
+  const value = String(process.env[key] ?? '').trim();
+  if (value && isLocalLikeUrl(value)) {
+    errors.push(`${scopeLabel} ${key} cannot point at localhost in ${currentMode}.`);
+  }
+}
+
+function requireAbsoluteUrl(key, scopeLabel, currentMode) {
+  const value = String(process.env[key] ?? '').trim();
+  if (value && !/^https?:\/\//i.test(value)) {
+    errors.push(`${scopeLabel} ${key} must be an absolute URL in ${currentMode}.`);
+  }
+}
+
+function enforceClerkMode(key, expectedMode, currentMode, scopeLabel) {
+  const mode = classifyClerkKeyMode(process.env[key]);
+  if (mode && mode !== expectedMode) {
+    errors.push(`${scopeLabel} ${key} must use Clerk ${expectedMode} mode in ${currentMode}.`);
+  }
+}
+
+function ensureModesMatch(leftKey, rightKey, label) {
+  const leftMode = classifyClerkKeyMode(process.env[leftKey]);
+  const rightMode = classifyClerkKeyMode(process.env[rightKey]);
+  if (leftMode && rightMode && leftMode !== rightMode) {
+    errors.push(`${label} values must use the same Clerk mode.`);
+  }
+}
+
+function ensureExactMatch(leftKey, rightKey, label) {
+  const left = String(process.env[leftKey] ?? '').trim();
+  const right = String(process.env[rightKey] ?? '').trim();
+  if (left && right && left !== right) {
+    errors.push(`${label} mismatch between ${leftKey} and ${rightKey}.`);
+  }
 }
 
 function hasFlag(flag) {

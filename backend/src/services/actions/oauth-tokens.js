@@ -16,7 +16,7 @@ export async function getOAuthToken(orgId, service) {
 
   if (!integration) {
     const error = new Error(`No active ${service} integration found for this organisation.`);
-    error.code = 'oauth_token_expired';
+    error.code = 'OAUTH_TOKEN_NOT_FOUND';
     throw error;
   }
 

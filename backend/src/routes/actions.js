@@ -96,14 +96,17 @@ router.post('/execute', requireOrg, zValidator('json', executeSchema), async (co
 
   const actionResult = await executeAction(type, payload, actionContext);
 
-  await recordProductEvent('action_execute_attempt', {
+  await recordProductEvent({
     orgId: org.orgId,
     userId: org.userId,
-    actionType: type,
-    workflowId,
-    success: actionResult.success,
-    awaitingApproval: actionResult.awaitingApproval ?? false,
-    traceId: actionResult.traceId,
+    eventName: 'action_execute_attempt',
+    metadata: {
+      actionType: type,
+      workflowId,
+      success: actionResult.success,
+      awaitingApproval: actionResult.awaitingApproval ?? false,
+      traceId: actionResult.traceId,
+    },
   }).catch(() => {});
 
   if (actionResult.awaitingApproval) {
@@ -195,12 +198,15 @@ router.post('/approvals/:id/approve', requireOrg, async (context) => {
 
   const actionResult = await executeAction(validation.actionType, validation.payload, actionContext);
 
-  await recordProductEvent('action_approval_executed', {
+  await recordProductEvent({
     orgId: org.orgId,
     userId: org.userId,
-    actionType: validation.actionType,
-    approvalId: context.req.param('id'),
-    success: actionResult.success,
+    eventName: 'action_approval_executed',
+    metadata: {
+      actionType: validation.actionType,
+      approvalId: context.req.param('id'),
+      success: actionResult.success,
+    },
   }).catch(() => {});
 
   return context.json({
@@ -260,13 +266,16 @@ router.post('/approvals/:id/approve-inline', requireOrg, async (context) => {
 
   const actionResult = await executeAction(validation.actionType, validation.payload, actionContext);
 
-  await recordProductEvent('action_approval_executed', {
+  await recordProductEvent({
     orgId: org.orgId,
     userId: org.userId,
-    actionType: validation.actionType,
-    approvalId,
-    success: actionResult.success,
-    inline: true,
+    eventName: 'action_approval_executed',
+    metadata: {
+      actionType: validation.actionType,
+      approvalId,
+      success: actionResult.success,
+      inline: true,
+    },
   }).catch(() => {});
 
   return context.json({

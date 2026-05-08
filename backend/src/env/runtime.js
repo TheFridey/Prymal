@@ -2,7 +2,7 @@ import { getEnvironmentMode, loadBackendEnv } from './parse.js';
 import { validateMediaStorageConfiguration } from '../services/media-storage/index.js';
 
 const REQUIRED_IN_ALL_ENVIRONMENTS = ['DATABASE_URL'];
-const REQUIRED_IN_PRODUCTION = [
+const REQUIRED_IN_LIVE_ENVIRONMENTS = [
   'CLERK_PUBLISHABLE_KEY',
   'CLERK_SECRET_KEY',
   'FRONTEND_URL',
@@ -34,6 +34,30 @@ export function hasValidEncryptionKey(value) {
 
 export function hasValidSentryDsn(value) {
   return /^https?:\/\/.+@.+\/\d+/.test(String(value ?? '').trim());
+}
+
+export function classifyClerkKeyMode(value) {
+  const match = String(value ?? '').trim().match(/^(pk|sk)_(test|live)_/i);
+  return match ? match[2].toLowerCase() : null;
+}
+
+export function classifyStripeSecretMode(value) {
+  const match = String(value ?? '').trim().match(/^sk_(test|live)_/i);
+  return match ? match[1].toLowerCase() : null;
+}
+
+export function isLocalLikeUrl(value) {
+  const normalized = String(value ?? '').trim();
+  if (!normalized) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(normalized);
+    return ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname);
+  } catch {
+    return /localhost|127\.0\.0\.1|::1/i.test(normalized);
+  }
 }
 
 export function getMemorySessionTtlHours(env = process.env) {
@@ -81,7 +105,7 @@ export function hasConfiguredIntegrationProvider(env = process.env) {
 }
 
 export function isStrictRuntimeValidationEnabled(mode = getEnvironmentMode()) {
-  return mode === 'development' || mode === 'production';
+  return mode === 'development' || mode === 'staging' || mode === 'production';
 }
 
 export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMode(env.NODE_ENV), strict = isStrictRuntimeValidationEnabled(mode) } = {}) {
@@ -94,8 +118,8 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
     }
   }
 
-  if (mode === 'production') {
-    for (const name of REQUIRED_IN_PRODUCTION) {
+  if (mode === 'staging' || mode === 'production') {
+    for (const name of REQUIRED_IN_LIVE_ENVIRONMENTS) {
       if (!env[name]?.trim()) {
         errors.push(`${name} must be set in backend/.env before starting the API.`);
       }
@@ -116,8 +140,66 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
     }
   }
 
+  if (mode === 'staging' || mode === 'production') {
+    for (const name of ['FRONTEND_URL', 'API_URL']) {
+      const value = env[name]?.trim();
+      if (!value) {
+        continue;
+      }
+
+      if (!/^https?:\/\//i.test(value)) {
+        errors.push(`${name} must be an absolute URL in ${mode}.`);
+      } else if (isLocalLikeUrl(value)) {
+        errors.push(`${name} cannot point at localhost in ${mode}.`);
+      }
+    }
+
+    const appUrl = env.APP_URL?.trim();
+    if (appUrl) {
+      if (!/^https?:\/\//i.test(appUrl)) {
+        errors.push(`APP_URL must be an absolute URL in ${mode}.`);
+      } else if (isLocalLikeUrl(appUrl)) {
+        errors.push(`APP_URL cannot point at localhost in ${mode}.`);
+      }
+    }
+  }
+
+  const expectedClerkMode = mode === 'production'
+    ? 'live'
+    : mode === 'staging'
+      ? 'test'
+      : null;
+  if (expectedClerkMode) {
+    const publishableMode = classifyClerkKeyMode(env.CLERK_PUBLISHABLE_KEY);
+    const secretMode = classifyClerkKeyMode(env.CLERK_SECRET_KEY);
+
+    if (publishableMode && publishableMode !== expectedClerkMode) {
+      errors.push(`CLERK_PUBLISHABLE_KEY must use ${expectedClerkMode} mode in ${mode}.`);
+    }
+    if (secretMode && secretMode !== expectedClerkMode) {
+      errors.push(`CLERK_SECRET_KEY must use ${expectedClerkMode} mode in ${mode}.`);
+    }
+    if (publishableMode && secretMode && publishableMode !== secretMode) {
+      errors.push('CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY must use the same Clerk mode.');
+    }
+  }
+
   if (env.STRIPE_SECRET_KEY?.trim() && !hasConfiguredStripe(env)) {
     warnings.push('Stripe billing is disabled because STRIPE_SECRET_KEY is still a placeholder.');
+  }
+
+  const stripeMode = classifyStripeSecretMode(env.STRIPE_SECRET_KEY);
+  if (mode === 'staging' && stripeMode === 'live') {
+    errors.push('STRIPE_SECRET_KEY must use Stripe test mode in staging.');
+  }
+  if (mode === 'production' && stripeMode === 'test') {
+    errors.push('STRIPE_SECRET_KEY must use Stripe live mode in production.');
+  }
+  if (
+    stripeMode === 'live'
+    && ['FRONTEND_URL', 'API_URL', 'APP_URL'].some((name) => isLocalLikeUrl(env[name]))
+  ) {
+    errors.push('Live Stripe credentials cannot be paired with localhost app or API URLs.');
   }
 
   if (!env.STRIPE_PRICE_SEAT_ADDON?.trim() || isPlaceholderEnvValue(env.STRIPE_PRICE_SEAT_ADDON)) {

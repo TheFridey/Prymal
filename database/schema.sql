@@ -754,6 +754,8 @@ CREATE TABLE workflows (
   nodes          JSONB NOT NULL DEFAULT '[]',
   edges          JSONB NOT NULL DEFAULT '[]',
   is_active      BOOLEAN NOT NULL DEFAULT false,
+  contract_enforced BOOLEAN NOT NULL DEFAULT false,
+  contract_enforced_at TIMESTAMPTZ,
   run_count      INTEGER NOT NULL DEFAULT 0,
   last_run_at    TIMESTAMPTZ,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -761,6 +763,7 @@ CREATE TABLE workflows (
 );
 
 CREATE INDEX workflows_org_idx ON workflows(org_id);
+CREATE INDEX workflows_contract_enforced_idx ON workflows(contract_enforced);
 
 CREATE TABLE workflow_webhooks (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1033,6 +1036,88 @@ CREATE INDEX llm_traces_model_idx ON llm_execution_traces(model);
 CREATE INDEX llm_traces_conversation_idx ON llm_execution_traces(conversation_id);
 CREATE INDEX llm_traces_workflow_run_idx ON llm_execution_traces(workflow_run_id);
 CREATE INDEX llm_traces_created_idx ON llm_execution_traces(created_at);
+
+CREATE TABLE agent_eval_summaries (
+  agent_id                    TEXT NOT NULL,
+  policy_class                TEXT NOT NULL,
+  org_id                      TEXT NOT NULL,
+  avg_groundedness            REAL,
+  avg_citation_score          REAL,
+  avg_structured_output_score REAL,
+  avg_tool_policy_score       REAL,
+  avg_hallucination_risk      REAL,
+  hold_count                  INTEGER NOT NULL DEFAULT 0,
+  repair_count                INTEGER NOT NULL DEFAULT 0,
+  pass_count                  INTEGER NOT NULL DEFAULT 0,
+  sample_size                 INTEGER NOT NULL DEFAULT 0,
+  last_updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (agent_id, policy_class, org_id)
+);
+
+CREATE INDEX agent_eval_summaries_org_idx ON agent_eval_summaries(org_id);
+
+CREATE TABLE kg_entities (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id      TEXT NOT NULL,
+  type        TEXT NOT NULL,
+  name        TEXT NOT NULL,
+  properties  JSONB NOT NULL DEFAULT '{}',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX kg_entities_org_idx ON kg_entities(org_id);
+CREATE INDEX kg_entities_type_idx ON kg_entities(org_id, type);
+
+CREATE TABLE kg_relationships (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id         TEXT NOT NULL,
+  from_entity_id UUID NOT NULL REFERENCES kg_entities(id) ON DELETE CASCADE,
+  to_entity_id   UUID NOT NULL REFERENCES kg_entities(id) ON DELETE CASCADE,
+  type           TEXT NOT NULL,
+  properties     JSONB NOT NULL DEFAULT '{}',
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX kg_relationships_org_idx ON kg_relationships(org_id);
+CREATE INDEX kg_relationships_from_idx ON kg_relationships(from_entity_id);
+CREATE INDEX kg_relationships_to_idx ON kg_relationships(to_entity_id);
+
+CREATE TABLE kg_entity_embeddings (
+  entity_id UUID PRIMARY KEY REFERENCES kg_entities(id) ON DELETE CASCADE,
+  embedding vector(1536)
+);
+
+CREATE TABLE lore_quality_signals (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id TEXT NOT NULL,
+  org_id      TEXT NOT NULL,
+  agent_id    TEXT NOT NULL,
+  verdict     TEXT NOT NULL,
+  eval_scores JSONB NOT NULL DEFAULT '{}',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX lore_quality_signals_doc_idx ON lore_quality_signals(document_id, org_id);
+CREATE INDEX lore_quality_signals_org_idx ON lore_quality_signals(org_id);
+
+CREATE TABLE action_approvals (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id      TEXT NOT NULL,
+  user_id     TEXT NOT NULL,
+  action_type TEXT NOT NULL,
+  payload     JSONB NOT NULL DEFAULT '{}',
+  token_hash  TEXT NOT NULL UNIQUE,
+  expires_at  TIMESTAMPTZ NOT NULL,
+  used_at     TIMESTAMPTZ,
+  verdict     TEXT,
+  workflow_id TEXT,
+  node_id     TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_action_approvals_token ON action_approvals(token_hash);
+CREATE INDEX idx_action_approvals_org ON action_approvals(org_id, created_at DESC);
 
 CREATE TABLE content_assets (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),

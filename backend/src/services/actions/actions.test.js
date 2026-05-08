@@ -110,15 +110,14 @@ test('executeAction returns approval_token_invalid for an expired or missing tok
 });
 
 test('executeAction returns oauth_not_connected when no integration is stored', async () => {
-  // No DB in test env — oauth-tokens.js will throw OAUTH_TOKEN_NOT_FOUND or DB error
-  const result = await executeAction('email.send', {
-    to: ['recipient@external.com'],
-    subject: 'Test',
-    body: 'Hello',
-  }, { orgId: 'org_unit_test_no_integration', userId: 'user_1' });
+  const result = await executeAction('drive.write', {
+    name: 'missing-oauth.txt',
+    content: 'hello',
+    mimeType: 'text/plain',
+  }, { orgId: '00000000-0000-4000-8000-000000000099', userId: 'user_1' });
 
   assert.equal(result.success, false);
-  // Either oauth_not_connected or generic ACTION_ERROR from DB failure
+  assert.equal(result.code, 'oauth_not_connected');
   assert.ok(typeof result.error === 'string');
   assert.ok(typeof result.traceId === 'string');
 });

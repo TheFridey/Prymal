@@ -11,6 +11,10 @@ let lastLoadState = {
 };
 
 export function getEnvironmentMode(rawNodeEnv = process.env.NODE_ENV) {
+  if (rawNodeEnv === 'staging') {
+    return 'staging';
+  }
+
   if (rawNodeEnv === 'production') {
     return 'production';
   }

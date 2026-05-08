@@ -139,7 +139,7 @@ export async function reserveExecutionCredits({
   estimatedCostUsd = 0,
   metadata = {},
 }) {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const { organisation, subscription } = await ensureSubscriptionForOrg(orgId, { tx });
     await tx.execute(sql`SELECT 1 FROM subscriptions WHERE id = ${subscription.id} FOR UPDATE`);
     const lockedSubscription =
@@ -296,6 +296,22 @@ export async function reserveExecutionCredits({
       subscription: nextSubscription,
     };
   });
+
+  await recordBillingLifecycleEvent({
+    eventName: 'billing.execution_reserved',
+    orgId,
+    userId,
+    eventId: result.usageEvent?.id ?? null,
+    credits: result.burn?.creditsUsed ?? null,
+    metadata: {
+      agentId,
+      conversationId,
+      workflowRunId,
+      threshold: result.threshold?.level ?? null,
+    },
+  });
+
+  return result;
 }
 
 export async function commitExecutionUsage({
@@ -308,7 +324,7 @@ export async function commitExecutionUsage({
   estimatedCostUsd = null,
   metadata = {},
 }) {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const usageEvent = await tx.query.executionUsageEvents.findFirst({
       where: eq(executionUsageEvents.id, usageEventId),
     });
@@ -437,10 +453,26 @@ export async function commitExecutionUsage({
 
     return { usageEvent: updatedEvent, threshold, subscription: nextSubscription };
   });
+
+  await recordBillingLifecycleEvent({
+    eventName: 'billing.execution_committed',
+    orgId: result.usageEvent?.orgId ?? null,
+    userId: result.usageEvent?.userId ?? null,
+    eventId: result.usageEvent?.id ?? null,
+    credits: result.usageEvent?.creditsCommitted ?? result.usageEvent?.creditsReserved ?? null,
+    metadata: {
+      provider,
+      model,
+      workflowRunId: result.usageEvent?.workflowRunId ?? null,
+      threshold: result.threshold?.level ?? null,
+    },
+  });
+
+  return result;
 }
 
 export async function releaseExecutionUsage({ usageEventId, reason = 'Reservation released', metadata = {} }) {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const usageEvent = await tx.query.executionUsageEvents.findFirst({
       where: eq(executionUsageEvents.id, usageEventId),
     });
@@ -511,6 +543,20 @@ export async function releaseExecutionUsage({ usageEventId, reason = 'Reservatio
 
     return { usageEvent: updatedEvent, threshold, subscription: nextSubscription };
   });
+
+  await recordBillingLifecycleEvent({
+    eventName: 'billing.execution_released',
+    orgId: result.usageEvent?.orgId ?? null,
+    userId: result.usageEvent?.userId ?? null,
+    eventId: result.usageEvent?.id ?? null,
+    credits: result.usageEvent?.creditsReserved ?? null,
+    metadata: {
+      reason,
+      threshold: result.threshold?.level ?? null,
+    },
+  });
+
+  return result;
 }
 
 export async function reserveVideoCredits({
@@ -526,7 +572,7 @@ export async function reserveVideoCredits({
   useNegativePrompt = true,
   metadata = {},
 }) {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const { organisation, subscription } = await ensureSubscriptionForOrg(orgId, { tx });
     await tx.execute(sql`SELECT 1 FROM subscriptions WHERE id = ${subscription.id} FOR UPDATE`);
     const lockedSubscription =
@@ -699,6 +745,23 @@ export async function reserveVideoCredits({
       subscription: nextSubscription,
     };
   });
+
+  await recordBillingLifecycleEvent({
+    eventName: 'billing.video_reserved',
+    orgId,
+    userId,
+    eventId: result.job?.id ?? null,
+    credits: result.burn?.creditsUsed ?? null,
+    metadata: {
+      conversationId,
+      durationSeconds,
+      resolution,
+      mode,
+      threshold: result.threshold?.level ?? null,
+    },
+  });
+
+  return result;
 }
 
 export async function markVideoJobProcessing({ jobId, providerJobId = null, metadata = {} }) {
@@ -735,7 +798,7 @@ export async function commitVideoJob({
   providerJobId = null,
   providerMetadata = {},
 }) {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const job = await tx.query.videoGenerationEvents.findFirst({
       where: eq(videoGenerationEvents.id, jobId),
     });
@@ -881,6 +944,21 @@ export async function commitVideoJob({
 
     return { job: updatedJob, threshold, subscription: nextSubscription };
   });
+
+  await recordBillingLifecycleEvent({
+    eventName: 'billing.video_committed',
+    orgId: result.job?.orgId ?? null,
+    userId: result.job?.userId ?? null,
+    eventId: result.job?.id ?? null,
+    credits: result.job?.creditsCommitted ?? result.job?.creditsReserved ?? null,
+    metadata: {
+      outputUrl: outputUrl ?? result.job?.outputUrl ?? null,
+      outputFileName: outputFileName ?? result.job?.outputFileName ?? null,
+      threshold: result.threshold?.level ?? null,
+    },
+  });
+
+  return result;
 }
 
 export async function releaseVideoJob({
@@ -890,7 +968,7 @@ export async function releaseVideoJob({
   failureMessage = null,
   providerMetadata = {},
 }) {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const job = await tx.query.videoGenerationEvents.findFirst({
       where: eq(videoGenerationEvents.id, jobId),
     });
@@ -966,6 +1044,45 @@ export async function releaseVideoJob({
 
     return { job: updatedJob, threshold, subscription: nextSubscription };
   });
+
+  await recordBillingLifecycleEvent({
+    eventName: 'billing.video_released',
+    orgId: result.job?.orgId ?? null,
+    userId: result.job?.userId ?? null,
+    eventId: result.job?.id ?? null,
+    credits: result.job?.creditsReserved ?? null,
+    metadata: {
+      status,
+      failureCode,
+      threshold: result.threshold?.level ?? null,
+    },
+  });
+
+  return result;
+}
+
+async function recordBillingLifecycleEvent({
+  eventName,
+  orgId = null,
+  userId = null,
+  eventId = null,
+  credits = null,
+  metadata = {},
+}) {
+  if (!eventName || !orgId) {
+    return;
+  }
+
+  await recordProductEvent({
+    orgId,
+    userId,
+    eventName,
+    metadata: {
+      eventId,
+      credits,
+      ...metadata,
+    },
+  }).catch(() => {});
 }
 
 export async function incrementVideoJobRetry(jobId) {

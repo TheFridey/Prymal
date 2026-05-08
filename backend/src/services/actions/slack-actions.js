@@ -45,12 +45,15 @@ export async function postMessage(payload, context) {
     ? `https://slack.com/archives/${channel}/p${data.ts.replace('.', '')}`
     : null;
 
-  await recordProductEvent('action_executed', {
+  await recordProductEvent({
     orgId,
     userId,
-    actionType: 'slack.post',
-    workflowId,
-    channel,
+    eventName: 'action_executed',
+    metadata: {
+      actionType: 'slack.post',
+      workflowId,
+      channel,
+    },
   }).catch(() => {});
 
   return {

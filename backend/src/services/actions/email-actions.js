@@ -37,12 +37,15 @@ export async function sendEmail(payload, context) {
 
   const data = await response.json();
 
-  await recordProductEvent('action_executed', {
+  await recordProductEvent({
     orgId,
     userId,
-    actionType: 'email.send',
-    workflowId,
-    messageId: data.id,
+    eventName: 'action_executed',
+    metadata: {
+      actionType: 'email.send',
+      workflowId,
+      messageId: data.id,
+    },
   }).catch(() => {});
 
   return {

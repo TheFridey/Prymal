@@ -11,6 +11,12 @@ const {
 } = await import('./staff.js');
 
 test('getStaffRole resolves tiered staff roles from env identity lists', () => {
+  delete process.env.STAFF_USER_IDS;
+  delete process.env.STAFF_EMAILS;
+  delete process.env.STAFF_SUPPORT_USER_IDS;
+  delete process.env.STAFF_OPS_USER_IDS;
+  delete process.env.STAFF_FINANCE_USER_IDS;
+  delete process.env.STAFF_SUPERADMIN_USER_IDS;
   process.env.STAFF_SUPPORT_EMAILS = 'support@prymal.io';
   process.env.STAFF_OPS_EMAILS = 'ops@prymal.io';
   process.env.STAFF_FINANCE_EMAILS = 'finance@prymal.io';

@@ -58,12 +58,15 @@ export async function writeFile(payload, context) {
 
   const data = await response.json();
 
-  await recordProductEvent('action_executed', {
+  await recordProductEvent({
     orgId,
     userId,
-    actionType: 'drive.write',
-    workflowId,
-    fileId: data.id,
+    eventName: 'action_executed',
+    metadata: {
+      actionType: 'drive.write',
+      workflowId,
+      fileId: data.id,
+    },
   }).catch(() => {});
 
   return {
@@ -113,11 +116,14 @@ export async function appendToFile(payload, context) {
     throw error;
   }
 
-  await recordProductEvent('action_executed', {
+  await recordProductEvent({
     orgId,
     userId,
-    actionType: 'drive.append',
-    fileId,
+    eventName: 'action_executed',
+    metadata: {
+      actionType: 'drive.append',
+      fileId,
+    },
   }).catch(() => {});
 
   return { fileId };
@@ -162,11 +168,14 @@ export async function createFolder(payload, context) {
 
   const data = await response.json();
 
-  await recordProductEvent('action_executed', {
+  await recordProductEvent({
     orgId,
     userId,
-    actionType: 'drive.folder',
-    folderId: data.id,
+    eventName: 'action_executed',
+    metadata: {
+      actionType: 'drive.folder',
+      folderId: data.id,
+    },
   }).catch(() => {});
 
   return { folderId: data.id };

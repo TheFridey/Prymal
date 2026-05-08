@@ -176,8 +176,11 @@ test('getOrgModelPolicyOverrides returns parsed org-specific policy config', () 
 
 test('getAnthropicModels returns default model names when env vars are absent', () => {
   delete process.env.ANTHROPIC_MODEL_PREMIUM;
+  delete process.env.ANTHROPIC_MODEL_OPUS;
   delete process.env.ANTHROPIC_MODEL_DEFAULT;
+  delete process.env.ANTHROPIC_MODEL_PRIMARY;
   delete process.env.ANTHROPIC_MODEL_FAST;
+  delete process.env.ANTHROPIC_MODEL_FALLBACK;
   const models = getAnthropicModels();
   assert.equal(models.premium, 'claude-opus-4-7');
   assert.equal(models.default, 'claude-sonnet-4-6');
@@ -196,6 +199,10 @@ test('getAnthropicModels respects env var overrides', () => {
   assert.equal(models.default, 'claude-sonnet-4-6');
   delete process.env.ANTHROPIC_MODEL_PREMIUM;
   delete process.env.ANTHROPIC_MODEL_DEFAULT;
+  delete process.env.ANTHROPIC_MODEL_OPUS;
+  delete process.env.ANTHROPIC_MODEL_PRIMARY;
+  delete process.env.ANTHROPIC_MODEL_FAST;
+  delete process.env.ANTHROPIC_MODEL_FALLBACK;
 });
 
 test('getOpenAIModels returns default model names when env vars are absent', () => {
