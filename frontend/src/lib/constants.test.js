@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import {
   PREFERRED_CREDIT_PACKS_PUBLIC,
+  PLAN_LIBRARY,
   findAgentByInvocation,
   getAgentMeta,
+  getPlanPrice,
   stripAgentInvocationPrefix,
 } from './constants';
 
@@ -38,5 +40,22 @@ describe('public preferred credit packs', () => {
       'video_pack_pro',
     ]);
     expect(PREFERRED_CREDIT_PACKS_PUBLIC.map((pack) => pack.id).join(' ')).not.toMatch(/exec_100|exec_300|exec_700|video_15|video_30|video_100/);
+  });
+});
+
+describe('getPlanPrice', () => {
+  test('includes founding access display prices at 20% off list billing amounts', () => {
+    const pro = PLAN_LIBRARY.find((plan) => plan.id === 'pro');
+
+    expect(getPlanPrice(pro, 'monthly').display).toBe('£99');
+    expect(getPlanPrice(pro, 'monthly').founding.display).toBe('£79.20');
+    expect(getPlanPrice(pro, 'monthly').founding.discountLabel).toBe('20% off');
+  });
+
+  test('formats pence cleanly for existing and founding prices', () => {
+    const solo = PLAN_LIBRARY.find((plan) => plan.id === 'solo');
+
+    expect(getPlanPrice(solo, 'monthly').display).toBe('£49.99');
+    expect(getPlanPrice(solo, 'monthly').founding.display).toBe('£39.99');
   });
 });

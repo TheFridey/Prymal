@@ -1015,6 +1015,9 @@ export const BILLING_INTERVALS = [
   },
 ];
 
+export const FOUNDING_ACCESS_DISCOUNT_PERCENT = 20;
+export const FOUNDING_ACCESS_DISCOUNT_RATE = FOUNDING_ACCESS_DISCOUNT_PERCENT / 100;
+
 export const PLAN_LIBRARY = [
   {
     id: 'solo',
@@ -1088,24 +1091,28 @@ export const PLAN_ENTITLEMENTS = {
     dailyVideoCap: 2,
     concurrencyExecution: 1,
     concurrencyVideo: 1,
+    maxActiveWorkspaces: 1,
   },
   pro: {
     monthlyVideoCredits: 5,
     dailyVideoCap: 5,
     concurrencyExecution: 3,
     concurrencyVideo: 2,
+    maxActiveWorkspaces: 3,
   },
   teams: {
     monthlyVideoCredits: 15,
     dailyVideoCap: 8,
     concurrencyExecution: 5,
     concurrencyVideo: 4,
+    maxActiveWorkspaces: 10,
   },
   agency: {
     monthlyVideoCredits: 25,
     dailyVideoCap: 15,
     concurrencyExecution: 8,
     concurrencyVideo: 5,
+    maxActiveWorkspaces: 50,
   },
 };
 
@@ -1291,12 +1298,15 @@ export function getRecommendedAgentsForWorkspaceProfile(profile = {}) {
 }
 
 function formatPlanGbp(amount) {
+  const rounded = Number((Number(amount) || 0).toFixed(2));
+  const hasPence = !Number.isInteger(rounded);
+
   return new Intl.NumberFormat('en-GB', {
     style: 'currency',
     currency: 'GBP',
-    minimumFractionDigits: 0,
+    minimumFractionDigits: hasPence ? 2 : 0,
     maximumFractionDigits: 2,
-  }).format(amount);
+  }).format(rounded);
 }
 
 export function getPlanPrice(plan, intervalId = 'monthly') {
@@ -1312,6 +1322,8 @@ export function getPlanPrice(plan, intervalId = 'monthly') {
   const monthlyEquivalentAmount = discountedPrice / interval.multiplier;
   const hasPeriodDiscount = interval.id !== 'monthly';
   const savingsAmount = hasPeriodDiscount ? listPeriodTotal - discountedPrice : 0;
+  const foundingAmount = discountedPrice * (1 - FOUNDING_ACCESS_DISCOUNT_RATE);
+  const foundingSavingsAmount = discountedPrice - foundingAmount;
 
   return {
     amount: discountedPrice,
@@ -1326,6 +1338,13 @@ export function getPlanPrice(plan, intervalId = 'monthly') {
     hasPeriodDiscount,
     monthlyListDisplay: formatPlanGbp(monthlyPrice),
     savingsDisplay: savingsAmount > 0 ? formatPlanGbp(savingsAmount) : null,
+    founding: {
+      amount: foundingAmount,
+      display: formatPlanGbp(foundingAmount),
+      discountPercent: FOUNDING_ACCESS_DISCOUNT_PERCENT,
+      discountLabel: `${FOUNDING_ACCESS_DISCOUNT_PERCENT}% off`,
+      savingsDisplay: formatPlanGbp(foundingSavingsAmount),
+    },
   };
 }
 

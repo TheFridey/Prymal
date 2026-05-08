@@ -11,6 +11,7 @@ import {
 } from 'react-icons/tb';
 import {
   BILLING_INTERVALS,
+  FOUNDING_ACCESS_DISCOUNT_PERCENT,
   PLAN_ENTITLEMENTS,
   PLAN_LIBRARY,
   PREFERRED_CREDIT_PACKS_PUBLIC,
@@ -44,6 +45,13 @@ const PLAN_BADGES = {
   agency: 'Scale plan',
 };
 
+const WHOLE_GBP_FORMATTER = new Intl.NumberFormat('en-GB', {
+  style: 'currency',
+  currency: 'GBP',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
 const PLATFORM_COMPARISON_ROWS = [
   ['AI chat / prompts', 'yes', 'yes'],
   ['Multi-agent system', 'no', 'yes'],
@@ -59,7 +67,7 @@ const PLATFORM_COMPARISON_ROWS = [
 const FAQ_ITEMS = [
   {
     q: 'How do credits work?',
-    a: 'Credits are used when you run execution work: chat, agents, and workflows draw from your execution balance. Most short runs use about 1-3 credits; larger workflows with more context use more. AI video credits are separate and only power AI-generated video renders.',
+    a: 'Credits are used when you run execution work: chat, agents, workflows, retrieval-heavy tasks, and guided image generation draw from your execution balance. Most short runs use about 1-3 credits; larger workflows with more context use more. AI video credits are separate and only power AI-generated video renders.',
   },
   {
     q: 'What happens if I run out?',
@@ -83,7 +91,11 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Are there usage limits?',
-    a: 'No. Every tier has clear execution and AI video allowances, plus fair-use controls for costly workloads. Usage packs refill capacity for short bursts — they do not remove limits.',
+    a: 'Yes. Every tier has clear execution and AI video allowances, plus fair-use controls for costly workloads. Usage packs refill capacity for short bursts — they do not remove limits.',
+  },
+  {
+    q: 'What media can I generate?',
+    a: 'The guided image builder uses execution credits. The guided video builder supports Veo 3.1 Lite and Standard one-shot renders at 4, 6, or 8 seconds; video reference images currently require Veo 3.1 Standard at 8 seconds.',
   },
 ];
 
@@ -165,7 +177,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         <section className="pricing-founding-banner" aria-labelledby="founding-access-heading">
           <div>
             <div className="pricing-founding-banner__eyebrow">Limited founding accounts</div>
-            <h2 id="founding-access-heading">Founding Access: 20% off for your first 3 months</h2>
+            <h2 id="founding-access-heading">Founding Access: {FOUNDING_ACCESS_DISCOUNT_PERCENT}% off for your first 3 months</h2>
             <p>
               Founder badge, priority onboarding, early roadmap access, and a one-time onboarding execution credit bonus. Standard
               monthly usage limits apply — discount renews at standard plan rates after the founding window (see checkout &amp;
@@ -234,7 +246,6 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         {PLAN_LIBRARY.map((plan) => {
           const ent = PLAN_ENTITLEMENTS[plan.id];
           const price = getPlanPrice(plan, activeInterval.id);
-          const displayedPrice = price;
           const isPro = plan.id === 'pro';
           const planBadge = PLAN_BADGES[plan.id];
           return (
@@ -256,13 +267,28 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               ) : null}
               <p className="pricing-card__persona">{PERSONA_LINE[plan.id]}</p>
               <p className="pricing-card__power-line">{PLAN_POWER_LINE[plan.id]}</p>
-              <div className="pricing-card__price">
-                {displayedPrice.display}
-                <small> / {displayedPrice.suffix}</small>
+              <div
+                className={`pricing-card__price${foundingAccessActive ? ' pricing-card__price--founding' : ''}`}
+                aria-label={
+                  foundingAccessActive
+                    ? `${plan.name} founding price ${price.founding.display}, originally ${price.display}, ${price.founding.discountLabel}`
+                    : `${plan.name} price ${price.display}`
+                }
+              >
+                {foundingAccessActive ? (
+                  <div className="pricing-card__price-stack" aria-hidden="true">
+                    <span className="pricing-card__price-was">{price.display}</span>
+                    <span className="pricing-card__price-now">{price.founding.display}</span>
+                    <span className="pricing-card__discount-pill">{price.founding.discountLabel}</span>
+                  </div>
+                ) : (
+                  price.display
+                )}
+                <small> / {price.suffix}</small>
               </div>
               {foundingAccessActive ? (
                 <p className="pricing-card__period-note">
-                  Eligible founder intro pricing is confirmed in checkout; standard usage limits apply and renewal returns to list rate
+                  Founding price shown for the intro window; then {price.display} / {price.suffix}. Checkout confirms eligibility.
                 </p>
               ) : price.hasPeriodDiscount ? (
                 <p className="pricing-card__period-note">
@@ -276,10 +302,15 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
                   {plan.credits.toLocaleString('en-GB')} execution credits / month (metered with clear plan caps)
                 </li>
                 <li>
+                  {plan.seats.toLocaleString('en-GB')} {plan.seats === 1 ? 'seat' : 'seats'} included
+                  {plan.additionalSeatPrice ? `; extra seats ${WHOLE_GBP_FORMATTER.format(plan.additionalSeatPrice)}/mo` : ''}
+                </li>
+                <li>
                   {ent.monthlyVideoCredits > 0
                     ? `${ent.monthlyVideoCredits} AI video credits / month`
                     : 'AI video credits via upgrade'}
                 </li>
+                <li>Guided image builder uses execution credits</li>
                 <li>AI system workflows &amp; automations</li>
                 {foundingAccessActive ? <li>Bonus launch execution credits (one-time, same limits as standard plans)</li> : null}
                 {foundingAccessActive ? <li>Founder badge &amp; early roadmap access</li> : null}
@@ -321,12 +352,12 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
           <article>
             <span className="pricing-usage-clarity__icon" aria-hidden="true"><TbBolt /></span>
             <h3>Execution credits</h3>
-            <p>Used for chat, agents, workflow runs, retrieval-heavy work, and other execution system activity.</p>
+            <p>Used for chat, agents, workflow runs, retrieval-heavy work, guided image generation, and other execution activity.</p>
           </article>
           <article>
             <span className="pricing-usage-clarity__icon" aria-hidden="true"><TbMovie /></span>
-            <h3>Video credits</h3>
-            <p>Tracked separately for AI-generated video renders so media usage stays visible and controlled.</p>
+            <h3>Guided video builder</h3>
+            <p>Veo 3.1 Lite and Standard renders use separate video credits, with 4, 6, or 8 second one-shot outputs.</p>
           </article>
           <article>
             <span className="pricing-usage-clarity__icon" aria-hidden="true"><TbCoin /></span>
@@ -341,7 +372,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
           <h3 id="credit-clarity-heading">How credits work</h3>
           <p>
             <strong>Credits are used when you run execution work.</strong> A quick reply might be one credit; a deep multi-step workflow
-            uses more. Most everyday tasks fall in the 1–3 credit range; larger automations scale up from there.
+            uses more. Guided image generation also uses execution credits. Most everyday tasks fall in the 1–3 credit range; larger automations scale up from there.
           </p>
           <p>
             <strong>AI video credits power video renders only.</strong> They are separate from execution credits so you always
@@ -369,7 +400,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               </span>
               Execution credits
             </h4>
-            <p>Used for chat, agents, and workflows — everything that is not video output.</p>
+            <p>Used for chat, agents, workflows, and guided image generation — everything that is not video output.</p>
           </div>
           <div className="pricing-credit-visual__block pricing-credit-visual__block--video">
             <h4>
@@ -378,7 +409,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               </span>
               AI video credits
             </h4>
-            <p>Used only when you create AI-generated video renders. Keeps video spend visible and separate.</p>
+            <p>Used only when you create AI-generated video renders. Reference images are currently supported on Veo 3.1 Standard at 8 seconds.</p>
           </div>
         </div>
         <div className="pricing-reassure">
@@ -439,6 +470,27 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               ))}
             </tr>
             <tr>
+              <td>Max concurrent video renders</td>
+              {PLAN_LIBRARY.map((plan) => (
+                <td key={plan.id}>{PLAN_ENTITLEMENTS[plan.id].concurrencyVideo}</td>
+              ))}
+            </tr>
+            <tr>
+              <td>Active workspaces</td>
+              {PLAN_LIBRARY.map((plan) => (
+                <td key={plan.id}>{PLAN_ENTITLEMENTS[plan.id].maxActiveWorkspaces}</td>
+              ))}
+            </tr>
+            <tr>
+              <td>Included seats</td>
+              {PLAN_LIBRARY.map((plan) => (
+                <td key={plan.id}>
+                  {plan.seats}
+                  {plan.additionalSeatPrice ? ` + ${WHOLE_GBP_FORMATTER.format(plan.additionalSeatPrice)}/mo add-ons` : ''}
+                </td>
+              ))}
+            </tr>
+            <tr>
               <td>Usage packs</td>
               {PLAN_LIBRARY.map((plan) => (
                 <td key={plan.id} className="pricing-compare__tick">
@@ -474,7 +526,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         <div className="pricing-panel" style={{ maxWidth: '720px', margin: '0 auto 1.25rem' }}>
           <p>
             <strong>Execution Boost</strong> adds chat, agent, and workflow capacity when your monthly pool runs thin.{' '}
-            <strong>AI video packs</strong> refill premium render credits only — video stays visibly metered separately from execution.
+            <strong>AI video packs</strong> refill render credits only — video stays visibly metered separately from execution.
           </p>
           <p style={{ marginBottom: 0 }}>
             Purchase packs anytime from{' '}

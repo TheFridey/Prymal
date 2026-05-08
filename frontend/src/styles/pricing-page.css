@@ -496,8 +496,9 @@
 
 .pricing-card__price-stack {
   display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.55rem;
 }
 
 .pricing-card__price-was {
@@ -506,6 +507,7 @@
   color: #f87171;
   text-decoration: line-through;
   text-decoration-color: rgba(248, 113, 113, 0.95);
+  text-decoration-thickness: 2px;
 }
 
 .pricing-card__price-now {
@@ -514,6 +516,27 @@
   letter-spacing: -0.02em;
   color: #ffffff;
   text-shadow: 0 0 24px rgba(255, 255, 255, 0.12);
+}
+
+.pricing-card__discount-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.45rem;
+  padding: 0.18rem 0.48rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 209, 0.22);
+  background: rgba(0, 255, 209, 0.1);
+  color: #9cf5e0;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.pricing-card__price--founding small {
+  display: block;
+  margin-top: 0.08rem;
 }
 
 .pricing-card__price small {
