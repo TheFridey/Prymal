@@ -72,8 +72,10 @@ test.describe('Owner workflow and LORE flows', () => {
   });
 
   test('LORE upload, text ingest, search, and source rendering stay healthy', async ({ page }) => {
+    test.slow();
     const suffix = uniqueSuffix('lore');
     const baselineTitle = `Refund policy baseline ${suffix}`;
+    const searchQuestion = `What is the refund policy baseline ${suffix}?`;
     const fixturePath = path.resolve(process.cwd(), 'tests', 'fixtures', 'lore-upload.md');
 
     await page.goto('/app/lore');
@@ -104,16 +106,24 @@ test.describe('Owner workflow and LORE flows', () => {
 
     await page.getByRole('button', { name: /^search$/i }).click();
     const searchInput = page.getByPlaceholder(/ask a question about your org knowledge/i);
-    await searchInput.fill(`What is the refund policy baseline ${suffix}?`);
-    await searchInput.press('Enter');
+    const searchResponsePromise = page.waitForResponse((response) =>
+      response.request().method() === 'GET'
+      && /\/api\/lore\/search(?:\?|$)/.test(response.url()),
+    );
+    await searchInput.fill(searchQuestion);
+    await page.getByRole('button', { name: /^search$/i }).nth(1).click();
 
-    const searchResult = page.locator('div').filter({
-      has: page.getByText(baselineTitle),
-    }).filter({
-      hasText: /Refunds are not available after 14 days/i,
-    }).first();
+    const searchResponse = await searchResponsePromise;
+    expect(searchResponse.ok()).toBeTruthy();
 
-    await expect(searchResult).toBeVisible({ timeout: 20_000 });
-    await expect(searchResult.getByText(/\d+% match/i).first()).toBeVisible({ timeout: 20_000 });
+    const resultTitle = page.getByText(baselineTitle, { exact: true }).last();
+    const resultExcerpt = page.getByText(
+      `Prymal policy baseline ${suffix}. Refunds are not available after 14 days from purchase. Agencies receive weekday support coverage.`,
+      { exact: true },
+    );
+
+    await expect(resultTitle).toBeVisible({ timeout: 20_000 });
+    await expect(resultExcerpt).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/\d+% match/i).first()).toBeVisible({ timeout: 20_000 });
   });
 });

@@ -584,26 +584,6 @@ CREATE INDEX warden_audit_verdict_idx ON warden_audit_event(verdict);
 CREATE INDEX warden_audit_risk_idx ON warden_audit_event(risk_level);
 CREATE INDEX warden_audit_tool_idx ON warden_audit_event(tool_name);
 
-CREATE TABLE workflow_risk_confirmation (
-  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  org_id          UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
-  user_id         TEXT REFERENCES users(id) ON DELETE SET NULL,
-  workflow_id     UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
-  workflow_run_id UUID,
-  warden_audit_id UUID,
-  risk_summary    JSONB NOT NULL DEFAULT '{}',
-  status          TEXT NOT NULL DEFAULT 'pending',
-  token_hash      TEXT NOT NULL,
-  expires_at      TIMESTAMPTZ NOT NULL,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  used_at         TIMESTAMPTZ
-);
-
-CREATE INDEX workflow_risk_confirmation_org_idx ON workflow_risk_confirmation(org_id);
-CREATE INDEX workflow_risk_confirmation_workflow_idx ON workflow_risk_confirmation(workflow_id);
-CREATE INDEX workflow_risk_confirmation_status_idx ON workflow_risk_confirmation(status);
-CREATE INDEX workflow_risk_confirmation_expires_idx ON workflow_risk_confirmation(expires_at);
-
 CREATE TABLE admin_action_logs (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id           UUID REFERENCES organisations(id) ON DELETE CASCADE,
@@ -779,6 +759,26 @@ CREATE TABLE workflow_webhooks (
 
 CREATE INDEX workflow_webhooks_org_idx ON workflow_webhooks(org_id);
 CREATE INDEX workflow_webhooks_workflow_idx ON workflow_webhooks(workflow_id);
+
+CREATE TABLE workflow_risk_confirmation (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id          UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+  user_id         TEXT REFERENCES users(id) ON DELETE SET NULL,
+  workflow_id     UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+  workflow_run_id UUID,
+  warden_audit_id UUID,
+  risk_summary    JSONB NOT NULL DEFAULT '{}',
+  status          TEXT NOT NULL DEFAULT 'pending',
+  token_hash      TEXT NOT NULL,
+  expires_at      TIMESTAMPTZ NOT NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  used_at         TIMESTAMPTZ
+);
+
+CREATE INDEX workflow_risk_confirmation_org_idx ON workflow_risk_confirmation(org_id);
+CREATE INDEX workflow_risk_confirmation_workflow_idx ON workflow_risk_confirmation(workflow_id);
+CREATE INDEX workflow_risk_confirmation_status_idx ON workflow_risk_confirmation(status);
+CREATE INDEX workflow_risk_confirmation_expires_idx ON workflow_risk_confirmation(expires_at);
 
 CREATE TABLE workflow_templates (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),

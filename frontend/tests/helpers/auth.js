@@ -200,35 +200,29 @@ export async function createStorageStateForRole(browser, role, baseURL) {
 
 export async function authFetch(page, url, init = {}) {
   const token = await waitForClerkSessionToken(page);
-
-  return page.evaluate(
-    async ({ requestUrl, requestInit, authToken }) => {
-      const response = await fetch(requestUrl, {
-        ...requestInit,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(requestInit.headers ?? {}),
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        },
-      });
-
-      const text = await response.text();
-      let data = null;
-
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
-        data = text;
-      }
-
-      return {
-        ok: response.ok,
-        status: response.status,
-        data,
-      };
+  const response = await page.request.fetch(url, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init.headers ?? {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    { requestUrl: url, requestInit: init, authToken: token },
-  );
+  });
+
+  const text = await response.text();
+  let data = null;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
+
+  return {
+    ok: response.ok(),
+    status: response.status(),
+    data,
+  };
 }
 
 export function uniqueSuffix(prefix = 'ci') {

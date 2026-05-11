@@ -28,6 +28,7 @@ const {
   llmExecutionTraces,
   loreDocuments,
   messages,
+  organisationInvitations,
   organisations,
   productEvents,
   subscriptions,
@@ -118,12 +119,12 @@ const billingUser = await upsertUser({
   orgId: billingOrg.id,
   role: 'owner',
 });
-await upsertUser({
+const inviteeUser = await upsertUser({
   clerkUser: inviteeClerk,
   orgId: null,
   role: 'member',
 });
-await upsertUser({
+const onboardingUser = await upsertUser({
   clerkUser: onboardingClerk,
   orgId: null,
   role: 'member',
@@ -136,10 +137,18 @@ await Promise.all([
 
 await seedWorkspaceFixtures({ org: primaryOrg, ownerUser, staffUser });
 await seedBillingWorkspaceFixtures({ org: billingOrg, ownerUser: billingUser });
+await resetQaJoinState({
+  inviteeUserId: inviteeUser.id,
+  inviteeEmail: qaConfig.invitee.email,
+  onboardingUserId: onboardingUser.id,
+  onboardingEmail: qaConfig.onboarding.email,
+});
 
 const verification = await verifyFixtures({
   primaryOrgId: primaryOrg.id,
   billingOrgId: billingOrg.id,
+  inviteeUserId: inviteeUser.id,
+  onboardingUserId: onboardingUser.id,
 });
 
 console.table([
@@ -775,7 +784,7 @@ async function seedTrace({
   return created;
 }
 
-async function verifyFixtures({ primaryOrgId, billingOrgId }) {
+async function verifyFixtures({ primaryOrgId, billingOrgId, inviteeUserId, onboardingUserId }) {
   const primaryUsers = await db.query.users.findMany({
     where: eq(users.orgId, primaryOrgId),
   });
@@ -814,8 +823,12 @@ async function verifyFixtures({ primaryOrgId, billingOrgId }) {
   const billingSubscription = await db.query.subscriptions.findFirst({
     where: eq(subscriptions.orgId, billingOrgId),
   });
+  const detachedQaUsers = await db.query.users.findMany({
+    where: inArray(users.id, [inviteeUserId, onboardingUserId]),
+  });
 
   const eventNames = new Set(lifecycleEvents.map((row) => row.eventName));
+  const detachedQaUsersOk = detachedQaUsers.every((row) => row.orgId == null && row.role === 'member');
 
   return {
     primary: {
@@ -839,10 +852,40 @@ async function verifyFixtures({ primaryOrgId, billingOrgId }) {
     approvals: {
       ok: pendingApprovals.length >= 1
         && approvalRows.some((row) => row.verdict === 'denied')
-        && approvalRows.some((row) => row.verdict == null && new Date(row.expiresAt).getTime() <= Date.now()),
-      detail: `${approvalRows.length} approval row(s), ${pendingApprovals.length} pending approval(s) visible.`,
+        && approvalRows.some((row) => row.verdict == null && new Date(row.expiresAt).getTime() <= Date.now())
+        && detachedQaUsersOk,
+      detail: detachedQaUsersOk
+        ? `${approvalRows.length} approval row(s), ${pendingApprovals.length} pending approval(s) visible.`
+        : 'Invitee/onboarding QA users are still attached to an org after fixture seeding.',
     },
   };
+}
+
+async function resetQaJoinState({ inviteeUserId, inviteeEmail, onboardingUserId, onboardingEmail }) {
+  const now = new Date();
+
+  await db
+    .update(users)
+    .set({
+      orgId: null,
+      role: 'member',
+      updatedAt: now,
+    })
+    .where(inArray(users.id, [inviteeUserId, onboardingUserId]));
+
+  await db
+    .update(organisationInvitations)
+    .set({
+      status: 'revoked',
+      updatedAt: now,
+    })
+    .where(and(
+      inArray(organisationInvitations.email, [
+        String(inviteeEmail ?? '').trim().toLowerCase(),
+        String(onboardingEmail ?? '').trim().toLowerCase(),
+      ]),
+      eq(organisationInvitations.status, 'pending'),
+    ));
 }
 
 async function ensureClerkQaUser({ email, password, firstName, lastName, role }) {

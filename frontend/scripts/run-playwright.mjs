@@ -18,8 +18,13 @@ const childEnv = {
   ...process.env,
   ...profile.env,
 };
+let managedBackend = null;
 
 try {
+  if (shouldManageLocalBackend(childEnv)) {
+    managedBackend = await ensureLocalBackend(childEnv);
+  }
+
   if (profile.preflight) {
     await runCommand(profile.preflight.commandLine, {
       cwd: profile.preflight.cwd,
@@ -41,6 +46,10 @@ try {
   });
 } catch (error) {
   process.exit(error?.exitCode ?? 1);
+} finally {
+  if (managedBackend?.started && managedBackend.process) {
+    managedBackend.process.kill();
+  }
 }
 
 function getProfile(requestedMode) {
@@ -109,15 +118,79 @@ function resolveBackendDir() {
   return fileURLToPath(new URL('../../backend/', import.meta.url));
 }
 
+function shouldManageLocalBackend(env) {
+  if (env.PLAYWRIGHT_MANAGED_WEBSERVER !== 'true') {
+    return false;
+  }
+
+  const apiUrl = env.PLAYWRIGHT_API_URL ?? '';
+  return isLocalApiUrl(apiUrl);
+}
+
+async function ensureLocalBackend(env) {
+  if (await isBackendHealthy(env.PLAYWRIGHT_API_URL)) {
+    return { started: false, process: null };
+  }
+
+  const backendDir = resolveBackendDir();
+  const backendProcess = spawnCommand(['npm', 'start'], {
+    cwd: backendDir,
+    env: {
+      ...env,
+      NODE_ENV: env.NODE_ENV || 'development',
+    },
+  });
+
+  try {
+    await waitForBackend(env.PLAYWRIGHT_API_URL);
+    return { started: true, process: backendProcess };
+  } catch (error) {
+    backendProcess.kill();
+    throw error;
+  }
+}
+
+async function isBackendHealthy(apiUrl) {
+  try {
+    const healthUrl = new URL(String(apiUrl ?? '').trim());
+    healthUrl.pathname = '/health';
+    healthUrl.search = '';
+    healthUrl.hash = '';
+    const response = await fetch(healthUrl);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function waitForBackend(apiUrl, timeoutMs = 30_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await isBackendHealthy(apiUrl)) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+
+  throw Object.assign(
+    new Error(`Local backend did not become healthy for ${apiUrl} within ${timeoutMs / 1000} seconds.`),
+    { exitCode: 1 },
+  );
+}
+
+function isLocalApiUrl(value) {
+  try {
+    const url = new URL(String(value ?? '').trim());
+    return url.hostname === '127.0.0.1' || url.hostname === 'localhost';
+  } catch {
+    return false;
+  }
+}
+
 function runCommand(commandParts, { cwd, env }) {
   return new Promise((resolve, reject) => {
     const commandLine = commandParts.map(quoteForShell).join(' ');
-    const child = spawn(commandLine, {
-      cwd,
-      stdio: 'inherit',
-      env,
-      shell: true,
-    });
+    const child = spawnCommand(commandParts, { cwd, env });
 
     child.on('exit', (code, signal) => {
       if (signal) {
@@ -132,5 +205,15 @@ function runCommand(commandParts, { cwd, env }) {
 
       resolve();
     });
+  });
+}
+
+function spawnCommand(commandParts, { cwd, env }) {
+  const commandLine = commandParts.map(quoteForShell).join(' ');
+  return spawn(commandLine, {
+    cwd,
+    stdio: 'inherit',
+    env,
+    shell: true,
   });
 }

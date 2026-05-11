@@ -55,6 +55,20 @@ jobs:
   backend-test:
     name: Backend tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: prymal
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d prymal"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: backend
@@ -66,10 +80,14 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Load Prymal schema
+        run: psql "postgresql://postgres:postgres@127.0.0.1:5432/prymal" -v ON_ERROR_STOP=1 -f ../database/schema.sql
       - run: npm test
         env:
           NODE_ENV: test
-          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/prymal
 
   frontend-verify-build:
     name: Frontend verify-build
@@ -144,7 +162,68 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - id: auth-preflight
+        name: Check authenticated E2E secret availability
+        shell: bash
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
+          PLAYWRIGHT_API_URL: ${{ secrets.PLAYWRIGHT_API_URL || '' }}
+          PLAYWRIGHT_TEST_USER_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_USER_EMAIL || '' }}
+          PLAYWRIGHT_TEST_USER_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_USER_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_STAFF_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_STAFF_EMAIL || '' }}
+          PLAYWRIGHT_TEST_STAFF_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_STAFF_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_INVITEE_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_INVITEE_EMAIL || '' }}
+          PLAYWRIGHT_TEST_INVITEE_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_INVITEE_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_ONBOARDING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_ONBOARDING_EMAIL || '' }}
+          PLAYWRIGHT_TEST_ONBOARDING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_ONBOARDING_PASSWORD || '' }}
+          PLAYWRIGHT_TEST_BILLING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_BILLING_EMAIL || '' }}
+          PLAYWRIGHT_TEST_BILLING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_BILLING_PASSWORD || '' }}
+        run: |
+          required_vars=(
+            PLAYWRIGHT_BASE_URL
+            PLAYWRIGHT_API_URL
+            PLAYWRIGHT_TEST_USER_EMAIL
+            PLAYWRIGHT_TEST_USER_PASSWORD
+            PLAYWRIGHT_TEST_STAFF_EMAIL
+            PLAYWRIGHT_TEST_STAFF_PASSWORD
+            PLAYWRIGHT_TEST_INVITEE_EMAIL
+            PLAYWRIGHT_TEST_INVITEE_PASSWORD
+            PLAYWRIGHT_TEST_ONBOARDING_EMAIL
+            PLAYWRIGHT_TEST_ONBOARDING_PASSWORD
+            PLAYWRIGHT_TEST_BILLING_EMAIL
+            PLAYWRIGHT_TEST_BILLING_PASSWORD
+          )
+
+          missing=()
+          for key in "${required_vars[@]}"; do
+            if [ -z "${!key}" ]; then
+              missing+=("$key")
+            fi
+          done
+
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "mode=run" >> "$GITHUB_OUTPUT"
+            echo "Authenticated Playwright secrets are present." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "mode=skipped" >> "$GITHUB_OUTPUT"
+            {
+              echo "Authenticated Playwright regression was not executed in this pull request context because GitHub did not expose the required secrets."
+              echo ""
+              echo "Missing variables:"
+              for key in "${missing[@]}"; do
+                echo "- $key"
+              done
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "Missing required authenticated Playwright secrets: ${missing[*]}" >&2
+          exit 1
       - run: node ../backend/scripts/validate-playwright-secrets.mjs
+        if: steps.auth-preflight.outputs.mode == 'run'
         env:
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
           PLAYWRIGHT_API_URL: ${{ secrets.PLAYWRIGHT_API_URL || '' }}
@@ -159,6 +238,7 @@ jobs:
           PLAYWRIGHT_TEST_BILLING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_BILLING_EMAIL || '' }}
           PLAYWRIGHT_TEST_BILLING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_BILLING_PASSWORD || '' }}
       - run: node ../backend/scripts/validate-env.mjs --scope playwright --mode staging
+        if: steps.auth-preflight.outputs.mode == 'run'
         env:
           PLAYWRIGHT_AUTH_REQUIRED: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
@@ -174,7 +254,9 @@ jobs:
           PLAYWRIGHT_TEST_BILLING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_BILLING_EMAIL || '' }}
           PLAYWRIGHT_TEST_BILLING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_BILLING_PASSWORD || '' }}
       - run: npx playwright install chromium --with-deps
+        if: steps.auth-preflight.outputs.mode == 'run'
       - run: npm run test:e2e -- tests/authenticated-regression.spec.js tests/onboarding-regression.spec.js tests/invite-membership.spec.js tests/billing-portal.spec.js tests/admin-operator.spec.js tests/security-boundaries.spec.js
+        if: steps.auth-preflight.outputs.mode == 'run'
         env:
           CI: true
           VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
