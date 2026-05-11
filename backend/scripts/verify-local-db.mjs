@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
+import { loadBackendEnv } from '../src/env/parse.js';
+
+process.env.NODE_ENV = process.env.NODE_ENV || 'development';
+loadBackendEnv({ mode: process.env.NODE_ENV });
 
 const checks = [
   ['schema:check', ['node', ['scripts/check-schema-drift.mjs']]],
@@ -21,6 +25,14 @@ for (const [label, [command, args]] of checks) {
     console.error(`[db:verify-local] ${label} failed.`);
     process.exit(result.status ?? 1);
   }
+}
+
+const { checkDbConnection } = await import('../src/db/index.js');
+const databaseReachable = await checkDbConnection();
+
+if (!databaseReachable) {
+  console.error('[db:verify-local] Local database connectivity check failed. Ensure Docker/Desktop Postgres is running on the configured DATABASE_URL before continuing.');
+  process.exit(1);
 }
 
 console.log('[db:verify-local] Local schema verification passed.');
