@@ -13,7 +13,7 @@ const cleanupTargets = cleanInstall ? ['node_modules', 'dist'] : ['dist'];
 for (const target of cleanupTargets) {
   const absoluteTarget = resolve(frontendRoot, target);
   if (existsSync(absoluteTarget)) {
-    rmSync(absoluteTarget, { recursive: true, force: true });
+    removeWithRetry(absoluteTarget);
   }
 }
 
@@ -43,4 +43,26 @@ function run(...args) {
     }
     process.exit(result.status ?? 1);
   }
+}
+
+function removeWithRetry(targetPath, attempts = 6) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      rmSync(targetPath, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      const isRetryable = ['EBUSY', 'EPERM', 'ENOTEMPTY'].includes(error?.code);
+      if (!isRetryable || attempt === attempts) {
+        throw error;
+      }
+
+      const waitMs = attempt * 250;
+      console.warn(`[verify-build] Retry ${attempt}/${attempts - 1} removing ${targetPath} after ${error.code}. Waiting ${waitMs}ms.`);
+      sleep(waitMs);
+    }
+  }
+}
+
+function sleep(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }

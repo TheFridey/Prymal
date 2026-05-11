@@ -199,7 +199,11 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
     stripeMode === 'live'
     && ['FRONTEND_URL', 'API_URL', 'APP_URL'].some((name) => isLocalLikeUrl(env[name]))
   ) {
-    errors.push('Live Stripe credentials cannot be paired with localhost app or API URLs.');
+    if (mode === 'staging' || mode === 'production') {
+      errors.push('Live Stripe credentials cannot be paired with localhost app or API URLs.');
+    } else {
+      warnings.push('Live Stripe credentials are paired with localhost app or API URLs in development; do not run checkout or webhook lifecycle tests against this environment.');
+    }
   }
 
   if (!env.STRIPE_PRICE_SEAT_ADDON?.trim() || isPlaceholderEnvValue(env.STRIPE_PRICE_SEAT_ADDON)) {

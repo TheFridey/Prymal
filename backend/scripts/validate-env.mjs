@@ -180,7 +180,11 @@ function validateStripeSecretMode(currentMode) {
     secretMode === 'live'
     && ['FRONTEND_URL', 'API_URL', 'APP_URL'].some((key) => isLocalLikeUrl(process.env[key]))
   ) {
-    errors.push('backend live STRIPE_SECRET_KEY cannot be paired with localhost app or API URLs.');
+    if (currentMode === 'staging' || currentMode === 'production') {
+      errors.push('backend live STRIPE_SECRET_KEY cannot be paired with localhost app or API URLs.');
+    } else {
+      warnings.push('backend STRIPE_SECRET_KEY is live mode against localhost URLs in development; do not run checkout or webhook lifecycle tests against this environment.');
+    }
   }
 
   if (currentMode === 'development' && secretMode === 'live') {

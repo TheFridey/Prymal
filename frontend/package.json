@@ -13,8 +13,12 @@
     "avatar:prepare": "node scripts/convert-agent-avatar.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed",
+    "test:e2e": "node scripts/run-playwright.mjs dev",
+    "test:e2e:public": "node scripts/run-playwright.mjs public",
+    "test:e2e:dev": "node scripts/run-playwright.mjs dev",
+    "test:e2e:auth:check": "node scripts/check-playwright-auth.mjs",
+    "test:e2e:auth": "node scripts/run-playwright.mjs auth",
+    "test:e2e:headed": "node scripts/run-playwright.mjs dev --headed",
     "test:e2e:ui": "playwright test --ui",
     "perf:budget": "node scripts/check-bundles.mjs"
   },
@@ -37,6 +41,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@clerk/testing": "^2.0.27",
     "@playwright/test": "^1.59.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",

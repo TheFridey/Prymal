@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
@@ -13,9 +13,12 @@ const {
   executeWorkflowRun,
 } = await import('./workflow-engine.js');
 
+const baseOrgId = randomUUID();
+const baseWorkflowId = randomUUID();
+
 const workflow = {
-  id: 'workflow_1',
-  orgId: 'org_1',
+  id: baseWorkflowId,
+  orgId: baseOrgId,
   nodes: [
     {
       id: 'node_1',
@@ -28,11 +31,25 @@ const workflow = {
 };
 
 const orgContext = {
-  orgId: 'org_1',
+  orgId: baseOrgId,
   orgPlan: 'pro',
-  userId: 'user_1',
+  userId: null,
   credits: { execution: { available: 100 } },
 };
+
+before(async () => {
+  await db.insert(organisations).values({
+    id: baseOrgId,
+    name: `Workflow Test Org ${baseOrgId.slice(0, 8)}`,
+    slug: `workflow-test-${baseOrgId.slice(0, 8)}`,
+    plan: 'pro',
+    monthlyCreditLimit: 2000,
+  });
+});
+
+after(async () => {
+  await db.delete(organisations).where(eq(organisations.id, baseOrgId));
+});
 
 test('executeWorkflowRun skips duplicate dispatches for already-running runs', async () => {
   const originalFindFirst = db.query.workflowRuns.findFirst;

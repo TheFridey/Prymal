@@ -39,6 +39,39 @@ test('control-plane shadow evaluation completes for a valid legacy workflow fixt
   assert.ok(result.traceId);
 });
 
+test('control-plane shadow accepts legacy workflows with upstream dependencies', async () => {
+  const result = await runControlPlaneShadow({
+    workflow: {
+      id: 'workflow_chain',
+      name: 'Chained workflow',
+      triggerType: 'manual',
+      nodes: [
+        {
+          id: 'node_1',
+          agentId: 'cipher',
+          prompt: 'Summarise launch risk.',
+          outputVar: 'summary',
+        },
+        {
+          id: 'node_2',
+          agentId: 'herald',
+          prompt: 'Turn the summary into a client-ready follow-up.',
+          outputVar: 'follow_up',
+        },
+      ],
+      edges: [{ from: 'node_1', to: 'node_2' }],
+    },
+    input: { prompt: 'Launch risk' },
+    userId: 'user_1',
+    orgId: '00000000-0000-0000-0000-000000000001',
+    runId: 'run_chain',
+  });
+
+  assert.equal(result.contractValid, true);
+  assert.equal(result.schemaValid, true);
+  assert.equal(result.violations.length, 0);
+});
+
 test('control-plane shadow evaluation records violations for malformed legacy workflows without throwing', async () => {
   const result = await runControlPlaneShadow({
     workflow: {

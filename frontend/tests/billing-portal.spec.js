@@ -11,6 +11,16 @@ test.describe('Billing upgrade and Stripe portal', () => {
 
     try {
       const page = await context.newPage();
+      let checkoutCalls = 0;
+      await page.route('**/api/billing/checkout', async (route) => {
+        checkoutCalls += 1;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ url: '/app/settings?billing=dev_checkout_mock' }),
+        });
+      });
+
       await page.goto('/app/settings');
       await page.getByTestId('settings-tab-billing').click();
 
@@ -23,17 +33,28 @@ test.describe('Billing upgrade and Stripe portal', () => {
 
       const checkoutResponse = await checkoutResponsePromise;
       expect(checkoutResponse.status()).toBe(200);
-      await page.waitForURL(/stripe\.com/i, { timeout: 20_000 });
+      await page.waitForURL(/\/app\/settings\?billing=dev_checkout_mock/i, { timeout: 20_000 });
+      expect(checkoutCalls).toBe(1);
     } finally {
       await context.close();
     }
   });
 
-  test('a paid staging account can open the Stripe billing portal', async ({ browser }) => {
+  test('a paid local QA account can open the billing portal path safely', async ({ browser }) => {
     const context = await browser.newContext({ storageState: authStatePath('billing') });
 
     try {
       const page = await context.newPage();
+      let portalCalls = 0;
+      await page.route('**/api/billing/portal', async (route) => {
+        portalCalls += 1;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ url: '/app/settings?billing=dev_portal_mock' }),
+        });
+      });
+
       await page.goto('/app/settings');
       await page.getByTestId('settings-tab-billing').click();
       await expect(page.getByTestId('billing-open-portal')).toBeVisible();
@@ -47,7 +68,8 @@ test.describe('Billing upgrade and Stripe portal', () => {
 
       const portalResponse = await portalResponsePromise;
       expect(portalResponse.status()).toBe(200);
-      await page.waitForURL(/billing\.stripe\.com/i, { timeout: 20_000 });
+      await page.waitForURL(/\/app\/settings\?billing=dev_portal_mock/i, { timeout: 20_000 });
+      expect(portalCalls).toBe(1);
     } finally {
       await context.close();
     }

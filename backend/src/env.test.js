@@ -91,6 +91,24 @@ test('validateRuntimeEnv warns when SENTRY_DSN is configured with an invalid val
   assert.match(result.warnings.join('\n'), /SENTRY_DSN is set but does not look like a valid Sentry DSN/i);
 });
 
+test('validateRuntimeEnv warns instead of throwing when development uses live Stripe with localhost URLs', () => {
+  const result = validateRuntimeEnv(
+    {
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/prymal',
+      OPENAI_API_KEY: 'sk-real-ish-openai-key',
+      ANTHROPIC_API_KEY: 'sk-ant-real-ish-key',
+      STRIPE_SECRET_KEY: 'sk_live_realish',
+      FRONTEND_URL: 'http://localhost:5173',
+      API_URL: 'http://localhost:3001',
+      APP_URL: 'http://localhost:5173',
+    },
+    { mode: 'development', strict: true },
+  );
+
+  assert.equal(result.valid, true);
+  assert.match(result.warnings.join('\n'), /do not run checkout or webhook lifecycle tests/i);
+});
+
 test('getMemorySessionTtlHours falls back to 24 hours when unset or invalid', () => {
   assert.equal(getMemorySessionTtlHours({}), 24);
   assert.equal(getMemorySessionTtlHours({ MEMORY_SESSION_TTL_HOURS: '0' }), 24);

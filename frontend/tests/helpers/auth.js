@@ -1,5 +1,10 @@
+import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { Buffer } from 'node:buffer';
+
+import dotenv from 'dotenv';
+import { clerk } from '@clerk/testing/playwright';
 
 const ROLE_ENV_MAP = {
   user: ['PLAYWRIGHT_TEST_USER_EMAIL', 'PLAYWRIGHT_TEST_USER_PASSWORD'],
@@ -8,13 +13,17 @@ const ROLE_ENV_MAP = {
   onboarding: ['PLAYWRIGHT_TEST_ONBOARDING_EMAIL', 'PLAYWRIGHT_TEST_ONBOARDING_PASSWORD'],
   billing: ['PLAYWRIGHT_TEST_BILLING_EMAIL', 'PLAYWRIGHT_TEST_BILLING_PASSWORD'],
 };
+export const PLAYWRIGHT_AUTH_ROLES = Object.freeze(Object.keys(ROLE_ENV_MAP));
 
 const AUTH_STATE_DIR = path.resolve(process.cwd(), 'tests', '.auth');
+const REPO_ROOT = findRepoRoot(process.cwd());
 const API_BASE_URL = normalizeApiBaseUrl(
   process.env.PLAYWRIGHT_API_URL
   ?? process.env.VITE_API_URL
   ?? '',
 );
+
+hydrateLocalClerkTestingEnv();
 
 export function authStatePath(role) {
   return path.join(AUTH_STATE_DIR, `${role}.json`);
@@ -42,11 +51,11 @@ export function hasCredentials(role = 'user') {
 }
 
 export function getConfiguredRoles() {
-  return Object.keys(ROLE_ENV_MAP).filter((role) => hasCredentials(role));
+  return PLAYWRIGHT_AUTH_ROLES.filter((role) => hasCredentials(role));
 }
 
 export function getMissingRoles() {
-  return Object.keys(ROLE_ENV_MAP).filter((role) => !hasCredentials(role));
+  return PLAYWRIGHT_AUTH_ROLES.filter((role) => !hasCredentials(role));
 }
 
 export function isAuthRequired() {
@@ -145,44 +154,12 @@ export async function signInWith(page, { email, password, destination = '/app/da
     return false;
   }
 
-  await page.goto('/login');
-
-  const emailField = page.getByLabel(/email/i).first();
-  const passwordField = page.getByLabel(/password/i).first();
-
-  await emailField.fill(email);
-  await passwordField.fill(password);
-
-  const continueButton = page.getByRole('button', { name: /^continue$/i });
-  const signInButton = page.getByRole('button', { name: /^sign in$/i });
-
-  if (await continueButton.count()) {
-    await continueButton.first().click();
-  } else {
-    await signInButton.first().click();
+  if (canUseClerkTestingSignIn()) {
+    await signInWithTestingToken(page, { email, destination });
+    return true;
   }
 
-  const destinationResult = await Promise.race([
-    page.waitForURL(/\/app\//, { timeout: 20_000 }).then(() => 'app'),
-    page.waitForURL(/\/factor-two/, { timeout: 20_000 }).then(() => 'factor-two'),
-  ]).catch(() => null);
-
-  if (destinationResult === 'factor-two') {
-    throw new Error(
-      'Clerk sign-in reached factor-two verification. Provide inbox/OTP access or relax new-device verification for QA.',
-    );
-  }
-
-  if (destinationResult !== 'app') {
-    throw new Error(`Sign-in did not reach the workspace. Final URL: ${page.url()}`);
-  }
-
-  if (destination && !page.url().includes(destination)) {
-    await page.goto(destination);
-    await page.waitForURL(new RegExp(destination.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  }
-
-  return true;
+  return signInWithPassword(page, { email, password, destination });
 }
 
 export async function signIn(page) {
@@ -222,15 +199,16 @@ export async function createStorageStateForRole(browser, role, baseURL) {
 }
 
 export async function authFetch(page, url, init = {}) {
+  const token = await waitForClerkSessionToken(page);
+
   return page.evaluate(
-    async ({ requestUrl, requestInit }) => {
-      const token = await window.Clerk?.session?.getToken();
+    async ({ requestUrl, requestInit, authToken }) => {
       const response = await fetch(requestUrl, {
         ...requestInit,
         headers: {
           'Content-Type': 'application/json',
           ...(requestInit.headers ?? {}),
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         },
       });
 
@@ -249,12 +227,67 @@ export async function authFetch(page, url, init = {}) {
         data,
       };
     },
-    { requestUrl: url, requestInit: init },
+    { requestUrl: url, requestInit: init, authToken: token },
   );
 }
 
 export function uniqueSuffix(prefix = 'ci') {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function signInWithTestingToken(page, { email, destination }) {
+  await page.goto('/login');
+  await clerk.loaded({ page });
+
+  const frontendApiUrl = process.env.CLERK_FAPI?.trim();
+  const options = frontendApiUrl
+    ? { setupClerkTestingTokenOptions: { frontendApiUrl } }
+    : {};
+
+  await clerk.signIn({
+    page,
+    emailAddress: email,
+    ...options,
+  });
+
+  await ensureSignedIntoWorkspace(page, destination);
+}
+
+async function signInWithPassword(page, { email, password, destination }) {
+  await page.goto('/login');
+
+  const emailField = page.getByLabel(/email/i).first();
+  const passwordField = page.getByLabel(/password/i).first();
+
+  await emailField.fill(email);
+  await passwordField.fill(password);
+
+  const continueButton = page.getByRole('button', { name: /^continue$/i });
+  const signInButton = page.getByRole('button', { name: /^sign in$/i });
+
+  if (await continueButton.count()) {
+    await continueButton.first().click();
+  } else {
+    await signInButton.first().click();
+  }
+
+  const destinationResult = await Promise.race([
+    page.waitForURL(/\/app\//, { timeout: 20_000 }).then(() => 'app'),
+    page.waitForURL(/\/factor-two/, { timeout: 20_000 }).then(() => 'factor-two'),
+  ]).catch(() => null);
+
+  if (destinationResult === 'factor-two') {
+    throw new Error(
+      'Clerk sign-in reached factor-two verification. Provide inbox/OTP access or relax new-device verification for QA.',
+    );
+  }
+
+  if (destinationResult !== 'app') {
+    throw new Error(`Sign-in did not reach the workspace. Final URL: ${page.url()}`);
+  }
+
+  await ensureSignedIntoWorkspace(page, destination);
+  return true;
 }
 
 function normalizeApiBaseUrl(value) {
@@ -264,4 +297,135 @@ function normalizeApiBaseUrl(value) {
   }
 
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+}
+
+function canUseClerkTestingSignIn() {
+  return Boolean(process.env.CLERK_SECRET_KEY?.trim() && process.env.CLERK_PUBLISHABLE_KEY?.trim());
+}
+
+async function ensureSignedIntoWorkspace(page, destination) {
+  const target = destination || '/app/dashboard';
+
+  if (!page.url().includes('/app/')) {
+    await page.goto(target);
+  }
+
+  const destinationResult = await Promise.race([
+    page.waitForURL(/\/app\//, { timeout: 20_000 }).then(() => 'app'),
+    page.waitForURL(/\/factor-two/, { timeout: 20_000 }).then(() => 'factor-two'),
+  ]).catch(() => null);
+
+  if (destinationResult === 'factor-two') {
+    throw new Error(
+      'Clerk sign-in reached factor-two verification. Provide inbox/OTP access or relax new-device verification for QA.',
+    );
+  }
+
+  if (destinationResult !== 'app') {
+    throw new Error(`Sign-in did not reach the workspace. Final URL: ${page.url()}`);
+  }
+
+  if (destination && !page.url().includes(destination)) {
+    await page.goto(destination);
+    await page.waitForURL(new RegExp(destination.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+}
+
+async function waitForClerkSessionToken(page, timeoutMs = 10_000) {
+  const token = await page.evaluate(
+    async ({ timeout }) => {
+      const start = Date.now();
+
+      while (Date.now() - start < timeout) {
+        const nextToken = await window.Clerk?.session?.getToken?.();
+        if (nextToken) {
+          return nextToken;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 200));
+      }
+
+      return null;
+    },
+    { timeout: timeoutMs },
+  );
+
+  if (!token) {
+    throw new Error('Timed out waiting for an authenticated Clerk session token in Playwright.');
+  }
+
+  return token;
+}
+
+function hydrateLocalClerkTestingEnv() {
+  const candidatePaths = [
+    path.join(REPO_ROOT, 'backend', '.env'),
+    path.join(REPO_ROOT, 'frontend', '.env'),
+    path.join(REPO_ROOT, 'frontend', '.env.local'),
+  ];
+
+  for (const envPath of candidatePaths) {
+    const parsed = parseEnvFile(envPath);
+    if (!parsed) {
+      continue;
+    }
+
+    if (!process.env.CLERK_SECRET_KEY && parsed.CLERK_SECRET_KEY) {
+      process.env.CLERK_SECRET_KEY = parsed.CLERK_SECRET_KEY;
+    }
+
+    if (!process.env.CLERK_PUBLISHABLE_KEY) {
+      process.env.CLERK_PUBLISHABLE_KEY = parsed.CLERK_PUBLISHABLE_KEY ?? parsed.VITE_CLERK_PUBLISHABLE_KEY ?? '';
+    }
+  }
+
+  if (!process.env.CLERK_FAPI && process.env.CLERK_PUBLISHABLE_KEY) {
+    process.env.CLERK_FAPI = parseClerkFrontendApi(process.env.CLERK_PUBLISHABLE_KEY);
+  }
+}
+
+function parseEnvFile(filePath) {
+  try {
+    return dotenv.parse(readFileSyncUtf8(filePath));
+  } catch {
+    return null;
+  }
+}
+
+function readFileSyncUtf8(filePath) {
+  return Buffer.from(fsSync.readFileSync(filePath)).toString('utf8');
+}
+
+function parseClerkFrontendApi(publishableKey) {
+  const value = String(publishableKey ?? '').trim();
+  const parts = value.split('_');
+  const encoded = parts.length >= 3 ? parts.slice(2).join('_') : '';
+  if (!encoded) {
+    return '';
+  }
+
+  try {
+    return Buffer.from(encoded, 'base64').toString('utf8').replace(/\$$/u, '');
+  } catch {
+    return '';
+  }
+}
+
+function findRepoRoot(startDir) {
+  let current = path.resolve(startDir);
+  while (current !== path.dirname(current)) {
+    if (matchesRepoRoot(current)) {
+      return current;
+    }
+    current = path.dirname(current);
+  }
+  return startDir;
+}
+
+function matchesRepoRoot(candidate) {
+  try {
+    return fsSync.existsSync(path.join(candidate, 'backend'))
+      && fsSync.existsSync(path.join(candidate, 'frontend'));
+  } catch {
+    return false;
+  }
 }

@@ -345,12 +345,20 @@ function findDuplicateBillingCandidates(rows) {
   const counts = new Map();
   for (const row of rows) {
     const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
-    const identity = [
-      row.eventName,
+    const correlationValues = [
       metadata.reservationId ?? '',
       metadata.executionEventId ?? '',
       metadata.videoEventId ?? '',
       metadata.workflowRunId ?? '',
+    ].map((value) => String(value ?? '').trim());
+
+    if (correlationValues.every((value) => value.length === 0)) {
+      continue;
+    }
+
+    const identity = [
+      row.eventName,
+      ...correlationValues,
     ].join('|');
     counts.set(identity, (counts.get(identity) ?? 0) + 1);
   }

@@ -76,7 +76,7 @@ function isAllowedOrigin(origin) {
     return true;
   }
 
-  return /^http:\/\/(localhost|127\.0\.0\.1):517\d$/.test(origin);
+  return /^http:\/\/(localhost|127\.0\.0\.1):(4173|517\d)$/.test(origin);
 }
 
 function resolveErrorProvider(error) {
@@ -192,8 +192,14 @@ app.get('/generated-video-assets/:fileName', async (context) => {
   }
 });
 
-// 20 requests per IP per minute on auth routes
-const authLimiter = createRateLimiter({ windowMs: 60_000, max: 20, message: 'Too many auth requests. Please try again shortly.' });
+// Keep auth strict outside local development, but leave enough headroom for
+// Playwright/browser certification to reuse localhost sessions without tripping
+// the guardrail on repeated /auth/me hydration checks.
+const authLimiter = createRateLimiter({
+  windowMs: 60_000,
+  max: process.env.NODE_ENV === 'development' ? 120 : 20,
+  message: 'Too many auth requests. Please try again shortly.',
+});
 app.use('/api/auth/*', authLimiter);
 
 // 5 requests per IP per 15 minutes on waitlist signup

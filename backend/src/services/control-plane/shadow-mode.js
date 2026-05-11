@@ -180,6 +180,15 @@ export function mapLegacyWorkflowToStrictContract(workflow, violations = []) {
 
   const nodes = Array.isArray(workflow.nodes) ? workflow.nodes : [];
   const edges = Array.isArray(workflow.edges) ? workflow.edges : [];
+  const incomingByNodeId = new Map(nodes.map((node) => [String(node.id ?? ''), []]));
+
+  for (const edge of edges) {
+    const targetId = String(edge.to ?? '');
+    if (!incomingByNodeId.has(targetId)) {
+      continue;
+    }
+    incomingByNodeId.get(targetId).push(edge);
+  }
 
   if (nodes.length === 0) {
     violations.push(buildViolation('mapping', 'Workflow has no nodes to map.'));
@@ -190,26 +199,39 @@ export function mapLegacyWorkflowToStrictContract(workflow, violations = []) {
     name: String(workflow.name ?? workflow.id ?? 'Legacy workflow'),
     version: 'legacy-shadow',
     workflow_type: String(workflow.triggerType ?? 'legacy_workflow'),
-    nodes: nodes.map((node) => ({
-      id: String(node.id ?? ''),
-      type: 'agent',
-      input_schema: LEGACY_NODE_INPUT_SCHEMA,
-      output_schema: LEGACY_NODE_OUTPUT_SCHEMA,
-      allowed_tools: Array.isArray(node.allowedTools) ? node.allowedTools : [],
-      retry_policy: {
-        attempts: Number(node.retryPolicy?.attempts ?? 1),
-        strategy: node.retryPolicy?.strategy ?? 'none',
-        delay_ms: Number(node.retryPolicy?.delayMs ?? 0),
-      },
-      fallback_node: node.fallbackNode ?? null,
-      timeout_ms: Number(node.timeoutMs ?? 90_000),
-      cost_limit: Number(node.costLimit ?? 100),
-      input_bindings: {},
-      config: {
-        legacyAgentId: node.agentId ?? null,
-        legacyPrompt: node.prompt ?? '',
-      },
-    })),
+    nodes: nodes.map((node) => {
+      const nodeId = String(node.id ?? '');
+      const legacyPrompt = node.prompt ?? '';
+      const incomingEdges = incomingByNodeId.get(nodeId) ?? [];
+      const inputBindings = Object.fromEntries(
+        incomingEdges.map((edge, index) => [
+          `upstream_${index + 1}`,
+          `$nodes.${String(edge.from ?? '')}.text`,
+        ]),
+      );
+
+      return {
+        id: nodeId,
+        type: 'agent',
+        input_schema: LEGACY_NODE_INPUT_SCHEMA,
+        output_schema: LEGACY_NODE_OUTPUT_SCHEMA,
+        allowed_tools: Array.isArray(node.allowedTools) ? node.allowedTools : [],
+        retry_policy: {
+          attempts: Number(node.retryPolicy?.attempts ?? 1),
+          strategy: node.retryPolicy?.strategy ?? 'none',
+          delay_ms: Number(node.retryPolicy?.delayMs ?? 0),
+        },
+        fallback_node: node.fallbackNode ?? null,
+        timeout_ms: Number(node.timeoutMs ?? 90_000),
+        cost_limit: Number(node.costLimit ?? 100),
+        input_bindings: inputBindings,
+        config: {
+          legacyAgentId: node.agentId ?? null,
+          legacyPrompt,
+          static_input: legacyPrompt ? { prompt: legacyPrompt } : {},
+        },
+      };
+    }),
     edges: edges.map((edge) => ({
       from: String(edge.from ?? ''),
       to: String(edge.to ?? ''),

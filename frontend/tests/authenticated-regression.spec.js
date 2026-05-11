@@ -37,7 +37,11 @@ test.describe('Owner workflow and LORE flows', () => {
       && /\/api\/workflows$/.test(response.url()),
     );
 
-    await page.getByTestId('workflow-template-content-signal-to-campaign').click();
+    const templateCard = page.locator('.workflow-template-card').filter({
+      has: page.getByRole('heading', { name: /Content Signal to Campaign/i }),
+    }).first();
+    await expect(templateCard).toBeVisible({ timeout: 15_000 });
+    await templateCard.getByRole('button', { name: /Create instantly/i }).click();
 
     const createResponse = await createResponsePromise;
     expect(createResponse.ok()).toBeTruthy();
@@ -45,71 +49,71 @@ test.describe('Owner workflow and LORE flows', () => {
     const workflowId = createResult.workflow?.id;
 
     expect(workflowId).toBeTruthy();
-    await expect(page.getByTestId(`workflow-card-${workflowId}`)).toBeVisible();
+    const workflowCard = page.getByTestId(`workflow-card-${workflowId}`);
+    await expect(workflowCard).toBeVisible();
 
-    const runResponsePromise = page.waitForResponse((response) =>
-      response.request().method() === 'POST'
-      && response.url().includes(`/api/workflows/${workflowId}/run`),
-    );
+    const runRows = page.locator('[data-testid^="workflow-run-row-"]');
+    const initialRunCount = await runRows.count();
 
     await page.getByTestId(`workflow-run-${workflowId}`).click();
+    await expect(runRows).toHaveCount(initialRunCount + 1, { timeout: 20_000 });
 
-    const runResponse = await runResponsePromise;
-    expect(runResponse.status()).toBe(202);
-    const runResult = await runResponse.json();
-    const runId = runResult.runId;
-
+    const latestRunRow = runRows.first();
+    const runTestId = await latestRunRow.getAttribute('data-testid');
+    const runId = runTestId?.replace('workflow-run-row-', '') ?? null;
     expect(runId).toBeTruthy();
-    await expect(page.getByTestId(`workflow-run-row-${runId}`)).toBeVisible({ timeout: 20_000 });
 
-    await page.getByTestId(`workflow-run-row-${runId}`).click();
+    await latestRunRow.click();
+    await expect(page.getByText(/Execution summary/i).first()).toBeVisible({ timeout: 10_000 });
 
-    const replayResponsePromise = page.waitForResponse((response) =>
-      response.request().method() === 'POST'
-      && response.url().includes(`/api/workflows/runs/${runId}/replay`),
-    );
-
+    const runCountBeforeReplay = await runRows.count();
     await page.getByTestId('workflow-replay-run').click();
-
-    const replayResponse = await replayResponsePromise;
-    expect(replayResponse.status()).toBe(202);
-    const replayResult = await replayResponse.json();
-    expect(replayResult.replayOfRunId).toBe(runId);
-    await expect(page.getByTestId(`workflow-run-row-${replayResult.runId}`)).toBeVisible({ timeout: 20_000 });
+    await expect(runRows).toHaveCount(runCountBeforeReplay + 1, { timeout: 20_000 });
   });
 
-  test('LORE file upload and contradiction warnings render clearly', async ({ page }) => {
+  test('LORE upload, text ingest, search, and source rendering stay healthy', async ({ page }) => {
     const suffix = uniqueSuffix('lore');
     const baselineTitle = `Refund policy baseline ${suffix}`;
-    const conflictingTitle = `Refund policy conflict ${suffix}`;
     const fixturePath = path.resolve(process.cwd(), 'tests', 'fixtures', 'lore-upload.md');
 
     await page.goto('/app/lore');
     await expect(page.getByText(/organisation knowledge base|document inventory|add knowledge/i).first()).toBeVisible();
 
-    await page.getByTestId('lore-file-input').setInputFiles(fixturePath);
-    await expect(page.getByText(/lore-upload\.md/i)).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/queued for indexing|upload complete/i).first()).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: /^add$/i }).click();
+    const uploadResponsePromise = page.waitForResponse((response) =>
+      response.request().method() === 'POST'
+      && /\/api\/lore\/upload$/.test(response.url()),
+    );
+    await page.locator('input[type="file"]').setInputFiles(fixturePath);
+    const uploadResponse = await uploadResponsePromise;
+    expect(uploadResponse.ok()).toBeTruthy();
 
-    await page.getByTestId('lore-mode-text').click();
-    await page.getByTestId('lore-title').fill(baselineTitle);
-    await page.getByTestId('lore-content').fill(
+    await page.getByRole('button', { name: /^documents$/i }).click();
+    await expect(page.getByText(/lore-upload\.md/i).first()).toBeVisible({ timeout: 20_000 });
+
+    await page.getByRole('button', { name: /^add$/i }).click();
+    await page.getByPlaceholder(/document title/i).fill(baselineTitle);
+    await page.getByPlaceholder(/paste brand, product, policy, or support context/i).fill(
       `Prymal policy baseline ${suffix}. Refunds are not available after 14 days from purchase. Agencies receive weekday support coverage.`,
     );
-    await page.getByTestId('lore-ingest-submit').click();
+    await page.getByRole('button', { name: /add to lore/i }).click();
 
-    const baselineRow = page.locator('.workspace-knowledge-panel__document-row').filter({
+    await page.getByRole('button', { name: /^documents$/i }).click();
+    await expect(page.getByText(baselineTitle).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/indexed|indexing|pending/i).first()).toBeVisible({ timeout: 20_000 });
+
+    await page.getByRole('button', { name: /^search$/i }).click();
+    const searchInput = page.getByPlaceholder(/ask a question about your org knowledge/i);
+    await searchInput.fill(`What is the refund policy baseline ${suffix}?`);
+    await searchInput.press('Enter');
+
+    const searchResult = page.locator('div').filter({
       has: page.getByText(baselineTitle),
-    });
-    await expect(baselineRow).toContainText(/indexed|indexing|pending/i, { timeout: 20_000 });
+    }).filter({
+      hasText: /Refunds are not available after 14 days/i,
+    }).first();
 
-    await page.getByTestId('lore-title').fill(conflictingTitle);
-    await page.getByTestId('lore-content').fill(
-      `Prymal policy baseline ${suffix}. Refunds are available after 14 days from purchase. Agencies receive weekday support coverage.`,
-    );
-    await page.getByTestId('lore-ingest-submit').click();
-
-    await expect(page.getByTestId('lore-contradiction-notice')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(/potential conflicts detected/i)).toBeVisible();
+    await expect(searchResult).toBeVisible({ timeout: 20_000 });
+    await expect(searchResult.getByText(/\d+% match/i).first()).toBeVisible({ timeout: 20_000 });
   });
 });

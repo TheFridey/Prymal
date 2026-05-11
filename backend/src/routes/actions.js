@@ -41,7 +41,7 @@ router.get('/types', requireOrg, (context) => {
 router.post('/execute', requireOrg, zValidator('json', executeSchema), async (context) => {
   const org = context.get('org');
 
-  if (!ACTION_PLANS.has(org.plan)) {
+  if (!ACTION_PLANS.has(org.orgPlan)) {
     return context.json({
       error: 'Action runtime is available on Pro, Teams, and Agency plans.',
       code: 'plan_upgrade_required',
@@ -90,7 +90,7 @@ router.post('/execute', requireOrg, zValidator('json', executeSchema), async (co
     userId: org.userId,
     workflowId,
     nodeId,
-    plan: org.plan,
+    plan: org.orgPlan,
     approvalToken,
   };
 
@@ -163,7 +163,7 @@ router.post('/execute', requireOrg, zValidator('json', executeSchema), async (co
 router.get('/approvals', requireOrg, async (context) => {
   const org = context.get('org');
 
-  if (!ACTION_PLANS.has(org.plan)) {
+  if (!ACTION_PLANS.has(org.orgPlan)) {
     return context.json({ approvals: [] });
   }
 
@@ -193,7 +193,7 @@ router.post('/approvals/:id/approve', requireOrg, async (context) => {
     orgId: org.orgId,
     userId: org.userId,
     approvalToken: token,
-    plan: org.plan,
+    plan: org.orgPlan,
   };
 
   const actionResult = await executeAction(validation.actionType, validation.payload, actionContext);
@@ -246,7 +246,7 @@ router.post('/approvals/:id/approve-inline', requireOrg, async (context) => {
   const org = context.get('org');
   const approvalId = context.req.param('id');
 
-  if (!ACTION_PLANS.has(org.plan)) {
+  if (!ACTION_PLANS.has(org.orgPlan)) {
     return context.json({ success: false, reason: 'plan_upgrade_required' }, 403);
   }
 
@@ -261,7 +261,7 @@ router.post('/approvals/:id/approve-inline', requireOrg, async (context) => {
     userId: org.userId,
     workflowId: validation.workflowId,
     nodeId: validation.nodeId,
-    plan: org.plan,
+    plan: org.orgPlan,
   };
 
   const actionResult = await executeAction(validation.actionType, validation.payload, actionContext);

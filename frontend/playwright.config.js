@@ -9,7 +9,9 @@ dotenv.config({ path: path.join(configDir, '.env'), quiet: true });
 dotenv.config({ path: path.join(configDir, '.env.local'), override: true, quiet: true });
 loadPlaywrightEnv();
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4173';
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:4173';
+const managedWebServer = process.env.PLAYWRIGHT_MANAGED_WEBSERVER === 'true';
+const authRequired = process.env.PLAYWRIGHT_AUTH_REQUIRED === 'true';
 
 export default defineConfig({
   testDir: './tests',
@@ -18,7 +20,7 @@ export default defineConfig({
     timeout: 10_000,
   },
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  workers: authRequired ? 1 : process.env.CI ? 2 : undefined,
   reporter: process.env.CI
     ? [['github'], ['html', { outputFolder: 'playwright-report', open: 'never' }]]
     : 'list',
@@ -29,13 +31,13 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  webServer: process.env.PLAYWRIGHT_BASE_URL
-    ? undefined
-    : {
+  webServer: managedWebServer
+    ? {
         command: 'npm run build && npm exec vite preview -- --host 127.0.0.1 --port 4173',
         port: 4173,
         reuseExistingServer: !process.env.CI,
-  },
+      }
+    : undefined,
 });
 
 function loadPlaywrightEnv() {
@@ -53,7 +55,9 @@ function loadPlaywrightEnv() {
         continue;
       }
 
-      process.env[key] = value;
+      if (process.env[key] === undefined) {
+        process.env[key] = value;
+      }
     }
   }
 }

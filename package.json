@@ -1,0 +1,8 @@
+{
+  "name": "prymal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "certify:dev": "node scripts/certify-dev.mjs"
+  }
+}
