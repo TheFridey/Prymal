@@ -162,9 +162,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       mode: ${{ steps.auth-preflight.outputs.mode }}
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - id: auth-preflight
         name: Check authenticated E2E secret availability
