@@ -328,6 +328,9 @@ Use Stripe test mode with a separate set of prices and webhook secret. Do not re
 Required for real product behaviour:
 
 - `OPENAI_API_KEY`
+- `OPENAI_MODEL_PREMIUM=gpt-5.5`
+- `OPENAI_MODEL_ROUTER=gpt-5.4-mini`
+- `OPENAI_MODEL_LIGHTWEIGHT=gpt-5.4-nano`
 - `ANTHROPIC_API_KEY`
 - `ANTHROPIC_MODEL_PREMIUM=claude-opus-4-7` or the current approved Opus model
 
@@ -342,6 +345,9 @@ Workflow Catalogue:
 Optional but supported:
 
 - `GEMINI_API_KEY`
+- `GEMINI_MODEL_FLASH`
+- `GEMINI_MODEL_LITE`
+- `GEMINI_MODEL_PRO`
 - `GEMINI_MODEL_VEO`
 - `GEMINI_MODEL_VEO_STANDARD`
 - `GEMINI_GROUNDING_ENABLED=true` for live Gemini web grounding; confirm `GEMINI_API_KEY` is present in Railway before deploy
@@ -870,6 +876,7 @@ Migration date: ~10 days from 2026-05-06. No Railway. No PaaS.
 - [ ] `scripts/deploy.sh` reviewed and path `/home/deploy/prymal/backend` matches VPS layout
 - [ ] `docs/server/nginx-prymal.conf` reviewed — `proxy_buffering off` required for SSE
 - [ ] GitHub secrets prepared to add on migration day: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`
+- [ ] GitHub variable `VPS_DEPLOY_ENABLED=true` set only when VPS deployment should run from CI
 
 ### Migration day — VPS setup
 
@@ -892,7 +899,7 @@ Migration date: ~10 days from 2026-05-06. No Railway. No PaaS.
 - [ ] nginx restarted: `sudo systemctl restart nginx`
 - [ ] API health check: `curl https://api.prymal.io/health` → 200
 - [ ] GitHub secrets added: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`
-- [ ] CI deploy test: push a trivial commit, confirm `deploy-vps` job completes successfully
+- [ ] CI deploy test: push a trivial commit, confirm `deploy-preflight` reports `run` and `deploy-vps` completes successfully
 
 ### Post-migration
 

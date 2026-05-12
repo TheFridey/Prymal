@@ -4,6 +4,10 @@ This repository currently ships from the `master` branch. CI and branch protecti
 
 ## Recent shipped updates
 
+- Model routing now uses a centralized capability matrix, live provider health scoring, weighted fallback ordering, and an explicit Gemini Flash-Lite low-cost lane.
+- SENTINEL hold decisions now include operator-facing explainability fields such as hold reason code, risk category, and confidence.
+- OCR-derived safety text is normalized and tagged as untrusted evidence before media or downstream policy evaluation.
+
 - Pricing and entitlement docs now match the enforced billing catalog: Solo £49.99, Pro £99, Teams £179, Agency from £299, with separate execution and AI video credit balances.
 - Founding Access is documented as 20% off for the first 3 months with standard usage limits, server-side eligibility, and Stripe transition back to standard catalog prices after the founding window.
 - Stripe setup notes now cover standard subscription prices, Founding Access prices, one-time execution/video packs, Teams seat add-ons, and the billing webhook events used for entitlement sync.
@@ -38,6 +42,8 @@ The GitHub Actions workflow at `.github/workflows/ci.yml` is the release gate fo
 - bundle budget enforcement
 - Playwright marketing smoke
 - Playwright authenticated regression
+- authenticated secret preflight
+- deploy preflight with optional VPS deploy gating
 
 ## Performance Budget
 
@@ -53,7 +59,7 @@ This is not treated as a regression waiver: the budget still sits close to the c
 
 ## Required status checks
 
-Configure these exact GitHub status checks as required on `master`:
+Configure these exact quality-gate status checks as required on `master`:
 
 1. `Backend lint`
 2. `Frontend lint`
@@ -63,6 +69,11 @@ Configure these exact GitHub status checks as required on `master`:
 6. `E2E marketing smoke`
 7. `E2E authenticated regression`
 
+Recommended additional diagnostics:
+
+1. `E2E authenticated preflight`
+2. `Deploy preflight`
+
 ## Branch protection recommendations
 
 In GitHub repository settings for `master`:
@@ -71,7 +82,7 @@ In GitHub repository settings for `master`:
 2. Require at least one approval.
 3. Dismiss stale pull request approvals when new commits are pushed.
 4. Require branches to be up to date before merging.
-5. Require the seven status checks listed above to pass.
+5. Require the seven quality-gate status checks listed above to pass.
 6. Restrict direct pushes to `master`.
 7. Include administrators so emergency changes do not bypass CI by default.
 
@@ -79,7 +90,7 @@ If `develop` is used as a staging branch, mirror the same rule there, but keep `
 
 ## Authenticated Playwright coverage
 
-The authenticated Playwright job now fails fast when required staging credentials are missing. For real release confidence, add these repository secrets:
+The authenticated Playwright lane now uses a preflight step: missing secrets should produce a clear skip, not a false pass. For real release confidence, add these repository secrets:
 
 - `PLAYWRIGHT_BASE_URL`
 - `PLAYWRIGHT_API_URL`
@@ -95,6 +106,15 @@ The authenticated Playwright job now fails fast when required staging credential
 - `PLAYWRIGHT_TEST_BILLING_PASSWORD`
 
 Use `cd backend && node scripts/validate-playwright-secrets.mjs` against `.env.playwright` before copying the values into GitHub Actions secrets.
+
+## Optional VPS deploy gating
+
+`Deploy preflight` now decides whether VPS deployment should run. `Deploy to VPS` should run only when:
+
+- the event is `push` or `workflow_dispatch`
+- the branch is `master`
+- `VPS_DEPLOY_ENABLED=true`
+- `VPS_HOST`, `VPS_USER`, and `VPS_SSH_KEY` are all configured
 
 ## Versioned releases
 

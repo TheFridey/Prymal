@@ -14,7 +14,7 @@ Frontend only:
 
 ```bash
 cd frontend
-npm run test:e2e:public
+npm run test:e2e:public -- tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
 npm run test:e2e:dev
 npm run test:e2e:auth:check
 npm run test:e2e:auth
@@ -36,6 +36,12 @@ npm run beta:evidence
 - `test:e2e:dev`: local preview + localhost API, auth suites skip when credentials are absent.
 - `test:e2e:auth:check`: validates that localhost QA auth is configured without printing passwords.
 - `test:e2e:auth`: strict authenticated run. Missing required auth roles fail fast.
+
+## CI Parity Notes
+
+- GitHub Actions uses `E2E authenticated preflight` to report whether authenticated Playwright secrets are present before attempting the strict auth suite.
+- `Deploy preflight` always reports whether VPS deploy is actionable.
+- `Deploy to VPS` should be skipped, not failed, on normal pushes when `VPS_DEPLOY_ENABLED` or the required VPS secrets are absent.
 
 `test:e2e:dev` is the default safe local certification path.
 

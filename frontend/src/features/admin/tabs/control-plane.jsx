@@ -105,6 +105,7 @@ export function ModelUsageTab({ query, days = '30', policyKey = 'all', onDaysCha
   const providerUsage = data.providerUsage ?? [];
   const orgUsage = data.orgUsage ?? [];
   const policySummary = data.policySummary ?? [];
+  const providerHealth = data.providerHealth ?? [];
   const maxRuns = Math.max(...(data.modelComparisons ?? []).map((entry) => entry.runs ?? 0), 1);
 
   const modelComparisons = [...(data.modelComparisons ?? [])].sort((left, right) => {
@@ -213,6 +214,40 @@ export function ModelUsageTab({ query, days = '30', policyKey = 'all', onDaysCha
           </tbody>
         </table>
       </section>
+
+      {providerHealth.length > 0 ? (
+        <section className="staff-admin__panel">
+          <div className="staff-admin__panel-header">Provider health weighting</div>
+          <table className="staff-admin__table">
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Health</th>
+                <th>Weight</th>
+                <th>Hold</th>
+                <th>Repair</th>
+                <th>Timeout</th>
+                <th>Avg latency</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {providerHealth.map((row) => (
+                <tr key={`${row.provider}:${row.model}`}>
+                  <td>{row.model}</td>
+                  <td>{formatPercent(row.healthScore)}</td>
+                  <td>{row.recommendedWeight.toFixed(2)}</td>
+                  <td>{formatPercent(row.holdRate)}</td>
+                  <td>{formatPercent(row.repairRate)}</td>
+                  <td>{formatPercent(row.timeoutRate)}</td>
+                  <td>{formatNumber(row.averageLatencyMs)} ms</td>
+                  <td>{row.degraded ? 'Degraded' : 'Healthy'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
 
       <section className="staff-admin__panel">
         <div className="staff-admin__panel-header">Model usage by provider and model</div>
@@ -369,6 +404,8 @@ export function ModelPolicyTab({ query }) {
   const policyLanes = query.data?.policyLanes ?? [];
   const orgBudgetCaps = query.data?.orgBudgetCaps ?? [];
   const orgControlOverrides = query.data?.orgControlOverrides ?? [];
+  const capabilityMatrix = query.data?.capabilityMatrix ?? [];
+  const runtimeHealth = query.data?.runtimeHealth ?? {};
 
   const providerSummary = {
     configuredCount: PROVIDER_ROLES.filter((provider) => providers[provider.key]?.configured).length,
@@ -472,6 +509,47 @@ export function ModelPolicyTab({ query }) {
                 <td>{lane.structuredOutputRequired ? 'Yes' : 'No'}</td>
                 <td>{lane.toolUsageRequired ? 'Yes' : 'No'}</td>
                 <td>{lane.multimodalRequired ? 'Yes' : 'No'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="staff-admin__surface">
+        <div className="staff-admin__surface-head">
+          <div>
+            <div className="staff-admin__surface-label">Capability registry</div>
+            <h2>Model capability matrix ({capabilityMatrix.length})</h2>
+          </div>
+          <div className="staff-admin__surface-meta">
+            Runtime health entries: {Object.keys(runtimeHealth).length}
+          </div>
+        </div>
+
+        <table className="staff-admin__table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Reasoning</th>
+              <th>Structured</th>
+              <th>Vision</th>
+              <th>Grounding</th>
+              <th>Latency</th>
+              <th>Cost</th>
+              <th>Context</th>
+            </tr>
+          </thead>
+          <tbody>
+            {capabilityMatrix.map((entry) => (
+              <tr key={`${entry.provider}:${entry.model}`}>
+                <td>{entry.model}</td>
+                <td>{entry.reasoning}</td>
+                <td>{entry.structuredOutput}</td>
+                <td>{entry.vision}</td>
+                <td>{entry.grounding}</td>
+                <td>{entry.latency}</td>
+                <td>{entry.costTier}</td>
+                <td>{entry.contextWindow ? formatNumber(entry.contextWindow) : '-'}</td>
               </tr>
             ))}
           </tbody>

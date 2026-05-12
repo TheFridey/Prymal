@@ -1,3 +1,9 @@
+import {
+  getRuntimeProviderHealthSnapshot,
+  listModelCapabilities,
+  scoreCandidateSet,
+} from './model-capabilities.js';
+
 const LEGACY_MODEL_REPLACEMENTS = {
   // Anthropic — map all pre-4.x Claude identifiers to current live models
   'claude-3-5-sonnet-latest': 'claude-sonnet-4-6',
@@ -121,7 +127,7 @@ export function getAnthropicModels() {
 export function getOpenAIModels() {
   const premium = resolveModelName(
     process.env.OPENAI_MODEL_PREMIUM ?? process.env.OPENAI_MODEL_ANALYSIS,
-    'gpt-5.4',
+    'gpt-5.5',
   );
   const router = resolveModelName(process.env.OPENAI_MODEL_ROUTER, 'gpt-5.4-mini');
   const lightweight = resolveModelName(process.env.OPENAI_MODEL_LIGHTWEIGHT, 'gpt-5.4-nano');
@@ -158,6 +164,7 @@ export function getGeminiModels() {
   return {
     flash: process.env.GEMINI_MODEL_FLASH ?? 'gemini-2.5-flash',
     pro: process.env.GEMINI_MODEL_PRO ?? 'gemini-2.5-pro',
+    lite: process.env.GEMINI_MODEL_LITE ?? 'gemini-2.5-flash-lite',
   };
 }
 
@@ -399,6 +406,7 @@ export function selectExecutionPlan({
       route: 'explicit-model',
       reason: `Using explicitly requested model ${explicitModel}.`,
       fallbackChain: [],
+      optimizePrimary: false,
       selectionDetails: buildSelectionDetails({
         policyKey: MODEL_POLICIES.explicit_model.key,
         taskType,
@@ -444,7 +452,9 @@ export function selectExecutionPlan({
         preferredLane,
         anthropicModels,
         openAIModels,
+        geminiModels,
       }),
+      optimizePrimary: false,
       selectionDetails,
     });
   }
@@ -467,7 +477,9 @@ export function selectExecutionPlan({
         preferredLane,
         anthropicModels,
         openAIModels,
+        geminiModels,
       }),
+      optimizePrimary: false,
       selectionDetails,
     });
   }
@@ -493,7 +505,9 @@ export function selectExecutionPlan({
         preferredLane,
         anthropicModels,
         openAIModels,
+        geminiModels,
       }),
+      optimizePrimary: false,
       selectionDetails: {
         ...selectionDetails,
         policyOverrideSource: 'runtime-provider-override',
@@ -509,7 +523,10 @@ export function selectExecutionPlan({
         model: anthropicModels.default,
         route: 'anthropic-vision-file',
         reason: `Using ${anthropicModels.default} for file-aware multimodal work.`,
-        fallbackChain: [{ provider: 'anthropic', model: anthropicModels.fast, route: 'anthropic-file-fallback' }],
+        fallbackChain: [
+          { provider: 'openai', model: openAIModels.premium, route: 'openai-vision-file-fallback' },
+          { provider: 'anthropic', model: anthropicModels.fast, route: 'anthropic-file-fallback' },
+        ],
         selectionDetails,
       });
     }
@@ -539,7 +556,12 @@ export function selectExecutionPlan({
       reason: `Using ${openAIModels.router} for structured extraction and routing tasks.`,
       fallbackChain: [
         { provider: 'openai', model: openAIModels.lightweight, route: 'openai-lightweight-fallback' },
-        ...(geminiAvailable ? [{ provider: 'google', model: geminiModels.flash, route: 'gemini-flash-fallback' }] : []),
+        ...(geminiAvailable
+          ? [
+              { provider: 'google', model: geminiModels.lite, route: 'gemini-lite-fallback' },
+              { provider: 'google', model: geminiModels.flash, route: 'gemini-flash-fallback' },
+            ]
+          : []),
         { provider: 'anthropic', model: anthropicModels.fast, route: 'anthropic-fast-fallback' },
       ],
       selectionDetails,
@@ -551,10 +573,11 @@ export function selectExecutionPlan({
       return buildExecutionPlan({
         policyKey,
         provider: 'google',
-        model: geminiModels.flash,
+        model: geminiModels.lite,
         route: 'gemini-low-cost-bulk',
-        reason: `Using ${geminiModels.flash} for a low-cost bulk task.`,
+        reason: `Using ${geminiModels.lite} for a low-cost bulk task.`,
         fallbackChain: [
+          { provider: 'google', model: geminiModels.flash, route: 'gemini-flash-fallback' },
           { provider: 'openai', model: openAIModels.lightweight, route: 'openai-lightweight-fallback' },
           { provider: 'anthropic', model: anthropicModels.fast, route: 'anthropic-fast-fallback' },
         ],
@@ -592,6 +615,7 @@ export function selectExecutionPlan({
         fallbackChain: [
           { provider: 'anthropic', model: anthropicModels.default, route: 'anthropic-workflow-fallback' },
           { provider: 'openai', model: openAIModels.lightweight, route: 'openai-lightweight-fallback' },
+          ...(geminiAvailable ? [{ provider: 'google', model: geminiModels.flash, route: 'gemini-workflow-fallback' }] : []),
         ],
         selectionDetails,
       });
@@ -607,6 +631,7 @@ export function selectExecutionPlan({
         fallbackChain: [
           { provider: 'anthropic', model: anthropicModels.fast, route: 'anthropic-fast-fallback' },
           { provider: 'openai', model: openAIModels.router, route: 'openai-router-fallback' },
+          ...(geminiAvailable ? [{ provider: 'google', model: geminiModels.flash, route: 'gemini-workflow-fallback' }] : []),
         ],
         selectionDetails,
       });
@@ -642,6 +667,7 @@ export function selectExecutionPlan({
         fallbackChain: [
           ...(openAIAvailable ? [{ provider: 'openai', model: openAIModels.premium, route: 'openai-grounded-research-fallback' }] : []),
           ...(anthropicAvailable ? [{ provider: 'anthropic', model: anthropicModels.default, route: 'anthropic-research-fallback' }] : []),
+          { provider: 'google', model: geminiModels.lite, route: 'gemini-lite-fallback' },
           { provider: 'google', model: geminiModels.flash, route: 'gemini-flash-fallback' },
         ],
         selectionDetails: {
@@ -780,17 +806,32 @@ export function getFallbackPlan(currentPlan) {
     return null;
   }
 
-  const [nextFallback, ...remainingFallbacks] = currentPlan.fallbackChain;
+  const scoredFallbacks = scoreCandidateSet({
+    policyKey: currentPlan.policyKey,
+    candidates: currentPlan.fallbackChain,
+    routingHints: currentPlan.selectionDetails?.routingHints ?? {},
+    healthSnapshot: getRuntimeProviderHealthSnapshot(),
+  }).sort((left, right) => right.score - left.score);
+
+  const [nextFallback, ...remainingFallbacks] = scoredFallbacks;
   return {
     ...currentPlan,
     provider: nextFallback.provider,
     model: nextFallback.model,
     route: nextFallback.route,
     reason: `Fallback from ${currentPlan.model} to ${nextFallback.model}.`,
-    fallbackChain: remainingFallbacks,
+    fallbackChain: remainingFallbacks.map(({ provider, model, route }) => ({ provider, model, route })),
     fallbackUsed: true,
     selectionDetails: {
       ...(currentPlan.selectionDetails ?? {}),
+      candidateScores: scoredFallbacks.map((candidate) => ({
+        provider: candidate.provider,
+        model: candidate.model,
+        route: candidate.route,
+        score: candidate.score,
+        healthScore: candidate.healthScore,
+        capabilityScore: candidate.capabilityScore,
+      })),
       fallbackDepth: ((currentPlan.selectionDetails?.fallbackDepth ?? 0) + 1),
       selectedProvider: nextFallback.provider,
       selectedModel: nextFallback.model,
@@ -988,9 +1029,13 @@ function resolveOrgPolicyOverride(orgModelOverrides, policyKey) {
   return orgModelOverrides?.policies?.[policyKey] ?? orgModelOverrides?.default ?? null;
 }
 
-function buildOverrideFallbackChain({ policyKey, preferredLane, anthropicModels, openAIModels }) {
+function buildOverrideFallbackChain({ policyKey, preferredLane, anthropicModels, openAIModels, geminiModels }) {
   if (policyKey === MODEL_POLICIES.low_cost_bulk.key) {
-    return [{ provider: 'anthropic', model: anthropicModels.fast, route: 'anthropic-fast-fallback' }];
+    return [
+      ...(geminiModels?.flash ? [{ provider: 'google', model: geminiModels.flash, route: 'gemini-flash-fallback' }] : []),
+      { provider: 'openai', model: openAIModels.lightweight, route: 'openai-lightweight-fallback' },
+      { provider: 'anthropic', model: anthropicModels.fast, route: 'anthropic-fast-fallback' },
+    ];
   }
 
   if (shouldPreferAnthropicLane(preferredLane)) {
@@ -1050,6 +1095,10 @@ function resolveDefaultProviderModel({
       return geminiModels.pro;
     }
 
+    if (policyKey === MODEL_POLICIES.low_cost_bulk.key || policyKey === MODEL_POLICIES.structured_extraction.key) {
+      return geminiModels.lite;
+    }
+
     return geminiModels.flash;
   }
 
@@ -1090,19 +1139,32 @@ function buildExecutionPlan({
   reason,
   fallbackChain,
   selectionDetails,
+  optimizePrimary = true,
 }) {
+  const optimized = optimizePrimary
+    ? optimizeExecutionPlanCandidates({
+        policyKey,
+        provider,
+        model,
+        route,
+        reason,
+        fallbackChain,
+        selectionDetails,
+      })
+    : { provider, model, route, reason, fallbackChain, selectionDetails };
+
   return {
     policyKey,
-    provider,
-    model,
-    route,
-    reason,
-    fallbackChain,
+    provider: optimized.provider,
+    model: optimized.model,
+    route: optimized.route,
+    reason: optimized.reason,
+    fallbackChain: optimized.fallbackChain,
     selectionDetails: {
-      ...(selectionDetails ?? {}),
-      selectedProvider: provider,
-      selectedModel: model,
-      fallbackChain: (fallbackChain ?? []).map((entry) => ({
+      ...(optimized.selectionDetails ?? {}),
+      selectedProvider: optimized.provider,
+      selectedModel: optimized.model,
+      fallbackChain: (optimized.fallbackChain ?? []).map((entry) => ({
         provider: entry.provider,
         model: entry.model,
         route: entry.route,
@@ -1111,6 +1173,80 @@ function buildExecutionPlan({
       fallbackProviderUsed: null,
     },
   };
+}
+
+function optimizeExecutionPlanCandidates({
+  policyKey,
+  provider,
+  model,
+  route,
+  reason,
+  fallbackChain,
+  selectionDetails,
+}) {
+  const routingHints = selectionDetails?.routingHints ?? {};
+  const healthSnapshot = getRuntimeProviderHealthSnapshot();
+  const candidates = [
+    { provider, model, route, reason },
+    ...(fallbackChain ?? []).map((candidate) => ({ ...candidate, reason: `Fallback candidate ${candidate.model}.` })),
+  ];
+
+  const dedupedCandidates = dedupeCandidates(candidates);
+  const scored = scoreCandidateSet({
+    policyKey,
+    candidates: dedupedCandidates,
+    routingHints,
+    healthSnapshot,
+  }).sort((left, right) => right.score - left.score);
+
+  const [selected, ...remaining] = scored;
+
+  if (!selected) {
+    return { provider, model, route, reason, fallbackChain, selectionDetails };
+  }
+
+  const primaryChanged = selected.provider !== provider || selected.model !== model || selected.route !== route;
+  return {
+    provider: selected.provider,
+    model: selected.model,
+    route: selected.route,
+    reason: primaryChanged
+      ? `${reason} Route weighting selected ${selected.model} over ${model} using provider health and capability scoring.`
+      : reason,
+    fallbackChain: remaining.map(({ provider: nextProvider, model: nextModel, route: nextRoute }) => ({
+      provider: nextProvider,
+      model: nextModel,
+      route: nextRoute,
+    })),
+    selectionDetails: {
+      ...(selectionDetails ?? {}),
+      routeOptimizationApplied: true,
+      candidateScores: scored.map((candidate) => ({
+        provider: candidate.provider,
+        model: candidate.model,
+        route: candidate.route,
+        score: candidate.score,
+        healthScore: candidate.healthScore,
+        capabilityScore: candidate.capabilityScore,
+      })),
+    },
+  };
+}
+
+function dedupeCandidates(candidates = []) {
+  const seen = new Set();
+  const deduped = [];
+
+  for (const candidate of candidates) {
+    const key = `${candidate.provider}:${candidate.model}:${candidate.route}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    deduped.push(candidate);
+  }
+
+  return deduped;
 }
 
 function normalizePolicyKey(value) {
@@ -1141,3 +1277,5 @@ function safeRate(numerator, denominator) {
 
   return Number((numerator / denominator).toFixed(4));
 }
+
+export { listModelCapabilities, getRuntimeProviderHealthSnapshot };

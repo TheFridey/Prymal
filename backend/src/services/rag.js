@@ -165,7 +165,7 @@ export async function ragSearch({ orgId, query, limit = 5, includeWeakMatches = 
     semanticError = error;
   }
 
-  if (rows.length === 0 && includeWeakMatches) {
+  if (rows.length === 0 && shouldUseLexicalFallback({ includeWeakMatches, semanticError })) {
     rows = await fetchLexicalFallbackRows({
       orgId,
       queryKeywords,
@@ -178,6 +178,10 @@ export async function ragSearch({ orgId, query, limit = 5, includeWeakMatches = 
   }
 
   return rankLoreRows(rows, queryKeywords, limit);
+}
+
+export function shouldUseLexicalFallback({ includeWeakMatches = false, semanticError = null } = {}) {
+  return includeWeakMatches || Boolean(semanticError);
 }
 
 async function fetchSemanticLoreRows({ orgId, queryEmbedding, limit, minimumSimilarity = null }) {

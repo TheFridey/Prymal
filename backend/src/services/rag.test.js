@@ -13,6 +13,7 @@ const {
   normalizeEmbeddingResponseEntries,
   normalizeExecuteRows,
   rankLoreRows,
+  shouldUseLexicalFallback,
 } = await import('./rag.js');
 
 test('computeFreshnessScore prefers recently verified documents', () => {
@@ -138,6 +139,12 @@ test('rankLoreRows labels lexical-only matches as fallback retrieval', () => {
 
   assert.equal(rows[0].retrievalMode, 'lexical_fallback');
   assert.equal(rows[0].confidenceLabel, 'low');
+});
+
+test('shouldUseLexicalFallback enables graceful degraded retrieval when semantic search errors', () => {
+  assert.equal(shouldUseLexicalFallback({ includeWeakMatches: false, semanticError: null }), false);
+  assert.equal(shouldUseLexicalFallback({ includeWeakMatches: true, semanticError: null }), true);
+  assert.equal(shouldUseLexicalFallback({ includeWeakMatches: false, semanticError: new Error('vector missing') }), true);
 });
 
 test('buildRetrievalDiagnostics explains weak or missing LORE evidence', () => {

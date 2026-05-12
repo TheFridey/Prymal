@@ -113,6 +113,7 @@ Record Stripe event IDs and workspace IDs in the private launch log, not in publ
 - Verify a workflow that routes URL/upload/LORE input into email, posting, billing, admin, or destructive actions is blocked or requires confirmation.
 - Verify a workflow requiring confirmation creates a pending confirmation, can be approved once by the scoped user/org, expires correctly, and cannot override `BLOCK`.
 - Verify the admin WARDEN view shows events, classifier metrics, confirmation state and security traces without raw unsafe content.
+- Verify OCR-derived image text is normalized and still treated as untrusted evidence before any media/tool execution path.
 - Run the red-team fixture pack with `node --test src/services/warden/red-team-fixtures.test.js`.
 - Verify `warden_audit_event` records deterministic verdict, model classifier metadata, final verdict, risk, categories, redaction count, and source metadata without storing raw unsafe content.
 - Verify model classifier timeout or invalid JSON falls back to deterministic WARDEN without user-visible errors.
@@ -164,13 +165,21 @@ npm test
 npm run build
 npm run verify-build -- --clean
 
-npm run test:e2e -- tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
+npm run test:e2e:public -- tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
 ```
 
 Authenticated E2E, when staging credentials exist:
 
 ```bash
-npm run test:e2e -- tests/authenticated-regression.spec.js tests/onboarding-regression.spec.js tests/invite-membership.spec.js tests/billing-portal.spec.js tests/admin-operator.spec.js tests/security-boundaries.spec.js
+cd frontend
+npm run test:e2e:auth:check
+npm run test:e2e:auth
 ```
 
-Document any environment-specific skips, such as Clerk CAPTCHA, new-device OTP, Stripe live keys, or unavailable provider quotas.
+CI release expectations:
+
+- `E2E authenticated preflight` should pass and `E2E authenticated regression` should either pass or skip cleanly when auth secrets are intentionally absent.
+- `Deploy preflight` should pass on every release candidate build.
+- `Deploy to VPS` should skip cleanly unless `VPS_DEPLOY_ENABLED=true` and the required VPS secrets are configured.
+
+Document any environment-specific skips, such as Clerk CAPTCHA, new-device OTP, Stripe live keys, unavailable provider quotas, or intentionally disabled VPS deploy secrets.

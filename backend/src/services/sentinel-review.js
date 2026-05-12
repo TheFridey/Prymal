@@ -88,7 +88,7 @@ export function reviewAgentOutputWithSentinel({
   if (!assistantText.trim()) riskScore += 0.2;
   riskScore = Number(Math.min(riskScore, 1).toFixed(2));
 
-  const holdReason = buildHoldReason({
+  const holdDecision = buildHoldDecision({
     accuracyPass,
     citationConfidencePass,
     compliancePass,
@@ -98,7 +98,7 @@ export function reviewAgentOutputWithSentinel({
     threshold: sentinelConfig.humanReviewThreshold ?? 0.8,
   });
 
-  const verdict = holdReason
+  const verdict = holdDecision.reason
     ? 'HOLD'
     : schemaVerdict === 'repaired' || repairActions.length > 0 || concerns.length > 0
       ? 'REPAIR'
@@ -110,8 +110,11 @@ export function reviewAgentOutputWithSentinel({
     reviewedAgentId: agentId,
     concerns,
     repair_actions: dedupeStrings(repairActions),
-    hold_reason: holdReason,
-    suggested_next_action: holdReason
+    hold_reason: holdDecision.reason,
+    hold_reason_code: holdDecision.code,
+    hold_risk_category: holdDecision.riskCategory,
+    hold_confidence: holdDecision.confidence,
+    suggested_next_action: holdDecision.reason
       ? 'Route this response to a human reviewer or regenerate with stronger grounding.'
       : verdict === 'REPAIR'
         ? 'Review the suggested repairs before forwarding or saving the output.'
@@ -139,10 +142,24 @@ export function reviewAgentOutputWithSentinel({
         notes: citationConfidencePass ? 'Evidence or citations were attached where expected.' : 'The response needs citations or source evidence.',
       },
     },
+    explainability: {
+      verdict,
+      riskScore,
+      policyTrigger: holdDecision.code,
+      riskCategory: holdDecision.riskCategory,
+      confidence: holdDecision.confidence,
+      threshold: sentinelConfig.humanReviewThreshold ?? 0.8,
+      schemaVerdict,
+      groundedness,
+      hallucinationRisk,
+      toolUsePass,
+      instructionAdherence,
+      sourceCount: sources.length,
+    },
   };
 }
 
-function buildHoldReason({
+function buildHoldDecision({
   accuracyPass,
   citationConfidencePass,
   compliancePass,
@@ -152,26 +169,56 @@ function buildHoldReason({
   threshold,
 }) {
   if (!schemaPass && schemaVerdict === 'failed') {
-    return 'Structured output validation failed and could not be repaired safely.';
+    return {
+      reason: 'Structured output validation failed and could not be repaired safely.',
+      code: 'schema_validation_failed',
+      riskCategory: 'schema_integrity',
+      confidence: 0.95,
+    };
   }
 
   if (!accuracyPass) {
-    return 'Grounding confidence fell below the Sentinel approval threshold.';
+    return {
+      reason: 'Grounding confidence fell below the Sentinel approval threshold.',
+      code: 'grounding_confidence_low',
+      riskCategory: 'hallucination_grounding',
+      confidence: 0.9,
+    };
   }
 
   if (!compliancePass) {
-    return 'The response violated the contract or policy checks and needs human review.';
+    return {
+      reason: 'The response violated the contract or policy checks and needs human review.',
+      code: 'contract_or_policy_violation',
+      riskCategory: 'policy_compliance',
+      confidence: 0.88,
+    };
   }
 
   if (!citationConfidencePass && riskScore >= Math.max(threshold - 0.1, 0.65)) {
-    return 'The response is missing the evidence trail required for a trusted pass.';
+    return {
+      reason: 'The response is missing the evidence trail required for a trusted pass.',
+      code: 'missing_evidence_trail',
+      riskCategory: 'evidence_confidence',
+      confidence: 0.74,
+    };
   }
 
   if (riskScore >= threshold) {
-    return 'The overall review risk score exceeded the automatic approval threshold.';
+    return {
+      reason: 'The overall review risk score exceeded the automatic approval threshold.',
+      code: 'risk_score_threshold_exceeded',
+      riskCategory: 'aggregate_risk',
+      confidence: 0.72,
+    };
   }
 
-  return null;
+  return {
+    reason: null,
+    code: null,
+    riskCategory: null,
+    confidence: null,
+  };
 }
 
 function dedupeStrings(values) {

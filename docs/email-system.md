@@ -83,6 +83,11 @@ Live triggers:
 
 Email sends are tracked in `email_events`.
 
+Operational expectation:
+
+- Email delivery failures should be visible to staff through admin traces or email event records.
+- Delivery failure must never block onboarding, billing reconciliation, workflow catalogue installs, or workspace actions.
+
 Important idempotency keys:
 
 - Welcome: `welcome:{orgId}:{userId}`

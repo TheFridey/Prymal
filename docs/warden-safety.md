@@ -42,7 +42,7 @@ Every scan returns a consistent decision:
 - `REQUIRE_CONFIRMATION`
 - `BLOCK`
 
-The decision includes risk level, categories, reasons, redactions, trust score, permissions, classifier metadata, and a `wardenAuditId`.
+The decision includes risk level, categories, reasons, redactions, trust score, permissions, classifier metadata, explainability signals, and a `wardenAuditId`.
 
 `ALLOW_WITH_SANDBOX` is not prompt-executable. It can reach agents only as wrapped evidence.
 
@@ -92,6 +92,13 @@ Retrieved chunks are wrapped in an untrusted evidence block before reaching an a
 
 Image and video prompts are scanned before provider calls. WARDEN scans reference-image safety text from provided `ocrText`, `altText`, captions, filenames, and metadata text. WARDEN also has a provider-backed OCR adapter layer. OCR is disabled by default and fails safely back to metadata-only extraction if the provider is unavailable or times out.
 
+OCR text is normalized before it is treated as evidence:
+
+- control characters are stripped
+- Unicode is normalized with `NFKC`
+- repeated whitespace is collapsed
+- provider OCR sources are tagged as `UNTRUSTED_OCR_EVIDENCE`
+
 Supported OCR adapters:
 
 - `none`
@@ -140,6 +147,12 @@ WARDEN stores audit records in `warden_audit_event`.
 The table stores hashes, categories, reasons, source metadata, tool names, provider labels, deterministic verdicts, model classifier metadata, and final verdicts. It does not store full unsafe content.
 
 Admins can filter WARDEN events by verdict, risk level, category, surface, source type, user, org, tool, provider, and date range.
+
+Security trace drilldowns should answer three operator questions directly:
+
+- Why was this blocked, held, or sandboxed?
+- Which policy category triggered it?
+- How confident was the deterministic/model-assisted decision path?
 
 Admin security endpoints:
 

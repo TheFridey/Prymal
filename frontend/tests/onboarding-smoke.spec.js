@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 test('landing page has a sign-up entry point', async ({ page }) => {
-  await page.goto('/', { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('body')).toBeVisible();
 
   const cta = page.getByRole('link', { name: /get started|sign up|start free|try prymal/i }).first();
   if (await cta.isVisible({ timeout: 10_000 }).catch(() => false)) {
@@ -12,7 +13,8 @@ test('landing page has a sign-up entry point', async ({ page }) => {
 });
 
 test('login page renders Clerk auth or the auth setup guard', async ({ page }) => {
-  await page.goto('/login', { waitUntil: 'networkidle' });
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('body')).toBeVisible();
 
   const emailInput = page.getByLabel(/email/i).first();
   const socialButton = page.getByRole('button', { name: /google|continue with/i }).first();

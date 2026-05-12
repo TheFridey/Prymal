@@ -8,6 +8,23 @@ import '../styles/changelog-premium.css';
 
 const CHANGELOG = [
   {
+    version: '1.0.7',
+    date: '2026-05-12',
+    tag: 'Reliability',
+    badge: 'Routing',
+    milestone: true,
+    title: 'Routing Intelligence + Safety Explainability',
+    impact: 'Prymal now makes smarter provider choices in production and gives operators clearer reasons when safety systems intervene.',
+    entries: [
+      'Model routing now uses a centralized capability matrix across OpenAI, Anthropic, and Gemini lanes instead of drift-prone one-off defaults.',
+      'Provider routing weights now account for runtime health signals such as failure rate, timeout rate, fallback frequency, and held-response rate.',
+      'Added a dedicated Gemini Flash-Lite lane for low-cost bulk work while keeping premium reasoning, grounded research, structured extraction, and multimodal lanes explicit.',
+      'SENTINEL HOLD outcomes now expose a reason code, risk category, and confidence level for faster operator triage.',
+      'OCR-derived image safety text is normalized and treated as explicit untrusted evidence before it can influence media generation or downstream execution.',
+      'Admin runtime views now surface capability-matrix and provider-health diagnostics so routing changes are observable, not magical.',
+    ],
+  },
+  {
     version: '1.0.6',
     date: '2026-05-06',
     tag: 'Automation',

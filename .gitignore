@@ -42,6 +42,7 @@ temp/
 *.tmp
 *.temp
 *.pid
+backend/.tmp-pg/
 
 # Testing artifacts
 playwright-report/

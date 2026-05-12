@@ -101,8 +101,11 @@ test.describe('Owner workflow and LORE flows', () => {
     await page.getByRole('button', { name: /add to lore/i }).click();
 
     await page.getByRole('button', { name: /^documents$/i }).click();
-    await expect(page.getByText(baselineTitle).first()).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(/indexed|indexing|pending/i).first()).toBeVisible({ timeout: 20_000 });
+    const baselineDocumentCard = page
+      .getByText(baselineTitle, { exact: true })
+      .locator('xpath=ancestor::*[.//button[normalize-space()="Delete"]][1]');
+    await expect(baselineDocumentCard).toBeVisible({ timeout: 20_000 });
+    await expect(baselineDocumentCard).toContainText(/Ready/i, { timeout: 30_000 });
 
     await page.getByRole('button', { name: /^search$/i }).click();
     const searchInput = page.getByPlaceholder(/ask a question about your org knowledge/i);

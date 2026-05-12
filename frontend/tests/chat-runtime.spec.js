@@ -34,7 +34,9 @@ test.describe('Chat runtime regressions', () => {
 
     const composer = page.locator('textarea.field--textarea').first();
     await composer.fill('stream the answer in parts');
-    await page.getByRole('button', { name: /^Send$/i }).click();
+    const sendButton = page.getByRole('button', { name: /^Send$/i });
+    await expect(sendButton).toBeEnabled();
+    await sendButton.click();
 
     await expect(page.getByText('Partial answer').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('Partial answer with evidence').first()).toBeVisible({ timeout: 10_000 });
@@ -47,7 +49,9 @@ test.describe('Chat runtime regressions', () => {
 
     const composer = page.locator('textarea.field--textarea').first();
     await composer.fill('force error for retry');
-    await page.getByRole('button', { name: /^Send$/i }).click();
+    const sendButton = page.getByRole('button', { name: /^Send$/i });
+    await expect(sendButton).toBeEnabled();
+    await sendButton.click();
 
     await expect(page.getByText(/Response could not be completed/i)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(/Provider temporarily unavailable/i).first()).toBeVisible();
@@ -63,7 +67,9 @@ test.describe('Chat runtime regressions', () => {
 
     const composer = page.locator('textarea.field--textarea').first();
     await composer.fill('trigger hold response');
-    await page.getByRole('button', { name: /^Send$/i }).click();
+    const sendButton = page.getByRole('button', { name: /^Send$/i });
+    await expect(sendButton).toBeEnabled();
+    await sendButton.click();
 
     await expect(page.getByText(/SENTINEL paused this output/i)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(/needs a safer framing/i)).toBeVisible();
@@ -110,13 +116,12 @@ async function installChatMock(page) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
           };
 
-          push({ type: 'started', conversationId: 'conv-dev-cert-chat' });
+          push({ type: 'started' });
 
           if (message.includes('trigger hold')) {
             await delay(60);
             push({
               type: 'hold',
-              conversationId: 'conv-dev-cert-chat',
               message: 'SENTINEL needs a safer framing before it can answer.',
               sentinelConcerns: ['Potential unsupported claim'],
               sentinelRepairActions: ['Ask for evidence or narrow the request.'],
@@ -134,8 +139,7 @@ async function installChatMock(page) {
           await delay(20);
           push({
             type: 'done',
-            conversationId: 'conv-dev-cert-chat',
-            messageId: 'msg-dev-cert-chat',
+            messageId: '11111111-1111-4111-8111-111111111111',
             creditsUsed: 1,
             sources: [],
           });

@@ -22,21 +22,57 @@ const {
   isGeminiGroundingEnabled,
   buildPolicyOutcomeSummary,
 } = await import('./model-policy.js');
+const {
+  recordProviderRoutingOutcome,
+  resetRuntimeProviderHealthForTests,
+  getRuntimeProviderHealthSnapshot,
+} = await import('./model-capabilities.js');
+
+async function withEnv(overrides, fn) {
+  const previous = new Map();
+
+  for (const [key, value] of Object.entries(overrides)) {
+    previous.set(key, Object.prototype.hasOwnProperty.call(process.env, key) ? process.env[key] : undefined);
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+
+  try {
+    return await fn();
+  } finally {
+    for (const [key, value] of previous.entries()) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+}
 
 test('selectExecutionPlan routes grounded research to OpenAI analysis with fallbacks', () => {
-  process.env.GEMINI_GROUNDING_ENABLED = 'false';
-  const plan = selectExecutionPlan({
-    agent: { id: 'scout' },
-    userMessage: 'Research the latest competitor positioning and cite sources from their website.',
-    mode: 'chat',
-    orgPlan: 'pro',
-    attachments: [],
-  });
+  return withEnv({
+    GEMINI_GROUNDING_ENABLED: 'false',
+    GEMINI_API_KEY: undefined,
+    OPENAI_MODEL_PREMIUM: undefined,
+    OPENAI_MODEL_ANALYSIS: undefined,
+  }, () => {
+    const plan = selectExecutionPlan({
+      agent: { id: 'scout' },
+      userMessage: 'Research the latest competitor positioning and cite sources from their website.',
+      mode: 'chat',
+      orgPlan: 'pro',
+      attachments: [],
+    });
 
-  assert.equal(plan.policyKey, MODEL_POLICIES.grounded_research.key);
-  assert.equal(plan.provider, 'openai');
-  assert.equal(plan.model, 'gpt-5.4');
-  assert.equal(plan.fallbackChain.length > 0, true);
+    assert.equal(plan.policyKey, MODEL_POLICIES.grounded_research.key);
+    assert.equal(plan.provider, 'openai');
+    assert.equal(plan.model, 'gpt-5.5');
+    assert.equal(plan.fallbackChain.length > 0, true);
+  });
 });
 
 test('grounded_research policy resolves to Gemini when live grounding is enabled', () => {
@@ -75,6 +111,7 @@ test('selectExecutionPlan routes workflow mode to workflow automation policy', (
 });
 
 test('getFallbackPlan advances through the fallback chain', () => {
+  resetRuntimeProviderHealthForTests();
   const currentPlan = {
     policyKey: MODEL_POLICIES.fast_chat.key,
     provider: 'anthropic',
@@ -88,8 +125,8 @@ test('getFallbackPlan advances through the fallback chain', () => {
 
   const fallback = getFallbackPlan(currentPlan);
 
-  assert.equal(fallback.provider, 'anthropic');
-  assert.equal(fallback.model, 'claude-haiku-4-5');
+  assert.equal(fallback.provider, 'openai');
+  assert.equal(fallback.model, 'gpt-5.4-mini');
   assert.equal(fallback.fallbackChain.length, 1);
   assert.equal(fallback.fallbackUsed, true);
 });
@@ -206,14 +243,18 @@ test('getAnthropicModels respects env var overrides', () => {
 });
 
 test('getOpenAIModels returns default model names when env vars are absent', () => {
-  delete process.env.OPENAI_MODEL_PREMIUM;
-  delete process.env.OPENAI_MODEL_ROUTER;
-  delete process.env.OPENAI_MODEL_LIGHTWEIGHT;
-  const models = getOpenAIModels();
-  assert.equal(models.premium, 'gpt-5.4');
-  assert.equal(models.router, 'gpt-5.4-mini');
-  assert.equal(models.lightweight, 'gpt-5.4-nano');
-  assert.equal(models.analysis, models.premium);
+  return withEnv({
+    OPENAI_MODEL_PREMIUM: undefined,
+    OPENAI_MODEL_ANALYSIS: undefined,
+    OPENAI_MODEL_ROUTER: undefined,
+    OPENAI_MODEL_LIGHTWEIGHT: undefined,
+  }, () => {
+    const models = getOpenAIModels();
+    assert.equal(models.premium, 'gpt-5.5');
+    assert.equal(models.router, 'gpt-5.4-mini');
+    assert.equal(models.lightweight, 'gpt-5.4-nano');
+    assert.equal(models.analysis, models.premium);
+  });
 });
 
 test('hasUsableAnthropicKey returns true for a valid-looking key', () => {
@@ -292,9 +333,11 @@ test('hasUsableGeminiKey returns false for placeholder or missing values', () =>
 test('getGeminiModels returns default model names when env vars are absent', () => {
   delete process.env.GEMINI_MODEL_FLASH;
   delete process.env.GEMINI_MODEL_PRO;
+  delete process.env.GEMINI_MODEL_LITE;
   const models = getGeminiModels();
   assert.equal(models.flash, 'gemini-2.5-flash');
   assert.equal(models.pro, 'gemini-2.5-pro');
+  assert.equal(models.lite, 'gemini-2.5-flash-lite');
 });
 
 test('detectProviderFromModel returns google for gemini models, openai for gpt, anthropic otherwise', () => {
@@ -303,4 +346,40 @@ test('detectProviderFromModel returns google for gemini models, openai for gpt, 
   assert.equal(detectProviderFromModel('gpt-5.4'), 'openai');
   assert.equal(detectProviderFromModel('gpt-5.4-mini'), 'openai');
   assert.equal(detectProviderFromModel('claude-sonnet-4-6'), 'anthropic');
+});
+
+test('runtime provider health snapshot tracks live routing signals', () => {
+  resetRuntimeProviderHealthForTests();
+
+  recordProviderRoutingOutcome({
+    provider: 'openai',
+    model: 'gpt-5.5',
+    latencyMs: 1400,
+    outcomeStatus: 'succeeded',
+    completionTokens: 600,
+    totalTokens: 1200,
+    metadata: {
+      sentinelReview: { verdict: 'PASS' },
+    },
+  });
+  recordProviderRoutingOutcome({
+    provider: 'openai',
+    model: 'gpt-5.5',
+    latencyMs: 3200,
+    outcomeStatus: 'held',
+    failureClass: 'timeout',
+    completionTokens: 0,
+    totalTokens: 900,
+    metadata: {
+      sentinelReview: { verdict: 'HOLD' },
+    },
+  });
+
+  const snapshot = getRuntimeProviderHealthSnapshot();
+  const health = snapshot['openai:gpt-5.5'];
+
+  assert.equal(health.runs, 2);
+  assert.equal(health.holdRate, 0.5);
+  assert.equal(health.timeoutRate, 0.5);
+  assert.ok(health.healthScore > 0);
 });

@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 test('landing page renders the Prymal marketing shell', async ({ page }) => {
-  await page.goto('/', { waitUntil: 'networkidle' });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('body')).toBeVisible();
 
   const hasBrand = await page.getByText(/PRYMAL/i).first().isVisible({ timeout: 10_000 }).catch(() => false);
   const hasSetupGuard = await page.getByText(/VITE_CLERK_PUBLISHABLE_KEY/i).first().isVisible({ timeout: 3_000 }).catch(() => false);

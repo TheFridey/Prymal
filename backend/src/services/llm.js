@@ -294,6 +294,7 @@ export async function* streamAgentResponse({
       preferredProvider: aiControls.providerPreference,
       reasoningTier: aiControls.reasoningTier,
       experimentationEnabled: aiControls.experimentationEnabled,
+      failoverOrder: aiControls.failoverOrder,
     },
   });
 
@@ -549,6 +550,7 @@ export async function runAgentNode({ agentId, orgId, orgPlan = 'free', prompt, c
       preferredProvider: aiControls.providerPreference,
       reasoningTier: aiControls.reasoningTier,
       experimentationEnabled: aiControls.experimentationEnabled,
+      failoverOrder: aiControls.failoverOrder,
     },
   });
   const budgetCap = getOrgBudgetCap(orgId, orgModelOverrides);
@@ -1483,6 +1485,8 @@ async function buildSystemPrompt({
       `OpenAI router: ${OPENAI_MODELS.router}`,
       `OpenAI premium: ${OPENAI_MODELS.premium}`,
       `OpenAI lightweight: ${OPENAI_MODELS.lightweight}`,
+      `Gemini flash: ${GEMINI_MODELS.flash}`,
+      `Gemini low-cost: ${GEMINI_MODELS.lite}`,
       'Choose the model family that best fits the task, but preserve the agent persona, source grounding, and commercial usefulness.',
     ].join('\n'),
   );
@@ -1725,7 +1729,7 @@ function normalizeLLMError(error, provider = 'anthropic') {
 
     if (/not.?found|model.* not found|invalid model/i.test(rawMessage)) {
       normalized.message =
-        `The configured Gemini model is unavailable. Update backend/.env to use a current model such as ${GEMINI_MODELS.flash} or ${GEMINI_MODELS.pro}, then restart the backend.`;
+        `The configured Gemini model is unavailable. Update backend/.env to use a current model such as ${GEMINI_MODELS.flash}, ${GEMINI_MODELS.lite}, or ${GEMINI_MODELS.pro}, then restart the backend.`;
       normalized.code = 'GEMINI_MODEL_NOT_FOUND';
       normalized.status = 503;
       return normalized;

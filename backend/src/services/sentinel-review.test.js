@@ -26,6 +26,7 @@ test('reviewAgentOutputWithSentinel returns PASS for grounded, compliant output'
 
   assert.equal(review.verdict, 'PASS');
   assert.equal(review.hold_reason, null);
+  assert.equal(review.hold_reason_code, null);
   assert.equal(review.checks.accuracy.pass, true);
 });
 
@@ -47,6 +48,7 @@ test('reviewAgentOutputWithSentinel returns REPAIR when schema was auto-repaired
   assert.equal(review.verdict, 'REPAIR');
   assert.ok(review.repair_actions.length >= 1);
   assert.equal(review.hold_reason, null);
+  assert.equal(review.explainability.policyTrigger, null);
 });
 
 test('reviewAgentOutputWithSentinel returns HOLD for ungrounded high-risk output', () => {
@@ -67,4 +69,7 @@ test('reviewAgentOutputWithSentinel returns HOLD for ungrounded high-risk output
   assert.equal(review.verdict, 'HOLD');
   assert.ok(review.riskScore >= 0.8);
   assert.match(review.hold_reason, /validation failed|approval threshold|grounding confidence/i);
+  assert.ok(review.hold_reason_code);
+  assert.ok(review.hold_risk_category);
+  assert.ok(review.hold_confidence > 0.7);
 });

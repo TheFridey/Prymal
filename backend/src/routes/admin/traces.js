@@ -25,7 +25,10 @@ import {
   hasUsableGeminiKey,
   hasUsableOpenAIKey,
   MODEL_POLICIES,
+  listModelCapabilities,
+  getRuntimeProviderHealthSnapshot,
 } from '../../services/model-policy.js';
+import { buildProviderHealthSummary } from '../../services/model-capabilities.js';
 import { hasTriggerDevConfig } from '../../queue/trigger.js';
 import { getRegisteredSchedules } from '../../services/inline-scheduler.js';
 import {
@@ -82,6 +85,7 @@ router.get('/model-usage', requireStaff, requireStaffPermission('admin.activity.
     orgUsage: mapAggregate(byOrg, 'orgId'),
     modelComparisons: compareModelRuns(filteredRows),
     policySummary: buildPolicyOutcomeSummary(filteredRows),
+    providerHealth: buildProviderHealthSummary(filteredRows),
   });
 });
 
@@ -288,6 +292,8 @@ router.get('/model-policy', requireStaff, requireStaffPermission('admin.activity
     policyLanes,
     orgBudgetCaps,
     orgControlOverrides,
+    capabilityMatrix: listModelCapabilities(),
+    runtimeHealth: getRuntimeProviderHealthSnapshot(),
   });
 });
 

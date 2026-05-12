@@ -56,6 +56,10 @@ export default async function globalSetup(config) {
     ].join(' '),
   );
 
+  if (!authConfig.authRequired) {
+    return;
+  }
+
   const roles = getConfiguredRoles();
   if (roles.length === 0) {
     return;

@@ -1,24 +1,24 @@
 import * as Sentry from '@sentry/node';
 import { db } from '../db/index.js';
 import { llmExecutionTraces } from '../db/schema.js';
+import { recordProviderRoutingOutcome } from './model-capabilities.js';
 
 const DEFAULT_MODEL_COSTS = {
   'anthropic:claude-opus-4-7': { inputPerMillion: 5, outputPerMillion: 25 },
   'anthropic:claude-opus-4-6': { inputPerMillion: 5, outputPerMillion: 25 },
   'anthropic:claude-sonnet-4-6': { inputPerMillion: 3, outputPerMillion: 15 },
   'anthropic:claude-haiku-4-5': { inputPerMillion: 1, outputPerMillion: 5 },
-  // Baseline estimates for the configured OpenAI lanes. Override via MODEL_COST_OVERRIDES when needed.
-  'openai:gpt-5.4': { inputPerMillion: 2, outputPerMillion: 8 },
-  'openai:gpt-5.4-mini': { inputPerMillion: 0.4, outputPerMillion: 1.6 },
-  'openai:gpt-5.4-nano': { inputPerMillion: 0.1, outputPerMillion: 0.4 },
+  'openai:gpt-5.5': { inputPerMillion: 5, outputPerMillion: 30 },
+  'openai:gpt-5.4': { inputPerMillion: 2.5, outputPerMillion: 15 },
+  'openai:gpt-5.4-mini': { inputPerMillion: 0.75, outputPerMillion: 4.5 },
+  'openai:gpt-5.4-nano': { inputPerMillion: 0.2, outputPerMillion: 1.25 },
 };
-// Gemini pricing (per 1M tokens, as of April 2026)
+// Gemini pricing (per 1M tokens) reflects current Vertex AI standard PayGo list pricing.
 // Override via MODEL_COST_OVERRIDES if your billing assumptions differ.
 const GEMINI_COSTS = {
-  'gemini-2.0-flash': { inputPerMillion: 0.1, outputPerMillion: 0.4 },
-  'gemini-2.0-flash-lite': { inputPerMillion: 0.075, outputPerMillion: 0.3 },
   'gemini-2.5-pro': { inputPerMillion: 1.25, outputPerMillion: 10 },
-  'gemini-2.5-flash': { inputPerMillion: 0.15, outputPerMillion: 0.6 },
+  'gemini-2.5-flash': { inputPerMillion: 0.3, outputPerMillion: 2.5 },
+  'gemini-2.5-flash-lite': { inputPerMillion: 0.1, outputPerMillion: 0.4 },
 };
 
 export async function recordLLMExecutionTrace({
@@ -84,6 +84,19 @@ export async function recordLLMExecutionTrace({
       memoryWriteKeys,
       outcomeStatus,
       failureClass,
+      metadata,
+    });
+
+    recordProviderRoutingOutcome({
+      provider,
+      model,
+      latencyMs,
+      outcomeStatus,
+      fallbackUsed,
+      failureClass,
+      promptTokens,
+      completionTokens,
+      totalTokens,
       metadata,
     });
 

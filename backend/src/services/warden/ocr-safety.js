@@ -39,7 +39,7 @@ export async function extractSafetyTextFromImages(images = [], options = {}) {
   if (provider) {
     providerSummary = await runProviderOcr({ images: normalizedImages, provider, config });
     for (const result of providerSummary.results) {
-      const safeText = String(result.text ?? '').trim();
+      const safeText = normalizeOcrSafetyText(result.text ?? '');
       if (!safeText) continue;
       sources.push({
         index: result.index,
@@ -48,6 +48,8 @@ export async function extractSafetyTextFromImages(images = [], options = {}) {
         provider: providerSummary.provider,
         fromCache: Boolean(result.fromCache),
         textHash: result.textHash,
+        trustBoundary: 'UNTRUSTED_OCR_EVIDENCE',
+        normalized: true,
       });
       textParts.push(`[image:${result.index}:provider_ocr]\n${safeText}`);
     }
@@ -82,4 +84,14 @@ function collectNestedMetadataText({ image, index, sources, textParts }) {
 
   sources.push({ index, source: 'metadata.text', length: metadataText.length });
   textParts.push(`[image:${index}:metadata.text]\n${metadataText}`);
+}
+
+function normalizeOcrSafetyText(input = '') {
+  return String(input)
+    .normalize('NFKC')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
+    .replace(/\r\n/g, '\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }

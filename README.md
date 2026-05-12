@@ -287,7 +287,7 @@ npm run verify-build -- --clean
 - Trigger.dev: `TRIGGER_API_KEY`, optional `TRIGGER_API_URL`
 - Integrations: Google, Notion, Slack OAuth credentials; manual-token providers use encrypted stored secrets
 - OAuth state: `INTEGRATION_STATE_SECRET`
-- Gemini/Veo: `GEMINI_API_KEY`, model override env vars, `GEMINI_GROUNDING_ENABLED=true` for live grounded research
+- Gemini/Veo: `GEMINI_API_KEY`, `GEMINI_MODEL_FLASH`, `GEMINI_MODEL_LITE`, `GEMINI_MODEL_PRO`, Veo model override env vars, and `GEMINI_GROUNDING_ENABLED=true` when you want live grounded research to prefer Gemini
 - Media storage: `MEDIA_STORAGE_DRIVER`, Cloudinary credentials, retention and timeout controls
 - Rate limiting: optional Upstash Redis REST URL/token
 - Workflow Catalogue: `WORKFLOW_CATALOGUE_ENABLED`, `WORKFLOW_CATALOGUE_USER_SUBMISSIONS_ENABLED`, `WORKFLOW_CATALOGUE_PREMIUM_ENABLED=true`, `WORKFLOW_CATALOGUE_PLATFORM_FEE_BPS`
@@ -329,6 +329,7 @@ npm run lint
 npm test
 npm run build
 npm run perf:budget
+npm run test:e2e:public -- tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
 ```
 
 Full end-to-end authenticated testing still requires:
@@ -338,6 +339,8 @@ Full end-to-end authenticated testing still requires:
 - A real Clerk test account/session
 - Provider keys for live model, voice, media, and integration paths
 - Stripe keys for live billing flows
+
+GitHub Actions now keeps deployment optional: `Deploy preflight` always runs, while `Deploy to VPS` only runs on `push`/`workflow_dispatch` for `master` when `VPS_DEPLOY_ENABLED=true` and the VPS secrets are present.
 - Optional Trigger.dev credentials for external workflow orchestration
 
 ## Release Notes

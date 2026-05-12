@@ -6,6 +6,7 @@ setupTestEnv();
 
 const { executeAction, evaluateActionPolicy, isKnownActionType } = await import('./action-registry.js');
 const { getPendingApprovals } = await import('./action-approval.js');
+const { db } = await import('../../db/index.js');
 
 // ── Policy evaluation unit tests ──────────────────────────────────────────────
 
@@ -110,16 +111,23 @@ test('executeAction returns approval_token_invalid for an expired or missing tok
 });
 
 test('executeAction returns oauth_not_connected when no integration is stored', async () => {
-  const result = await executeAction('drive.write', {
-    name: 'missing-oauth.txt',
-    content: 'hello',
-    mimeType: 'text/plain',
-  }, { orgId: '00000000-0000-4000-8000-000000000099', userId: 'user_1' });
+  const originalFindFirst = db.query.integrations.findFirst;
+  db.query.integrations.findFirst = async () => null;
 
-  assert.equal(result.success, false);
-  assert.equal(result.code, 'oauth_not_connected');
-  assert.ok(typeof result.error === 'string');
-  assert.ok(typeof result.traceId === 'string');
+  try {
+    const result = await executeAction('drive.write', {
+      name: 'missing-oauth.txt',
+      content: 'hello',
+      mimeType: 'text/plain',
+    }, { orgId: '00000000-0000-4000-8000-000000000099', userId: 'user_1' });
+
+    assert.equal(result.success, false);
+    assert.equal(result.code, 'oauth_not_connected');
+    assert.ok(typeof result.error === 'string');
+    assert.ok(typeof result.traceId === 'string');
+  } finally {
+    db.query.integrations.findFirst = originalFindFirst;
+  }
 });
 
 test('executeAction never throws — always returns structured result', async () => {

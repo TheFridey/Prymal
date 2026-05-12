@@ -18,7 +18,7 @@ test('estimateModelCostUsd computes provider/model cost estimates', () => {
     completionTokens: 50_000,
   });
 
-  assert.equal(estimate, 0.6);
+  assert.equal(estimate, 1);
 });
 
 test('classifyLLMFailure maps common failure classes', () => {
@@ -28,16 +28,22 @@ test('classifyLLMFailure maps common failure classes', () => {
   assert.equal(classifyLLMFailure({ code: 'TIMEOUT' }), 'timeout');
 });
 
-test('estimateCostUsd calculates Gemini 2.0 Flash pricing', () => {
-  const estimate = estimateCostUsd('google', 'gemini-2.0-flash', 1_000, 500);
+test('estimateCostUsd calculates Gemini 2.5 Flash pricing', () => {
+  const estimate = estimateCostUsd('google', 'gemini-2.5-flash', 1_000, 500);
 
-  assert.equal(estimate, 0.0003);
+  assert.equal(estimate, 0.00155);
 });
 
 test('estimateCostUsd calculates Gemini 2.5 Pro pricing', () => {
   const estimate = estimateCostUsd('google', 'gemini-2.5-pro', 1_000, 500);
 
   assert.equal(estimate, 0.00625);
+});
+
+test('estimateCostUsd calculates Gemini 2.5 Flash-Lite pricing', () => {
+  const estimate = estimateCostUsd('google', 'gemini-2.5-flash-lite', 1_000, 500);
+
+  assert.equal(estimate, 0.0003);
 });
 
 test('estimateCostUsd returns null for unknown Gemini models', () => {

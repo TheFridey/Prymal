@@ -1,0 +1,2519 @@
+TAP version 13
+# Subtest: every agent prompt example matches its structured output contract
+ok 1 - every agent prompt example matches its structured output contract
+  ---
+  duration_ms: 40.4708
+  ...
+# Subtest: getRuntimeAgentContract normalizes blocked tools and memory scopes for ledger
+ok 2 - getRuntimeAgentContract normalizes blocked tools and memory scopes for ledger
+  ---
+  duration_ms: 8.5057
+  ...
+# Subtest: validateContractToolUsage rejects blocked and non-allowlisted tools
+ok 3 - validateContractToolUsage rejects blocked and non-allowlisted tools
+  ---
+  duration_ms: 0.9708
+  ...
+# Subtest: buildRuntimeContractSummary exposes runtime enforcement fields
+ok 4 - buildRuntimeContractSummary exposes runtime enforcement fields
+  ---
+  duration_ms: 4.0049
+  ...
+# Subtest: cipher contract keeps workflow memory out of read scope
+ok 5 - cipher contract keeps workflow memory out of read scope
+  ---
+  duration_ms: 0.6689
+  ...
+# Subtest: isStrictRuntimeAgent flags the expanded high-value contract set
+ok 6 - isStrictRuntimeAgent flags the expanded high-value contract set
+  ---
+  duration_ms: 3.6265
+  ...
+# Subtest: atlas runtime contract enforces strict runtime + structured output policy
+ok 7 - atlas runtime contract enforces strict runtime + structured output policy
+  ---
+  duration_ms: 0.354
+  ...
+# Subtest: validateContractToolUsage on strict agents rejects non-allowlisted tools
+ok 8 - validateContractToolUsage on strict agents rejects non-allowlisted tools
+  ---
+  duration_ms: 4.9099
+  ...
+# [ENV] Live Stripe credentials are paired with localhost app or API URLs in development; do not run checkout or webhook lifecycle tests against this environment.
+# Subtest: shouldLoadEnvFile skips backend .env loading in test mode
+ok 9 - shouldLoadEnvFile skips backend .env loading in test mode
+  ---
+  duration_ms: 10.155
+  ...
+# Subtest: loadBackendEnv does not load backend .env automatically during tests
+ok 10 - loadBackendEnv does not load backend .env automatically during tests
+  ---
+  duration_ms: 6.1508
+  ...
+# Subtest: bootstrapRuntimeEnv allows placeholder values in test mode without throwing
+ok 11 - bootstrapRuntimeEnv allows placeholder values in test mode without throwing
+  ---
+  duration_ms: 16.352
+  ...
+# Subtest: validateRuntimeEnv enforces placeholder protection in strict runtime modes
+ok 12 - validateRuntimeEnv enforces placeholder protection in strict runtime modes
+  ---
+  duration_ms: 6.9873
+  ...
+# Subtest: validateRuntimeEnv allows optional placeholder Stripe and encryption values in development
+ok 13 - validateRuntimeEnv allows optional placeholder Stripe and encryption values in development
+  ---
+  duration_ms: 10.8781
+  ...
+# Subtest: validateRuntimeEnv warns when SENTRY_DSN is configured with an invalid value
+ok 14 - validateRuntimeEnv warns when SENTRY_DSN is configured with an invalid value
+  ---
+  duration_ms: 16.1467
+  ...
+# Subtest: validateRuntimeEnv warns instead of throwing when development uses live Stripe with localhost URLs
+ok 15 - validateRuntimeEnv warns instead of throwing when development uses live Stripe with localhost URLs
+  ---
+  duration_ms: 7.6185
+  ...
+# Subtest: getMemorySessionTtlHours falls back to 24 hours when unset or invalid
+ok 16 - getMemorySessionTtlHours falls back to 24 hours when unset or invalid
+  ---
+  duration_ms: 8.091
+  ...
+# Subtest: validateRuntimeEnv requires a real encryption key when OAuth integrations are configured
+ok 17 - validateRuntimeEnv requires a real encryption key when OAuth integrations are configured
+  ---
+  duration_ms: 7.6211
+  ...
+# Subtest: validateRuntimeEnv blocks live video environments from using local media storage without override
+ok 18 - validateRuntimeEnv blocks live video environments from using local media storage without override
+  ---
+  duration_ms: 8.3224
+  ...
+# Subtest: bootstrapRuntimeEnv blocks production startup when local media storage is configured
+ok 19 - bootstrapRuntimeEnv blocks production startup when local media storage is configured
+  ---
+  duration_ms: 19.7058
+  ...
+# Subtest: bootstrapRuntimeEnv allows production startup with Cloudinary media storage configured
+ok 20 - bootstrapRuntimeEnv allows production startup with Cloudinary media storage configured
+  ---
+  duration_ms: 13.2266
+  ...
+# Subtest: bootstrapRuntimeEnv throws in development when strict validation fails
+ok 21 - bootstrapRuntimeEnv throws in development when strict validation fails
+  ---
+  duration_ms: 6.3159
+  ...
+# Subtest: getEnvironmentMode recognizes staging
+ok 22 - getEnvironmentMode recognizes staging
+  ---
+  duration_ms: 3.2016
+  ...
+# Subtest: runtime helpers classify env modes correctly
+ok 23 - runtime helpers classify env modes correctly
+  ---
+  duration_ms: 2.0232
+  ...
+# Subtest: staging validation rejects localhost URLs and live Stripe keys
+ok 24 - staging validation rejects localhost URLs and live Stripe keys
+  ---
+  duration_ms: 4.4682
+  ...
+# Subtest: production validation rejects test Clerk keys
+ok 25 - production validation rejects test Clerk keys
+  ---
+  duration_ms: 3.6826
+  ...
+# Subtest: well-formed staging env passes runtime validation
+ok 26 - well-formed staging env passes runtime validation
+  ---
+  duration_ms: 1.2494
+  ...
+# Subtest: requireRole blocks members from admin-only actions
+ok 27 - requireRole blocks members from admin-only actions
+  ---
+  duration_ms: 9.6488
+  ...
+# Subtest: requireRole allows owners through
+ok 28 - requireRole allows owners through
+  ---
+  duration_ms: 5.1744
+  ...
+# Subtest: requireStaffPermission blocks support users from org mutation actions
+ok 29 - requireStaffPermission blocks support users from org mutation actions
+  ---
+  duration_ms: 0.7971
+  ...
+# Subtest: requireOrg returns 401 when Clerk auth context is missing
+ok 30 - requireOrg returns 401 when Clerk auth context is missing
+  ---
+  duration_ms: 0.9107
+  ...
+# [AUTH] Billing snapshot lookup failed in requireOrg: Failed query: select "id", "org_id", "plan", "status", "billing_interval", "current_period_start", "current_period_end", "last_reset_at", "execution_included_balance", "execution_purchased_balance", "execution_reserved_balance", "video_included_balance", "video_purchased_balance", "video_reserved_balance", "cumulative_revenue_gbp", "cumulative_estimated_cost_usd", "cumulative_estimated_cost_gbp", "cost_guard_state", "metadata", "created_at", "updated_at" from "subscriptions" "subscriptions" where "subscriptions"."org_id" = $1 limit $2
+# params: 00000000-0000-0000-0000-000000000001,1
+# Subtest: requireOrg populates org context when Clerk auth is valid in the test harness
+ok 31 - requireOrg populates org context when Clerk auth is valid in the test harness
+  ---
+  duration_ms: 195.7025
+  ...
+# Subtest: createRateLimiter allows requests until the fixed window limit is exceeded
+ok 32 - createRateLimiter allows requests until the fixed window limit is exceeded
+  ---
+  duration_ms: 125.0599
+  ...
+# Subtest: MemoryRateLimitStore resets counts after the window expires
+ok 33 - MemoryRateLimitStore resets counts after the window expires
+  ---
+  duration_ms: 27.2484
+  ...
+# Subtest: planAwareRateLimit skips the route cap when agency plan config is null
+ok 34 - planAwareRateLimit skips the route cap when agency plan config is null
+  ---
+  duration_ms: 12.225
+  ...
+# Subtest: planAwareRateLimit enforces the free plan limit
+ok 35 - planAwareRateLimit enforces the free plan limit
+  ---
+  duration_ms: 12.0629
+  ...
+# Subtest: planAwareRateLimit returns rate limit headers when a plan limit is applied
+ok 36 - planAwareRateLimit returns rate limit headers when a plan limit is applied
+  ---
+  duration_ms: 19.3181
+  ...
+# Subtest: planAwareRateLimit 429 response includes upgrade metadata
+ok 37 - planAwareRateLimit 429 response includes upgrade metadata
+  ---
+  duration_ms: 12.5449
+  ...
+# Subtest: requestContext preserves a valid forwarded request id
+ok 38 - requestContext preserves a valid forwarded request id
+  ---
+  duration_ms: 134.3533
+  ...
+# Subtest: requestContext generates a request id when the header is invalid
+ok 39 - requestContext generates a request id when the header is invalid
+  ---
+  duration_ms: 13.2397
+  ...
+# Subtest: securityHeaders adds default hardening headers
+ok 40 - securityHeaders adds default hardening headers
+  ---
+  duration_ms: 19.9139
+  ...
+# Subtest: buildGrowthSnapshot returns activation, lore, power-user, and inactivity signals
+ok 41 - buildGrowthSnapshot returns activation, lore, power-user, and inactivity signals
+  ---
+  duration_ms: 76.9091
+  ...
+# Subtest: admin security endpoints are mounted behind staff auth
+ok 42 - admin security endpoints are mounted behind staff auth
+  ---
+  duration_ms: 53.4889
+  ...
+# Subtest: admin security metadata sanitizer removes raw unsafe content recursively
+ok 43 - admin security metadata sanitizer removes raw unsafe content recursively
+  ---
+  duration_ms: 3.6707
+  ...
+# Subtest: dispatchWaitlistBatchInvite queues invite emails, updates invitedAt, and records a single admin receipt
+ok 44 - dispatchWaitlistBatchInvite queues invite emails, updates invitedAt, and records a single admin receipt
+  ---
+  duration_ms: 7.7076
+  ...
+# Subtest: dispatchWaitlistBatchInvite skips waitlist entries that were already invited
+ok 45 - dispatchWaitlistBatchInvite skips waitlist entries that were already invited
+  ---
+  duration_ms: 3.9403
+  ...
+# Subtest: waitlist batch invite returns 400 when ids is empty
+ok 46 - waitlist batch invite returns 400 when ids is empty
+  ---
+  duration_ms: 30.9183
+  ...
+# Subtest: waitlist batch invite returns 400 when ids exceeds the maximum batch size
+ok 47 - waitlist batch invite returns 400 when ids exceeds the maximum batch size
+  ---
+  duration_ms: 18.3382
+  ...
+# Subtest: conversationMatchesRequestedAgent returns true for matching agent lanes
+ok 48 - conversationMatchesRequestedAgent returns true for matching agent lanes
+  ---
+  duration_ms: 10.1341
+  ...
+# Subtest: buildConversationAgentMismatchResponse returns a typed conflict for mismatched agent lanes
+ok 49 - buildConversationAgentMismatchResponse returns a typed conflict for mismatched agent lanes
+  ---
+  duration_ms: 3.9679
+  ...
+# Subtest: assertInvitationEligibility rejects mismatched invitation emails
+ok 50 - assertInvitationEligibility rejects mismatched invitation emails
+  ---
+  duration_ms: 2.4365
+  ...
+# Subtest: assertInvitationEligibility rejects cross-org account joins
+ok 51 - assertInvitationEligibility rejects cross-org account joins
+  ---
+  duration_ms: 0.438
+  ...
+# Subtest: webhook with missing stripe-signature returns 400
+ok 52 - webhook with missing stripe-signature returns 400
+  ---
+  duration_ms: 25.2191
+  ...
+# Subtest: webhook with malformed stripe-signature returns 400
+ok 53 - webhook with malformed stripe-signature returns 400
+  ---
+  duration_ms: 7.8171
+  ...
+# Subtest: valid billing plans are solo, pro, teams, and agency
+ok 54 - valid billing plans are solo, pro, teams, and agency
+  ---
+  duration_ms: 1.293
+  ...
+# Subtest: valid billing intervals are monthly, quarterly, and yearly
+ok 55 - valid billing intervals are monthly, quarterly, and yearly
+  ---
+  duration_ms: 0.4779
+  ...
+# Subtest: checkout uses Founding Access price only when eligibility is active
+ok 56 - checkout uses Founding Access price only when eligibility is active
+  ---
+  duration_ms: 0.3721
+  ...
+# Subtest: checkout validation rejects direct legacy Agency price attempts
+ok 57 - checkout validation rejects direct legacy Agency price attempts
+  ---
+  duration_ms: 0.7768
+  ...
+# Subtest: checkout validation accepts the current server-selected Agency price
+ok 58 - checkout validation accepts the current server-selected Agency price
+  ---
+  duration_ms: 0.5852
+  ...
+# Subtest: checkout validation rejects non-catalog price IDs
+ok 59 - checkout validation rejects non-catalog price IDs
+  ---
+  duration_ms: 0.5345
+  ...
+# Subtest: webhook price resolution keeps legacy Agency mapping without checkout exposure
+ok 60 - webhook price resolution keeps legacy Agency mapping without checkout exposure
+  ---
+  duration_ms: 2.7449
+  ...
+# Subtest: learning signals endpoint is wired through org authentication
+ok 61 - learning signals endpoint is wired through org authentication
+  ---
+  duration_ms: 2.855
+  ...
+# Subtest: org authentication blocks unauthenticated learning signal requests before route handlers run
+ok 62 - org authentication blocks unauthenticated learning signal requests before route handlers run
+  ---
+  duration_ms: 1.016
+  ...
+# Subtest: GET /api/usage/summary is wired behind org authentication
+ok 63 - GET /api/usage/summary is wired behind org authentication
+  ---
+  duration_ms: 2.8254
+  ...
+# Subtest: GET /api/usage/summary returns 401 without auth
+ok 64 - GET /api/usage/summary returns 401 without auth
+  ---
+  duration_ms: 1.5374
+  ...
+# Subtest: GET /api/usage/summary exposes the expected authenticated response shape
+ok 65 - GET /api/usage/summary exposes the expected authenticated response shape
+  ---
+  duration_ms: 3.2572
+  ...
+# Subtest: usage period normalization supports week month and all only
+ok 66 - usage period normalization supports week month and all only
+  ---
+  duration_ms: 0.8462
+  ...
+# Subtest: usage all-time period uses epoch start and current end
+ok 67 - usage all-time period uses epoch start and current end
+  ---
+  duration_ms: 0.5145
+  ...
+# Subtest: usage weekly period uses a rolling seven day window
+ok 68 - usage weekly period uses a rolling seven day window
+  ---
+  duration_ms: 0.5278
+  ...
+# Subtest: GET /api/usage/breakdown returns byAgent and byWorkflow shapes
+ok 69 - GET /api/usage/breakdown returns byAgent and byWorkflow shapes
+  ---
+  duration_ms: 2.1907
+  ...
+# Subtest: executeAction routes to correct handler and returns success shape
+ok 70 - executeAction routes to correct handler and returns success shape
+  ---
+  duration_ms: 12.5941
+  ...
+# Subtest: isKnownActionType returns true for supported types
+ok 71 - isKnownActionType returns true for supported types
+  ---
+  duration_ms: 5.1305
+  ...
+# Subtest: isKnownActionType returns false for unknown types
+ok 72 - isKnownActionType returns false for unknown types
+  ---
+  duration_ms: 0.5018
+  ...
+# Subtest: getSupportedActionTypes returns an array with all known types
+ok 73 - getSupportedActionTypes returns an array with all known types
+  ---
+  duration_ms: 1.1964
+  ...
+# Subtest: executeAction returns UNKNOWN_ACTION_TYPE for unregistered type
+ok 74 - executeAction returns UNKNOWN_ACTION_TYPE for unregistered type
+  ---
+  duration_ms: 0.3725
+  ...
+# Subtest: executeAction catches handler errors without throwing to caller
+ok 75 - executeAction catches handler errors without throwing to caller
+  ---
+  duration_ms: 149.8859
+  ...
+# Subtest: email bulk block policy fires for more than 5 recipients
+ok 76 - email bulk block policy fires for more than 5 recipients
+  ---
+  duration_ms: 7.0617
+  ...
+# Subtest: email bulk block does NOT fire for 5 or fewer recipients
+ok 77 - email bulk block does NOT fire for 5 or fewer recipients
+  ---
+  duration_ms: 0.3789
+  ...
+# Subtest: slack DM is blocked by slack_dm_block policy
+ok 78 - slack DM is blocked by slack_dm_block policy
+  ---
+  duration_ms: 0.8272
+  ...
+# Subtest: slack public channel triggers require_approval not block
+ok 79 - slack public channel triggers require_approval not block
+  ---
+  duration_ms: 0.7508
+  ...
+# Subtest: unknown action type returns policy allow (no matching policies)
+ok 80 - unknown action type returns policy allow (no matching policies)
+  ---
+  duration_ms: 1.2663
+  ...
+# Subtest: executeAction returns UNKNOWN_ACTION_TYPE for unregistered type
+ok 81 - executeAction returns UNKNOWN_ACTION_TYPE for unregistered type
+  ---
+  duration_ms: 0.7686
+  ...
+# Subtest: executeAction returns blocked: true without calling handler when policy is block
+ok 82 - executeAction returns blocked: true without calling handler when policy is block
+  ---
+  duration_ms: 0.6381
+  ...
+# Subtest: executeAction returns awaitingApproval: true when require_approval with no token
+ok 83 - executeAction returns awaitingApproval: true when require_approval with no token
+  ---
+  duration_ms: 135.0308
+  ...
+# Subtest: executeAction returns approval_token_invalid for an expired or missing token
+ok 84 - executeAction returns approval_token_invalid for an expired or missing token
+  ---
+  duration_ms: 8.0675
+  ...
+# Subtest: executeAction returns oauth_not_connected when no integration is stored
+ok 85 - executeAction returns oauth_not_connected when no integration is stored
+  ---
+  duration_ms: 3.0162
+  ...
+# Subtest: executeAction never throws — always returns structured result
+ok 86 - executeAction never throws — always returns structured result
+  ---
+  duration_ms: 5.1961
+  ...
+# Subtest: getPendingApprovals returns empty array when database is unavailable
+ok 87 - getPendingApprovals returns empty array when database is unavailable
+  ---
+  duration_ms: 13.5773
+  ...
+# Subtest: evaluateActionPolicy returns allow for drive.write with small content
+ok 88 - evaluateActionPolicy returns allow for drive.write with small content
+  ---
+  duration_ms: 0.5222
+  ...
+# Subtest: isKnownActionType returns correct booleans
+ok 89 - isKnownActionType returns correct booleans
+  ---
+  duration_ms: 0.219
+  ...
+# Subtest: extractStructuredJson parses fenced JSON payloads
+ok 90 - extractStructuredJson parses fenced JSON payloads
+  ---
+  duration_ms: 9.9474
+  ...
+# Subtest: validateAgentOutput passes valid ledger structured output
+ok 91 - validateAgentOutput passes valid ledger structured output
+  ---
+  duration_ms: 3.8393
+  ...
+# Subtest: validateAgentOutput repairs missing sentinel review fields
+ok 92 - validateAgentOutput repairs missing sentinel review fields
+  ---
+  duration_ms: 3.2625
+  ...
+# Subtest: validateAgentOutput passes valid lore source digest output
+ok 93 - validateAgentOutput passes valid lore source digest output
+  ---
+  duration_ms: 0.7302
+  ...
+# Subtest: validateAgentOutput repairs lore output with defaults when JSON block is missing
+ok 94 - validateAgentOutput repairs lore output with defaults when JSON block is missing
+  ---
+  duration_ms: 1.0559
+  ...
+# Subtest: validateAgentOutput repairs sage strategy aliases into the decision memo schema
+ok 95 - validateAgentOutput repairs sage strategy aliases into the decision memo schema
+  ---
+  duration_ms: 4.5452
+  ...
+# Subtest: validateAgentOutput normalizes sage enum-like values into allowed schema enums
+ok 96 - validateAgentOutput normalizes sage enum-like values into allowed schema enums
+  ---
+  duration_ms: 3.7015
+  ...
+# Subtest: buildSchemaRepairPrompt includes schema id and validation failures
+ok 97 - buildSchemaRepairPrompt includes schema id and validation failures
+  ---
+  duration_ms: 0.7769
+  ...
+# Subtest: runSemanticValidators flags ledger arithmetic mismatch as a block
+ok 98 - runSemanticValidators flags ledger arithmetic mismatch as a block
+  ---
+  duration_ms: 0.9211
+  ...
+# Subtest: runSemanticValidators tolerates ledger rounding noise within 5 percent
+ok 99 - runSemanticValidators tolerates ledger rounding noise within 5 percent
+  ---
+  duration_ms: 3.3891
+  ...
+# Subtest: runSemanticValidators blocks ledger when forecasts are empty
+ok 100 - runSemanticValidators blocks ledger when forecasts are empty
+  ---
+  duration_ms: 1.6268
+  ...
+# Subtest: runSemanticValidators blocks cipher when recommendations are all boilerplate
+ok 101 - runSemanticValidators blocks cipher when recommendations are all boilerplate
+  ---
+  duration_ms: 1.3202
+  ...
+# Subtest: runSemanticValidators blocks vance when score and stage are inconsistent
+ok 102 - runSemanticValidators blocks vance when score and stage are inconsistent
+  ---
+  duration_ms: 1.0077
+  ...
+# Subtest: runSemanticValidators blocks herald when sendDays go backwards
+ok 103 - runSemanticValidators blocks herald when sendDays go backwards
+  ---
+  duration_ms: 1.5405
+  ...
+# Subtest: runSemanticValidators blocks nexus edges referencing unknown nodes
+ok 104 - runSemanticValidators blocks nexus edges referencing unknown nodes
+  ---
+  duration_ms: 0.3725
+  ...
+# Subtest: runSemanticValidators is a no-op for agents without a semantic validator
+ok 105 - runSemanticValidators is a no-op for agents without a semantic validator
+  ---
+  duration_ms: 2.4955
+  ...
+# Subtest: validateAgentOutput surfaces semantic blocks via the verdict path
+ok 106 - validateAgentOutput surfaces semantic blocks via the verdict path
+  ---
+  duration_ms: 1.1216
+  ...
+# Subtest: createSchemaValidationError preserves structured metadata
+ok 107 - createSchemaValidationError preserves structured metadata
+  ---
+  duration_ms: 0.3332
+  ...
+# Subtest: buildAgentScorecards aggregates governance, repair, and fallback metrics per agent
+ok 108 - buildAgentScorecards aggregates governance, repair, and fallback metrics per agent
+  ---
+  duration_ms: 8.4464
+  ...
+# Subtest: enrichAdminEconomicsDashboard aggregates ledger splits and burn alerts
+ok 109 - enrichAdminEconomicsDashboard aggregates ledger splits and burn alerts
+  ---
+  duration_ms: 8.2171
+  ...
+# Subtest: execution burn uses deterministic context and agent multipliers
+ok 110 - execution burn uses deterministic context and agent multipliers
+  ---
+  duration_ms: 10.7943
+  ...
+# Subtest: execution burn rounds up when high-context multi-agent work crosses fractional boundaries
+ok 111 - execution burn rounds up when high-context multi-agent work crosses fractional boundaries
+  ---
+  duration_ms: 0.4025
+  ...
+# Subtest: video burn rounds up and applies 1080p surcharge
+ok 112 - video burn rounds up and applies 1080p surcharge
+  ---
+  duration_ms: 2.2764
+  ...
+# Subtest: standard veo mode scales video credits to the higher provider cost
+ok 113 - standard veo mode scales video credits to the higher provider cost
+  ---
+  duration_ms: 0.854
+  ...
+# Subtest: veo validation rejects unsupported durations
+ok 114 - veo validation rejects unsupported durations
+  ---
+  duration_ms: 4.0187
+  ...
+# Subtest: veo validation rejects 1080p on non-8-second renders
+ok 115 - veo validation rejects 1080p on non-8-second renders
+  ---
+  duration_ms: 0.2515
+  ...
+# Subtest: lite veo mode rejects reference images
+ok 116 - lite veo mode rejects reference images
+  ---
+  duration_ms: 0.5017
+  ...
+# Subtest: standard veo reference renders require an 8-second clip
+ok 117 - standard veo reference renders require an 8-second clip
+  ---
+  duration_ms: 0.3292
+  ...
+# Subtest: veo validation enforces the max retry limit
+ok 118 - veo validation enforces the max retry limit
+  ---
+  duration_ms: 2.6011
+  ...
+# Subtest: threshold presentation blocks at 100 percent
+ok 119 - threshold presentation blocks at 100 percent
+  ---
+  duration_ms: 4.5049
+  ...
+# Subtest: threshold presentation reaches modal tier at ~95 percent
+ok 120 - threshold presentation reaches modal tier at ~95 percent
+  ---
+  duration_ms: 1.0139
+  ...
+# Subtest: soft banner tier begins at ~70 percent
+ok 121 - soft banner tier begins at ~70 percent
+  ---
+  duration_ms: 3.3629
+  ...
+# Subtest: strong banner tier begins at ~85 percent
+ok 122 - strong banner tier begins at ~85 percent
+  ---
+  duration_ms: 0.3146
+  ...
+# Subtest: heavy usage flags rapid burn and repeated maxed video posture
+ok 123 - heavy usage flags rapid burn and repeated maxed video posture
+  ---
+  duration_ms: 0.4084
+  ...
+# Subtest: cost guard triggers when estimated cost exceeds conservative revenue contribution threshold
+ok 124 - cost guard triggers when estimated cost exceeds conservative revenue contribution threshold
+  ---
+  duration_ms: 0.3633
+  ...
+# Subtest: Agency standard list price is £299/mo in catalog
+ok 125 - Agency standard list price is £299/mo in catalog
+  ---
+  duration_ms: 0.1939
+  ...
+# Subtest: internal monthly burn cap defaults match commercial policy
+ok 126 - internal monthly burn cap defaults match commercial policy
+  ---
+  duration_ms: 3.4362
+  ...
+# Subtest: catalog serialization exposes packs, video modes, and fair usage summary
+ok 127 - catalog serialization exposes packs, video modes, and fair usage summary
+  ---
+  duration_ms: 0.911
+  ...
+# Subtest: catalog marks preferred packs separately from legacy pack compatibility
+ok 128 - catalog marks preferred packs separately from legacy pack compatibility
+  ---
+  duration_ms: 2.375
+  ...
+# Subtest: shouldApplyStripeSubscriptionEvent skips duplicate and stale Stripe subscription events
+ok 129 - shouldApplyStripeSubscriptionEvent skips duplicate and stale Stripe subscription events
+  ---
+  duration_ms: 7.6716
+  ...
+# Subtest: setSubscriptionPlan does not reset balances for stale Stripe events
+ok 130 - setSubscriptionPlan does not reset balances for stale Stripe events
+  ---
+  duration_ms: 2.2092
+  ...
+# Subtest: setSubscriptionPlan records same-plan Stripe updates without resetting credits
+ok 131 - setSubscriptionPlan records same-plan Stripe updates without resetting credits
+  ---
+  duration_ms: 4.3501
+  ...
+# Subtest: updateSubscriptionBillingStatus records payment failure without resetting credits
+ok 132 - updateSubscriptionBillingStatus records payment failure without resetting credits
+  ---
+  duration_ms: 1.1316
+  ...
+# Subtest: video preflight returns VIDEO_CREDITS_REQUIRED before concurrency for zero-entitlement plans
+ok 133 - video preflight returns VIDEO_CREDITS_REQUIRED before concurrency for zero-entitlement plans
+  ---
+  duration_ms: 5.3642
+  ...
+# Subtest: video credit availability uses exhausted copy once a plan has video allowance
+ok 134 - video credit availability uses exhausted copy once a plan has video allowance
+  ---
+  duration_ms: 0.5642
+  ...
+# Subtest: daily cap excludes both released and failed jobs so provider failures do not consume capacity
+ok 135 - daily cap excludes both released and failed jobs so provider failures do not consume capacity
+  ---
+  duration_ms: 39.2552
+  ...
+# Subtest: getBillingPeriodWindow uses subscription period when present
+ok 136 - getBillingPeriodWindow uses subscription period when present
+  ---
+  duration_ms: 7.7453
+  ...
+# Subtest: getBillingPeriodWindow falls back to current calendar month
+ok 137 - getBillingPeriodWindow falls back to current calendar month
+  ---
+  duration_ms: 4.0545
+  ...
+# Subtest: isWithinBillingPeriod excludes old ledger events and includes current-cycle events
+ok 138 - isWithinBillingPeriod excludes old ledger events and includes current-cycle events
+  ---
+  duration_ms: 0.7013
+  ...
+# Subtest: legacy Agency Stripe price IDs are treated as forbidden for new checkout
+ok 139 - legacy Agency Stripe price IDs are treated as forbidden for new checkout
+  ---
+  duration_ms: 8.6204
+  ...
+# Subtest: workflows schema includes contractEnforced field with false default
+ok 140 - workflows schema includes contractEnforced field with false default
+  ---
+  duration_ms: 4.662
+  ...
+# Subtest: contractEnforced defaults to false in schema definition
+ok 141 - contractEnforced defaults to false in schema definition
+  ---
+  duration_ms: 1.739
+  ...
+# Subtest: contract validation error response has correct shape
+ok 142 - contract validation error response has correct shape
+  ---
+  duration_ms: 0.4108
+  ...
+# Subtest: workflow without contractEnforced flag uses legacy runner path
+ok 143 - workflow without contractEnforced flag uses legacy runner path
+  ---
+  duration_ms: 1.5231
+  ...
+# Subtest: new workflow with contractEnforced=true uses enforcement path
+ok 144 - new workflow with contractEnforced=true uses enforcement path
+  ---
+  duration_ms: 0.257
+  ...
+# Subtest: strict workflow definitions reject cycles and implicit upstream state
+ok 145 - strict workflow definitions reject cycles and implicit upstream state
+  ---
+  duration_ms: 36.7033
+  ...
+# Subtest: deterministic engine injects top-k LORE context and records a complete trace
+ok 146 - deterministic engine injects top-k LORE context and records a complete trace
+  ---
+  duration_ms: 53.4621
+  ...
+# Subtest: WARDEN policy is evaluated before runtime execution
+ok 147 - WARDEN policy is evaluated before runtime execution
+  ---
+  duration_ms: 12.8942
+  ...
+# Subtest: invalid outputs retry, use fallback, and keep the workflow recoverable
+ok 148 - invalid outputs retry, use fallback, and keep the workflow recoverable
+  ---
+  duration_ms: 34.2221
+  ...
+# Subtest: tool usage outside allowed_tools degrades the node without silent success
+ok 149 - tool usage outside allowed_tools degrades the node without silent success
+  ---
+  duration_ms: 11.1395
+  ...
+# Subtest: control-plane shadow evaluation completes for a valid legacy workflow fixture
+ok 150 - control-plane shadow evaluation completes for a valid legacy workflow fixture
+  ---
+  duration_ms: 27.1309
+  ...
+# Subtest: control-plane shadow accepts legacy workflows with upstream dependencies
+ok 151 - control-plane shadow accepts legacy workflows with upstream dependencies
+  ---
+  duration_ms: 9.021
+  ...
+# Subtest: control-plane shadow evaluation records violations for malformed legacy workflows without throwing
+ok 152 - control-plane shadow evaluation records violations for malformed legacy workflows without throwing
+  ---
+  duration_ms: 5.8504
+  ...
+# Subtest: control-plane shadow safe wrapper never throws into the caller
+ok 153 - control-plane shadow safe wrapper never throws into the caller
+  ---
+  duration_ms: 5.7999
+  ...
+# Subtest: every transactional email template renders required fields and safe copy
+ok 154 - every transactional email template renders required fields and safe copy
+  ---
+  duration_ms: 75.8248
+  ...
+# Subtest: template render uses inline email asset CIDs by default
+ok 155 - template render uses inline email asset CIDs by default
+  ---
+  duration_ms: 1.3124
+  ...
+# Subtest: template render falls back safely without explicit Herald avatar URL
+ok 156 - template render falls back safely without explicit Herald avatar URL
+  ---
+  duration_ms: 0.6992
+  ...
+# [EMAIL] Send failed: Provider down
+# [EMAIL] Failed to check email idempotency: database offline
+# Subtest: inline Prymal email assets are attached for cid images
+ok 157 - inline Prymal email assets are attached for cid images
+  ---
+  duration_ms: 35.4286
+  ...
+# Subtest: sendEmail sends via Resend and records a sent email event
+ok 158 - sendEmail sends via Resend and records a sent email event
+  ---
+  duration_ms: 9.3202
+  ...
+# Subtest: sendEmail records failed email events and does not throw
+ok 159 - sendEmail records failed email events and does not throw
+  ---
+  duration_ms: 6.6868
+  ...
+# Subtest: sendEmail still sends if email event idempotency lookup is unavailable
+ok 160 - sendEmail still sends if email event idempotency lookup is unavailable
+  ---
+  duration_ms: 3.2455
+  ...
+# Subtest: sendWelcomeEmail respects sent idempotency events
+ok 161 - sendWelcomeEmail respects sent idempotency events
+  ---
+  duration_ms: 1.4783
+  ...
+# Subtest: sendEmail skips safely when recipient is missing
+ok 162 - sendEmail skips safely when recipient is missing
+  ---
+  duration_ms: 0.6384
+  ...
+# Subtest: free plan has 50 credit limit and 1 seat
+ok 163 - free plan has 50 credit limit and 1 seat
+  ---
+  duration_ms: 6.4086
+  ...
+# Subtest: solo plan has 500 credit limit and 1 seat
+ok 164 - solo plan has 500 credit limit and 1 seat
+  ---
+  duration_ms: 0.5145
+  ...
+# Subtest: pro plan has 2000 credit limit and 1 seat
+ok 165 - pro plan has 2000 credit limit and 1 seat
+  ---
+  duration_ms: 0.2728
+  ...
+# Subtest: teams plan exposes five seats and full agent access
+ok 166 - teams plan exposes five seats and full agent access
+  ---
+  duration_ms: 0.7898
+  ...
+# Subtest: agency plan has 10000 credit limit and 25 seats
+ok 167 - agency plan has 10000 credit limit and 25 seats
+  ---
+  duration_ms: 1.8773
+  ...
+# Subtest: unknown plan falls back to free config
+ok 168 - unknown plan falls back to free config
+  ---
+  duration_ms: 0.4147
+  ...
+# Subtest: free plan can access cipher
+ok 169 - free plan can access cipher
+  ---
+  duration_ms: 0.5698
+  ...
+# Subtest: free plan cannot access sage
+ok 170 - free plan cannot access sage
+  ---
+  duration_ms: 0.3138
+  ...
+# Subtest: solo plan can access lore but not sage
+ok 171 - solo plan can access lore but not sage
+  ---
+  duration_ms: 0.6061
+  ...
+# Subtest: pro plan can access sage
+ok 172 - pro plan can access sage
+  ---
+  duration_ms: 5.3252
+  ...
+# Subtest: agency plan can access all agents
+ok 173 - agency plan can access all agents
+  ---
+  duration_ms: 3.2981
+  ...
+# Subtest: creditsRemaining returns correct remaining value
+ok 174 - creditsRemaining returns correct remaining value
+  ---
+  duration_ms: 0.9157
+  ...
+# Subtest: creditsRemaining clamps at zero when over limit
+ok 175 - creditsRemaining clamps at zero when over limit
+  ---
+  duration_ms: 1.2788
+  ...
+# Subtest: assertCreditsAvailable does not throw when credits remain
+ok 176 - assertCreditsAvailable does not throw when credits remain
+  ---
+  duration_ms: 0.7775
+  ...
+# Subtest: assertCreditsAvailable throws 402 with EXECUTION_CREDITS_EXHAUSTED when at zero
+ok 177 - assertCreditsAvailable throws 402 with EXECUTION_CREDITS_EXHAUSTED when at zero
+  ---
+  duration_ms: 0.2247
+  ...
+# Subtest: assertCreditsAvailable throws when cost exceeds remaining
+ok 178 - assertCreditsAvailable throws when cost exceeds remaining
+  ---
+  duration_ms: 0.1495
+  ...
+# Subtest: evaluateAgentOutput scores grounded source-backed lore output positively
+ok 179 - evaluateAgentOutput scores grounded source-backed lore output positively
+  ---
+  duration_ms: 9.8222
+  ...
+# Subtest: evaluateStructuredOutput detects required JSON output blocks
+ok 180 - evaluateStructuredOutput detects required JSON output blocks
+  ---
+  duration_ms: 1.0707
+  ...
+# Subtest: compareModelRuns aggregates model comparison metrics
+ok 181 - compareModelRuns aggregates model comparison metrics
+  ---
+  duration_ms: 3.2194
+  ...
+# Subtest: Founding Access is active when paid claims are below the cap
+ok 182 - Founding Access is active when paid claims are below the cap
+  ---
+  duration_ms: 9.0047
+  ...
+# Subtest: Founding Access is inactive when paid claims reach the cap
+ok 183 - Founding Access is inactive when paid claims reach the cap
+  ---
+  duration_ms: 3.614
+  ...
+# Subtest: public Founding Access payload does not expose cap or remaining count
+ok 184 - public Founding Access payload does not expose cap or remaining count
+  ---
+  duration_ms: 0.6725
+  ...
+# Subtest: cancelled Founding Access claim prevents automatic founder pricing on later resubscribe
+ok 185 - cancelled Founding Access claim prevents automatic founder pricing on later resubscribe
+  ---
+  duration_ms: 3.4434
+  ...
+# Subtest: duplicate subscription activation does not apply the Founding Access credit boost twice
+ok 186 - duplicate subscription activation does not apply the Founding Access credit boost twice
+  ---
+  duration_ms: 10.0417
+  ...
+# [SCHEDULER] Registered schedule for workflow workflow_inline_activation: 0 9 * * 1
+# [SCHEDULER] Deregistered schedule for workflow workflow_inline_activation.
+# [SCHEDULER] Starting inline cron scheduler...
+# [SCHEDULER] Registered schedule for workflow workflow_active_schedule: 0 9 * * 1
+# [SCHEDULER] Inline scheduler ready. 1 schedule(s) registered.
+# [SCHEDULER] Deregistered schedule for workflow workflow_active_schedule.
+# [SCHEDULER] Inline scheduler stopped.
+# (node:19124) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: registerCron activates inline schedules when Trigger.dev is absent
+ok 187 - registerCron activates inline schedules when Trigger.dev is absent
+  ---
+  duration_ms: 18.6783
+  ...
+# Subtest: startInlineScheduler registers active scheduled workflows using isActive
+ok 188 - startInlineScheduler registers active scheduled workflows using isActive
+  ---
+  duration_ms: 3.9625
+  ...
+# Subtest: scheduled workflow handler loads the real organisation plan for dispatch
+ok 189 - scheduled workflow handler loads the real organisation plan for dispatch
+  ---
+  duration_ms: 4.5192
+  ...
+# Subtest: manual-token integrations stay available without server OAuth env
+ok 190 - manual-token integrations stay available without server OAuth env
+  ---
+  duration_ms: 38.4632
+  ...
+# Subtest: oauth integrations reflect missing server config
+ok 191 - oauth integrations reflect missing server config
+  ---
+  duration_ms: 1.334
+  ...
+# Subtest: settings sanitization keeps only declared integration fields
+ok 192 - settings sanitization keeps only declared integration fields
+  ---
+  duration_ms: 2.2895
+  ...
+# Subtest: meta sanitization trims delivery history and exposes safe health/profile data
+ok 193 - meta sanitization trims delivery history and exposes safe health/profile data
+  ---
+  duration_ms: 1.241
+  ...
+# Subtest: buildDeliveryMeta appends a new delivery receipt and increments publish stats
+ok 194 - buildDeliveryMeta appends a new delivery receipt and increments publish stats
+  ---
+  duration_ms: 0.4313
+  ...
+# Subtest: integration definitions expose sections, auth modes, and publish support for the expanded catalog
+ok 195 - integration definitions expose sections, auth modes, and publish support for the expanded catalog
+  ---
+  duration_ms: 3.1454
+  ...
+# Subtest: calculateLearningSignals returns safe zero and null states for an empty org
+ok 196 - calculateLearningSignals returns safe zero and null states for an empty org
+  ---
+  duration_ms: 6.9467
+  ...
+# Subtest: patternsLearned uses positive feedback, delivery, and repeated real content groups
+ok 197 - patternsLearned uses positive feedback, delivery, and repeated real content groups
+  ---
+  duration_ms: 4.5007
+  ...
+# Subtest: workflowsReusedThisWeek compares current and previous seven day windows
+ok 198 - workflowsReusedThisWeek compares current and previous seven day windows
+  ---
+  duration_ms: 0.7541
+  ...
+# Subtest: topPerformingContentFormat reports low, medium, and high confidence from sample counts
+ok 199 - topPerformingContentFormat reports low, medium, and high confidence from sample counts
+  ---
+  duration_ms: 4.2252
+  ...
+# Subtest: brandVoiceConfidence clamps between zero and one hundred
+ok 200 - brandVoiceConfidence clamps between zero and one hundred
+  ---
+  duration_ms: 5.1702
+  ...
+# Subtest: recentSignals returns newest first and at most five items
+ok 201 - recentSignals returns newest first and at most five items
+  ---
+  duration_ms: 3.4402
+  ...
+# Subtest: getLearningSignalsForOrg uses org-scoped query filters for every source
+ok 202 - getLearningSignalsForOrg uses org-scoped query filters for every source
+  ---
+  duration_ms: 5.4172
+  ...
+# Subtest: estimateModelCostUsd computes provider/model cost estimates
+ok 203 - estimateModelCostUsd computes provider/model cost estimates
+  ---
+  duration_ms: 3.5475
+  ...
+# Subtest: classifyLLMFailure maps common failure classes
+ok 204 - classifyLLMFailure maps common failure classes
+  ---
+  duration_ms: 4.3732
+  ...
+# Subtest: estimateCostUsd calculates Gemini 2.5 Flash pricing
+ok 205 - estimateCostUsd calculates Gemini 2.5 Flash pricing
+  ---
+  duration_ms: 0.4275
+  ...
+# Subtest: estimateCostUsd calculates Gemini 2.5 Pro pricing
+ok 206 - estimateCostUsd calculates Gemini 2.5 Pro pricing
+  ---
+  duration_ms: 0.9725
+  ...
+# Subtest: estimateCostUsd calculates Gemini 2.5 Flash-Lite pricing
+ok 207 - estimateCostUsd calculates Gemini 2.5 Flash-Lite pricing
+  ---
+  duration_ms: 1.3095
+  ...
+# Subtest: estimateCostUsd returns null for unknown Gemini models
+ok 208 - estimateCostUsd returns null for unknown Gemini models
+  ---
+  duration_ms: 0.7989
+  ...
+# (node:20704) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: sanitizeAgentOutputText removes em dashes from generated agent output
+ok 209 - sanitizeAgentOutputText removes em dashes from generated agent output
+  ---
+  duration_ms: 2.0307
+  ...
+# Subtest: sanitizeAgentOutputText leaves non-string values untouched
+ok 210 - sanitizeAgentOutputText leaves non-string values untouched
+  ---
+  duration_ms: 1.5756
+  ...
+# (node:25448) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: upsertEntity does not throw when database is unavailable
+ok 211 - upsertEntity does not throw when database is unavailable
+  ---
+  duration_ms: 174.5659
+  ...
+# Subtest: upsertRelationship does not throw when database is unavailable
+ok 212 - upsertRelationship does not throw when database is unavailable
+  ---
+  duration_ms: 11.0692
+  ...
+# Subtest: getRelatedEntities returns empty array for unknown entity
+ok 213 - getRelatedEntities returns empty array for unknown entity
+  ---
+  duration_ms: 6.006
+  ...
+# Subtest: semanticEntitySearch rejects when OPENAI_API_KEY is absent
+ok 214 - semanticEntitySearch rejects when OPENAI_API_KEY is absent
+  ---
+  duration_ms: 3.3246
+  ...
+# Subtest: extractAndUpsert returns empty array for empty text
+ok 215 - extractAndUpsert returns empty array for empty text
+  ---
+  duration_ms: 1.5558
+  ...
+# Subtest: recordSentinelSignal does not throw when database is unavailable
+ok 216 - recordSentinelSignal does not throw when database is unavailable
+  ---
+  duration_ms: 152.6543
+  ...
+# Subtest: recordSentinelSignal does not throw for PASS verdict
+ok 217 - recordSentinelSignal does not throw for PASS verdict
+  ---
+  duration_ms: 6.5508
+  ...
+# Subtest: updateDocumentQuality returns qualityScore 1 when no signals exist
+ok 218 - updateDocumentQuality returns qualityScore 1 when no signals exist
+  ---
+  duration_ms: 10.8963
+  ...
+# Subtest: getLowQualityDocuments returns empty array when database is unavailable
+ok 219 - getLowQualityDocuments returns empty array when database is unavailable
+  ---
+  duration_ms: 9.53
+  ...
+# Subtest: getLowQualityDocuments returns empty array for org with no signals
+ok 220 - getLowQualityDocuments returns empty array for org with no signals
+  ---
+  duration_ms: 6.0704
+  ...
+# Subtest: Cloudinary storage uploads generated videos with the expected payload
+ok 221 - Cloudinary storage uploads generated videos with the expected payload
+  ---
+  duration_ms: 6.1481
+  ...
+# Subtest: Cloudinary storage converts generated images to WEBP
+ok 222 - Cloudinary storage converts generated images to WEBP
+  ---
+  duration_ms: 1.2901
+  ...
+# Subtest: Cloudinary storage converts video reference images to WEBP
+ok 223 - Cloudinary storage converts video reference images to WEBP
+  ---
+  duration_ms: 1.3889
+  ...
+# Subtest: media storage defaults to local in development when Cloudinary is absent
+ok 224 - media storage defaults to local in development when Cloudinary is absent
+  ---
+  duration_ms: 4.8629
+  ...
+# Subtest: media storage chooses Cloudinary when explicitly configured
+ok 225 - media storage chooses Cloudinary when explicitly configured
+  ---
+  duration_ms: 0.807
+  ...
+# Subtest: production local media storage is rejected by default
+ok 226 - production local media storage is rejected by default
+  ---
+  duration_ms: 1.4881
+  ...
+# Subtest: cloudinary mode requires cloud name, API key, and API secret
+ok 227 - cloudinary mode requires cloud name, API key, and API secret
+  ---
+  duration_ms: 0.7542
+  ...
+# Subtest: production requires explicit Cloudinary driver and folder
+ok 228 - production requires explicit Cloudinary driver and folder
+  ---
+  duration_ms: 0.732
+  ...
+# Subtest: production Cloudinary storage starts when credentials and folder are configured
+ok 229 - production Cloudinary storage starts when credentials and folder are configured
+  ---
+  duration_ms: 3.6975
+  ...
+# Subtest: video job timing config respects new timeout and poll env vars
+ok 230 - video job timing config respects new timeout and poll env vars
+  ---
+  duration_ms: 0.3784
+  ...
+# [MEMORY_PROMOTION] shouldPromote=true target=user:user_preference conf=0.698 review=false detail=explicit_user_instruction; repeated_signal; session_to_durable
+# Subtest: reviewMemoryCandidate rejects obvious secrets
+ok 231 - reviewMemoryCandidate rejects obvious secrets
+  ---
+  duration_ms: 8.5194
+  ...
+# Subtest: evaluateMemoryPromotion promotes repeated session preference
+ok 232 - evaluateMemoryPromotion promotes repeated session preference
+  ---
+  duration_ms: 6.0104
+  ...
+# Subtest: getMemoryPolicyForAgent returns bounded defaults
+ok 233 - getMemoryPolicyForAgent returns bounded defaults
+  ---
+  duration_ms: 0.5081
+  ...
+# (node:15344) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: cosineSimilarity returns 1 for identical vectors
+ok 234 - cosineSimilarity returns 1 for identical vectors
+  ---
+  duration_ms: 2.3117
+  ...
+# Subtest: cosineSimilarity returns 0 for orthogonal vectors
+ok 235 - cosineSimilarity returns 0 for orthogonal vectors
+  ---
+  duration_ms: 1.4675
+  ...
+# Subtest: ruleBasedConflictSignals detects tone polarity mismatch
+ok 236 - ruleBasedConflictSignals detects tone polarity mismatch
+  ---
+  duration_ms: 1.7043
+  ...
+# Subtest: ruleBasedConflictSignals ignores unrelated preferences
+ok 237 - ruleBasedConflictSignals ignores unrelated preferences
+  ---
+  duration_ms: 0.356
+  ...
+# Subtest: pinned memory resists decay
+ok 238 - pinned memory resists decay
+  ---
+  duration_ms: 6.3733
+  ...
+# Subtest: temporary_session memory decays faster than org memory at same age
+ok 239 - temporary_session memory decays faster than org memory at same age
+  ---
+  duration_ms: 2.2109
+  ...
+# Subtest: never_forget enforces floor
+ok 240 - never_forget enforces floor
+  ---
+  duration_ms: 0.804
+  ...
+# Subtest: getTemporarySessionExpiryCutoff defaults to a 24 hour fallback window
+ok 241 - getTemporarySessionExpiryCutoff defaults to a 24 hour fallback window
+  ---
+  duration_ms: 3.2052
+  ...
+# Subtest: pruneExpiredMemory returns a dry-run count without deleting rows
+ok 242 - pruneExpiredMemory returns a dry-run count without deleting rows
+  ---
+  duration_ms: 1.8979
+  ...
+# Subtest: pruneExpiredMemory deletes expired session memory in batches
+ok 243 - pruneExpiredMemory deletes expired session memory in batches
+  ---
+  duration_ms: 1.0578
+  ...
+# (node:8240) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: getAgentMemory prioritises user-scoped memory over org-scoped memory with the same key
+ok 244 - getAgentMemory prioritises user-scoped memory over org-scoped memory with the same key
+  ---
+  duration_ms: 6.2948
+  ...
+# Subtest: getAgentMemory prioritises temporary session memory over user and org memory
+ok 245 - getAgentMemory prioritises temporary session memory over user and org memory
+  ---
+  duration_ms: 1.2378
+  ...
+# Subtest: getAgentMemory includes workflow-run memory for agents permitted to read it
+ok 246 - getAgentMemory includes workflow-run memory for agents permitted to read it
+  ---
+  duration_ms: 1.003
+  ...
+# Subtest: isMemoryEntryReadableByAgent allows cross-agent org and user memory but keeps agent-private memory isolated
+ok 247 - isMemoryEntryReadableByAgent allows cross-agent org and user memory but keeps agent-private memory isolated
+  ---
+  duration_ms: 0.3265
+  ...
+# Subtest: buildSuccessfulPatternsPrompt returns null without history
+ok 248 - buildSuccessfulPatternsPrompt returns null without history
+  ---
+  duration_ms: 2.8955
+  ...
+# Subtest: buildSuccessfulPatternsPrompt keeps historical outcomes as weak priors
+ok 249 - buildSuccessfulPatternsPrompt keeps historical outcomes as weak priors
+  ---
+  duration_ms: 8.2118
+  ...
+# Subtest: getModelCapability resolves known exact models
+ok 250 - getModelCapability resolves known exact models
+  ---
+  duration_ms: 2.6218
+  ...
+# Subtest: scoreCandidateSet prefers Gemini Flash-Lite for low-cost bulk workloads
+ok 251 - scoreCandidateSet prefers Gemini Flash-Lite for low-cost bulk workloads
+  ---
+  duration_ms: 12.1683
+  ...
+# Subtest: buildProviderHealthSummary aggregates hold, repair, and timeout rates
+ok 252 - buildProviderHealthSummary aggregates hold, repair, and timeout rates
+  ---
+  duration_ms: 4.4522
+  ...
+# Subtest: selectExecutionPlan routes grounded research to OpenAI analysis with fallbacks
+not ok 253 - selectExecutionPlan routes grounded research to OpenAI analysis with fallbacks
+  ---
+  duration_ms: 14.6039
+  location: 'C:\\Users\\rhysl\\OneDrive\\Documents\\GitHub\\Prymal\\backend\\src\\services\\model-policy.test.js:31:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'google' !== 'openai'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'openai'
+  actual: 'google'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/rhysl/OneDrive/Documents/GitHub/Prymal/backend/src/services/model-policy.test.js:42:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:934:25)
+    Test.start (node:internal/test_runner/test:833:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:296:17)
+  ...
+# Subtest: grounded_research policy resolves to Gemini when live grounding is enabled
+ok 254 - grounded_research policy resolves to Gemini when live grounding is enabled
+  ---
+  duration_ms: 4.5715
+  ...
+# Subtest: selectExecutionPlan routes workflow mode to workflow automation policy
+ok 255 - selectExecutionPlan routes workflow mode to workflow automation policy
+  ---
+  duration_ms: 2.3108
+  ...
+# Subtest: getFallbackPlan advances through the fallback chain
+ok 256 - getFallbackPlan advances through the fallback chain
+  ---
+  duration_ms: 0.7104
+  ...
+# Subtest: getFallbackPlan annotates fallback metadata for traces
+ok 257 - getFallbackPlan annotates fallback metadata for traces
+  ---
+  duration_ms: 0.55
+  ...
+# Subtest: selectExecutionPlan respects explicit taskType over heuristic text matching
+ok 258 - selectExecutionPlan respects explicit taskType over heuristic text matching
+  ---
+  duration_ms: 1.287
+  ...
+# Subtest: selectExecutionPlan applies per-org policy overrides when present
+ok 259 - selectExecutionPlan applies per-org policy overrides when present
+  ---
+  duration_ms: 0.9154
+  ...
+# Subtest: getOrgModelPolicyOverrides returns parsed org-specific policy config
+ok 260 - getOrgModelPolicyOverrides returns parsed org-specific policy config
+  ---
+  duration_ms: 1.0662
+  ...
+# Subtest: getAnthropicModels returns default model names when env vars are absent
+ok 261 - getAnthropicModels returns default model names when env vars are absent
+  ---
+  duration_ms: 0.9432
+  ...
+# Subtest: getAnthropicModels respects env var overrides
+ok 262 - getAnthropicModels respects env var overrides
+  ---
+  duration_ms: 3.928
+  ...
+# Subtest: getOpenAIModels returns default model names when env vars are absent
+not ok 263 - getOpenAIModels returns default model names when env vars are absent
+  ---
+  duration_ms: 2.1795
+  location: 'C:\\Users\\rhysl\\OneDrive\\Documents\\GitHub\\Prymal\\backend\\src\\services\\model-policy.test.js:214:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'gpt-5.4'
+    - 'gpt-5.5'
+             ^
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'gpt-5.5'
+  actual: 'gpt-5.4'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///C:/Users/rhysl/OneDrive/Documents/GitHub/Prymal/backend/src/services/model-policy.test.js:219:10)
+    Test.runInAsyncScope (node:async_hooks:211:14)
+    Test.run (node:internal/test_runner/test:934:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:633:18)
+    Test.postRun (node:internal/test_runner/test:1045:19)
+    Test.run (node:internal/test_runner/test:973:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:633:7)
+  ...
+# Subtest: hasUsableAnthropicKey returns true for a valid-looking key
+ok 264 - hasUsableAnthropicKey returns true for a valid-looking key
+  ---
+  duration_ms: 0.808
+  ...
+# Subtest: hasUsableAnthropicKey returns false for placeholder values
+ok 265 - hasUsableAnthropicKey returns false for placeholder values
+  ---
+  duration_ms: 0.3962
+  ...
+# Subtest: hasUsableOpenAIKey returns true for a valid-looking key
+ok 266 - hasUsableOpenAIKey returns true for a valid-looking key
+  ---
+  duration_ms: 0.3596
+  ...
+# Subtest: hasUsableOpenAIKey returns false for placeholder values
+ok 267 - hasUsableOpenAIKey returns false for placeholder values
+  ---
+  duration_ms: 0.2342
+  ...
+# Subtest: buildPolicyOutcomeSummary aggregates runs by policy key
+ok 268 - buildPolicyOutcomeSummary aggregates runs by policy key
+  ---
+  duration_ms: 1.1118
+  ...
+# Subtest: buildPolicyOutcomeSummary returns empty array for no rows
+ok 269 - buildPolicyOutcomeSummary returns empty array for no rows
+  ---
+  duration_ms: 0.8488
+  ...
+# Subtest: hasUsableGeminiKey returns true for a valid-looking key
+ok 270 - hasUsableGeminiKey returns true for a valid-looking key
+  ---
+  duration_ms: 0.1533
+  ...
+# Subtest: hasUsableGeminiKey returns false for placeholder or missing values
+ok 271 - hasUsableGeminiKey returns false for placeholder or missing values
+  ---
+  duration_ms: 0.2749
+  ...
+# Subtest: getGeminiModels returns default model names when env vars are absent
+ok 272 - getGeminiModels returns default model names when env vars are absent
+  ---
+  duration_ms: 0.1603
+  ...
+# Subtest: detectProviderFromModel returns google for gemini models, openai for gpt, anthropic otherwise
+ok 273 - detectProviderFromModel returns google for gemini models, openai for gpt, anthropic otherwise
+  ---
+  duration_ms: 0.5128
+  ...
+# Subtest: runtime provider health snapshot tracks live routing signals
+ok 274 - runtime provider health snapshot tracks live routing signals
+  ---
+  duration_ms: 3.5923
+  ...
+# Subtest: createRealtimeSessionToken returns the ephemeral client secret and expiry
+ok 275 - createRealtimeSessionToken returns the ephemeral client secret and expiry
+  ---
+  duration_ms: 52.1632
+  ...
+# Subtest: createRealtimeSessionToken throws a configured error when OpenAI rejects the request
+ok 276 - createRealtimeSessionToken throws a configured error when OpenAI rejects the request
+  ---
+  duration_ms: 3.3884
+  ...
+# Subtest: getVeoVideoModel selects the standard lane when requested
+ok 277 - getVeoVideoModel selects the standard lane when requested
+  ---
+  duration_ms: 2.02
+  ...
+# Subtest: startJob includes the default negative prompt for text-only renders
+ok 278 - startJob includes the default negative prompt for text-only renders
+  ---
+  duration_ms: 5
+  ...
+# Subtest: startJob omits the negative prompt when reference images are attached
+ok 279 - startJob omits the negative prompt when reference images are attached
+  ---
+  duration_ms: 1.0378
+  ...
+# Subtest: startJob omits the negative prompt when useNegativePrompt is false
+ok 280 - startJob omits the negative prompt when useNegativePrompt is false
+  ---
+  duration_ms: 0.9558
+  ...
+# Subtest: buildVeoVideoPrompt adds legibility guardrails for text-heavy briefs
+ok 281 - buildVeoVideoPrompt adds legibility guardrails for text-heavy briefs
+  ---
+  duration_ms: 0.827
+  ...
+# (node:26664) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: computeFreshnessScore prefers recently verified documents
+ok 282 - computeFreshnessScore prefers recently verified documents
+  ---
+  duration_ms: 4.559
+  ...
+# Subtest: computeAuthorityScore rewards verified trusted sources and penalizes contradictions
+ok 283 - computeAuthorityScore rewards verified trusted sources and penalizes contradictions
+  ---
+  duration_ms: 0.5604
+  ...
+# Subtest: buildVersionLineage marks superseded document chains
+ok 284 - buildVersionLineage marks superseded document chains
+  ---
+  duration_ms: 0.552
+  ...
+# Subtest: computeContradictionSignals surfaces numeric conflicts and newer versions
+ok 285 - computeContradictionSignals surfaces numeric conflicts and newer versions
+  ---
+  duration_ms: 2.9677
+  ...
+# Subtest: normalizeExecuteRows accepts both drizzle execute result shapes
+ok 286 - normalizeExecuteRows accepts both drizzle execute result shapes
+  ---
+  duration_ms: 0.4056
+  ...
+# Subtest: normalizeEmbeddingResponseEntries handles SDK and array responses
+ok 287 - normalizeEmbeddingResponseEntries handles SDK and array responses
+  ---
+  duration_ms: 1.0904
+  ...
+# Subtest: rankLoreRows labels lexical-only matches as fallback retrieval
+ok 288 - rankLoreRows labels lexical-only matches as fallback retrieval
+  ---
+  duration_ms: 1.3655
+  ...
+# Subtest: buildRetrievalDiagnostics explains weak or missing LORE evidence
+ok 289 - buildRetrievalDiagnostics explains weak or missing LORE evidence
+  ---
+  duration_ms: 1.1804
+  ...
+# Subtest: buildRetrievalDiagnostics marks conflicting and stale evidence explicitly
+ok 290 - buildRetrievalDiagnostics marks conflicting and stale evidence explicitly
+  ---
+  duration_ms: 1.0267
+  ...
+# Subtest: shouldEscalate returns true when hallucinationRisk exceeds threshold
+ok 291 - shouldEscalate returns true when hallucinationRisk exceeds threshold
+  ---
+  duration_ms: 2.2406
+  ...
+# Subtest: shouldEscalate returns false when hallucinationRisk is below threshold
+ok 292 - shouldEscalate returns false when hallucinationRisk is below threshold
+  ---
+  duration_ms: 0.1752
+  ...
+# Subtest: shouldEscalateFromSummary returns true when hold rate exceeds threshold
+ok 293 - shouldEscalateFromSummary returns true when hold rate exceeds threshold
+  ---
+  duration_ms: 0.4146
+  ...
+# Subtest: shouldEscalateFromSummary returns false when hold rate is low
+ok 294 - shouldEscalateFromSummary returns false when hold rate is low
+  ---
+  duration_ms: 0.1454
+  ...
+# Subtest: shouldEscalateFromSummary returns false for null summary
+ok 295 - shouldEscalateFromSummary returns false for null summary
+  ---
+  duration_ms: 0.1483
+  ...
+# Subtest: getRoutingWeight returns low confidence for missing summary
+ok 296 - getRoutingWeight returns low confidence for missing summary
+  ---
+  duration_ms: 102.8866
+  ...
+# Subtest: LOW_WEIGHT_THRESHOLD is exported and is 0.7
+ok 297 - LOW_WEIGHT_THRESHOLD is exported and is 0.7
+  ---
+  duration_ms: 0.399
+  ...
+# Subtest: recordEvalOutcome does not throw when database is unavailable
+ok 298 - recordEvalOutcome does not throw when database is unavailable
+  ---
+  duration_ms: 5.652
+  ...
+# Subtest: getRoutingWeight returns sampleSize in result
+ok 299 - getRoutingWeight returns sampleSize in result
+  ---
+  duration_ms: 8.5295
+  ...
+# Subtest: getRoutingWeight computes correct weight for known eval scores
+ok 300 - getRoutingWeight computes correct weight for known eval scores
+  ---
+  duration_ms: 2.3421
+  ...
+# Subtest: recordEvalOutcome EMA math is correct on second observation
+ok 301 - recordEvalOutcome EMA math is correct on second observation
+  ---
+  duration_ms: 0.5946
+  ...
+# Subtest: recordEvalOutcome never throws into live path when DB fails
+ok 302 - recordEvalOutcome never throws into live path when DB fails
+  ---
+  duration_ms: 6.8502
+  ...
+# Subtest: shouldEscalateForRouting returns false when DB is unavailable (safe fallback)
+ok 303 - shouldEscalateForRouting returns false when DB is unavailable (safe fallback)
+  ---
+  duration_ms: 4.7854
+  ...
+# Subtest: getPolicyClassUpgrade returns premium_reasoning for fast_chat
+ok 304 - getPolicyClassUpgrade returns premium_reasoning for fast_chat
+  ---
+  duration_ms: 0.3024
+  ...
+# Subtest: getPolicyClassUpgrade returns fast_chat for low_cost_bulk
+ok 305 - getPolicyClassUpgrade returns fast_chat for low_cost_bulk
+  ---
+  duration_ms: 0.1146
+  ...
+# Subtest: getPolicyClassUpgrade returns null for premium_reasoning (ceiling)
+ok 306 - getPolicyClassUpgrade returns null for premium_reasoning (ceiling)
+  ---
+  duration_ms: 0.0962
+  ...
+# Subtest: getPolicyClassUpgrade returns null for vision_file (no upgrade path)
+ok 307 - getPolicyClassUpgrade returns null for vision_file (no upgrade path)
+  ---
+  duration_ms: 0.0913
+  ...
+# Subtest: getPolicyClassUpgrade returns null for unknown policy class
+ok 308 - getPolicyClassUpgrade returns null for unknown policy class
+  ---
+  duration_ms: 0.153
+  ...
+# Subtest: PASS on first review — no repair attempted
+ok 309 - PASS on first review — no repair attempted
+  ---
+  duration_ms: 2.7457
+  ...
+# Subtest: second REPAIR attempt fires when first attempt fails
+ok 310 - second REPAIR attempt fires when first attempt fails
+  ---
+  duration_ms: 0.7138
+  ...
+# Subtest: provider fallback flag set on second repair attempt
+ok 311 - provider fallback flag set on second repair attempt
+  ---
+  duration_ms: 0.2669
+  ...
+# Subtest: maximum 2 repair attempts enforced — HOLD after both fail
+ok 312 - maximum 2 repair attempts enforced — HOLD after both fail
+  ---
+  duration_ms: 0.7369
+  ...
+# Subtest: trace records repair attempt count correctly
+ok 313 - trace records repair attempt count correctly
+  ---
+  duration_ms: 0.3944
+  ...
+# Subtest: shouldRunSentinelReview activates only for eligible plans and agents
+ok 314 - shouldRunSentinelReview activates only for eligible plans and agents
+  ---
+  duration_ms: 2.3092
+  ...
+# Subtest: reviewAgentOutputWithSentinel returns PASS for grounded, compliant output
+ok 315 - reviewAgentOutputWithSentinel returns PASS for grounded, compliant output
+  ---
+  duration_ms: 1.6511
+  ...
+# Subtest: reviewAgentOutputWithSentinel returns REPAIR when schema was auto-repaired
+ok 316 - reviewAgentOutputWithSentinel returns REPAIR when schema was auto-repaired
+  ---
+  duration_ms: 0.4003
+  ...
+# Subtest: reviewAgentOutputWithSentinel returns HOLD for ungrounded high-risk output
+ok 317 - reviewAgentOutputWithSentinel returns HOLD for ungrounded high-risk output
+  ---
+  duration_ms: 0.5156
+  ...
+# Subtest: getStaffRole resolves tiered staff roles from env identity lists
+ok 318 - getStaffRole resolves tiered staff roles from env identity lists
+  ---
+  duration_ms: 3.9629
+  ...
+# Subtest: hasStaffPermission enforces per-role control-plane permissions
+ok 319 - hasStaffPermission enforces per-role control-plane permissions
+  ---
+  duration_ms: 0.5177
+  ...
+# Subtest: listStaffPermissions returns explicit role permissions
+ok 320 - listStaffPermissions returns explicit role permissions
+  ---
+  duration_ms: 0.3297
+  ...
+# Subtest: assertSeatCapacity throws when no seats are available
+ok 321 - assertSeatCapacity throws when no seats are available
+  ---
+  duration_ms: 3.2457
+  ...
+# (node:25136) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# [WARDEN] Audit event could not be recorded: Failed query: insert into "warden_audit_event" ("id", "org_id", "user_id", "surface", "source_type", "action", "verdict", "risk_level", "categories", "reasons", "content_hash", "redaction_count", "source_url", "file_id", "tool_name", "provider", "metadata", "created_at") values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, default) returning "id", "org_id", "user_id", "surface", "source_type", "action", "verdict", "risk_level", "categories", "reasons", "content_hash", "redaction_count", "source_url", "file_id", "tool_name", "provider", "metadata", "created_at"
+# params: org-123,user_123,tool_execution,USER,authorize_tool_call,ALLOW,LOW,[],[],7a7dfdc84877c9fe6832cb7c63b402ad88122e3fea8c0f387bec839e458ee95b,0,,,knowledge_gap_check,,{"toolRisk":"LOW","contentHash":"7a7dfdc84877c9fe6832cb7c63b402ad88122e3fea8c0f387bec839e458ee95b","truncated":false,"modelClassifier":{"enabled":false,"attempted":false,"usedModel":false,"model":"gpt-5-mini","confidence":null,"fallback":false,"error":null,"cached":false,"timedOut":false,"durationMs":null,"estimatedTokens":null,"estimatedCostUsd":null,"classifierSkippedDueToCap":false,"capReason":null,"deterministicVerdict":"ALLOW","deterministicRiskLevel":"LOW","modelVerdict":null,"modelRiskLevel":null,"finalVerdict":"ALLOW","finalRiskLevel":"LOW"}}
+# [TOOL-DISPATCH] Tool 'knowledge_gap_check' is outside the allowed contract for agent cipher.
+# [TOOL-AUDIT] {"event":"tool_policy","verdict":"blocked","tool":"knowledge_gap_check","agentId":"cipher","orgId":"org-123","userId":null,"conversationId":null,"workflowRunId":null,"reason":"Tool 'knowledge_gap_check' is outside the allowed contract for agent cipher.","metadata":{},"sideEffect":false,"timestamp":"2026-05-12T13:02:03.067Z"}
+# [TOOL-DISPATCH] Tool 'workflow_execute' is registered but does not have an executable dispatcher handler.
+# [TOOL-AUDIT] {"event":"tool_policy","verdict":"rejected_not_dispatchable","tool":"workflow_execute","agentId":"lore","orgId":"org-123","userId":null,"conversationId":null,"workflowRunId":null,"reason":"Tool 'workflow_execute' is registered but does not have an executable dispatcher handler.","metadata":{},"sideEffect":false,"timestamp":"2026-05-12T13:02:03.069Z"}
+# [TOOL-DISPATCH] Tool 'totally_unknown_tool' has no manifest entry. Tools must be registered before dispatch.
+# [TOOL-AUDIT] {"event":"tool_policy","verdict":"rejected_unmanifested","tool":"totally_unknown_tool","agentId":"lore","orgId":"org-123","userId":null,"conversationId":null,"workflowRunId":null,"reason":"Tool 'totally_unknown_tool' has no manifest entry. Tools must be registered before dispatch.","metadata":{},"sideEffect":false,"timestamp":"2026-05-12T13:02:03.070Z"}
+# Subtest: knowledge_gap_check dispatches correctly for the lore agent
+ok 322 - knowledge_gap_check dispatches correctly for the lore agent
+  ---
+  duration_ms: 98.1344
+  ...
+# Subtest: non-lore agents cannot call knowledge_gap_check
+ok 323 - non-lore agents cannot call knowledge_gap_check
+  ---
+  duration_ms: 1.8293
+  ...
+# Subtest: manifest-known tools without handlers are denied safely
+ok 324 - manifest-known tools without handlers are denied safely
+  ---
+  duration_ms: 0.5136
+  ...
+# Subtest: unmanifested tools are denied before routing
+ok 325 - unmanifested tools are denied before routing
+  ---
+  duration_ms: 0.4764
+  ...
+# [WARDEN] Audit event could not be recorded: Failed query: insert into "warden_audit_event" ("id", "org_id", "user_id", "surface", "source_type", "action", "verdict", "risk_level", "categories", "reasons", "content_hash", "redaction_count", "source_url", "file_id", "tool_name", "provider", "metadata", "created_at") values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, default) returning "id", "org_id", "user_id", "surface", "source_type", "action", "verdict", "risk_level", "categories", "reasons", "content_hash", "redaction_count", "source_url", "file_id", "tool_name", "provider", "metadata", "created_at"
+# params: org-123,user_123,tool_execution,LORE_RETRIEVAL,authorize_tool_call,BLOCK,HIGH,["tool_abuse"],["Tool calls cannot originate from untrusted or retrieved content."],7b29c6662bf2a859842b63ab3a43ec6174ff6da0c7746e28109bc80aa806d583,0,,,lore_search,,{"toolRisk":"LOW","contentHash":"7b29c6662bf2a859842b63ab3a43ec6174ff6da0c7746e28109bc80aa806d583","truncated":false,"modelClassifier":{"enabled":false,"attempted":false,"usedModel":false,"model":"gpt-5-mini","confidence":null,"fallback":false,"error":null,"cached":false,"timedOut":false,"durationMs":null,"estimatedTokens":null,"estimatedCostUsd":null,"classifierSkippedDueToCap":false,"capReason":null,"deterministicVerdict":"BLOCK","deterministicRiskLevel":"HIGH","modelVerdict":null,"modelRiskLevel":null,"finalVerdict":"BLOCK","finalRiskLevel":"HIGH"}}
+# [TOOL-AUDIT] {"event":"tool_policy","verdict":"warden_block","tool":"lore_search","agentId":"lore","orgId":"org-123","userId":"user_123","conversationId":null,"workflowRunId":null,"reason":"I can summarise that content, but I won't follow tool instructions embedded inside it.","metadata":{"warden":{"auditId":"warden-local-1778590923085","verdict":"BLOCK","riskLevel":"HIGH","categories":["tool_abuse"]}},"sideEffect":false,"timestamp":"2026-05-12T13:02:03.085Z"}
+# Subtest: WARDEN runs before dispatching manifest-approved tools
+ok 326 - WARDEN runs before dispatching manifest-approved tools
+  ---
+  duration_ms: 15.8051
+  ...
+# Subtest: every legacy known tool has a manifest entry
+ok 327 - every legacy known tool has a manifest entry
+  ---
+  duration_ms: 2.352
+  ...
+# Subtest: manifest provides risk for each tool
+ok 328 - manifest provides risk for each tool
+  ---
+  duration_ms: 0.4095
+  ...
+# Subtest: manifest blocks untrusted source types for side-effect tools
+ok 329 - manifest blocks untrusted source types for side-effect tools
+  ---
+  duration_ms: 0.3762
+  ...
+# Subtest: critical tools require admin and confirmation in manifest
+ok 330 - critical tools require admin and confirmation in manifest
+  ---
+  duration_ms: 8.2317
+  ...
+# Subtest: unknown tool is denied via manifest gate
+ok 331 - unknown tool is denied via manifest gate
+  ---
+  duration_ms: 3.9037
+  ...
+# Subtest: manifest entry is the source of truth for tool risk
+ok 332 - manifest entry is the source of truth for tool risk
+  ---
+  duration_ms: 0.8725
+  ...
+# Subtest: side-effect tool from untrusted source is blocked even with confirmation flag absent
+ok 333 - side-effect tool from untrusted source is blocked even with confirmation flag absent
+  ---
+  duration_ms: 0.6203
+  ...
+# Subtest: generateSpeechSafe returns null when sentinel verdict is HOLD
+ok 334 - generateSpeechSafe returns null when sentinel verdict is HOLD
+  ---
+  duration_ms: 2.1921
+  ...
+# Subtest: getTtsModel returns HD model for Teams plan
+ok 335 - getTtsModel returns HD model for Teams plan
+  ---
+  duration_ms: 0.1946
+  ...
+# Subtest: getTtsModel returns HD model for Agency plan
+ok 336 - getTtsModel returns HD model for Agency plan
+  ---
+  duration_ms: 0.1305
+  ...
+# Subtest: getTtsModel falls back to standard model for non-HD plans
+ok 337 - getTtsModel falls back to standard model for non-HD plans
+  ---
+  duration_ms: 0.2473
+  ...
+# Subtest: generateSpeechSafe returns null when TTS is disabled
+ok 338 - generateSpeechSafe returns null when TTS is disabled
+  ---
+  duration_ms: 0.2403
+  ...
+# Subtest: generateSpeechSafe returns null on API error without throwing
+ok 339 - generateSpeechSafe returns null on API error without throwing
+  ---
+  duration_ms: 270.2611
+  ...
+# Subtest: audio_response SSE event shape matches expected contract
+ok 340 - audio_response SSE event shape matches expected contract
+  ---
+  duration_ms: 0.6397
+  ...
+# Subtest: isTtsEnabled reads OPENAI_TTS_ENABLED correctly
+ok 341 - isTtsEnabled reads OPENAI_TTS_ENABLED correctly
+  ---
+  duration_ms: 0.438
+  ...
+# Subtest: fair-use rejects high-cost work when cumulative burn exceeds cap
+ok 342 - fair-use rejects high-cost work when cumulative burn exceeds cap
+  ---
+  duration_ms: 4.0549
+  ...
+# Subtest: fair-use keeps low-cost path under internal burn ceiling with extra throttle delay
+ok 343 - fair-use keeps low-cost path under internal burn ceiling with extra throttle delay
+  ---
+  duration_ms: 1.4427
+  ...
+# Subtest: video gate blocks when estimated media cost blows past modeled burn budget
+ok 344 - video gate blocks when estimated media cost blows past modeled burn budget
+  ---
+  duration_ms: 0.7869
+  ...
+# Subtest: usagePercentageToPressureLevel maps 70 / 85 / 95 / 100 bands
+ok 345 - usagePercentageToPressureLevel maps 70 / 85 / 95 / 100 bands
+  ---
+  duration_ms: 1.9761
+  ...
+# Subtest: computeMergedUsagePercentage takes max across execution, video, burn ratio
+ok 346 - computeMergedUsagePercentage takes max across execution, video, burn ratio
+  ---
+  duration_ms: 0.3817
+  ...
+# Subtest: computeUsagePressurePayload merges execution, video, and internal burn ratio
+ok 347 - computeUsagePressurePayload merges execution, video, and internal burn ratio
+  ---
+  duration_ms: 0.7362
+  ...
+# Subtest: combineSurfacePressure respects explicit pressureLevel when present
+ok 348 - combineSurfacePressure respects explicit pressureLevel when present
+  ---
+  duration_ms: 0.3125
+  ...
+# Subtest: combineSurfacePressure maps legacy banner to warning
+ok 349 - combineSurfacePressure maps legacy banner to warning
+  ---
+  duration_ms: 0.1581
+  ...
+# Subtest: getUpgradeSuggestion solo suggests pro and execution add-on for execution-heavy
+ok 350 - getUpgradeSuggestion solo suggests pro and execution add-on for execution-heavy
+  ---
+  duration_ms: 0.5431
+  ...
+# Subtest: getUpgradeSuggestion pro suggests teams and video-heavy add-on
+ok 351 - getUpgradeSuggestion pro suggests teams and video-heavy add-on
+  ---
+  duration_ms: 0.1341
+  ...
+# Subtest: getUpgradeSuggestion agency only suggests add-ons
+ok 352 - getUpgradeSuggestion agency only suggests add-ons
+  ---
+  duration_ms: 0.3084
+  ...
+# Subtest: getUpgradeSuggestion free points at solo tier
+ok 353 - getUpgradeSuggestion free points at solo tier
+  ---
+  duration_ms: 0.3881
+  ...
+# Subtest: all paid plan pressure suggestions promote preferred pack IDs
+ok 354 - all paid plan pressure suggestions promote preferred pack IDs
+  ---
+  duration_ms: 2.7604
+  ...
+# [VIDEO JOB FAILED] {
+#   jobId: 'job_123',
+#   orgId: 'org_123',
+#   userId: 'user_123',
+#   provider: 'google',
+#   model: 'veo-3.1-lite-generate-preview',
+#   failureCode: 'VIDEO_AUTH_INVALID',
+#   failureCategory: 'auth',
+#   failureMessage: 'Invalid API key'
+# }
+# [VIDEO_JOB] {"event":"status_transition","timestamp":"2026-05-12T13:02:18.759Z","jobId":"job_123","orgId":"org_123","userId":"user_123","mode":"standard","provider":"google","model":"veo-3.1-lite-generate-preview","resolution":"1080p","durationSeconds":8,"creditsReserved":3,"attempt":0,"status":"failed","durationSecondsElapsed":null,"failureCode":"VIDEO_AUTH_INVALID","failureCategory":"auth"}
+# [VIDEO_JOB] {"event":"status_transition","timestamp":"2026-05-12T13:02:18.761Z","jobId":"job_123","orgId":"org_123","userId":"user_123","mode":"standard","provider":"google","model":"veo-3.1-lite-generate-preview","resolution":"1080p","durationSeconds":8,"creditsReserved":3,"attempt":1,"status":"processing","durationSecondsElapsed":null,"failureCode":null,"failureCategory":null,"providerJobId":"op_timeout"}
+# [VIDEO JOB FAILED] {
+#   jobId: 'job_123',
+#   orgId: 'org_123',
+#   userId: 'user_123',
+#   provider: 'google',
+#   model: 'veo-3.1-lite-generate-preview',
+#   failureCode: 'VIDEO_JOB_TIMEOUT',
+#   failureCategory: 'timeout',
+#   failureMessage: 'Video generation exceeded the 1 second timeout window.'
+# }
+# [VIDEO_JOB] {"event":"status_transition","timestamp":"2026-05-12T13:02:18.763Z","jobId":"job_123","orgId":"org_123","userId":"user_123","mode":"standard","provider":"google","model":"veo-3.1-lite-generate-preview","resolution":"1080p","durationSeconds":8,"creditsReserved":3,"attempt":0,"status":"failed","durationSecondsElapsed":null,"failureCode":"VIDEO_JOB_TIMEOUT","failureCategory":"timeout"}
+# [VIDEO_JOB] {"event":"status_transition","timestamp":"2026-05-12T13:02:18.764Z","jobId":"job_123","orgId":"org_123","userId":"user_123","mode":"standard","provider":"google","model":"veo-3.1-lite-generate-preview","resolution":"1080p","durationSeconds":8,"creditsReserved":3,"attempt":1,"status":"processing","durationSecondsElapsed":null,"failureCode":null,"failureCategory":null,"providerJobId":"op_complete"}
+# (node:29024) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: video auth failures release credits without scheduling retries
+ok 355 - video auth failures release credits without scheduling retries
+  ---
+  duration_ms: 9.0559
+  ...
+# Subtest: video timeout releases credits with a timeout failure code
+ok 356 - video timeout releases credits with a timeout failure code
+  ---
+  duration_ms: 2.7189
+  ...
+# [VIDEO_JOB] {"event":"status_transition","timestamp":"2026-05-12T13:02:18.777Z","jobId":"job_123","orgId":"org_123","userId":"user_123","mode":"standard","provider":"google","model":"veo-3.1-lite-generate-preview","resolution":"1080p","durationSeconds":8,"creditsReserved":3,"attempt":1,"status":"completed","durationSecondsElapsed":0,"failureCode":null,"failureCategory":null,"providerJobId":"op_complete","storageProvider":"cloudinary"}
+# Subtest: successful uploads persist Cloudinary metadata into the committed video job
+ok 357 - successful uploads persist Cloudinary metadata into the committed video job
+  ---
+  duration_ms: 14.8427
+  ...
+# Subtest: generated video artifacts include Cloudinary delivery metadata for chat messages
+ok 358 - generated video artifacts include Cloudinary delivery metadata for chat messages
+  ---
+  duration_ms: 0.7151
+  ...
+# (node:21772) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: OCR config defaults to disabled
+ok 359 - OCR config defaults to disabled
+  ---
+  duration_ms: 2.8601
+  ...
+# Subtest: OCR config respects env-driven enable
+ok 360 - OCR config respects env-driven enable
+  ---
+  duration_ms: 0.1916
+  ...
+# Subtest: Agency plan org triggers OCR on image upload
+ok 361 - Agency plan org triggers OCR on image upload
+  ---
+  duration_ms: 0.2359
+  ...
+# Subtest: Teams plan org triggers OCR on image upload
+ok 362 - Teams plan org triggers OCR on image upload
+  ---
+  duration_ms: 0.1641
+  ...
+# Subtest: Staff upload context triggers OCR regardless of plan
+ok 363 - Staff upload context triggers OCR regardless of plan
+  ---
+  duration_ms: 0.3319
+  ...
+# Subtest: Free plan org skips OCR on image upload
+ok 364 - Free plan org skips OCR on image upload
+  ---
+  duration_ms: 0.1334
+  ...
+# Subtest: runProviderOcr returns no-op summary when provider missing
+ok 365 - runProviderOcr returns no-op summary when provider missing
+  ---
+  duration_ms: 0.6514
+  ...
+# Subtest: runProviderOcr extracts text from provider successfully
+ok 366 - runProviderOcr extracts text from provider successfully
+  ---
+  duration_ms: 1.5303
+  ...
+# Subtest: runProviderOcr falls back safely on timeout
+ok 367 - runProviderOcr falls back safely on timeout
+  ---
+  duration_ms: 28.3696
+  ...
+# Subtest: OCR provider failure does not block upload safety extraction
+ok 368 - OCR provider failure does not block upload safety extraction
+  ---
+  duration_ms: 3.9271
+  ...
+# Subtest: runProviderOcr caches by content hash and serves cache hits
+ok 369 - runProviderOcr caches by content hash and serves cache hits
+  ---
+  duration_ms: 1.0619
+  ...
+# Subtest: extractSafetyTextFromImages includes provider OCR results in safety text
+ok 370 - extractSafetyTextFromImages includes provider OCR results in safety text
+  ---
+  duration_ms: 3.3419
+  ...
+# Subtest: OCR audit metadata never contains raw OCR text
+ok 371 - OCR audit metadata never contains raw OCR text
+  ---
+  duration_ms: 0.2052
+  ...
+# Subtest: image with hidden OCR jailbreak is sandboxed/blocked before provider media generation
+ok 372 - image with hidden OCR jailbreak is sandboxed/blocked before provider media generation
+  ---
+  duration_ms: 601.4769
+  ...
+# Subtest: OCR disabled preserves prior metadata-only behavior
+ok 373 - OCR disabled preserves prior metadata-only behavior
+  ---
+  duration_ms: 0.6962
+  ...
+# (node:2600) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: red-team prompt injection fixtures are detected and sandboxed as pasted content
+ok 374 - red-team prompt injection fixtures are detected and sandboxed as pasted content
+  ---
+  duration_ms: 23.5674
+  ...
+# Subtest: red-team URL fixtures enter LORE only as sandboxed evidence
+ok 375 - red-team URL fixtures enter LORE only as sandboxed evidence
+  ---
+  duration_ms: 10.2053
+  ...
+# Subtest: red-team upload fixtures are sandboxed or blocked before LORE ingestion
+ok 376 - red-team upload fixtures are sandboxed or blocked before LORE ingestion
+  ---
+  duration_ms: 2.1559
+  ...
+# Subtest: red-team media fixtures block illegal media and allow safe documentary context
+ok 377 - red-team media fixtures block illegal media and allow safe documentary context
+  ---
+  duration_ms: 9.0917
+  ...
+# Subtest: red-team OCR fixtures are scanned before media provider execution
+ok 378 - red-team OCR fixtures are scanned before media provider execution
+  ---
+  duration_ms: 2.7926
+  ...
+# Subtest: red-team tool abuse fixtures cannot trigger tools from untrusted sources
+ok 379 - red-team tool abuse fixtures cannot trigger tools from untrusted sources
+  ---
+  duration_ms: 2.0967
+  ...
+# Subtest: red-team workflow fixtures require confirmation or block unsafe chains
+ok 380 - red-team workflow fixtures require confirmation or block unsafe chains
+  ---
+  duration_ms: 2.313
+  ...
+# Subtest: red-team secret fixtures are redacted without storing raw secrets
+ok 381 - red-team secret fixtures are redacted without storing raw secrets
+  ---
+  duration_ms: 1.5387
+  ...
+# Subtest: classifier metrics aggregate cache hits, fallbacks, and latency
+ok 382 - classifier metrics aggregate cache hits, fallbacks, and latency
+  ---
+  duration_ms: 4.5072
+  ...
+# Subtest: classifier cap activates when daily call cap is exceeded
+ok 383 - classifier cap activates when daily call cap is exceeded
+  ---
+  duration_ms: 0.644
+  ...
+# Subtest: classifier cap activates when daily cost cap is exceeded
+ok 384 - classifier cap activates when daily cost cap is exceeded
+  ---
+  duration_ms: 1.3653
+  ...
+# Subtest: classifier metrics expose cache hit and fallback rates
+ok 385 - classifier metrics expose cache hit and fallback rates
+  ---
+  duration_ms: 0.8408
+  ...
+# Subtest: estimateCallCost honours per-token pricing
+ok 386 - estimateCallCost honours per-token pricing
+  ---
+  duration_ms: 0.4853
+  ...
+# (node:16108) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: normalizes zero-width and obfuscated prompt injection text
+ok 387 - normalizes zero-width and obfuscated prompt injection text
+  ---
+  duration_ms: 6.9182
+  ...
+# Subtest: detects role injection, hidden comments, and encoded payloads
+ok 388 - detects role injection, hidden comments, and encoded payloads
+  ---
+  duration_ms: 4.6213
+  ...
+# Subtest: redacts likely secrets before storage or audit
+ok 389 - redacts likely secrets before storage or audit
+  ---
+  duration_ms: 2.9975
+  ...
+# Subtest: URL content is sanitized and prompt injection is sandboxed before LORE
+ok 390 - URL content is sanitized and prompt injection is sandboxed before LORE
+  ---
+  duration_ms: 396.3997
+  ...
+# Subtest: uploaded prompt injection is stored only as untrusted evidence
+ok 391 - uploaded prompt injection is stored only as untrusted evidence
+  ---
+  duration_ms: 355.1938
+  ...
+# Subtest: dangerous upload types are blocked
+ok 392 - dangerous upload types are blocked
+  ---
+  duration_ms: 176.6385
+  ...
+# Subtest: pasted malicious content is sandboxed instead of treated as instructions
+ok 393 - pasted malicious content is sandboxed instead of treated as instructions
+  ---
+  duration_ms: 517.8933
+  ...
+# Subtest: media prompt blocks underage sexual and hate/extremist imagery before provider call
+ok 394 - media prompt blocks underage sexual and hate/extremist imagery before provider call
+  ---
+  duration_ms: 1061.5213
+  ...
+# Subtest: school aesthetic with sexual context and dehumanising protected-class imagery are blocked
+ok 395 - school aesthetic with sexual context and dehumanising protected-class imagery are blocked
+  ---
+  duration_ms: 370.8645
+  ...
+# Subtest: uploaded image OCR text cannot be blindly executed as a media instruction
+ok 396 - uploaded image OCR text cannot be blindly executed as a media instruction
+  ---
+  duration_ms: 186.3536
+  ...
+# Subtest: filename and image metadata prompt injection are detected
+ok 397 - filename and image metadata prompt injection are detected
+  ---
+  duration_ms: 375.45
+  ...
+# Subtest: tool calls from external or LORE content are blocked for side-effect actions
+ok 398 - tool calls from external or LORE content are blocked for side-effect actions
+  ---
+  duration_ms: 320.3798
+  ...
+# Subtest: even read-only tool calls cannot originate directly from LORE content
+ok 399 - even read-only tool calls cannot originate directly from LORE content
+  ---
+  duration_ms: 918.9049
+  ...
+# Subtest: tool calls from pasted content are blocked for side-effect actions
+ok 400 - tool calls from pasted content are blocked for side-effect actions
+  ---
+  duration_ms: 259.2595
+  ...
+# Subtest: unknown tools default to high risk
+ok 401 - unknown tools default to high risk
+  ---
+  duration_ms: 0.6657
+  ...
+# Subtest: critical billing/admin actions require confirmation and admin permission
+ok 402 - critical billing/admin actions require confirmation and admin permission
+  ---
+  duration_ms: 0.7971
+  ...
+# Subtest: strict mode blocks high risk sandbox decisions
+ok 403 - strict mode blocks high risk sandbox decisions
+  ---
+  duration_ms: 207.2156
+  ...
+# Subtest: workflow plan blocks external input feeding billing/admin actions and flags email chains
+ok 404 - workflow plan blocks external input feeding billing/admin actions and flags email chains
+  ---
+  duration_ms: 364.7973
+  ...
+# Subtest: benign read-only workflow is allowed
+ok 405 - benign read-only workflow is allowed
+  ---
+  duration_ms: 1.4718
+  ...
+# Subtest: audit metadata stores model classifier summary without raw unsafe content
+ok 406 - audit metadata stores model classifier summary without raw unsafe content
+  ---
+  duration_ms: 3.4921
+  ...
+# Subtest: model classifier accepts valid JSON-shaped results and can escalate
+ok 407 - model classifier accepts valid JSON-shaped results and can escalate
+  ---
+  duration_ms: 1.2927
+  ...
+# Subtest: model classifier invalid result and timeout fall back safely
+ok 408 - model classifier invalid result and timeout fall back safely
+  ---
+  duration_ms: 3.9338
+  ...
+# Subtest: low confidence model output cannot override deterministic decision
+ok 409 - low confidence model output cannot override deterministic decision
+  ---
+  duration_ms: 0.3222
+  ...
+# Subtest: model cannot downgrade deterministic block, secret redaction, or illegal media block
+ok 410 - model cannot downgrade deterministic block, secret redaction, or illegal media block
+  ---
+  duration_ms: 0.2175
+  ...
+# Subtest: LORE prompt formatting always wraps retrieved chunks as untrusted evidence
+ok 411 - LORE prompt formatting always wraps retrieved chunks as untrusted evidence
+  ---
+  duration_ms: 0.3471
+  ...
+# Subtest: untrusted evidence block has explicit boundaries
+ok 412 - untrusted evidence block has explicit boundaries
+  ---
+  duration_ms: 0.1298
+  ...
+# Subtest: summarizeWorkflowRisk returns safe risk summary
+ok 413 - summarizeWorkflowRisk returns safe risk summary
+  ---
+  duration_ms: 2.7971
+  ...
+# Subtest: isCriticalAdminWorkflow flags critical risk and admin/destructive categories
+ok 414 - isCriticalAdminWorkflow flags critical risk and admin/destructive categories
+  ---
+  duration_ms: 0.3128
+  ...
+# Subtest: createWorkflowConfirmation persists pending row with expires_at and risk summary
+ok 415 - createWorkflowConfirmation persists pending row with expires_at and risk summary
+  ---
+  duration_ms: 1.9122
+  ...
+# Subtest: createWorkflowConfirmation rejects without orgId / workflowId
+ok 416 - createWorkflowConfirmation rejects without orgId / workflowId
+  ---
+  duration_ms: 1.1814
+  ...
+# Subtest: getWorkflowConfirmation enforces user and workflow scope
+ok 417 - getWorkflowConfirmation enforces user and workflow scope
+  ---
+  duration_ms: 1.4523
+  ...
+# Subtest: approve, deny and consume confirmation enforce lifecycle
+ok 418 - approve, deny and consume confirmation enforce lifecycle
+  ---
+  duration_ms: 1.7065
+  ...
+# Subtest: denyWorkflowConfirmation changes pending confirmation to denied
+ok 419 - denyWorkflowConfirmation changes pending confirmation to denied
+  ---
+  duration_ms: 0.928
+  ...
+# Subtest: deliverWorkflowWebhook posts signed payloads to matching subscriptions
+ok 420 - deliverWorkflowWebhook posts signed payloads to matching subscriptions
+  ---
+  duration_ms: 16.3966
+  ...
+# Subtest: deliverWorkflowWebhook retries failed deliveries and never throws
+ok 421 - deliverWorkflowWebhook retries failed deliveries and never throws
+  ---
+  duration_ms: 1.6012
+  ...
+# (node:20388) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: official workflow catalogue seed definitions are installable workflow definitions
+ok 422 - official workflow catalogue seed definitions are installable workflow definitions
+  ---
+  duration_ms: 16.7646
+  ...
+# Subtest: official workflow catalogue ships thirty seeded workflows
+ok 423 - official workflow catalogue ships thirty seeded workflows
+  ---
+  duration_ms: 0.2317
+  ...
+# Subtest: official workflow catalogue has at least three workflows for each browse category
+ok 424 - official workflow catalogue has at least three workflows for each browse category
+  ---
+  duration_ms: 0.3684
+  ...
+# Subtest: each official workflow has a simple or advanced mode tag
+ok 425 - each official workflow has a simple or advanced mode tag
+  ---
+  duration_ms: 0.1974
+  ...
+# Subtest: official workflow catalogue seed slugs are stable for idempotent upserts
+ok 426 - official workflow catalogue seed slugs are stable for idempotent upserts
+  ---
+  duration_ms: 1.4773
+  ...
+# Subtest: seeded detail payloads include outputs, inputs, and workflow definitions
+ok 427 - seeded detail payloads include outputs, inputs, and workflow definitions
+  ---
+  duration_ms: 0.445
+  ...
+# Subtest: catalogue definition validation rejects embedded secrets
+ok 428 - catalogue definition validation rejects embedded secrets
+  ---
+  duration_ms: 0.9314
+  ...
+# Subtest: catalogue estimates expose execution and video signals
+ok 429 - catalogue estimates expose execution and video signals
+  ---
+  duration_ms: 0.5542
+  ...
+# Subtest: premium workflow catalogue support is disabled by default
+ok 430 - premium workflow catalogue support is disabled by default
+  ---
+  duration_ms: 0.6316
+  ...
+# Subtest: premium catalogue install smoke gate blocks Free plan users with upgrade response
+ok 431 - premium catalogue install smoke gate blocks Free plan users with upgrade response
+  ---
+  duration_ms: 2.6888
+  ...
+# Subtest: contractEnforced field exists in workflows schema with false default
+ok 432 - contractEnforced field exists in workflows schema with false default
+  ---
+  duration_ms: 197.0165
+  ...
+# Subtest: contractEnforcedAt field exists in workflows schema as nullable timestamp
+ok 433 - contractEnforcedAt field exists in workflows schema as nullable timestamp
+  ---
+  duration_ms: 0.8524
+  ...
+# Subtest: contract_validation_failed error response has correct shape
+ok 434 - contract_validation_failed error response has correct shape
+  ---
+  duration_ms: 0.2916
+  ...
+# Subtest: legacy workflow (contractEnforced: false) does not fail with validation error shape
+ok 435 - legacy workflow (contractEnforced: false) does not fail with validation error shape
+  ---
+  duration_ms: 0.2157
+  ...
+# Subtest: new workflow flagged contractEnforced: true by default
+ok 436 - new workflow flagged contractEnforced: true by default
+  ---
+  duration_ms: 0.1931
+  ...
+# Subtest: buildWorkflowSchemaValidation returns pass for valid object output
+ok 437 - buildWorkflowSchemaValidation returns pass for valid object output
+  ---
+  duration_ms: 0.7833
+  ...
+# Subtest: violations array supports multiple nodeId entries correctly
+ok 438 - violations array supports multiple nodeId entries correctly
+  ---
+  duration_ms: 0.4512
+  ...
+# (node:29260) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+# (Use `node --trace-deprecation ...` to show where the warning was created)
+# Subtest: executeWorkflowRun skips duplicate dispatches for already-running runs
+ok 439 - executeWorkflowRun skips duplicate dispatches for already-running runs
+  ---
+  duration_ms: 3.3228
+  ...
+# [WARDEN] Audit event could not be recorded: Failed query: insert into "warden_audit_event" ("id", "org_id", "user_id", "surface", "source_type", "action", "verdict", "risk_level", "categories", "reasons", "content_hash", "redaction_count", "source_url", "file_id", "tool_name", "provider", "metadata", "created_at") values (default, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, default) returning "id", "org_id", "user_id", "surface", "source_type", "action", "verdict", "risk_level", "categories", "reasons", "content_hash", "redaction_count", "source_url", "file_id", "tool_name", "provider", "metadata", "created_at"
+# params: 1e308c7c-3c95-47cd-833c-42f6067fa9e2,,workflow_execution,USER,scan_workflow_plan,ALLOW,LOW,[],[],4fd26482560714ce10d32055286d21d1430819da7a92a9b4c0b720f4308ba25b,0,,,,,{"workflowId":"cb9e5c03-4047-4e5f-89bb-f959464c6064","workflowHasExternalInput":false,"workflowHasToolExecution":false,"workflowHasDestructiveAction":false,"nodeCount":1,"edgeCount":0,"contentHash":"4fd26482560714ce10d32055286d21d1430819da7a92a9b4c0b720f4308ba25b","truncated":false,"modelClassifier":{"enabled":true,"attempted":false,"usedModel":false,"model":"gpt-5-mini","confidence":null,"fallback":false,"error":null,"cached":false,"timedOut":false,"durationMs":null,"estimatedTokens":null,"estimatedCostUsd":null,"classifierSkippedDueToCap":false,"capReason":null,"deterministicVerdict":"ALLOW","deterministicRiskLevel":"LOW","modelVerdict":null,"modelRiskLevel":null,"finalVerdict":"ALLOW","finalRiskLevel":"LOW"}}
+# Subtest: executeWorkflowRun does not execute when a queued run cannot be atomically claimed
+ok 440 - executeWorkflowRun does not execute when a queued run cannot be atomically claimed
+  ---
+  duration_ms: 101.906
+  ...
+# Subtest: claimQueuedWorkflowRunForExecution allows only one DB-backed claimant
+ok 441 - claimQueuedWorkflowRunForExecution allows only one DB-backed claimant # SKIP Set PRYMAL_RUN_DB_WORKFLOW_CONCURRENCY_TESTS=true with a migrated test database to run DB-backed workflow race proof.
+  ---
+  duration_ms: 0.35
+  ...
+# Subtest: workflow node output that passes SENTINEL continues to downstream nodes
+ok 442 - workflow node output that passes SENTINEL continues to downstream nodes
+  ---
+  duration_ms: 2.6411
+  ...
+# Subtest: workflow node output that triggers REPAIR is corrected and continues
+ok 443 - workflow node output that triggers REPAIR is corrected and continues
+  ---
+  duration_ms: 0.9043
+  ...
+# Subtest: workflow node output that triggers HOLD returns a degraded gate result
+ok 444 - workflow node output that triggers HOLD returns a degraded gate result
+  ---
+  duration_ms: 0.6978
+  ...
+# Subtest: SENTINEL failure in workflow context does not propagate as an unhandled exception
+ok 445 - SENTINEL failure in workflow context does not propagate as an unhandled exception
+  ---
+  duration_ms: 3.4009
+  ...
+# Subtest: workflow SENTINEL schema validation passes JSON object outputs
+ok 446 - workflow SENTINEL schema validation passes JSON object outputs
+  ---
+  duration_ms: 1.5643
+  ...
+# Subtest: workflow SENTINEL schema validation fails non-JSON object outputs
+ok 447 - workflow SENTINEL schema validation fails non-JSON object outputs
+  ---
+  duration_ms: 0.8995
+  ...
+# [WREN] WREN_ESCALATION_EMAIL is not configured - escalation will not be dispatched.
+# Subtest: detectEscalationTrigger returns triggered: false for normal conversation
+ok 448 - detectEscalationTrigger returns triggered: false for normal conversation
+  ---
+  duration_ms: 3.9537
+  ...
+# Subtest: detectEscalationTrigger flags legal threat: I will take you to court over this
+ok 449 - detectEscalationTrigger flags legal threat: I will take you to court over this
+  ---
+  duration_ms: 0.6507
+  ...
+# Subtest: detectEscalationTrigger flags legal threat: My solicitor has advised me to pursue this matter
+ok 450 - detectEscalationTrigger flags legal threat: My solicitor has advised me to pursue this matter
+  ---
+  duration_ms: 0.4654
+  ...
+# Subtest: detectEscalationTrigger flags legal threat: I am consulting an attorney
+ok 451 - detectEscalationTrigger flags legal threat: I am consulting an attorney
+  ---
+  duration_ms: 0.21
+  ...
+# Subtest: detectEscalationTrigger flags legal threat: I will take legal action if this is not resolved
+ok 452 - detectEscalationTrigger flags legal threat: I will take legal action if this is not resolved
+  ---
+  duration_ms: 0.1668
+  ...
+# Subtest: detectEscalationTrigger flags legal threat: I plan to file a lawsuit against your company
+ok 453 - detectEscalationTrigger flags legal threat: I plan to file a lawsuit against your company
+  ---
+  duration_ms: 0.5695
+  ...
+# Subtest: detectEscalationTrigger flags legal threat: I will report this to trading standards
+ok 454 - detectEscalationTrigger flags legal threat: I will report this to trading standards
+  ---
+  duration_ms: 0.2146
+  ...
+# Subtest: detectEscalationTrigger flags legal threat: I am contacting the financial ombudsman
+ok 455 - detectEscalationTrigger flags legal threat: I am contacting the financial ombudsman
+  ---
+  duration_ms: 0.5802
+  ...
+# Subtest: detectEscalationTrigger flags legal threat: I will take this to small claims
+ok 456 - detectEscalationTrigger flags legal threat: I will take this to small claims
+  ---
+  duration_ms: 0.4895
+  ...
+# Subtest: detectEscalationTrigger flags customer distress: I'm in crisis right now
+ok 457 - detectEscalationTrigger flags customer distress: I'm in crisis right now
+  ---
+  duration_ms: 2.4669
+  ...
+# Subtest: detectEscalationTrigger flags customer distress: I can't cope with this anymore
+ok 458 - detectEscalationTrigger flags customer distress: I can't cope with this anymore
+  ---
+  duration_ms: 1.0258
+  ...
+# Subtest: detectEscalationTrigger flags customer distress: I feel desperate
+ok 459 - detectEscalationTrigger flags customer distress: I feel desperate
+  ---
+  duration_ms: 0.505
+  ...
+# Subtest: detectEscalationTrigger flags customer distress: I am having suicidal thoughts
+ok 460 - detectEscalationTrigger flags customer distress: I am having suicidal thoughts
+  ---
+  duration_ms: 0.2141
+  ...
+# Subtest: detectEscalationTrigger flags customer distress: I want to end my life
+ok 461 - detectEscalationTrigger flags customer distress: I want to end my life
+  ---
+  duration_ms: 0.1768
+  ...
+# Subtest: detectEscalationTrigger flags customer distress: I am engaging in self-harm
+ok 462 - detectEscalationTrigger flags customer distress: I am engaging in self-harm
+  ---
+  duration_ms: 0.1154
+  ...
+# Subtest: detectEscalationTrigger flags customer distress: I feel like hurting myself
+ok 463 - detectEscalationTrigger flags customer distress: I feel like hurting myself
+  ---
+  duration_ms: 0.146
+  ...
+# Subtest: detectEscalationTrigger flags chargeback dispute: I am filing a chargeback with my bank
+ok 464 - detectEscalationTrigger flags chargeback dispute: I am filing a chargeback with my bank
+  ---
+  duration_ms: 2.8475
+  ...
+# Subtest: detectEscalationTrigger flags chargeback dispute: I will raise a section 75 claim
+ok 465 - detectEscalationTrigger flags chargeback dispute: I will raise a section 75 claim
+  ---
+  duration_ms: 0.1811
+  ...
+# Subtest: detectEscalationTrigger flags chargeback dispute: I am opening a credit card dispute
+ok 466 - detectEscalationTrigger flags chargeback dispute: I am opening a credit card dispute
+  ---
+  duration_ms: 0.1188
+  ...
+# Subtest: detectEscalationTrigger flags chargeback dispute: This is a fraudulent charge
+ok 467 - detectEscalationTrigger flags chargeback dispute: This is a fraudulent charge
+  ---
+  duration_ms: 0.1053
+  ...
+# Subtest: detectEscalationTrigger flags refund demand without amount
+ok 468 - detectEscalationTrigger flags refund demand without amount
+  ---
+  duration_ms: 0.9931
+  ...
+# Subtest: detectEscalationTrigger flags refund demand above threshold
+ok 469 - detectEscalationTrigger flags refund demand above threshold
+  ---
+  duration_ms: 0.6753
+  ...
+# Subtest: detectEscalationTrigger ignores refund demand at or below threshold
+ok 470 - detectEscalationTrigger ignores refund demand at or below threshold
+  ---
+  duration_ms: 0.2006
+  ...
+# Subtest: detectEscalationTrigger flags money back language
+ok 471 - detectEscalationTrigger flags money back language
+  ---
+  duration_ms: 0.1199
+  ...
+# Subtest: detectEscalationTrigger respects refund threshold env override
+ok 472 - detectEscalationTrigger respects refund threshold env override
+  ---
+  duration_ms: 0.2292
+  ...
+# Subtest: detectEscalationTrigger flags repeat complaint from escalation count
+ok 473 - detectEscalationTrigger flags repeat complaint from escalation count
+  ---
+  duration_ms: 0.1749
+  ...
+# Subtest: detectEscalationTrigger ignores repeat complaint below threshold
+ok 474 - detectEscalationTrigger ignores repeat complaint below threshold
+  ---
+  duration_ms: 0.1052
+  ...
+# Subtest: detectEscalationTrigger prioritises legal threat over refund demand
+ok 475 - detectEscalationTrigger prioritises legal threat over refund demand
+  ---
+  duration_ms: 0.1444
+  ...
+# Subtest: detectEscalationTrigger scans recent history as well as the current text
+ok 476 - detectEscalationTrigger scans recent history as well as the current text
+  ---
+  duration_ms: 0.2212
+  ...
+# Subtest: dispatchWrenEscalation returns dispatched: false when escalation email is missing
+ok 477 - dispatchWrenEscalation returns dispatched: false when escalation email is missing
+  ---
+  duration_ms: 1.7402
+  ...
+# Subtest: dispatchWrenEscalation inserts email and audit rows when configured
+ok 478 - dispatchWrenEscalation inserts email and audit rows when configured
+  ---
+  duration_ms: 1.263
+  ...
+1..478
+# tests 478
+# suites 0
+# pass 475
+# fail 2
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 75124.3003
