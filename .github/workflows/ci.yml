@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      deploy_vps:
+        description: Run VPS deployment after CI passes
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -308,14 +314,150 @@ jobs:
       - run: npm ci
       - run: npm run lint
 
+  deploy-preflight:
+    name: Deploy preflight
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.deploy-preflight.outputs.mode }}
+    steps:
+      - id: deploy-preflight
+        name: Check VPS deployment configuration
+        shell: bash
+        env:
+          VPS_DEPLOY_ENABLED: ${{ vars.VPS_DEPLOY_ENABLED || '' }}
+          VPS_HOST: ${{ secrets.VPS_HOST || '' }}
+          VPS_USER: ${{ secrets.VPS_USER || '' }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY || '' }}
+        run: |
+          required_vars=(
+            VPS_HOST
+            VPS_USER
+            VPS_SSH_KEY
+          )
+
+          missing=()
+          for key in "${required_vars[@]}"; do
+            if [ -z "${!key}" ]; then
+              missing+=("$key")
+            fi
+          done
+
+          event_name="${{ github.event_name }}"
+          ref_name="${{ github.ref_name }}"
+          deploy_input="${{ inputs.deploy_vps && 'true' || 'false' }}"
+          deploy_enabled="$(printf '%s' "${VPS_DEPLOY_ENABLED}" | tr '[:upper:]' '[:lower:]')"
+
+          if [ "$event_name" = "pull_request" ]; then
+            echo "mode=skipped" >> "$GITHUB_OUTPUT"
+            {
+              echo "VPS deployment is disabled for pull request workflows."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$ref_name" != "master" ]; then
+            echo "mode=skipped" >> "$GITHUB_OUTPUT"
+            {
+              echo "VPS deployment is only eligible from the \`master\` branch."
+              echo ""
+              echo "Current branch: \`$ref_name\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$event_name" = "workflow_dispatch" ]; then
+            if [ "$deploy_input" != "true" ]; then
+              echo "mode=skipped" >> "$GITHUB_OUTPUT"
+              {
+                echo "Manual workflow run completed without requesting VPS deployment."
+                echo ""
+                echo "Set \`deploy_vps=true\` in \`workflow_dispatch\` to run deployment."
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            if [ "${#missing[@]}" -gt 0 ]; then
+              {
+                echo "Manual VPS deployment was explicitly requested, but required secrets are missing."
+                echo ""
+                echo "Missing variables:"
+                for key in "${missing[@]}"; do
+                  echo "- $key"
+                done
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "Missing required VPS deployment secrets: ${missing[*]}" >&2
+              exit 1
+            fi
+
+            echo "mode=run" >> "$GITHUB_OUTPUT"
+            {
+              echo "Manual VPS deployment was requested and all required secrets are present."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$event_name" != "push" ]; then
+            echo "mode=skipped" >> "$GITHUB_OUTPUT"
+            {
+              echo "VPS deployment is only configured for \`push\` and \`workflow_dispatch\` events."
+              echo ""
+              echo "Current event: \`$event_name\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$deploy_enabled" != "true" ]; then
+            echo "mode=skipped" >> "$GITHUB_OUTPUT"
+            {
+              echo "VPS deployment is disabled for normal pushes because \`VPS_DEPLOY_ENABLED\` is not set to \`true\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "mode=skipped" >> "$GITHUB_OUTPUT"
+            {
+              echo "VPS deployment is enabled for pushes, but required secrets are unavailable, so deployment was skipped."
+              echo ""
+              echo "Missing variables:"
+              for key in "${missing[@]}"; do
+                echo "- $key"
+              done
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "mode=run" >> "$GITHUB_OUTPUT"
+          {
+            echo "VPS deployment is enabled for this push and all required secrets are present."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   deploy-vps:
     name: Deploy to VPS
     needs:
+      - backend-lint
       - backend-test
+      - frontend-lint
       - frontend-verify-build
       - frontend-performance
+      - e2e-marketing
+      - e2e-authenticated-preflight
+      - e2e-authenticated
+      - sdk-lint
+      - deploy-preflight
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    if: >-
+      always() &&
+      needs.deploy-preflight.outputs.mode == 'run' &&
+      needs.backend-lint.result == 'success' &&
+      needs.backend-test.result == 'success' &&
+      needs.frontend-lint.result == 'success' &&
+      needs.frontend-verify-build.result == 'success' &&
+      needs.frontend-performance.result == 'success' &&
+      needs.e2e-marketing.result == 'success' &&
+      needs.e2e-authenticated-preflight.result == 'success' &&
+      (needs.e2e-authenticated.result == 'success' || needs.e2e-authenticated.result == 'skipped') &&
+      needs.sdk-lint.result == 'success'
     environment: production
     steps:
       - name: Deploy via SSH
