@@ -18,6 +18,7 @@ const childEnv = {
   ...process.env,
   ...profile.env,
 };
+const testSelection = extraArgs.length > 0 ? extraArgs : profile.specs;
 let managedBackend = null;
 
 try {
@@ -38,8 +39,7 @@ try {
     'playwright',
     'test',
     '--',
-    ...profile.specs,
-    ...extraArgs,
+    ...testSelection,
   ], {
     cwd: process.cwd(),
     env: childEnv,
@@ -62,6 +62,7 @@ function getProfile(requestedMode) {
         PLAYWRIGHT_AUTH_REQUIRED: 'false',
         PLAYWRIGHT_BASE_URL: localBaseUrl,
         PLAYWRIGHT_API_URL: localApiUrl,
+        PLAYWRIGHT_MANAGED_BACKEND: 'false',
         PLAYWRIGHT_MANAGED_WEBSERVER: 'true',
       },
       specs: [...PLAYWRIGHT_PUBLIC_SPEC_LIST],
@@ -119,6 +120,10 @@ function resolveBackendDir() {
 }
 
 function shouldManageLocalBackend(env) {
+  if (env.PLAYWRIGHT_MANAGED_BACKEND === 'false') {
+    return false;
+  }
+
   if (env.PLAYWRIGHT_MANAGED_WEBSERVER !== 'true') {
     return false;
   }

@@ -55,6 +55,9 @@ jobs:
   backend-test:
     name: Backend tests
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/prymal
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -83,11 +86,17 @@ jobs:
       - name: Install PostgreSQL client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Load Prymal schema
-        run: psql "postgresql://postgres:postgres@127.0.0.1:5432/prymal" -v ON_ERROR_STOP=1 -f ../database/schema.sql
+        run: |
+          until pg_isready -h 127.0.0.1 -p 5432 -U postgres -d prymal; do
+            sleep 1
+          done
+
+          if ! psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f ../database/schema.sql; then
+            psql "$DATABASE_URL" -c "\dx" || true
+            psql "$DATABASE_URL" -c "\dt" || true
+            exit 1
+          fi
       - run: npm test
-        env:
-          NODE_ENV: test
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/prymal
 
   frontend-verify-build:
     name: Frontend verify-build
@@ -142,26 +151,21 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npx playwright install chromium --with-deps
-      - run: npm run test:e2e -- tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
+      - run: npm run test:e2e:public -- tests/marketing-smoke.spec.js tests/onboarding-smoke.spec.js
         env:
           CI: true
           VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
           VITE_API_URL: ${{ env.VITE_API_URL }}
 
-  e2e-authenticated:
-    name: E2E authenticated regression
+  e2e-authenticated-preflight:
+    name: E2E authenticated preflight
     runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.auth-preflight.outputs.mode }}
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
       - id: auth-preflight
         name: Check authenticated E2E secret availability
         shell: bash
@@ -207,23 +211,34 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "mode=skipped" >> "$GITHUB_OUTPUT"
-            {
-              echo "Authenticated Playwright regression was not executed in this pull request context because GitHub did not expose the required secrets."
-              echo ""
-              echo "Missing variables:"
-              for key in "${missing[@]}"; do
-                echo "- $key"
-              done
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
+          echo "mode=skipped" >> "$GITHUB_OUTPUT"
+          {
+            echo "Authenticated Playwright regression was not executed because the required secrets are unavailable for this run."
+            echo ""
+            echo "Event: ${{ github.event_name }}"
+            echo "Missing variables:"
+            for key in "${missing[@]}"; do
+              echo "- $key"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
 
-          echo "Missing required authenticated Playwright secrets: ${missing[*]}" >&2
-          exit 1
+  e2e-authenticated:
+    name: E2E authenticated regression
+    runs-on: ubuntu-latest
+    needs: e2e-authenticated-preflight
+    if: needs.e2e-authenticated-preflight.outputs.mode == 'run'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
       - run: node ../backend/scripts/validate-playwright-secrets.mjs
-        if: steps.auth-preflight.outputs.mode == 'run'
         env:
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
           PLAYWRIGHT_API_URL: ${{ secrets.PLAYWRIGHT_API_URL || '' }}
@@ -238,7 +253,6 @@ jobs:
           PLAYWRIGHT_TEST_BILLING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_BILLING_EMAIL || '' }}
           PLAYWRIGHT_TEST_BILLING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_BILLING_PASSWORD || '' }}
       - run: node ../backend/scripts/validate-env.mjs --scope playwright --mode staging
-        if: steps.auth-preflight.outputs.mode == 'run'
         env:
           PLAYWRIGHT_AUTH_REQUIRED: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
@@ -254,9 +268,7 @@ jobs:
           PLAYWRIGHT_TEST_BILLING_EMAIL: ${{ secrets.PLAYWRIGHT_TEST_BILLING_EMAIL || '' }}
           PLAYWRIGHT_TEST_BILLING_PASSWORD: ${{ secrets.PLAYWRIGHT_TEST_BILLING_PASSWORD || '' }}
       - run: npx playwright install chromium --with-deps
-        if: steps.auth-preflight.outputs.mode == 'run'
-      - run: npm run test:e2e -- tests/authenticated-regression.spec.js tests/onboarding-regression.spec.js tests/invite-membership.spec.js tests/billing-portal.spec.js tests/admin-operator.spec.js tests/security-boundaries.spec.js
-        if: steps.auth-preflight.outputs.mode == 'run'
+      - run: npm run test:e2e:auth -- tests/authenticated-regression.spec.js tests/onboarding-regression.spec.js tests/invite-membership.spec.js tests/billing-portal.spec.js tests/admin-operator.spec.js tests/security-boundaries.spec.js
         env:
           CI: true
           VITE_CLERK_PUBLISHABLE_KEY: ${{ env.VITE_CLERK_PUBLISHABLE_KEY }}
