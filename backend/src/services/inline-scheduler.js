@@ -7,11 +7,43 @@
 
 import cron from 'node-cron';
 import { and, eq } from 'drizzle-orm';
+import { getEnvironmentMode } from '../env/parse.js';
 import { organisations, workflowRuns, workflows } from '../db/schema.js';
 import { getBillingSnapshotForOrg } from './billing-engine.js';
 
 // Map of workflowId → { task: cron.ScheduledTask, cronExpression: string, registeredAt: Date }
 const registry = new Map();
+
+function parseBooleanEnv(value) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+
+  return null;
+}
+
+export function isInlineSchedulerEnabled(env = process.env) {
+  const explicit = parseBooleanEnv(env.INLINE_SCHEDULER_ENABLED);
+
+  if (explicit !== null) {
+    return explicit;
+  }
+
+  const mode = getEnvironmentMode(env.NODE_ENV);
+  const nodeAppInstance = String(env.NODE_APP_INSTANCE ?? '').trim();
+
+  if ((mode === 'staging' || mode === 'production') && nodeAppInstance) {
+    return nodeAppInstance === '0';
+  }
+
+  return true;
+}
 
 /**
  * Register a cron schedule for a workflow.

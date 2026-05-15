@@ -159,7 +159,9 @@ test('bootstrapRuntimeEnv blocks production startup when local media storage is 
   process.env.CLERK_PUBLISHABLE_KEY = 'pk_test_prymaltestkey';
   process.env.CLERK_SECRET_KEY = 'sk_test_prymaltestkey';
   process.env.FRONTEND_URL = 'https://staging.prymal.io';
+  process.env.FRONTEND_URLS = 'https://staging.prymal.io';
   process.env.API_URL = 'https://prymal-staging-api.up.railway.app/api';
+  process.env.APP_URL = 'https://staging.prymal.io';
   process.env.OPENAI_API_KEY = 'sk-real-ish-openai-key';
   process.env.ANTHROPIC_API_KEY = 'sk-ant-real-ish-key';
   process.env.MEDIA_STORAGE_DRIVER = 'local';
@@ -177,6 +179,7 @@ test('bootstrapRuntimeEnv allows production startup with Cloudinary media storag
   process.env.CLERK_PUBLISHABLE_KEY = 'pk_live_prymalprodkey';
   process.env.CLERK_SECRET_KEY = 'sk_live_prymalprodkey';
   process.env.FRONTEND_URL = 'https://app.prymal.io';
+  process.env.FRONTEND_URLS = 'https://app.prymal.io';
   process.env.API_URL = 'https://api.prymal.io';
   process.env.APP_URL = 'https://app.prymal.io';
   process.env.OPENAI_API_KEY = 'sk-real-ish-openai-key';

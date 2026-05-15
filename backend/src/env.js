@@ -17,6 +17,7 @@ export {
   getMemorySessionTtlHours,
   getMemoryWorkflowTtlHours,
   isStrictRuntimeValidationEnabled,
+  parseEnvList,
   isPlaceholderEnvValue,
   resetRuntimeEnvBootstrapForTests,
   validateRuntimeEnv,

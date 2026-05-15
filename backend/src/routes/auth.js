@@ -1141,7 +1141,11 @@ function sanitizeInvitation(invitation) {
 }
 
 function buildInviteUrl(token) {
-  const frontendBase = (process.env.FRONTEND_URL ?? 'http://localhost:5173').replace(/\/$/, '');
+  const frontendBase = (
+    process.env.APP_URL
+    ?? process.env.FRONTEND_URL
+    ?? 'http://localhost:5173'
+  ).replace(/\/$/, '');
   return `${frontendBase}/app/onboarding?invite=${encodeURIComponent(token)}`;
 }
 

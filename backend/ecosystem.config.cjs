@@ -1,8 +1,11 @@
+/* global process */
+const webConcurrency = Number(process.env.WEB_CONCURRENCY ?? 1);
+
 module.exports = {
   apps: [{
     name: 'prymal-backend',
     script: 'src/index.js',
-    instances: 'max',
+    instances: Number.isFinite(webConcurrency) && webConcurrency > 0 ? webConcurrency : 1,
     exec_mode: 'cluster',
     env_file: '.env',
     error_file: '/var/log/pm2/prymal-error.log',

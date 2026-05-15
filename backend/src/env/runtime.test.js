@@ -83,6 +83,7 @@ test('staging validation rejects localhost URLs and live Stripe keys', () => {
   const result = validateRuntimeEnv(
     buildLiveLikeEnv({
       FRONTEND_URL: 'http://localhost:5173',
+      FRONTEND_URLS: 'https://staging.prymal.io,http://localhost:4173',
       STRIPE_SECRET_KEY: 'sk_live_123',
     }),
     { mode: 'staging', strict: true },
@@ -90,6 +91,7 @@ test('staging validation rejects localhost URLs and live Stripe keys', () => {
 
   assert.equal(result.valid, false);
   assert.match(result.errors.join('\n'), /FRONTEND_URL cannot point at localhost in staging/i);
+  assert.match(result.errors.join('\n'), /FRONTEND_URLS cannot include localhost origins in staging/i);
   assert.match(result.errors.join('\n'), /STRIPE_SECRET_KEY must use Stripe test mode in staging/i);
   assert.match(result.errors.join('\n'), /Live Stripe credentials cannot be paired with localhost/i);
 });
@@ -116,4 +118,17 @@ test('production validation rejects test Clerk keys', () => {
 test('well-formed staging env passes runtime validation', () => {
   const result = validateRuntimeEnv(buildLiveLikeEnv(), { mode: 'staging', strict: true });
   assert.equal(result.valid, true);
+});
+
+test('runtime validation rejects FRONTEND_URL values outside the explicit CORS allowlist', () => {
+  const result = validateRuntimeEnv(
+    buildLiveLikeEnv({
+      FRONTEND_URLS: 'https://preview.prymal.io,https://staging.prymal.io',
+      FRONTEND_URL: 'https://app.prymal.io',
+    }),
+    { mode: 'staging', strict: true },
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /FRONTEND_URL is not included in FRONTEND_URLS/i);
 });

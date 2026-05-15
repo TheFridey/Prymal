@@ -8,6 +8,7 @@ const {
   createScheduledWorkflowRunHandler,
   deregisterSchedule,
   getRegisteredSchedules,
+  isInlineSchedulerEnabled,
   startInlineScheduler,
 } = await import('./inline-scheduler.js');
 const { registerCron, unregisterCron } = await import('../queue/trigger.js');
@@ -58,6 +59,31 @@ test('startInlineScheduler registers active scheduled workflows using isActive',
   } finally {
     scheduler.stop();
   }
+});
+
+test('inline scheduler runs only on PM2 instance zero in live environments by default', () => {
+  assert.equal(isInlineSchedulerEnabled({ NODE_ENV: 'production', NODE_APP_INSTANCE: '0' }), true);
+  assert.equal(isInlineSchedulerEnabled({ NODE_ENV: 'production', NODE_APP_INSTANCE: '1' }), false);
+  assert.equal(isInlineSchedulerEnabled({ NODE_ENV: 'staging', NODE_APP_INSTANCE: '2' }), false);
+});
+
+test('INLINE_SCHEDULER_ENABLED overrides the PM2 default', () => {
+  assert.equal(
+    isInlineSchedulerEnabled({
+      NODE_ENV: 'production',
+      NODE_APP_INSTANCE: '1',
+      INLINE_SCHEDULER_ENABLED: 'true',
+    }),
+    true,
+  );
+  assert.equal(
+    isInlineSchedulerEnabled({
+      NODE_ENV: 'production',
+      NODE_APP_INSTANCE: '0',
+      INLINE_SCHEDULER_ENABLED: 'false',
+    }),
+    false,
+  );
 });
 
 test('scheduled workflow handler loads the real organisation plan for dispatch', async () => {

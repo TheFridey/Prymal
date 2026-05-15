@@ -47,4 +47,21 @@ test('securityHeaders adds default hardening headers', async () => {
   assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
   assert.equal(response.headers.get('x-frame-options'), 'DENY');
   assert.equal(response.headers.get('referrer-policy'), 'strict-origin-when-cross-origin');
+  assert.equal(response.headers.get('permissions-policy'), 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()');
+  assert.equal(response.headers.get('x-permitted-cross-domain-policies'), 'none');
+  assert.equal(response.headers.get('strict-transport-security'), null);
+});
+
+test('securityHeaders adds HSTS on HTTPS requests behind a proxy', async () => {
+  const app = new Hono();
+  app.use('*', securityHeaders());
+  app.get('/', (context) => context.text('ok'));
+
+  const response = await app.request('/', {
+    headers: {
+      'x-forwarded-proto': 'https',
+    },
+  });
+
+  assert.equal(response.headers.get('strict-transport-security'), 'max-age=31536000; includeSubDomains');
 });

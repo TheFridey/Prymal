@@ -72,6 +72,14 @@ function validateBackendEnv(currentMode) {
       requireAbsoluteUrl(key, 'backend', currentMode);
     }
 
+    for (const origin of parseList(process.env.FRONTEND_URLS)) {
+      if (!/^https?:\/\//i.test(origin)) {
+        errors.push(`backend FRONTEND_URLS entries must be absolute URLs in ${currentMode}.`);
+      } else if (isLocalLikeUrl(origin)) {
+        errors.push(`backend FRONTEND_URLS cannot include localhost origins in ${currentMode}.`);
+      }
+    }
+
     if (hasConfigured('APP_URL')) {
       rejectLocalUrl('APP_URL', 'backend', currentMode);
       requireAbsoluteUrl('APP_URL', 'backend', currentMode);
@@ -81,6 +89,11 @@ function validateBackendEnv(currentMode) {
     enforceClerkMode('CLERK_PUBLISHABLE_KEY', expectedClerkMode, currentMode, 'backend');
     enforceClerkMode('CLERK_SECRET_KEY', expectedClerkMode, currentMode, 'backend');
     ensureModesMatch('CLERK_PUBLISHABLE_KEY', 'CLERK_SECRET_KEY', 'backend Clerk');
+  }
+
+  const configuredFrontendOrigins = parseList(process.env.FRONTEND_URLS);
+  if (configuredFrontendOrigins.length > 0 && hasConfigured('FRONTEND_URL') && !configuredFrontendOrigins.includes(String(process.env.FRONTEND_URL).trim())) {
+    errors.push('backend FRONTEND_URL is not included in FRONTEND_URLS. Browser API requests from the app may be blocked by CORS.');
   }
 
   if (hasConfigured('STRIPE_SECRET_KEY')) {
@@ -129,6 +142,18 @@ function validateBackendEnv(currentMode) {
     requireValue('EMAIL_FROM', 'backend');
   } else {
     warnings.push('Resend is not configured. Invitation and onboarding emails will not send.');
+  }
+
+  if (['staging', 'production'].includes(currentMode) && !hasConfigured('SENTRY_DSN')) {
+    warnings.push('SENTRY_DSN is not configured. Production errors will only appear in process logs.');
+  }
+
+  if (['staging', 'production'].includes(currentMode) && !hasConfigured('UPSTASH_REDIS_REST_URL') && !hasConfigured('UPSTASH_REDIS_REST_TOKEN')) {
+    warnings.push('Upstash Redis is not configured. Rate limits stay process-local, so scale-out or clustered deployments can drift.');
+  }
+
+  if (['staging', 'production'].includes(currentMode) && !hasConfigured('TRIGGER_API_KEY')) {
+    warnings.push('Trigger.dev is not configured. Scheduled workflows depend on the inline scheduler, which must run on exactly one backend process.');
   }
 
   if (hasConfigured('GOOGLE_CLIENT_ID') || hasConfigured('NOTION_CLIENT_ID') || hasConfigured('SLACK_CLIENT_ID')) {
@@ -350,4 +375,11 @@ function getArgValue(flag) {
   }
 
   return args[index + 1] ?? null;
+}
+
+function parseList(value) {
+  return String(value ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }

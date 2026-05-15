@@ -60,6 +60,13 @@ export function isLocalLikeUrl(value) {
   }
 }
 
+export function parseEnvList(value) {
+  return String(value ?? '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 export function getMemorySessionTtlHours(env = process.env) {
   const parsed = Number.parseInt(String(env.MEMORY_SESSION_TTL_HOURS ?? ''), 10);
 
@@ -111,6 +118,8 @@ export function isStrictRuntimeValidationEnabled(mode = getEnvironmentMode()) {
 export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMode(env.NODE_ENV), strict = isStrictRuntimeValidationEnabled(mode) } = {}) {
   const errors = [];
   const warnings = [];
+  const configuredFrontendOrigins = parseEnvList(env.FRONTEND_URLS);
+  const liveLikeMode = mode === 'staging' || mode === 'production';
 
   for (const name of REQUIRED_IN_ALL_ENVIRONMENTS) {
     if (!env[name]?.trim()) {
@@ -118,7 +127,7 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
     }
   }
 
-  if (mode === 'staging' || mode === 'production') {
+  if (liveLikeMode) {
     for (const name of REQUIRED_IN_LIVE_ENVIRONMENTS) {
       if (!env[name]?.trim()) {
         errors.push(`${name} must be set in backend/.env before starting the API.`);
@@ -140,7 +149,7 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
     }
   }
 
-  if (mode === 'staging' || mode === 'production') {
+  if (liveLikeMode) {
     for (const name of ['FRONTEND_URL', 'API_URL']) {
       const value = env[name]?.trim();
       if (!value) {
@@ -154,12 +163,32 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
       }
     }
 
+    for (const origin of configuredFrontendOrigins) {
+      if (!/^https?:\/\//i.test(origin)) {
+        errors.push(`FRONTEND_URLS entries must be absolute URLs in ${mode}.`);
+      } else if (isLocalLikeUrl(origin)) {
+        errors.push(`FRONTEND_URLS cannot include localhost origins in ${mode}.`);
+      }
+    }
+
     const appUrl = env.APP_URL?.trim();
     if (appUrl) {
       if (!/^https?:\/\//i.test(appUrl)) {
         errors.push(`APP_URL must be an absolute URL in ${mode}.`);
       } else if (isLocalLikeUrl(appUrl)) {
         errors.push(`APP_URL cannot point at localhost in ${mode}.`);
+      }
+    }
+  }
+
+  if (configuredFrontendOrigins.length > 0) {
+    const frontendUrl = env.FRONTEND_URL?.trim();
+    if (frontendUrl && !configuredFrontendOrigins.includes(frontendUrl)) {
+      const message = 'FRONTEND_URL is not included in FRONTEND_URLS. Browser API requests from the app may be blocked by CORS.';
+      if (liveLikeMode) {
+        errors.push(message);
+      } else {
+        warnings.push(message);
       }
     }
   }
@@ -259,6 +288,8 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
 
   if (env.SENTRY_DSN?.trim() && !hasValidSentryDsn(env.SENTRY_DSN)) {
     warnings.push('SENTRY_DSN is set but does not look like a valid Sentry DSN. Error tracking will stay disabled until it is corrected.');
+  } else if (liveLikeMode && !env.SENTRY_DSN?.trim()) {
+    warnings.push('SENTRY_DSN is not set. Production errors will only appear in process logs.');
   }
 
   if (
@@ -268,6 +299,14 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
     !env.STAFF_USER_IDS?.trim()
   ) {
     warnings.push('Staff access is easier to misconfigure without explicit STAFF_* role lists.');
+  }
+
+  if (liveLikeMode && !env.UPSTASH_REDIS_REST_URL?.trim() && !env.UPSTASH_REDIS_REST_TOKEN?.trim()) {
+    warnings.push('Upstash Redis is not configured. Rate limits stay process-local, so scale-out or clustered deployments can drift.');
+  }
+
+  if (liveLikeMode && !env.TRIGGER_API_KEY?.trim()) {
+    warnings.push('Trigger.dev is not configured. Scheduled workflows depend on the inline scheduler, which must run on exactly one backend process.');
   }
 
   const mediaStorageValidation = validateMediaStorageConfiguration(env);

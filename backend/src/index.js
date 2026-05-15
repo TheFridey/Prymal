@@ -25,7 +25,7 @@ import memoryRoutes from './routes/memory.js';
 import actionRoutes from './routes/actions.js';
 import { db } from './db/index.js';
 import { hasTriggerDevConfig } from './queue/trigger.js';
-import { startInlineScheduler } from './services/inline-scheduler.js';
+import { isInlineSchedulerEnabled, startInlineScheduler } from './services/inline-scheduler.js';
 import { createRateLimiter } from './middleware/rateLimit.js';
 import { requestContext } from './middleware/request-context.js';
 import { securityHeaders } from './middleware/security-headers.js';
@@ -34,14 +34,14 @@ import {
   readGeneratedVideoAsset,
 } from './services/media-storage/index.js';
 import { readWebAsset } from './services/web-research.js';
-import { bootstrapRuntimeEnv } from './env.js';
+import { bootstrapRuntimeEnv, getEnvironmentMode, parseEnvList } from './env.js';
 
 bootstrapRuntimeEnv();
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV ?? 'development',
+    environment: process.env.SENTRY_ENVIRONMENT?.trim() || process.env.NODE_ENV || 'development',
     release: process.env.npm_package_version,
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0,
     beforeSend(event) {
@@ -62,21 +62,23 @@ if (process.env.SENTRY_DSN) {
 
 const app = new Hono();
 const DEFAULT_FRONTEND_ORIGINS = 'http://localhost:5173,http://127.0.0.1:5173';
-const allowedOrigins = (process.env.FRONTEND_URLS ?? process.env.FRONTEND_URL ?? DEFAULT_FRONTEND_ORIGINS)
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const runtimeMode = getEnvironmentMode(process.env.NODE_ENV);
+const isLiveLikeRuntime = runtimeMode === 'staging' || runtimeMode === 'production';
+const configuredOrigins = parseEnvList(process.env.FRONTEND_URLS ?? process.env.FRONTEND_URL);
+const allowedOrigins = Array.from(
+  new Set(
+    isLiveLikeRuntime
+      ? configuredOrigins
+      : [...configuredOrigins, ...parseEnvList(DEFAULT_FRONTEND_ORIGINS)],
+  ),
+);
 
 function isAllowedOrigin(origin) {
   if (!origin) {
     return false;
   }
 
-  if (allowedOrigins.includes(origin)) {
-    return true;
-  }
-
-  return /^http:\/\/(localhost|127\.0\.0\.1):(4173|517\d)$/.test(origin);
+  return allowedOrigins.includes(origin);
 }
 
 function resolveErrorProvider(error) {
@@ -310,6 +312,11 @@ if (isMainModule) {
       console.log(`Prymal API listening on http://localhost:${info.port}`);
 
       if (!hasTriggerDevConfig()) {
+        if (!isInlineSchedulerEnabled(process.env)) {
+          console.log('[SCHEDULER] Inline scheduler is disabled for this process.');
+          return;
+        }
+
         try {
           await startInlineScheduler(db);
         } catch (error) {

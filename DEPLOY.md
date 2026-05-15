@@ -745,7 +745,7 @@ The staging environment mirrors production with test-mode credentials. It is dep
 3. Name it `prymal-staging`
 4. Add two services: `prymal-backend-staging` and `prymal-frontend-staging`
 5. Provision a PostgreSQL database service in the same project
-6. Provision a Redis service (or use the same Redis with a key prefix like `staging:`)
+6. Optional: provision Upstash Redis if you plan to run more than one backend process or instance
 
 ### Staging environment variables
 
@@ -765,7 +765,8 @@ VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 DATABASE_URL=postgresql://...  # staging DB, NOT production
 
 # Redis — separate staging instance or prefixed keys
-REDIS_URL=redis://...
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
 
 # Stripe — test mode keys only
 STRIPE_SECRET_KEY=sk_test_...
@@ -872,7 +873,7 @@ Migration date: ~10 days from 2026-05-06. No Railway. No PaaS.
 ### Before migration day
 
 - [ ] `.env.production.example` reviewed — all keys from `validate-env.mjs` are present
-- [ ] `backend/ecosystem.config.cjs` reviewed (cluster mode, `max` instances, 1G restart threshold)
+- [ ] `backend/ecosystem.config.cjs` reviewed (single-instance default, 1G restart threshold, and no accidental scheduler fan-out)
 - [ ] `scripts/deploy.sh` reviewed and path `/home/deploy/prymal/backend` matches VPS layout
 - [ ] `docs/server/nginx-prymal.conf` reviewed — `proxy_buffering off` required for SSE
 - [ ] GitHub secrets prepared to add on migration day: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`
@@ -881,7 +882,8 @@ Migration date: ~10 days from 2026-05-06. No Railway. No PaaS.
 ### Migration day — VPS setup
 
 - [ ] VPS provisioned (Ubuntu 24.04 LTS recommended — Hetzner CX22 ~£4/mo)
-- [ ] System packages: `sudo apt install -y nginx postgresql-16 postgresql-16-pgvector redis-server nodejs npm git ufw`
+- [ ] System packages: `sudo apt install -y nginx postgresql-16 postgresql-16-pgvector nodejs npm git ufw`
+- [ ] Optional for multi-process rate limiting: create an Upstash Redis database and keep the REST URL/token ready
 - [ ] Node.js: install via NodeSource (LTS) if distro package is too old
 - [ ] PM2: `sudo npm install -g pm2`
 - [ ] UFW configured: `sudo ufw allow OpenSSH && sudo ufw allow 'Nginx Full' && sudo ufw deny 3000 && sudo ufw enable`
@@ -892,6 +894,7 @@ Migration date: ~10 days from 2026-05-06. No Railway. No PaaS.
 - [ ] `npm ci --omit=dev` run in `/home/deploy/prymal/backend`
 - [ ] Migrations: `cd /home/deploy/prymal/backend && npm run migrate` — all Sprint 4–5 migrations confirmed
 - [ ] PM2 started: `pm2 start ecosystem.config.cjs` — process shows `online`
+- [ ] Confirm PM2 is running one web process for launch unless Trigger.dev, Upstash-backed rate limiting, and explicit scheduler isolation are all in place
 - [ ] PM2 persisted: `pm2 save && pm2 startup` (run the printed `sudo` command)
 - [ ] nginx installed: `sudo cp docs/server/nginx-prymal.conf /etc/nginx/sites-available/prymal`
 - [ ] nginx enabled: `sudo ln -s /etc/nginx/sites-available/prymal /etc/nginx/sites-enabled/`
@@ -904,7 +907,7 @@ Migration date: ~10 days from 2026-05-06. No Railway. No PaaS.
 ### Post-migration
 
 - [ ] DNS updated: `api.prymal.io` A record → VPS IP
-- [ ] Stripe webhook URL updated to `https://api.prymal.io/webhooks/stripe`
+- [ ] Stripe webhook URL updated to `https://api.prymal.io/api/billing/webhook/stripe`
 - [ ] Clerk webhook URL updated if applicable
 - [ ] `SENTRY_ENVIRONMENT=production` confirmed in `.env`
 - [ ] `pm2 logs prymal-backend` checked — no startup errors
