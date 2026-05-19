@@ -5,9 +5,11 @@ import { renderWithProviders } from '../test/renderWithProviders';
 import Landing from './Landing';
 import Trust from './Trust';
 import FeaturePage from './FeaturePage';
+import Blog from './Blog';
 import BlogPost from './BlogPost';
 import ComparisonPage from './ComparisonPage';
 import { FEATURE_PAGES } from '../lib/site-content';
+import { BLOG_POSTS, getBlogPostWordFloor } from '../lib/blog-posts';
 
 vi.mock('@clerk/clerk-react', () => ({
   SignedIn: ({ children }) => children,
@@ -52,7 +54,7 @@ test('feature page sets a unique meta title from the content model', () => {
 });
 
 test('blog pages render Article metadata', () => {
-  renderWithProviders(
+  const { getByAltText } = renderWithProviders(
     <Routes>
       <Route path="/blog/:slug" element={<BlogPost />} />
     </Routes>,
@@ -64,6 +66,29 @@ test('blog pages render Article metadata', () => {
   const schema = JSON.parse(articleScript.textContent);
   expect(schema['@type']).toBe('Article');
   expect(schema.headline).toContain('AI Operating System for Business');
+  expect(getByAltText(/Editorial illustration for What Is an AI Operating System for Business/i)).toBeTruthy();
+});
+
+test('blog posts meet the long-form floor and include internal and external reading paths', () => {
+  const wordFloor = getBlogPostWordFloor();
+
+  BLOG_POSTS.forEach((post) => {
+    expect(post.wordCount).toBeGreaterThanOrEqual(wordFloor);
+    expect(post.inboundLinks.length).toBeGreaterThan(0);
+    expect(post.outboundLinks.length).toBeGreaterThan(0);
+    expect(post.outboundLinks.map((link) => link.href).join(' ')).not.toMatch(/chatgpt|openai|anthropic|gemini/i);
+  });
+});
+
+test('blog hub renders featured editorial metadata without exposing provider internals', () => {
+  const { container } = renderWithProviders(<Blog />);
+  const text = container.textContent ?? '';
+
+  expect(text).toContain('Featured guide');
+  expect(text).toContain('min read');
+  expect(text).toContain('words');
+  expect(container.querySelectorAll('img[alt^="Editorial illustration for"]').length).toBeGreaterThan(0);
+  expect(text).not.toMatch(/OpenAI|Anthropic|Gemini|Veo|Sora|provider cost|token cost|routeReason/i);
 });
 
 test('comparison pages avoid hostile competitor language and provider leakage', () => {
