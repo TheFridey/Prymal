@@ -12,6 +12,7 @@ import { calculateMemoryDecay } from './memory-decay.js';
 import { confirmMemoryConfidence } from './memory-confidence.js';
 import { detectDuplicateMemories, mergeMemoryIntoExisting } from './memory-duplicates.js';
 import { enforceMemoryCapsForBucket } from './memory-caps.js';
+import { buildConversationMemoryUpdate, dedupeMemoryFacts } from './memory-context.js';
 
 const MEMORY_FRESH_DAYS = 14;
 const MEMORY_AGING_DAYS = 30;
@@ -643,6 +644,141 @@ export async function extractMemoryFromTurn({
     conflict: writes[index]?.conflict ?? false,
     memoryFeedback: writes[index]?.memoryFeedback ?? [],
   }));
+}
+
+export async function persistConversationContextMemories({
+  orgId,
+  userId = null,
+  agentId,
+  conversationId = null,
+  userMessage = '',
+  assistantText = '',
+}) {
+  const update = buildConversationMemoryUpdate({
+    agentId,
+    conversationId,
+    userMessage,
+    assistantText,
+  });
+
+  if (!update) {
+    return [];
+  }
+
+  const layers = [update.global, update.agent];
+  const writes = [];
+
+  for (const layer of layers) {
+    const scope = layer.scope === 'global' ? 'org' : 'restricted';
+    const targetAgentId = layer.scope === 'agent' ? agentId : null;
+    const dedupedFacts = dedupeMemoryFacts(layer.facts ?? []);
+
+    for (const fact of dedupedFacts) {
+      const restricted = fact.sensitivity === 'restricted' || fact.sensitivity === 'sensitive';
+      const factScope = restricted ? 'restricted' : scope;
+      const memoryType = normalizeContextMemoryType(fact.key);
+      const key = layer.scope === 'global'
+        ? `global_context:${fact.key}`
+        : `${agentId}_context:${fact.key}`;
+
+      writes.push(
+        upsertMemory({
+          orgId,
+          userId: factScope === 'user' ? userId : null,
+          agentId,
+          scope: factScope,
+          memoryType,
+          key,
+          value: fact.value,
+          metadata: buildContextMetadata({
+            contextLayer: layer.scope,
+            targetAgentId,
+            conversationId,
+            sourceAgentId: agentId,
+            sensitivity: fact.sensitivity ?? 'normal',
+            title: buildContextTitle(layer.scope, fact.key, agentId),
+            summary: fact.summary ?? fact.value,
+            suggestedLoreTags: layer.suggestedLoreTags ?? [],
+          }),
+          confidence: fact.confidence ?? 0.75,
+          provenanceKind: fact.source === 'agent_inferred' ? 'inferred' : 'confirmed',
+          sourceRef: conversationId ? `conversation:${conversationId}` : 'conversation_summary',
+          expiresAt: fact.expiresAt ?? null,
+        }),
+      );
+    }
+
+    const summaryKey = layer.scope === 'global'
+      ? 'global_context_summary'
+      : `${agentId}_context_summary`;
+
+    writes.push(
+      upsertMemory({
+        orgId,
+        userId: null,
+        agentId,
+        scope: layer.scope === 'global' ? 'org' : 'restricted',
+        memoryType: 'system_note',
+        key: summaryKey,
+        value: layer.summary,
+        metadata: buildContextMetadata({
+          contextLayer: layer.scope,
+          targetAgentId,
+          conversationId,
+          sourceAgentId: agentId,
+          sensitivity: layer.scope === 'global' ? 'normal' : 'restricted',
+          title: buildContextTitle(layer.scope, 'summary', agentId),
+          summary: layer.summary,
+          suggestedLoreTags: layer.suggestedLoreTags ?? [],
+        }),
+        confidence: 0.72,
+        provenanceKind: 'inferred',
+        sourceRef: conversationId ? `conversation:${conversationId}` : 'conversation_summary',
+      }),
+    );
+  }
+
+  return Promise.all(writes);
+}
+
+function buildContextMetadata({
+  contextLayer,
+  targetAgentId = null,
+  conversationId = null,
+  sourceAgentId = null,
+  sensitivity = 'normal',
+  title,
+  summary,
+  suggestedLoreTags = [],
+}) {
+  return {
+    contextLayer,
+    targetAgentId,
+    sourceConversationId: conversationId,
+    sourceAgentId,
+    generatedBy: 'prymal-memory-summarizer',
+    sensitivity,
+    title,
+    summary,
+    suggestedLoreTags,
+    memorySourceKind: 'conversation_summary',
+  };
+}
+
+function buildContextTitle(scope, key, agentId) {
+  if (scope === 'global') {
+    return key === 'summary' ? 'Global Context' : `Global Context · ${key.replace(/_/g, ' ')}`;
+  }
+  return key === 'summary'
+    ? `${String(agentId).toUpperCase()} Context`
+    : `${String(agentId).toUpperCase()} Context · ${key.replace(/_/g, ' ')}`;
+}
+
+function normalizeContextMemoryType(key = '') {
+  if (/brand_voice/i.test(key)) return 'brand_voice';
+  if (/customer|ideal_customer|pricing|product|company|business/i.test(key)) return 'business_fact';
+  if (/goal|campaign|constraint|objection/i.test(key)) return 'project_fact';
+  return 'fact';
 }
 
 function buildReadableScopePredicates({ orgId, userId, agentId, workflowRunId, sessionKey, contract }) {

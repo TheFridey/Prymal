@@ -29,6 +29,9 @@ function rankScore(entry, policy, query, now) {
   const prefBoost = policy.preferredTypes?.includes(entry.memoryType) ? 0.12 : 0;
   const pinBoost = entry.pinned ? 0.15 : 0;
   const alwaysBoost = entry.alwaysInclude ? 0.2 : 0;
+  const globalContextBoost = entry.metadata?.contextLayer === 'global' ? 0.18 : 0;
+  const agentContextBoost = entry.metadata?.contextLayer === 'agent' ? 0.1 : 0;
+  const targetedAgentBoost = entry.metadata?.targetAgentId === entry.agentId ? 0.06 : 0;
   const lex = lexicalScore(query, entry);
   const freshness = entry.freshnessScore ?? 0.5;
   const authority = entry.authorityScore ?? 0.5;
@@ -44,6 +47,9 @@ function rankScore(entry, policy, query, now) {
     + prefBoost
     + pinBoost
     + alwaysBoost
+    + globalContextBoost
+    + agentContextBoost
+    + targetedAgentBoost
     + stalePenalty
     + conflictPenalty;
 
@@ -78,6 +84,9 @@ export function buildMemoryClientPreview(envelopes, { agentId } = {}) {
       redacted,
       lastUsedAt: m.lastUsedAt,
       agentId,
+      contextLayer: m.metadata?.contextLayer ?? null,
+      sourceConversationId: m.metadata?.sourceConversationId ?? null,
+      sourceAgentId: m.metadata?.sourceAgentId ?? null,
     };
   });
 }

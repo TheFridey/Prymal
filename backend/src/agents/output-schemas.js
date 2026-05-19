@@ -12,6 +12,21 @@
  * CIPHER — cipher.scorecard
  * Structured data-analysis output with executive summary, key metrics, anomalies, recommendations.
  */
+export const CONFIDENCE_OBJECT_SCHEMA = {
+  type: 'object',
+  required: ['level', 'score', 'evidenceClass', 'sourceCount', 'freshness', 'assumptions', 'unsupportedClaims'],
+  additionalProperties: true,
+  properties: {
+    level: { type: 'string', enum: ['low', 'medium', 'high'] },
+    score: { type: 'number', minimum: 0, maximum: 1 },
+    evidenceClass: { type: 'string', enum: ['none', 'user_provided', 'lore', 'live_web', 'mixed'] },
+    sourceCount: { type: 'integer', minimum: 0 },
+    freshness: { type: 'string', enum: ['fresh', 'stale', 'unknown'] },
+    assumptions: { type: 'array', items: { type: 'string' } },
+    unsupportedClaims: { type: 'array', items: { type: 'string' } },
+  },
+};
+
 export const CIPHER_SCORECARD = {
   $schema: 'http://json-schema.org/draft-07/schema#',
   $id: 'cipher.scorecard',
@@ -43,7 +58,12 @@ export const CIPHER_SCORECARD = {
       type: 'array',
       items: { type: 'string' },
     },
-    confidence: { type: 'number', minimum: 0, maximum: 1 },
+    confidence: {
+      oneOf: [
+        { type: 'number', minimum: 0, maximum: 1 },
+        CONFIDENCE_OBJECT_SCHEMA,
+      ],
+    },
     dataQuality: { type: 'string', enum: ['high', 'medium', 'low', 'unknown'] },
   },
 };
@@ -237,7 +257,12 @@ export const VANCE_DEAL_SUMMARY = {
     companyName: { type: 'string', minLength: 1 },
     contactName: { type: 'string' },
     qualificationScore: { type: 'number', minimum: 0, maximum: 10 },
-    confidence: { type: 'number', minimum: 0, maximum: 1 },
+    confidence: {
+      oneOf: [
+        { type: 'number', minimum: 0, maximum: 1 },
+        CONFIDENCE_OBJECT_SCHEMA,
+      ],
+    },
     stage: {
       type: 'string',
       enum: ['prospect', 'qualified', 'proposal', 'negotiation', 'closed_won', 'closed_lost', 'nurture'],
@@ -359,7 +384,12 @@ export const LORE_SOURCE_DIGEST = {
       },
     },
     knowledgeGapDetected: { type: 'boolean' },
-    confidence: { type: 'string', enum: ['high', 'medium', 'low', 'ungrounded'] },
+    confidence: {
+      oneOf: [
+        { type: 'string', enum: ['high', 'medium', 'low', 'ungrounded'] },
+        CONFIDENCE_OBJECT_SCHEMA,
+      ],
+    },
   },
 };
 
@@ -401,6 +431,7 @@ export const FORGE_CONTENT_BRIEF = {
     tone: { type: 'string' },
     brandAlignment: { type: 'string', enum: ['strong', 'moderate', 'speculative'] },
     sourcesUsed: { type: 'array', items: { type: 'string' } },
+    confidence: CONFIDENCE_OBJECT_SCHEMA,
   },
 };
 
@@ -502,6 +533,7 @@ export const ECHO_SOCIAL_CONTENT = {
     },
     brandVoiceScore: { type: 'number', minimum: 0, maximum: 10 },
     notes: { type: 'string' },
+    confidence: CONFIDENCE_OBJECT_SCHEMA,
   },
 };
 
@@ -529,6 +561,7 @@ export const PIXEL_ASSET_MANIFEST = {
     generatedImagePrompts: { type: 'array', items: { type: 'string' } },
     brandAligned: { type: 'boolean' },
     notes: { type: 'string' },
+    confidence: CONFIDENCE_OBJECT_SCHEMA,
   },
 };
 
@@ -577,6 +610,7 @@ export const ORACLE_AUDIT_REPORT = {
     },
     quickWins: { type: 'array', items: { type: 'string' } },
     strategicRecommendations: { type: 'array', items: { type: 'string' } },
+    confidence: CONFIDENCE_OBJECT_SCHEMA,
   },
 };
 
@@ -605,7 +639,12 @@ export const WREN_SUPPORT_RESPONSE = {
     refundAmount: { type: 'number', minimum: 0 },
     refundCurrency: { type: 'string' },
     ticketCategory: { type: 'string' },
-    confidence: { type: 'number', minimum: 0, maximum: 1 },
+    confidence: {
+      oneOf: [
+        { type: 'number', minimum: 0, maximum: 1 },
+        CONFIDENCE_OBJECT_SCHEMA,
+      ],
+    },
   },
 };
 
@@ -655,7 +694,12 @@ export const SCOUT_RESEARCH_REPORT = {
         },
       },
     },
-    confidence: { type: 'number', minimum: 0, maximum: 1 },
+    confidence: {
+      oneOf: [
+        { type: 'number', minimum: 0, maximum: 1 },
+        CONFIDENCE_OBJECT_SCHEMA,
+      ],
+    },
     researchDepth: { type: 'string', enum: ['surface', 'moderate', 'deep'] },
   },
 };
@@ -720,6 +764,7 @@ export const SAGE_STRATEGIC_BRIEF = {
     timeframe: { type: 'string' },
     successMetrics: { type: 'array', items: { type: 'string' } },
     confidenceLevel: { type: 'string', enum: ['low', 'medium', 'high'] },
+    confidence: CONFIDENCE_OBJECT_SCHEMA,
   },
 };
 

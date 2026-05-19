@@ -8,20 +8,68 @@ import '../styles/changelog-premium.css';
 
 const CHANGELOG = [
   {
+    version: '1.1.0',
+    date: '2026-05-19',
+    tag: 'Platform',
+    badge: 'Intelligence',
+    milestone: true,
+    title: 'Agent Contract Intelligence + Shared Memory',
+    impact: 'Prymal now feels more like one coordinated operating layer, with stronger contract enforcement, safer evidence UX, and shared context that follows the work.',
+    entries: [
+      'Aligned agent contracts with their real structured output schemas so validation and repair no longer drift silently.',
+      'Added stronger enforcement defaults for public-facing claims work, including safer schema repair and tighter hallucination controls.',
+      'Expanded the side-effect registry so outbound actions always route through audit and approval controls when risk is present.',
+      'Introduced a shared confidence object and safer evidence summaries across high-value agents.',
+      'Added cross-agent shared memory with Global Context, Agent Context, conversation-derived summaries, and user-visible memory controls.',
+      'Normal workspace views now keep execution internals private while still showing confidence, freshness, contradiction warnings, and evidence gaps.',
+    ],
+  },
+  {
+    version: '1.0.9',
+    date: '2026-05-18',
+    tag: 'Compliance',
+    badge: 'Evidence',
+    milestone: true,
+    title: 'Compliance Evidence Pack',
+    impact: 'Prymal now ships with a practical evidence system for founder-led security and compliance operations.',
+    entries: [
+      'Added a Cyber Essentials evidence model with MFA prompts, VPS hardening expectations, and assessor-ready operational checklists.',
+      'Added an ISO 27001 starter ISMS pack with scope, suppliers, risks, policies, registers, and review runbooks.',
+      'Introduced a non-secret compliance evidence collector for local technical checks and repeatable repo evidence.',
+      'Documented the founder workflow for monthly reviews, access reviews, dependency reviews, incident drills, and backup restore tests.',
+    ],
+  },
+  {
+    version: '1.0.8',
+    date: '2026-05-17',
+    tag: 'Security',
+    badge: 'Deployment',
+    milestone: true,
+    title: 'Security Deployment Readiness',
+    impact: 'Production deployment now fails closed on unsafe config and surfaces the operational checks needed for a hardened VPS rollout.',
+    entries: [
+      'Production environment validation now hard-fails on unsafe URLs, weak secrets, test-mode auth or billing keys, and unsupported live media storage.',
+      'Added route-level rate limits across chat, billing, LORE, workflows, integrations, uploads, and admin mutations.',
+      'Production media now enforces hardened remote storage instead of silently allowing local fallbacks.',
+      'Expanded redaction, safe error handling, and deployment preflight checks for production cutovers.',
+      'Added VPS security hardening runbooks covering nginx, systemd, firewalling, SSH, backups, and operational evidence.',
+    ],
+  },
+  {
     version: '1.0.7',
     date: '2026-05-12',
     tag: 'Reliability',
     badge: 'Routing',
     milestone: true,
     title: 'Routing Intelligence + Safety Explainability',
-    impact: 'Prymal now makes smarter provider choices in production and gives operators clearer reasons when safety systems intervene.',
+    impact: 'Prymal now makes smarter execution-lane choices in production and gives operators clearer reasons when safety systems intervene.',
     entries: [
-      'Model routing now uses a centralized capability matrix across OpenAI, Anthropic, and Gemini lanes instead of drift-prone one-off defaults.',
-      'Provider routing weights now account for runtime health signals such as failure rate, timeout rate, fallback frequency, and held-response rate.',
-      'Added a dedicated Gemini Flash-Lite lane for low-cost bulk work while keeping premium reasoning, grounded research, structured extraction, and multimodal lanes explicit.',
+      'Routing now uses a centralized capability matrix across Prymal execution lanes instead of drift-prone one-off defaults.',
+      'Execution weights now account for runtime health signals such as failure rate, timeout rate, recovery frequency, and held-response rate.',
+      'Added a dedicated fast-throughput lane for lower-cost bulk work while keeping premium reasoning, grounded research, structured extraction, and multimodal paths explicit.',
       'SENTINEL HOLD outcomes now expose a reason code, risk category, and confidence level for faster operator triage.',
       'OCR-derived image safety text is normalized and treated as explicit untrusted evidence before it can influence media generation or downstream execution.',
-      'Admin runtime views now surface capability-matrix and provider-health diagnostics so routing changes are observable, not magical.',
+      'Admin runtime views now surface capability-matrix and execution-health diagnostics so routing changes are observable, not magical.',
     ],
   },
   {
@@ -31,14 +79,13 @@ const CHANGELOG = [
     badge: 'Actions',
     milestone: true,
     title: 'Agent Action Runtime',
-    impact: 'Prymal agents can now take real actions in the world — sending emails, writing to Google Drive, and posting to Slack — with a human-in-the-loop approval layer for any action that carries risk.',
+    impact: 'Prymal agents can now take real actions in the world with a human-in-the-loop approval layer for anything that carries risk.',
     entries: [
-      'Agents can now execute email sends, Google Drive writes and appends, and Slack posts directly from workflow nodes.',
-      'Every action passes through a declarative policy engine before execution — bulk email and direct messages are blocked outright, external emails and public Slack posts require human approval.',
-      'Added a 30-minute human-in-the-loop approval flow: actions pending approval appear in a live inbox in the NEXUS workspace with risk badge, content preview, and expiry countdown.',
-      'NEXUS navigation badge shows the count of pending approvals waiting for your review.',
-      'Approval tokens are HMAC-SHA256 signed and single-use — once consumed the action executes immediately without re-queuing.',
-      'All action payloads pass through WARDEN before dispatch — blocked payloads never reach the integration layer.',
+      'Agents can now execute email sends, cloud document writes and appends, and team-posting actions directly from workflow nodes.',
+      'Every action passes through a declarative policy engine before execution, with riskier actions requiring human approval or being blocked outright.',
+      'Added a 30-minute human-in-the-loop approval flow with live inbox status, risk badges, content preview, and expiry countdown.',
+      'Approval tokens are HMAC-SHA256 signed and single-use, so approved work executes immediately without re-queuing.',
+      'All action payloads pass through WARDEN before dispatch, so blocked payloads never reach the integration layer.',
       'Plan gate enforced server-side: action runtime is available on Pro, Teams, and Agency plans.',
     ],
   },
@@ -48,19 +95,18 @@ const CHANGELOG = [
     tag: 'Platform',
     badge: 'Core',
     milestone: true,
-    title: 'Platform Hardening — TTS, LORE Intelligence, Contract Enforcement, Routing Feedback',
+    title: 'Platform Hardening - Voice, LORE Intelligence, Contract Enforcement, Routing Feedback',
     impact: 'A set of foundational platform improvements that make Prymal workflows safer, smarter, and more observable as they scale.',
     entries: [
-      'Added voice output (TTS) for agents via OpenAI — Teams and Agency plans automatically use the HD voice model. SENTINEL-held outputs are suppressed from TTS so users never hear a held response read aloud.',
+      'Added voice output for agents, with higher-quality playback on larger plans. SENTINEL-held outputs are suppressed so users never hear a held response read aloud.',
       'LORE knowledge graph now tracks entities and relationships extracted from your documents, enabling richer cross-document reasoning and semantic entity search.',
-      'LORE quality feedback loop surfaces low-quality documents — SENTINEL HOLD signals flag documents that repeatedly produce held outputs for review.',
-      'Workflow DAG contract enforcement is now on by default for new workflows. Workflows validate their input/output schemas and policy constraints before every run, with violations surfaced inline in the builder.',
-      'Legacy workflows show an amber "Legacy mode" badge and a voluntary "Enable contract enforcement" button — migration is always opt-in.',
-      'Eval score feedback loop: agent routing weights now update using an exponential moving average of groundedness, citations, structured output, tool policy, and hallucination risk scores, with a hold-penalty term.',
-      'Staff admin trace drilldown now shows a Routing Intelligence section — weight as a percentage bar, confidence badge, escalation indicator, and sample size.',
-      'New staff admin Agent Performance page at /admin/agent-performance with filterable eval summary table, hold% highlighting, and CSV export.',
-      'Automated migration runner (npm run migrate) tracks applied migrations in schema_migrations, skips already-applied files, and exits non-zero on failure — used by the VPS deploy script.',
-      'Published the official @prymal/sdk TypeScript package with dual ESM/CJS output, typed resources for agents, workflows, and actions, and HMAC-verified webhook helpers.',
+      'LORE quality feedback loop surfaces low-quality documents so repeated held-output patterns can be reviewed instead of ignored.',
+      'Workflow DAG contract enforcement is now on by default for new workflows, with violations surfaced inline in the builder.',
+      'Legacy workflows show an amber Legacy mode badge and an opt-in contract-enforcement path so migrations stay deliberate.',
+      'Routing feedback now updates execution weights using groundedness, citations, structure, tool policy, and hallucination risk signals.',
+      'Staff admin trace drilldown now shows routing intelligence with confidence, escalation indicators, and sample size context.',
+      'Automated migration runner now tracks applied migrations, skips already-applied files, and exits non-zero on failure.',
+      'Published the official `@prymal/sdk` TypeScript package with typed resources for agents, workflows, and actions.',
     ],
   },
   {
@@ -75,7 +121,7 @@ const CHANGELOG = [
       'Added WARDEN as an input-side firewall before LORE ingestion, media generation, workflows, and tool execution.',
       'External URLs, uploads, pasted content, OCR text, and retrieved LORE are now treated as untrusted evidence rather than instructions.',
       'Added deterministic detection for prompt injection, role spoofing, tool-abuse instructions, hidden prompt content, encoded payloads, and secret leakage.',
-      'Media generation requests are scanned before provider calls, with clean refusals for blocked unsafe image or video prompts.',
+      'Media generation requests are scanned before execution, with clean refusals for blocked unsafe image or video prompts.',
       'Tool execution now checks source trust, action risk, confirmation needs, and org scope before allowing side-effect actions.',
       'Added WARDEN audit events so operators can investigate blocked input, sandboxed content, redactions, media refusals, and tool denials without storing unsafe raw content.',
     ],
@@ -120,12 +166,12 @@ const CHANGELOG = [
     tag: 'Update',
     badge: 'Media',
     milestone: true,
-    title: 'Guided Media Builders + Veo Standard',
+    title: 'Guided Media Builders + Cinematic Lanes',
     impact: 'Media generation is now structured, predictable, and production-ready inside the workspace.',
     entries: [
       'Introduced guided `/image` and `/video` builders with structured controls for prompt, quality, size, duration, aspect ratio, and output settings.',
-      'Added dual render lanes: Fast Draft on Veo 3.1 Lite and Cinematic on Veo 3.1 Standard.',
-      'Standard-mode renders now support up to three reference images on 8-second jobs for stronger visual direction.',
+      'Added dual render lanes: Fast Draft and Cinematic.',
+      'Standard renders now support up to three reference images on 8-second jobs for stronger visual direction.',
       'Media builders now show prompt-token and credit estimates before submission, with final checks remaining server-authoritative.',
       'Generated video cards now show render lane, duration, aspect ratio, resolution, and reference-image count directly in chat artifacts.',
     ],
@@ -136,12 +182,12 @@ const CHANGELOG = [
     tag: 'Milestone',
     badge: 'GA',
     milestone: true,
-    title: 'Prymal 1.0 -  Platform Complete',
+    title: 'Prymal 1.0 - Platform Complete',
     impact: 'Prymal moved from build-phase platform into a paid-workspace product ready for live operators.',
     entries: [
       'Prymal is now generally available with 14 user-facing specialist agents, SENTINEL QA, hybrid RAG, workflows, and operator controls live.',
       'Billing tiers finalised across Free, Solo, Pro, Teams, and Agency with enforced seats, credits, and agent access boundaries.',
-      'Voice input is available when OpenAI voice services are configured, with realtime WebRTC and recording fallback paths in the workspace.',
+      'Voice input is available when realtime voice services are configured, with live browser and recording fallback paths in the workspace.',
       'Public changelog, pricing, and waitlist pages are canonical, indexed, and supported by JSON-LD schema.',
       'The Prymal premium motion system now ships across all workspace surfaces with reduced-motion support.',
     ],
@@ -202,8 +248,8 @@ const CHANGELOG = [
       'Agent profile cinematic backgrounds added.',
       'Chat message animations improved.',
       'Streaming responses feel continuous.',
-      'Composer + attachments animated.',
-      'LORE + workflow UI unified.',
+      'Composer and attachments animated.',
+      'LORE and workflow UI unified.',
     ],
   },
   {
@@ -228,7 +274,7 @@ const CHANGELOG = [
     badge: 'Workflows',
     milestone: true,
     title: 'Workflow Visual Builder + Admin Monitoring',
-    impact: 'Prymal became more than chat — users can now build and operate workflows.',
+    impact: 'Prymal became more than chat - users can now build and operate workflows.',
     entries: [
       'Drag-and-drop workflow builder added.',
       'Admin monitoring tools introduced.',
@@ -319,8 +365,10 @@ const TAG_COLORS = {
   Motion: '#C084FC',
   Automation: '#2DD4BF',
   Knowledge: '#60A5FA',
+  Security: '#FB7185',
+  Compliance: '#FACC15',
+  Reliability: '#7CFFCB',
 };
-
 
 export default function Changelog() {
   const reducedMotion = usePrymalReducedMotion();
@@ -332,14 +380,14 @@ export default function Changelog() {
   };
 
   const sortedChangelog = [...CHANGELOG].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
 
   return (
     <div className="marketing-page prymal-marketing pm-page pm-changelog-page">
       <PageMeta
-        title="Changelog — Prymal"
-        description="Follow Prymal's product evolution: agents, workflows, media generation, platform reliability, and AI workspace improvements."
+        title="Changelog - Prymal"
+        description="Follow Prymal's product evolution: trust, workflows, memory, media generation, platform reliability, and workspace improvements."
         canonicalPath="/changelog"
       />
 
@@ -357,16 +405,16 @@ export default function Changelog() {
                   Product evolution
                 </div>
 
-                <h1 className="pm-changelog-hero__title">What’s new in Prymal</h1>
+                <h1 className="pm-changelog-hero__title">What&apos;s new in Prymal</h1>
 
                 <p className="pm-changelog-hero__sub">
-                  A polished release timeline covering agents, workflows, media generation,
-                  retrieval, motion, billing, and platform reliability.
+                  A polished release timeline covering execution quality, memory, trust,
+                  workflows, billing, media generation, and platform reliability.
                 </p>
 
                 <div className="pm-changelog-hero__actions">
                   <Link to="/signup" className="pm-btn pm-btn--primary" onClick={trackSignup}>
-                    Start free →
+                    Start free -&gt;
                   </Link>
                   <Link to="/pricing" className="pm-btn pm-btn--ghost">
                     View pricing
@@ -405,9 +453,9 @@ export default function Changelog() {
                     >
                       <div className="pm-changelog-card__rail">
                         <span className="pm-changelog-card__node" />
-                        {index !== sortedChangelog.length - 1 && (
+                        {index !== sortedChangelog.length - 1 ? (
                           <span className="pm-changelog-card__line" />
-                        )}
+                        ) : null}
                       </div>
 
                       <div className="pm-changelog-card__body">

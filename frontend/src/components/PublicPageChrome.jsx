@@ -320,6 +320,7 @@ export function PublicPageFooter({ sourcePrefix = '', onSignupClick = () => {} }
         </div>
         <div className="prymal-footer__column">
           <span className="prymal-footer__label">Legal</span>
+          <Link to="/trust">Trust</Link>
           <Link to="/privacy">Privacy Policy</Link>
           <Link to="/terms">Terms of Service</Link>
           <Link to="/cookies">Cookie Policy</Link>

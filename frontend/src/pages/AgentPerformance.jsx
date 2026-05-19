@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Navigate, useOutletContext } from 'react-router-dom';
 import { api } from '../lib/api';
+import { isInternalDiagnosticsVisible } from '../lib/diagnostics';
 import { formatDateTime, formatNumber } from '../lib/utils';
 import { Button, LoadingPanel, PageShell, SectionLabel, TextInput } from '../components/ui';
 import { MotionList, MotionListItem, MotionSection } from '../components/motion';
@@ -60,7 +61,7 @@ function exportCsv(rows) {
 
 export default function AgentPerformance() {
   const { viewer } = useOutletContext();
-  const isStaff = Boolean(viewer?.staff?.isStaff);
+  const isStaff = isInternalDiagnosticsVisible(viewer);
 
   const [agentFilter, setAgentFilter] = useState('');
   const [policyFilter, setPolicyFilter] = useState('');

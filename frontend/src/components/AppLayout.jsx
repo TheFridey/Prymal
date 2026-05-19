@@ -15,6 +15,7 @@ import {
 } from 'react-icons/tb';
 import { api } from '../lib/api';
 import { AGENT_LIBRARY, mergeAgentState } from '../lib/constants';
+import { isInternalDiagnosticsVisible } from '../lib/diagnostics';
 import { useAppStore } from '../stores/useAppStore';
 import { BrandMark, ThemeToggle } from './ui';
 import { WorkspaceCreditAlerts } from '../features/workspace/billing/WorkspaceCreditAlerts';
@@ -59,11 +60,11 @@ export default function AppLayout({ viewer }) {
   const agents = mergeAgentState(data?.agents ?? []);
   const railItems = useMemo(() => {
     const items = [...BASE_RAIL_ITEMS];
-    if (viewer?.staff?.isStaff) {
+    if (isInternalDiagnosticsVisible(viewer)) {
       items.push({ to: '/app/admin', label: 'Admin', short: 'AD', icon: 'admin' });
     }
     return items;
-  }, [viewer?.staff?.isStaff]);
+  }, [viewer]);
   const sharedContext = useMemo(
     () => ({
       viewer,

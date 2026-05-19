@@ -11,7 +11,7 @@ import { buildRuntimeContractSummary, getRuntimeAgentContract } from '../agents/
 import { evaluateAgentOutput } from './evals.js';
 import { streamAgentResponse } from './llm.js';
 import { classifyLLMFailure, recordLLMExecutionTrace } from './llm-observability.js';
-import { extractMemoryFromTurn } from './memory.js';
+import { extractMemoryFromTurn, persistConversationContextMemories } from './memory.js';
 import { insertMemoryEvent } from './memory-events.js';
 import { EXTENDED_THINKING_PLANS } from './model-policy.js';
 import { reviewAgentOutputWithSentinel, shouldRunSentinelReview } from './sentinel-review.js';
@@ -159,6 +159,30 @@ export async function* runAgentChat({
         });
       } catch (memErr) {
         console.warn('[AGENT-RUNNER] Memory extraction failed:', memErr.message);
+      }
+    }
+
+    if (useMemory && orgId && userMessage && assistantText) {
+      try {
+        const contextWrites = await persistConversationContextMemories({
+          orgId,
+          userId,
+          agentId,
+          conversationId,
+          userMessage,
+          assistantText,
+        });
+        memoryWrites = [...memoryWrites, ...contextWrites.map((write) => ({
+          id: write.id ?? null,
+          key: write.key,
+          memoryWriteKey: write.key,
+          scope: write.scope,
+          created: write.created ?? false,
+          conflict: write.conflict ?? false,
+          memoryFeedback: write.memoryFeedback ?? [],
+        }))];
+      } catch (memErr) {
+        console.warn('[AGENT-RUNNER] Context memory persistence failed:', memErr.message);
       }
     }
 

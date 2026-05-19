@@ -32,7 +32,7 @@ export const VIDEO_MODE_OPTIONS = {
   lite: {
     id: 'lite',
     label: 'Lite',
-    providerLabel: 'Veo 3.1 Lite',
+    laneLabel: 'Fast draft',
     description: 'Lower-credit, faster renders for drafts, simple promos, and quick iteration.',
     supportedDurations: [4, 6, 8],
     supportedResolutions: ['720p', '1080p'],
@@ -43,7 +43,7 @@ export const VIDEO_MODE_OPTIONS = {
   standard: {
     id: 'standard',
     label: 'Standard',
-    providerLabel: 'Veo 3.1 Standard',
+    laneLabel: 'Cinematic',
     description: 'Higher-quality renders with a heavier credit burn. Best for polished campaign visuals.',
     supportedDurations: [4, 6, 8],
     supportedResolutions: ['720p', '1080p'],

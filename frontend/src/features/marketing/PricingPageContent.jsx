@@ -95,7 +95,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What media can I generate?',
-    a: 'The guided image builder uses execution credits. The guided video builder supports Veo 3.1 Lite and Standard one-shot renders at 4, 6, or 8 seconds; video reference images currently require Veo 3.1 Standard at 8 seconds.',
+    a: 'The guided image builder uses execution credits. The guided video builder supports Fast Draft and Cinematic one-shot renders at 4, 6, or 8 seconds; video reference images currently require the Cinematic lane at 8 seconds.',
   },
 ];
 
@@ -357,7 +357,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
           <article>
             <span className="pricing-usage-clarity__icon" aria-hidden="true"><TbMovie /></span>
             <h3>Guided video builder</h3>
-            <p>Veo 3.1 Lite and Standard renders use separate video credits, with 4, 6, or 8 second one-shot outputs.</p>
+            <p>Fast Draft and Cinematic renders use separate video credits, with 4, 6, or 8 second one-shot outputs.</p>
           </article>
           <article>
             <span className="pricing-usage-clarity__icon" aria-hidden="true"><TbCoin /></span>
@@ -409,7 +409,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               </span>
               AI video credits
             </h4>
-            <p>Used only when you create AI-generated video renders. Reference images are currently supported on Veo 3.1 Standard at 8 seconds.</p>
+            <p>Used only when you create AI-generated video renders. Reference images are currently supported on the Cinematic lane at 8 seconds.</p>
           </div>
         </div>
         <div className="pricing-reassure">

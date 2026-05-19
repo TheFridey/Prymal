@@ -50,6 +50,121 @@ function formatScore(value) {
   return score <= 1 ? `${Math.round(score * 100)}%` : score.toFixed(2);
 }
 
+function humanizeSignal(value) {
+  return String(value ?? '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function summarizeOrigins(origins = []) {
+  const labels = (Array.isArray(origins) ? origins : []).map((origin) => {
+    if (origin === 'workspace_knowledge') return 'workspace knowledge';
+    if (origin === 'uploaded_files') return 'uploaded files';
+    if (origin === 'live_research') return 'live research';
+    return humanizeSignal(origin).toLowerCase();
+  });
+
+  return labels.length > 0 ? labels.join(' · ') : 'No evidence sources attached';
+}
+
+export function EvidenceDrawer({ evidenceSummary, sources = [] }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!evidenceSummary && (!Array.isArray(sources) || sources.length === 0)) {
+    return null;
+  }
+
+  const sourceCount = Number(evidenceSummary?.sourceCount ?? sources.length ?? 0);
+  const confidenceLevel = evidenceSummary?.confidenceLevel ?? 'unknown';
+  const contradictionSeverity = evidenceSummary?.contradictionSeverity ?? 'none';
+  const needsMoreEvidence = Boolean(evidenceSummary?.notEnoughEvidence);
+
+  return (
+    <div style={{ marginTop: '10px' }}>
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          borderRadius: '999px',
+          border: '1px solid rgba(91,107,134,0.26)',
+          background: 'rgba(91,107,134,0.12)',
+          color: 'var(--text-strong)',
+          padding: '5px 10px',
+          fontSize: '12px',
+          cursor: 'pointer',
+        }}
+      >
+        <ArtifactChip
+          label={needsMoreEvidence ? 'Evidence needs strengthening' : `Evidence confidence: ${confidenceLevel}`}
+          tone={needsMoreEvidence ? 'warning' : confidenceLevel === 'high' ? 'success' : 'default'}
+        />
+        <span style={{ color: 'var(--muted)' }}>
+          {sourceCount} source{sourceCount === 1 ? '' : 's'}
+        </span>
+        <span style={{ color: 'var(--muted)' }}>{expanded ? 'Hide evidence' : 'Open evidence'}</span>
+      </button>
+      {expanded ? (
+        <div
+          style={{
+            marginTop: '8px',
+            padding: '12px 14px',
+            borderRadius: '12px',
+            border: '1px solid rgba(91,107,134,0.2)',
+            background: 'rgba(91,107,134,0.08)',
+            display: 'grid',
+            gap: '10px',
+          }}
+        >
+          <div style={{ display: 'grid', gap: '4px', fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>
+            <div>{summarizeOrigins(evidenceSummary?.origins ?? [])}</div>
+            <div>Freshness: {humanizeSignal(evidenceSummary?.sourceFreshness ?? 'unknown').toLowerCase()}</div>
+            {contradictionSeverity !== 'none' ? (
+              <div style={{ color: '#f59e0b' }}>Some claims conflict across sources and should be checked carefully.</div>
+            ) : null}
+            {evidenceSummary?.missingEvidenceReason ? (
+              <div style={{ color: '#f59e0b' }}>{evidenceSummary.missingEvidenceReason}</div>
+            ) : null}
+          </div>
+          <div style={{ display: 'grid', gap: '8px' }}>
+            {(Array.isArray(sources) ? sources : []).map((source, index) => (
+              <div
+                key={`${source.title ?? source.documentTitle ?? 'source'}-${index}`}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  display: 'grid',
+                  gap: '6px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+                  <strong style={{ color: 'var(--text-strong)', fontSize: '13px' }}>{source.title ?? source.documentTitle ?? 'Source'}</strong>
+                  {source.sourceUrl ? (
+                    <a href={source.sourceUrl} target="_blank" rel="noreferrer" className="workspace-studio__source-link">
+                      Open
+                    </a>
+                  ) : null}
+                </div>
+                <div style={{ color: 'var(--muted)', fontSize: '12px' }}>
+                  {humanizeSignal(source.origin ?? source.sourceType ?? 'workspace_knowledge')}
+                  {source.freshness ? ` · ${humanizeSignal(source.freshness).toLowerCase()}` : ''}
+                  {source.confidenceLevel ? ` · confidence ${String(source.confidenceLevel).toLowerCase()}` : ''}
+                </div>
+                {source.contradictionWarning ? (
+                  <div style={{ color: '#f59e0b', fontSize: '12px', lineHeight: 1.5 }}>{source.contradictionWarning}</div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function SchemaValidationBadge({ validation }) {
   const [expanded, setExpanded] = useState(false);
   if (!validation?.verdict || validation.verdict === 'skipped') return null;
@@ -330,18 +445,18 @@ export function TrustGrammarPanel({ enforcementSummary, geminiGrounding }) {
   if (grounding?.chunkCount > 0) {
     chips.push({
       key: 'gemini-grounding',
-      label: `Live grounding ${grounding.chunkCount}`,
+      label: `Live research ${grounding.chunkCount}`,
       tone: 'success',
-      title: `Gemini grounded against ${grounding.chunkCount} live web chunks`,
+      title: `Prymal verified this response against ${grounding.chunkCount} live web chunks`,
     });
   }
 
   if (summary.fallbackUsed) {
     chips.push({
       key: 'fallback',
-      label: 'Provider fallback',
+      label: 'Recovery lane used',
       tone: 'warning',
-      title: 'Primary provider failed and a fallback model answered',
+      title: 'Prymal switched execution lanes to complete the response safely',
     });
   }
 
@@ -529,7 +644,7 @@ export function GeneratedImageCard({ image }) {
         <div>
           <div className="workspace-studio__source-title">Generated visual</div>
           <div className="workspace-studio__source-meta">
-            {image.model ?? 'openai-image'} | {image.size ?? 'auto'} | {image.quality ?? 'medium'}
+            {image.size ?? 'auto'} | {image.quality ?? 'medium'} | {image.outputFormat ?? 'webp'}
           </div>
         </div>
         {imageUrl ? (
@@ -555,7 +670,7 @@ export function GeneratedVideoCard({ video }) {
     `${video.durationSeconds ?? 4}s`,
     video.resolution ?? '720p',
     video.aspectRatio ?? '16:9',
-    video.providerLabel ?? (video.mode === 'standard' ? 'Veo 3.1 Standard' : 'Veo 3.1 Lite'),
+    video.laneLabel ?? (video.mode === 'standard' ? 'Cinematic' : 'Fast draft'),
   ];
 
   if (Number(video.referenceImageCount) > 0) {
@@ -824,12 +939,6 @@ function describeConfidence(confidence) {
   }
 
   return humanizeSignal(confidence);
-}
-
-function humanizeSignal(value) {
-  return String(value ?? '')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function truncateText(value, limit = 120) {

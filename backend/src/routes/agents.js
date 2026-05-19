@@ -39,6 +39,10 @@ import { sanitizeAgentOutputText } from '../services/llm.js';
 import { detectEscalationTrigger, dispatchWrenEscalation } from '../services/wren-escalation.js';
 import { buildConversationAgentMismatchResponse } from './agent-conversation-utils.js';
 import {
+  sanitizeAssistantDoneEventForUser,
+  sanitizeAssistantMessageMetadataForUser,
+} from '../services/agent-response-sanitizer.js';
+import {
   buildMediaRefusalMessage,
   buildWardenTrace,
   classifyUserIntent,
@@ -136,6 +140,33 @@ const SUPPORTED_AUDIO_MIME_TYPES = new Set([
   'video/webm',
 ]);
 const SUPPORTED_AUDIO_EXTENSIONS = ['.mp3', '.wav', '.webm', '.ogg', '.mp4', '.m4a'];
+
+function toSafeGeneratedImage(image = {}) {
+  return {
+    url: image.url ?? null,
+    fileName: image.fileName ?? null,
+    prompt: image.prompt ?? null,
+    revisedPrompt: image.revisedPrompt ?? null,
+    size: image.size ?? 'auto',
+    quality: image.quality ?? 'medium',
+    outputFormat: image.outputFormat ?? 'webp',
+  };
+}
+
+function toSafeGeneratedVideo(video = {}) {
+  return {
+    url: video.url ?? video.outputUrl ?? null,
+    fileName: video.fileName ?? video.outputFileName ?? null,
+    prompt: video.prompt ?? null,
+    durationSeconds: video.durationSeconds ?? 4,
+    resolution: video.resolution ?? '720p',
+    aspectRatio: video.aspectRatio ?? '16:9',
+    mode: video.mode ?? 'lite',
+    laneLabel: video.mode === 'standard' ? 'Cinematic' : 'Fast draft',
+    referenceImageCount: Number(video.referenceImageCount ?? 0),
+    creditsUsed: Number(video.creditsUsed ?? video.creditsCommitted ?? 0),
+  };
+}
 
 const realtimeTokenSchema = z.object({
   agentId: z.enum(AGENT_IDS).optional(),
@@ -255,7 +286,16 @@ router.get('/conversations/:conversationId/messages', requireOrg, async (context
     orderBy: [asc(messages.createdAt)],
   });
 
-  return context.json({ messages: history });
+  return context.json({
+    messages: history.map((message) => (
+      message.role === 'assistant'
+        ? {
+            ...message,
+            metadata: sanitizeAssistantMessageMetadataForUser(message.metadata ?? {}),
+          }
+        : message
+    )),
+  });
 });
 
 router.post('/chat', requireOrg, chatRateLimit, zValidator('json', chatSchema), async (context) => {
@@ -459,18 +499,14 @@ router.post('/chat', requireOrg, chatRateLimit, zValidator('json', chatSchema), 
               tokensUsed: event.tokensUsed ?? null,
               processingMs: Date.now() - startedAt,
               metadata: {
-                model: event.model ?? null,
-                provider: event.provider ?? null,
-                policyKey: event.policyKey ?? null,
-                policyClass: event.policyKey ?? null,
-                route: event.route ?? null,
-                routeReason: event.routeReason ?? null,
-                fallbackModel: event.selectionDetails?.fallbackModelUsed ?? null,
-                sources: event.sources ?? [],
+                ...sanitizeAssistantMessageMetadataForUser({
+                  sources: event.sources ?? [],
+                  schemaValidation: event.schemaValidation ?? null,
+                  sentinelReview: event.sentinelReview ?? null,
+                  enforcementSummary: event.enforcementSummary ?? null,
+                  usedMemories: event.usedMemories ?? [],
+                }),
                 schemaValidation: event.schemaValidation ?? null,
-                sentinelReview: event.sentinelReview ?? null,
-                enforcementSummary: event.enforcementSummary ?? null,
-                geminiGrounding: event.geminiGrounding ?? null,
                 warden: messageSafety.trace,
               },
             })
@@ -615,22 +651,10 @@ router.post('/chat', requireOrg, chatRateLimit, zValidator('json', chatSchema), 
               tokensUsed: event.tokensUsed ?? 0,
               creditsUsed,
               processingMs: Date.now() - startedAt,
-              sources: event.sources ?? [],
-              model: event.model ?? null,
-              provider: event.provider ?? null,
-              policyKey: event.policyKey ?? null,
-              policyClass: event.policyKey ?? null,
-              route: event.route ?? null,
-              routeReason: event.routeReason ?? null,
-              fallbackModel: event.selectionDetails?.fallbackModelUsed ?? null,
-              schemaValidation: event.schemaValidation ?? null,
-              sentinelReview: event.sentinelReview ?? null,
-              enforcementSummary: event.enforcementSummary ?? null,
-              geminiGrounding: event.geminiGrounding ?? null,
+              ...sanitizeAssistantDoneEventForUser(event),
               escalated: escalationResult.triggered,
               escalationReason: escalationResult.triggerReason ?? null,
               memoryEvents: event.memoryEvents ?? [],
-              usedMemories: event.usedMemories ?? [],
             }),
           });
         } else if (event.type === 'hold') {
@@ -683,9 +707,8 @@ router.post('/chat', requireOrg, chatRateLimit, zValidator('json', chatSchema), 
               sentinelRepairActions: event.sentinelRepairActions ?? [],
               sentinelHoldReason: event.sentinelHoldReason ?? null,
               sentinelRiskScore: event.sentinelRiskScore ?? null,
-              enforcementSummary: event.enforcementSummary ?? null,
               memoryEvents: event.memoryEvents ?? [],
-              usedMemories: event.usedMemories ?? [],
+              usedMemories: [],
             }),
           });
         } else if (event.type === 'error') {
@@ -876,6 +899,7 @@ router.post('/generate-image', requireOrg, mediaGenerationRateLimit, zValidator(
       orgId: org.orgId,
       conversationId: conversation.id,
     });
+    const safeGeneratedImage = toSafeGeneratedImage(generatedImage);
 
     await commitExecutionUsage({
       usageEventId: imageReservation.usageEvent.id,
@@ -899,11 +923,7 @@ router.post('/generate-image', requireOrg, mediaGenerationRateLimit, zValidator(
         content: assistantContent,
         processingMs: Date.now() - startedAt,
         metadata: {
-          provider: 'openai',
-          route: 'openai-image',
-          routeReason: 'Used the OpenAI image generation pipeline for a direct visual asset request.',
-          model: generatedImage.model,
-          generatedImages: [generatedImage],
+          generatedImages: [safeGeneratedImage],
           warden: buildWardenTrace(mediaDecision),
         },
       })
@@ -928,7 +948,7 @@ router.post('/generate-image', requireOrg, mediaGenerationRateLimit, zValidator(
       contentType: 'image',
       metadata: {
         route: '/agents/generate-image',
-        generatedImages: [generatedImage],
+        generatedImages: [safeGeneratedImage],
         warden: buildWardenTrace(mediaDecision),
       },
     });
@@ -980,16 +1000,12 @@ router.post('/generate-image', requireOrg, mediaGenerationRateLimit, zValidator(
         role: 'assistant',
         content: assistantContent,
         metadata: {
-          provider: 'openai',
-          route: 'openai-image',
-          routeReason: 'Used the OpenAI image generation pipeline for a direct visual asset request.',
-          model: generatedImage.model,
-          generatedImages: [generatedImage],
+          generatedImages: [safeGeneratedImage],
           warden: buildWardenTrace(mediaDecision),
         },
         processingMs: Date.now() - startedAt,
       },
-      image: generatedImage,
+      image: safeGeneratedImage,
       creditsUsed: imageReservation.burn.creditsUsed,
     });
   } catch (error) {
@@ -1286,6 +1302,17 @@ router.get('/video-jobs/:jobId', requireOrg, async (context) => {
         where: eq(messages.id, job.messageId),
       })
     : null;
+  const safeVideo = toSafeGeneratedVideo({
+    outputUrl: job.outputUrl,
+    outputFileName: job.outputFileName,
+    prompt: job.prompt,
+    durationSeconds: job.durationSeconds,
+    resolution: job.resolution,
+    aspectRatio: job.aspectRatio,
+    mode: job.providerMetadata?.mode ?? 'lite',
+    referenceImageCount: Number(job.providerMetadata?.referenceImageCount ?? 0),
+    creditsCommitted: job.creditsCommitted,
+  });
 
   return context.json({
     job: {
@@ -1299,33 +1326,24 @@ router.get('/video-jobs/:jobId', requireOrg, async (context) => {
       maxRetries: job.maxRetries,
       failureCode: job.failureCode,
       failureMessage: job.failureMessage,
-      outputUrl: job.outputUrl,
-      outputFileName: job.outputFileName,
+      outputUrl: safeVideo.url,
+      outputFileName: safeVideo.fileName,
       createdAt: job.createdAt,
       startedAt: job.startedAt,
       completedAt: job.completedAt,
       creditsRequested: job.creditsRequested,
       creditsReserved: job.creditsReserved,
       creditsCommitted: job.creditsCommitted,
-      providerJobId: job.providerJobId,
       mode: job.providerMetadata?.mode ?? 'lite',
-      providerLabel: job.providerMetadata?.providerLabel ?? null,
+      laneLabel: safeVideo.laneLabel,
       referenceImageCount: Number(job.providerMetadata?.referenceImageCount ?? 0),
-      providerMetadata: {
-        storageProvider: job.providerMetadata?.storageProvider ?? null,
-        outputAsset: job.providerMetadata?.outputAsset ?? null,
-        referenceImages: job.providerMetadata?.referenceImages ?? [],
-        referenceImageCleanupStatus: job.providerMetadata?.referenceImageCleanupStatus ?? null,
-        providerErrorType: job.providerMetadata?.providerErrorType ?? null,
-        providerErrorCategory: job.providerMetadata?.providerErrorCategory ?? null,
-      },
     },
     message: assistantMessage
       ? {
           id: assistantMessage.id,
           role: assistantMessage.role,
           content: assistantMessage.content,
-          metadata: assistantMessage.metadata,
+          metadata: sanitizeAssistantMessageMetadataForUser(assistantMessage.metadata ?? {}),
           processingMs: assistantMessage.processingMs ?? null,
         }
       : null,

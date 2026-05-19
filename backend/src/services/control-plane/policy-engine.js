@@ -114,7 +114,21 @@ export const DEFAULT_POLICY_DOCUMENT = {
       risk_score: 0.82,
       reason: 'High-risk side-effect tools require approval.',
       conditions: {
-        tools: ['email_send', 'post_external', 'integration_write', 'workflow_execute', 'workflow_run'],
+        tools: [
+          'email_send',
+          'slack_post',
+          'google_drive_write',
+          'google_drive_append',
+          'webhook_post',
+          'cms_publish',
+          'social_post',
+          'billing_mutation',
+          'admin_mutation',
+          'integration_write',
+          'post_external',
+          'workflow_execute',
+          'workflow_run',
+        ],
       },
     },
     {

@@ -2,6 +2,7 @@ import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Navigate, useOutletContext } from 'react-router-dom';
 import { api, createIdempotentRequestInit } from '../lib/api';
+import { isInternalDiagnosticsVisible } from '../lib/diagnostics';
 import { formatDate, formatDateTime, formatNumber, getErrorMessage, truncate } from '../lib/utils';
 import {
   Button,
@@ -56,7 +57,7 @@ const WORKFLOW_PAGE_SIZE = 24;
 
 export default function Admin() {
   const { viewer } = useOutletContext();
-  const isStaff = Boolean(viewer?.staff?.isStaff);
+  const isStaff = isInternalDiagnosticsVisible(viewer);
   const notify = useAppStore((state) => state.addNotification);
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('overview');

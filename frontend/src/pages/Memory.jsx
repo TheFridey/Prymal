@@ -15,6 +15,23 @@ import {
 import { useAppStore } from '../stores/useAppStore';
 import '../styles/memory-page.css';
 
+function getMemoryMetadata(row) {
+  return row?.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+}
+
+function getContextGroup(row) {
+  const metadata = getMemoryMetadata(row);
+  if (metadata.contextLayer === 'global') return 'global';
+  if (metadata.contextLayer === 'agent') return 'agent';
+  return 'other';
+}
+
+function getContextHeading(group) {
+  if (group === 'global') return 'Global Context';
+  if (group === 'agent') return 'Agent Context';
+  return 'Other Memory';
+}
+
 function memoryBool(row, camel, snake) {
   if (!row) return false;
   const a = row[camel];
@@ -84,8 +101,23 @@ export default function Memory() {
   const rows = memoryQuery.data?.memory ?? [];
 
   const selectedRow = useMemo(() => rows.find((r) => r.id === selectedId) ?? null, [rows, selectedId]);
+  const groupedRows = useMemo(() => {
+    const groups = {
+      global: [],
+      agent: [],
+      other: [],
+    };
+
+    rows.forEach((row) => {
+      groups[getContextGroup(row)].push(row);
+    });
+
+    return groups;
+  }, [rows]);
 
   const groupedTimeline = useMemo(() => timelineQuery.data?.grouped ?? [], [timelineQuery.data]);
+  const selectedMeta = getMemoryMetadata(selectedRow);
+  const selectedConfidence = Number(selectedRow?.confidence ?? 0);
 
   return (
     <PageShell className="memory-page">
@@ -138,25 +170,49 @@ export default function Memory() {
                 description="Memory appears when Prymal learns durable preferences, facts, and workflow context. You can review, edit, lock, or forget memory at any time from here."
               />
             ) : (
-              <ul className="memory-page__items">
-                {rows.map((row) => (
-                  <li key={row.id}>
-                    <button
-                      type="button"
-                      className={`memory-page__item ${selectedId === row.id ? 'is-selected' : ''}`}
-                      onClick={() => setSelectedId(row.id)}
-                    >
-                      <div className="memory-page__item-title">{row.title ?? row.key}</div>
-                      <div className="memory-page__meta">
-                        <span className="memory-page__badge">{row.scope}</span>
-                        <span className="memory-page__badge">{row.memory_type ?? row.memoryType}</span>
-                        <span className="memory-page__muted">{formatDateTime(row.updated_at ?? row.updatedAt)}</span>
-                      </div>
-                      <p className="memory-page__value">{row.value}</p>
-                    </button>
-                  </li>
+              <div style={{ display: 'grid', gap: '18px' }}>
+                {['global', 'agent', 'other'].map((group) => (
+                  groupedRows[group].length > 0 ? (
+                    <section key={group} style={{ display: 'grid', gap: '8px' }}>
+                      <SectionLabel>{getContextHeading(group)}</SectionLabel>
+                      <ul className="memory-page__items">
+                        {groupedRows[group].map((row) => {
+                          const metadata = getMemoryMetadata(row);
+                          const confidencePct = Math.round(Math.max(Math.min(Number(row.confidence ?? 0), 1), 0) * 100);
+                          return (
+                            <li key={row.id}>
+                              <button
+                                type="button"
+                                className={`memory-page__item ${selectedId === row.id ? 'is-selected' : ''}`}
+                                onClick={() => setSelectedId(row.id)}
+                              >
+                                <div className="memory-page__item-title">{row.title ?? row.key}</div>
+                                <div className="memory-page__meta">
+                                  <span className="memory-page__badge">{row.scope}</span>
+                                  <span className="memory-page__badge">{row.memory_type ?? row.memoryType}</span>
+                                  {metadata.targetAgentId ? (
+                                    <span className="memory-page__badge">{metadata.targetAgentId}</span>
+                                  ) : null}
+                                  {metadata.sourceConversationId ? (
+                                    <span className="memory-page__badge">conversation</span>
+                                  ) : null}
+                                  <span className="memory-page__muted">{formatDateTime(row.updated_at ?? row.updatedAt)}</span>
+                                </div>
+                                <p className="memory-page__value">{row.value}</p>
+                                {Number.isFinite(confidencePct) ? (
+                                  <div className="memory-page__muted" style={{ fontSize: '12px' }}>
+                                    Confidence {confidencePct}%
+                                  </div>
+                                ) : null}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  ) : null
                 ))}
-              </ul>
+              </div>
             )}
           </SurfaceCard>
 
@@ -227,6 +283,48 @@ export default function Memory() {
                   <dd>{explainQuery.data.sourceType}</dd>
                   <dt>Scope</dt>
                   <dd>{explainQuery.data.scope}</dd>
+                  {selectedMeta.contextLayer ? (
+                    <>
+                      <dt>Context layer</dt>
+                      <dd>{selectedMeta.contextLayer === 'global' ? 'Global Context' : 'Agent Context'}</dd>
+                    </>
+                  ) : null}
+                  {selectedMeta.targetAgentId ? (
+                    <>
+                      <dt>Agent context</dt>
+                      <dd>{selectedMeta.targetAgentId}</dd>
+                    </>
+                  ) : null}
+                  {selectedMeta.sourceConversationId ? (
+                    <>
+                      <dt>Source conversation</dt>
+                      <dd>{selectedMeta.sourceConversationId}</dd>
+                    </>
+                  ) : null}
+                  {selectedMeta.sourceAgentId ? (
+                    <>
+                      <dt>Source agent</dt>
+                      <dd>{selectedMeta.sourceAgentId}</dd>
+                    </>
+                  ) : null}
+                  {selectedMeta.generatedBy ? (
+                    <>
+                      <dt>Generated by</dt>
+                      <dd>{selectedMeta.generatedBy}</dd>
+                    </>
+                  ) : null}
+                  {selectedMeta.sensitivity ? (
+                    <>
+                      <dt>Sensitivity</dt>
+                      <dd>{selectedMeta.sensitivity}</dd>
+                    </>
+                  ) : null}
+                  {selectedConfidence > 0 ? (
+                    <>
+                      <dt>Confidence score</dt>
+                      <dd>{selectedConfidence.toFixed(2)}</dd>
+                    </>
+                  ) : null}
                 </dl>
                 {explainQuery.data.canDelete ? (
                   <Button

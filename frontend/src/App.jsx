@@ -39,6 +39,7 @@ const Privacy = lazyPage(() => import('./pages/Privacy'), 'privacy');
 const Pricing = lazyPage(() => import('./pages/Pricing'), 'pricing');
 const Settings = lazyPage(() => import('./pages/Settings'), 'settings');
 const Terms = lazyPage(() => import('./pages/Terms'), 'terms');
+const Trust = lazyPage(() => import('./pages/Trust'), 'trust');
 const Workflows = lazyPage(() => import('./pages/Workflows'), 'workflows');
 const WorkflowCatalogue = lazyPage(() => import('./pages/WorkflowCatalogue'), 'workflow-catalogue');
 const WorkflowCatalogueCreate = lazyPage(() => import('./pages/WorkflowCatalogueCreate'), 'workflow-catalogue-create');
@@ -174,6 +175,7 @@ function AppRoutes() {
           <Route path="/terms" element={<LazyPage label="Loading terms..."><Terms /></LazyPage>} />
           <Route path="/cookies" element={<LazyPage label="Loading cookie policy..."><Cookies /></LazyPage>} />
           <Route path="/changelog" element={<LazyPage label="Loading changelog..."><Changelog /></LazyPage>} />
+          <Route path="/trust" element={<LazyPage label="Loading trust page..."><Trust /></LazyPage>} />
           <Route path="/pricing" element={<LazyPage label="Loading pricing..."><Pricing /></LazyPage>} />
           <Route path="/agents/:agentId" element={<LazyPage label="Loading agent profile..."><AgentProfile /></LazyPage>} />
           <Route path="/login/*" element={<AuthPage mode="sign-in" />} />

@@ -58,6 +58,15 @@ export function isStrictRuntimeAgent(agentId) {
  */
 export const SIDE_EFFECT_TOOLS = new Set([
   'email_send',
+  'slack_post',
+  'google_drive_write',
+  'google_drive_append',
+  'webhook_post',
+  'cms_publish',
+  'social_post',
+  'billing_mutation',
+  'admin_mutation',
+  'integration_write',
 ]);
 
 export function isSideEffectTool(tool) {
@@ -76,7 +85,7 @@ export function enforceAgentToolPolicy(agentId, tool) {
     return {
       allowed: false,
       reason: `No runtime contract found for agent '${agentId}'.`,
-      requiresAudit: false,
+      requiresAudit: SIDE_EFFECT_TOOLS.has(tool),
     };
   }
 
@@ -84,7 +93,7 @@ export function enforceAgentToolPolicy(agentId, tool) {
     return {
       allowed: false,
       reason: `Tool '${tool}' is blocked for agent ${agentId}.`,
-      requiresAudit: false,
+      requiresAudit: SIDE_EFFECT_TOOLS.has(tool),
     };
   }
 
@@ -92,7 +101,7 @@ export function enforceAgentToolPolicy(agentId, tool) {
     return {
       allowed: false,
       reason: `Tool '${tool}' is outside the allowed contract for agent ${agentId}.`,
-      requiresAudit: false,
+      requiresAudit: SIDE_EFFECT_TOOLS.has(tool),
     };
   }
 

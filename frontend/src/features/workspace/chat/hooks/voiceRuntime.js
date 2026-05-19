@@ -237,7 +237,7 @@ export async function startRealtimeSession({
     if (!sdpResponse.ok || !answerSdp.trim()) {
       throw createRealtimeError(
         'WEBRTC_NEGOTIATION_FAILED',
-        answerSdp || 'OpenAI Realtime negotiation failed.',
+        answerSdp || 'Realtime session negotiation failed.',
       );
     }
 

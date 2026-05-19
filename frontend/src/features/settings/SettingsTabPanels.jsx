@@ -72,21 +72,21 @@ const rowStyle = {
 const providerGuidance = [
   {
     key: 'anthropic',
-    title: 'Anthropic',
+    title: 'Deliberate',
     accent: '#7DD3FC',
     role: 'Deep reasoning and contract-heavy specialist work.',
     helper: 'Best when you want deliberate analysis, stronger instruction-following, and premium long-form synthesis.',
   },
   {
     key: 'openai',
-    title: 'OpenAI',
+    title: 'Structured + multimodal',
     accent: '#7CFFCB',
     role: 'Premium structured, multimodal, realtime, and operator-facing execution.',
     helper: 'Best for polished customer-facing output, voice, images, and strong structured-response lanes.',
   },
   {
     key: 'google',
-    title: 'Gemini',
+    title: 'Fast + efficient',
     accent: '#BDB4FE',
     role: 'Fast, lower-cost throughput and experimentation lane.',
     helper: 'Best for budget-sensitive routing, high-volume fast paths, and controlled experimentation.',
@@ -936,12 +936,12 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
 
   const effectiveSummary = useMemo(() => {
     const selectedProvider = formState.providerPreference === 'auto'
-      ? 'Auto-select the best provider per policy lane'
+      ? 'Adaptive routing across Prymal execution lanes'
       : formState.providerPreference === 'anthropic'
-        ? 'Prefer Anthropic for deliberate reasoning-heavy work'
+        ? 'Prefer the Deliberate lane for reasoning-heavy work'
         : formState.providerPreference === 'openai'
-          ? 'Prefer OpenAI for premium multimodal and structured lanes'
-          : 'Prefer Gemini for fast or budget-sensitive execution';
+          ? 'Prefer the Structured + multimodal lane'
+          : 'Prefer the Fast + efficient lane';
     const reasoningSummary = formState.reasoningTier === 'auto'
       ? 'Let policy routing choose the right reasoning depth'
       : formState.reasoningTier === 'high'
@@ -952,10 +952,10 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
     const fastLaneSummary = formState.fastLane === 'auto'
       ? 'No explicit fast-lane pinning'
       : formState.fastLane === 'anthropic_fast'
-        ? 'Route fast chat toward Anthropic fast models'
+        ? 'Route fast chat toward Low-friction drafting'
         : formState.fastLane === 'openai_router'
-          ? 'Route fast chat toward the OpenAI router lane'
-          : 'Route fast chat toward Gemini Flash';
+          ? 'Route fast chat toward Balanced workspace routing'
+          : 'Route fast chat toward the Fastest response lane';
     const budgetSummary = formState.budgetCap.maxOutputTokensPerRun
       ? `Output token guardrail set to ${formState.budgetCap.maxOutputTokensPerRun} tokens per run.`
       : 'Usage is managed per your current plan.';
@@ -1002,7 +1002,7 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
       <SurfaceCard title="AI routing controls" accent="#BDB4FE">
         <InlineNotice tone={canManageControls ? 'default' : 'warning'}>
           {canManageControls
-            ? 'These controls tune how Prymal prefers providers, fast lanes, budgets, and failover order for this workspace.'
+            ? 'These controls tune how Prymal prefers execution lanes, fast paths, budgets, and failover order for this workspace.'
             : 'Only owners and admins can change organisation-level AI routing controls.'}
         </InlineNotice>
 
@@ -1028,7 +1028,7 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
           </div>
 
           <div style={{ display: 'grid', gap: '10px' }}>
-            <SectionLabel>Provider roles</SectionLabel>
+            <SectionLabel>Lane roles</SectionLabel>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
               {providerGuidance.map((provider) => (
                 <div
@@ -1054,17 +1054,17 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
             <label style={{ display: 'grid', gap: '6px' }}>
-              <span style={FORM_LABEL_STYLE}>Provider preference</span>
+              <span style={FORM_LABEL_STYLE}>Routing posture</span>
               <select
                 value={formState.providerPreference}
                 onChange={(event) => setFormState((current) => ({ ...current, providerPreference: event.target.value }))}
                 style={selectStyle}
                 disabled={!canManageControls || controlsQuery.isLoading}
               >
-                <option value="auto">Auto</option>
-                <option value="anthropic">Anthropic first</option>
-                <option value="openai">OpenAI first</option>
-                <option value="google">Gemini first</option>
+                <option value="auto">Adaptive</option>
+                <option value="anthropic">Deliberate</option>
+                <option value="openai">Structured + multimodal</option>
+                <option value="google">Fast + efficient</option>
               </select>
             </label>
 
@@ -1091,10 +1091,10 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
                 style={selectStyle}
                 disabled={!canManageControls || controlsQuery.isLoading}
               >
-                <option value="auto">Auto</option>
-                <option value="anthropic_fast">Anthropic fast</option>
-                <option value="openai_router">OpenAI router</option>
-                <option value="gemini_flash">Gemini flash</option>
+                <option value="auto">Adaptive</option>
+                <option value="anthropic_fast">Low-friction drafting</option>
+                <option value="openai_router">Balanced workspace routing</option>
+                <option value="gemini_flash">Fastest response lane</option>
               </select>
             </label>
           </div>
@@ -1124,9 +1124,9 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
                     disabled={!canManageControls || controlsQuery.isLoading}
                   >
                     <option value="">None</option>
-                    <option value="anthropic">Anthropic</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="google">Gemini</option>
+                    <option value="anthropic">Deliberate</option>
+                    <option value="openai">Structured + multimodal</option>
+                    <option value="google">Fast + efficient</option>
                   </select>
                 </label>
               ))}
@@ -1145,8 +1145,8 @@ export function OrganisationSettingsTab({ orgRows, viewer, controlsQuery, update
 
           <InlineNotice tone={hasDraftOverrides ? 'success' : 'default'}>
             {hasDraftOverrides
-              ? 'This draft will change default routing posture for the whole organisation. Policy abstractions still stay in control, but the preferred provider, fast lane, failover order, and budget guardrails will bias execution.'
-              : 'No explicit routing overrides are active in the current draft. Prymal will continue selecting providers automatically from policy and runtime context.'}
+              ? 'This draft will change default routing posture for the whole organisation. Policy abstractions still stay in control, but the preferred lane, fast lane, failover order, and budget guardrails will bias execution.'
+              : 'No explicit routing overrides are active in the current draft. Prymal will continue selecting execution lanes automatically from policy and runtime context.'}
           </InlineNotice>
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>

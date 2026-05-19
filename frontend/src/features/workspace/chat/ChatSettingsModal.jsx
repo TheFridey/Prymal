@@ -42,12 +42,12 @@ export default function ChatSettingsModal({ activeAgent, activeSettings, onUpdat
           </label>
 
           <label className="workspace-modal__field">
-            <span>Model override</span>
+            <span>Response lane override</span>
             <select value={activeSettings.model} onChange={(event) => onUpdateSettings({ model: event.target.value })} className="field">
               <option value="">Auto (recommended)</option>
-              <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
-              <option value="claude-haiku-4-5">Claude Haiku 4.5 (fast)</option>
-              <option value="claude-opus-4-7">Claude Opus 4.7 (most capable)</option>
+              <option value="claude-sonnet-4-6">Balanced workspace routing</option>
+              <option value="claude-haiku-4-5">Low-friction drafting</option>
+              <option value="claude-opus-4-7">Deep strategic reasoning</option>
             </select>
           </label>
 

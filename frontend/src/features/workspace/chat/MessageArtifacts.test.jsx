@@ -1,59 +1,61 @@
 import { fireEvent, screen } from '@testing-library/react';
-import { SourceCard } from './MessageArtifacts';
+import { EvidenceDrawer } from './MessageArtifacts';
 import { renderWithProviders } from '../../../test/renderWithProviders';
 
-test('SourceCard shows ranking details for scored lore sources', () => {
+test('EvidenceDrawer shows only safe evidence fields for normal users', () => {
   renderWithProviders(
-    <SourceCard
-      source={{
-        documentTitle: 'Pricing handbook',
-        sourceType: 'markdown',
-        similarity: 0.82,
-        lexicalScore: 0.31,
-        freshnessScore: 0.74,
-        authorityScore: 0.91,
-        finalScore: 0.79,
-        confidenceLabel: 'high',
-        retrievalMode: 'hybrid',
+    <EvidenceDrawer
+      evidenceSummary={{
+        confidenceLevel: 'high',
+        sourceCount: 1,
+        sourceFreshness: 'fresh',
+        contradictionSeverity: 'low',
+        origins: ['workspace_knowledge', 'live_research'],
       }}
+      sources={[
+        {
+          title: 'Pricing handbook',
+          sourceUrl: 'https://example.com/pricing',
+          origin: 'workspace_knowledge',
+          freshness: 'fresh',
+          confidenceLevel: 'high',
+          contradictionWarning: 'A newer draft may change this point.',
+          provider: 'hidden-provider',
+          model: 'hidden-model',
+        },
+      ]}
     />,
   );
 
-  fireEvent.click(screen.getByRole('button', { name: 'Why this source won' }));
+  fireEvent.click(screen.getByRole('button', { name: /open evidence/i }));
 
-  expect(screen.getByText('Ranking signal mix')).toBeInTheDocument();
-  expect(screen.getByText('82%')).toBeInTheDocument();
-  expect(screen.getByText('31%')).toBeInTheDocument();
-  expect(screen.getByText('74%')).toBeInTheDocument();
-  expect(screen.getByText('91%')).toBeInTheDocument();
-  expect(screen.getByText('79%')).toBeInTheDocument();
+  expect(screen.getByText(/Evidence confidence: high/i)).toBeInTheDocument();
+  expect(screen.getAllByText(/workspace knowledge/i).length).toBeGreaterThan(0);
+  expect(screen.getByText(/live research/i)).toBeInTheDocument();
+  expect(screen.getByText('Pricing handbook')).toBeInTheDocument();
+  expect(screen.getByText(/A newer draft may change this point/i)).toBeInTheDocument();
+  expect(screen.queryByText(/hidden-provider/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/hidden-model/i)).not.toBeInTheDocument();
 });
 
-test('SourceCard shows neutral source details for direct web sources without fake zero scores', () => {
+test('EvidenceDrawer reports not enough evidence when no sources exist', () => {
   renderWithProviders(
-    <SourceCard
-      source={{
-        title: 'Guide: How to Say "What Are Your Plans for Today"',
-        sourceType: 'web',
-        sourceUrl: 'https://example.com/source',
-        mode: 'direct',
-        fetchedVia: 'search',
-        summary: 'Useful source summary.',
-        snippet: 'Useful source snippet.',
-        similarity: null,
-        lexicalScore: null,
-        freshnessScore: null,
-        authorityScore: null,
-        finalScore: null,
+    <EvidenceDrawer
+      evidenceSummary={{
+        confidenceLevel: 'low',
+        sourceCount: 0,
+        sourceFreshness: 'unknown',
+        contradictionSeverity: 'none',
+        notEnoughEvidence: true,
+        missingEvidenceReason: 'Not enough evidence to verify all claims yet.',
+        origins: [],
       }}
+      sources={[]}
     />,
   );
 
-  fireEvent.click(screen.getByRole('button', { name: 'Source details' }));
+  fireEvent.click(screen.getByRole('button', { name: /open evidence/i }));
 
-  expect(screen.queryByText('Ranking signal mix')).not.toBeInTheDocument();
-  expect(screen.getByText('Selection method')).toBeInTheDocument();
-  expect(screen.getByText('Live web Search')).toBeInTheDocument();
-  expect(screen.queryByText('No confidence label')).not.toBeInTheDocument();
-  expect(screen.queryByText('0%')).not.toBeInTheDocument();
+  expect(screen.getByText(/Evidence needs strengthening/i)).toBeInTheDocument();
+  expect(screen.getByText(/Not enough evidence to verify all claims yet/i)).toBeInTheDocument();
 });

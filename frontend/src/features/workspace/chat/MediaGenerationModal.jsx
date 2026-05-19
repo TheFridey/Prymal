@@ -87,7 +87,7 @@ export default function MediaGenerationModal({
   const videoSummaryItems = isVideo
     ? [
       { label: 'Mode', value: videoMode.label },
-      { label: 'Provider lane', value: videoMode.providerLabel },
+      { label: 'Render lane', value: videoMode.laneLabel },
       { label: 'Duration', value: `${draft.durationSeconds}s` },
       { label: 'Resolution', value: draft.resolution },
       { label: 'Aspect', value: draft.aspectRatio },
@@ -293,11 +293,11 @@ export default function MediaGenerationModal({
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.5 }}>
                       {mode.id === 'standard'
-                        ? 'Higher-quality Veo lane. Supports reference images on 8s renders. Heavier credit burn because the provider costs more.'
+                        ? 'Higher-quality cinematic lane. Supports reference images on 8s renders. Heavier credit burn for polished output.'
                         : 'Faster, lower-credit draft lane. Great for quick concepts and simple promo passes.'}
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                      {mode.providerLabel} — approx. {previewCredits} credits at current settings
+                      {mode.laneLabel} — approx. {previewCredits} credits at current settings
                     </div>
                   </button>
                 );
@@ -410,11 +410,11 @@ export default function MediaGenerationModal({
           {isVideo ? (
             <div style={{ display: 'grid', gap: '12px' }}>
               <InlineNotice tone="default">
-                {videoMode.description} Google&apos;s current Veo API still limits one-shot renders to 4, 6, or 8 seconds. Outputs may vary, so treat the first render as a draft you can refine.
+                {videoMode.description} Prymal currently supports one-shot renders at 4, 6, or 8 seconds. Outputs may vary, so treat the first render as a draft you can refine.
               </InlineNotice>
               {draft.mode === 'standard' ? (
                 <InlineNotice tone="default">
-                  Standard uses more credits because it costs more to render. It is the higher-quality Veo lane and the only option that supports reference images in Prymal.
+                  Standard uses more credits because it is the higher-quality cinematic lane and the only option that supports reference images in Prymal.
                 </InlineNotice>
               ) : (
                 <InlineNotice tone="default">
@@ -545,13 +545,13 @@ export default function MediaGenerationModal({
                       Quality guardrails (negative prompt)
                     </span>
                     <span style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>
-                      Steers Veo away from cluttered UI, garbled text, mascots, glitch effects, and other low-quality looks. Recommended on for promo renders.
+                      Steers renders away from cluttered UI, garbled text, mascots, glitch effects, and other low-quality looks. Recommended on for promo renders.
                     </span>
                   </div>
                 </label>
                 {negativePromptLocked ? (
                   <InlineNotice tone="warning">
-                    Negative prompts are not supported by Veo when reference images are attached. Remove the references to re-enable guardrails.
+                    Negative prompts are not supported when reference images are attached. Remove the references to re-enable guardrails.
                   </InlineNotice>
                 ) : null}
               </div>
@@ -617,7 +617,7 @@ export default function MediaGenerationModal({
               <InlineNotice tone="default">
                 {isVideo
                   ? draft.mode === 'standard'
-                    ? 'Video credits are used only for AI video renders. Standard renders use more credits than Lite because they use the higher-quality Veo lane.'
+                    ? 'Video credits are used only for AI video renders. Standard renders use more credits than Lite because they use the higher-quality cinematic lane.'
                     : 'Video credits are used only for AI video renders. Lite is the lower-cost draft lane for faster iteration.'
                   : 'Image generation uses execution credits and respects the same server-side rate limits and billing controls as chat.'}
               </InlineNotice>

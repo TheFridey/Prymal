@@ -3,14 +3,13 @@ import ReactMarkdown from 'react-markdown';
 import { api } from '../../../lib/api';
 import { formatNumber } from '../../../lib/utils';
 import { AgentAvatar } from '../../../components/ui';
-import { motion, MotionList, MotionListItem, MotionPresence, MotionSection, usePrymalReducedMotion } from '../../../components/motion';
+import { motion, MotionPresence, MotionSection, usePrymalReducedMotion } from '../../../components/motion';
 import {
+  EvidenceDrawer,
   GeneratedImageCard,
   GeneratedVideoCard,
   SchemaValidationBadge,
   SentinelReviewBadge,
-  SourceCard,
-  TrustGrammarPanel,
 } from './MessageArtifacts';
 import AgentMessageFeedback from './AgentMessageFeedback';
 import { buildMessagePresentation } from './messagePresentation';
@@ -586,7 +585,7 @@ function LoreImpactPanel({ sources, agentId, conversationId }) {
         </summary>
         <div style={{ marginTop: '8px', color: 'var(--muted)', fontSize: '12px', lineHeight: 1.7 }}>
           Prymal matched this response to your organisation's own documents, so the answer can use your terminology, policies, offers, and evidence instead of generic chat context.
-          {hasTrustSignals ? ' Trust, freshness, and contradiction signals are shown on the source cards below when available.' : ' Add more source material if you want stronger authority and freshness signals.'}
+          {hasTrustSignals ? ' Freshness, confidence, and contradiction warnings appear in the evidence drawer when available.' : ' Add more source material if you want stronger evidence coverage.'}
         </div>
       </details>
     </div>
@@ -679,8 +678,7 @@ export function StudioMessage({
   const generatedVideos = message.metadata?.generatedVideos ?? [];
   const schemaValidation = message.schemaValidation ?? message.metadata?.schemaValidation ?? null;
   const sentinelReview = message.sentinelReview ?? message.metadata?.sentinelReview ?? null;
-  const enforcementSummary = message.enforcementSummary ?? message.metadata?.enforcementSummary ?? null;
-  const geminiGrounding = message.geminiGrounding ?? message.metadata?.geminiGrounding ?? null;
+  const evidenceSummary = message.evidenceSummary ?? message.metadata?.evidenceSummary ?? null;
   const showThinkingState = streaming && !message.content.trim();
 
   // Normalize mixed markdown, embedded payloads, and tool traces once the response is complete.
@@ -757,13 +755,6 @@ export function StudioMessage({
             </MotionSection>
           ) : null}
         </MotionPresence>
-        <MotionPresence initial={false}>
-          {!isUser && !streaming && (enforcementSummary || geminiGrounding) ? (
-            <MotionSection key="trust-grammar" delay={0.2} reveal={{ y: 0, blur: 0 }}>
-              <TrustGrammarPanel enforcementSummary={enforcementSummary} geminiGrounding={geminiGrounding} />
-            </MotionSection>
-          ) : null}
-        </MotionPresence>
         {generatedImages.length > 0 ? (
           <div className="workspace-studio__generated-row">
             {generatedImages.map((image, index) => (
@@ -787,17 +778,11 @@ export function StudioMessage({
         {sources.length > 0 ? (
           <>
             <LoreImpactPanel sources={sources} agentId={agent?.id} conversationId={conversationId} />
-            <MotionList className="workspace-studio__source-row" staggerChildren={0.04}>
-              {sources.map((source, index) => (
-                <MotionListItem
-                  key={`${source.documentId ?? source.documentTitle ?? source.sourceUrl ?? 'source'}-${index}`}
-                  reveal={{ y: 8, blur: 4 }}
-                >
-                  <SourceCard source={source} />
-                </MotionListItem>
-              ))}
-            </MotionList>
+            <EvidenceDrawer evidenceSummary={evidenceSummary} sources={sources} />
           </>
+        ) : null}
+        {!isUser && !streaming && evidenceSummary && sources.length === 0 ? (
+          <EvidenceDrawer evidenceSummary={evidenceSummary} sources={[]} />
         ) : null}
         {sources.length === 0 && presentation?.traceSources?.length ? (
           <ResearchTrace sources={presentation.traceSources} />
@@ -1104,7 +1089,7 @@ function createTaskProfile({ agent, streamingTask, content }) {
   if (streamingTask?.kind === 'video') {
     return {
       label: `${agentName} is rendering the video`,
-      summary: 'Queuing the render, waiting for Veo to finish, and preparing the final clip.',
+      summary: 'Queuing the render, waiting for the cinematic lane to finish, and preparing the final clip.',
       metaLabel: 'Rendering video',
       steps: [
         'Validating duration, resolution, and credit limits',

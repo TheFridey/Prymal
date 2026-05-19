@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { StudioMessage } from './renderers';
 import { renderWithProviders } from '../../../test/renderWithProviders';
 
@@ -81,4 +81,52 @@ test('StudioMessage shows a task-aware thinking walkthrough while the reply is b
   expect(screen.getByText(/Shaping the outreach angle, drafting the copy, and polishing the final message/i)).toBeInTheDocument();
   expect(screen.getByText('Reviewing the audience and objective')).toBeInTheDocument();
   expect(screen.getByText('Cross-checking prior conversations and lore')).toBeInTheDocument();
+});
+
+test('StudioMessage renders only safe evidence metadata for normal users', () => {
+  const message = {
+    id: 'message-safe-evidence',
+    role: 'assistant',
+    content: 'Here is the answer.',
+    metadata: {
+      sources: [
+        {
+          title: 'ICP notes',
+          sourceUrl: 'https://example.com/icp',
+          origin: 'workspace_knowledge',
+          freshness: 'fresh',
+          confidenceLevel: 'high',
+          contradictionWarning: 'One source is older than the current positioning memo.',
+          provider: 'hidden-provider',
+          routeReason: 'hidden-route-reason',
+        },
+      ],
+      evidenceSummary: {
+        confidenceLevel: 'high',
+        sourceCount: 1,
+        sourceFreshness: 'fresh',
+        contradictionSeverity: 'low',
+        origins: ['workspace_knowledge'],
+      },
+      provider: 'anthropic',
+      model: 'claude-secret',
+      policyKey: 'premium_reasoning',
+      fallbackProvider: 'openai',
+    },
+  };
+
+  renderWithProviders(<StudioMessage message={message} agent={HERALD_AGENT} />);
+
+  expect(screen.getByText(/Evidence confidence: high/i)).toBeInTheDocument();
+  expect(screen.queryByText(/anthropic/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/claude-secret/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/premium_reasoning/i)).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: /open evidence/i }));
+
+  expect(screen.getAllByText(/ICP notes/i).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/workspace knowledge/i).length).toBeGreaterThan(0);
+  expect(screen.getByText(/older than the current positioning memo/i)).toBeInTheDocument();
+  expect(screen.queryByText(/hidden-provider/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/hidden-route-reason/i)).not.toBeInTheDocument();
 });

@@ -23,6 +23,7 @@ import {
   writeFirstWinState,
 } from '../lib/first-run-outcomes';
 import { trackProductEvent } from '../lib/product-events';
+import { isInternalDiagnosticsVisible } from '../lib/diagnostics';
 
 const FIRST_WIN_LIBRARY = {
   nexus: {
@@ -315,7 +316,7 @@ export default function Dashboard() {
   const currentPlan = viewer?.organisation?.plan ?? 'free';
   const planMeta = getWorkspacePlanMeta(currentPlan);
   const orgName = viewer?.organisation?.name ?? 'your workspace';
-  const isStaff = Boolean(viewer?.staff?.isStaff);
+  const isStaff = isInternalDiagnosticsVisible(viewer);
 
   const conversationsQuery = useQuery({
     queryKey: ['dashboard-recent-conversations'],

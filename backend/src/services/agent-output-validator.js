@@ -13,7 +13,7 @@
 // for schema-enforced agents.
 // ─────────────────────────────────────────────────────────────────
 
-import { getAgentContract } from '../agents/contracts.js';
+import { getAgentContract, isCanonicalAgentOutputSchema } from '../agents/contracts.js';
 import { getOutputSchema, SCHEMA_ENFORCED_AGENTS } from '../agents/output-schemas.js';
 
 // ─── JSON extraction ─────────────────────────────────────────────
@@ -246,7 +246,7 @@ function getSchemaRepairDefaults(agentId, schemaId) {
     };
   }
 
-  if (agentId === 'sage' || schemaId === 'sage.decisionMemo') {
+  if (agentId === 'sage' || schemaId === 'sage.strategicBrief' || schemaId === 'sage.decisionMemo') {
     return {
       agent: 'sage',
       objective: 'Provide strategic guidance on the current business position.',
@@ -262,6 +262,15 @@ function getSchemaRepairDefaults(agentId, schemaId) {
         },
       ],
       confidenceLevel: 'low',
+      confidence: {
+        level: 'low',
+        score: 0.28,
+        evidenceClass: 'none',
+        sourceCount: 0,
+        freshness: 'unknown',
+        assumptions: ['The original response could not be validated against the required strategy schema.'],
+        unsupportedClaims: ['Recommendations should be regenerated with explicit supporting evidence.'],
+      },
       timeframe: 'Next 90 days',
     };
   }
@@ -410,6 +419,135 @@ function normalizeDataAgainstSchema(data, schema) {
   }
 
   return data;
+}
+
+function isConfidenceObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+    && ('level' in value || 'score' in value || 'evidenceClass' in value);
+}
+
+function normalizeConfidenceLevel(value) {
+  const normalized = normalizeEnumValue(String(value ?? '').trim(), ['low', 'medium', 'high']);
+  if (['low', 'medium', 'high'].includes(normalized)) {
+    return normalized;
+  }
+
+  const number = Number(value);
+  if (Number.isFinite(number)) {
+    if (number >= 0.75) return 'high';
+    if (number >= 0.45) return 'medium';
+    return 'low';
+  }
+
+  if (/ungrounded/i.test(String(value ?? ''))) {
+    return 'low';
+  }
+
+  return 'medium';
+}
+
+function normalizeConfidenceObject({ parsed, sources = [] }) {
+  if (!parsed || typeof parsed !== 'object') {
+    return parsed;
+  }
+
+  const next = { ...parsed };
+  const rawConfidence = parsed.confidence;
+  const confidenceLevel = parsed.confidenceLevel ?? parsed.confidence?.level ?? rawConfidence;
+  const score = isConfidenceObject(rawConfidence)
+    ? clampNumber(rawConfidence.score, 0.65)
+    : clampNumber(typeof rawConfidence === 'number' ? rawConfidence : null, confidenceLevel === 'high' ? 0.82 : confidenceLevel === 'low' ? 0.36 : 0.64);
+  const sourceCount = Math.max(
+    0,
+    Number.isFinite(Number(parsed.chunksRetrieved))
+      ? Number(parsed.chunksRetrieved)
+      : Array.isArray(parsed.sources)
+        ? parsed.sources.length
+        : Array.isArray(sources)
+          ? sources.length
+          : 0,
+  );
+  const evidenceClass = deriveEvidenceClass(parsed, sourceCount);
+  const freshness = deriveFreshness(parsed);
+  const assumptions = collectConfidenceNotes(parsed);
+  const unsupportedClaims = collectUnsupportedClaims(parsed);
+
+  next.confidence = {
+    level: normalizeConfidenceLevel(confidenceLevel),
+    score,
+    evidenceClass,
+    sourceCount,
+    freshness,
+    assumptions,
+    unsupportedClaims,
+  };
+
+  if (!next.confidenceLevel) {
+    next.confidenceLevel = next.confidence.level;
+  }
+
+  return next;
+}
+
+function clampNumber(value, fallback = 0.5) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return fallback;
+  }
+  return Math.max(0, Math.min(1, Number(number.toFixed(4))));
+}
+
+function deriveEvidenceClass(parsed, sourceCount) {
+  if (parsed.knowledgeGapDetected) {
+    return 'none';
+  }
+  if (sourceCount > 0 && Array.isArray(parsed.sourcesUsed) && parsed.sourcesUsed.length > 0) {
+    return 'mixed';
+  }
+  if (sourceCount > 0 && Array.isArray(parsed.sources) && parsed.sources.length > 0) {
+    return 'lore';
+  }
+  if (sourceCount > 0) {
+    return 'mixed';
+  }
+  if (Array.isArray(parsed.assumptions) && parsed.assumptions.length > 0) {
+    return 'user_provided';
+  }
+  return 'none';
+}
+
+function deriveFreshness(parsed) {
+  if (parsed?.knowledgeGapDetected) {
+    return 'unknown';
+  }
+  if (typeof parsed?.confidence === 'string' && parsed.confidence === 'ungrounded') {
+    return 'unknown';
+  }
+  return Array.isArray(parsed?.sources) && parsed.sources.length > 0 ? 'fresh' : 'unknown';
+}
+
+function collectConfidenceNotes(parsed) {
+  const values = [];
+  if (Array.isArray(parsed?.confidenceNotes)) {
+    values.push(...parsed.confidenceNotes);
+  } else if (typeof parsed?.confidenceNotes === 'string' && parsed.confidenceNotes.trim()) {
+    values.push(parsed.confidenceNotes);
+  }
+  if (Array.isArray(parsed?.assumptions)) {
+    values.push(...parsed.assumptions);
+  }
+  return [...new Set(values.map((value) => String(value).trim()).filter(Boolean))];
+}
+
+function collectUnsupportedClaims(parsed) {
+  const values = [];
+  if (parsed?.knowledgeGapDetected) {
+    values.push('The available evidence did not support a stronger answer.');
+  }
+  if (Array.isArray(parsed?.gapsIdentified)) {
+    values.push(...parsed.gapsIdentified);
+  }
+  return [...new Set(values.map((value) => String(value).trim()).filter(Boolean))];
 }
 
 function normalizeEnumValue(value, allowedValues) {
@@ -713,6 +851,14 @@ export function validateAgentOutput(agentId, responseText) {
   if (!contract?.outputSchema) {
     return { verdict: 'skipped', parsed: null, errors: [], repairNotes: null };
   }
+  if (!isCanonicalAgentOutputSchema(agentId, contract.outputSchema)) {
+    return {
+      verdict: 'failed',
+      parsed: null,
+      errors: [`${agentId} contract references non-canonical schema "${contract.outputSchema}".`],
+      repairNotes: 'Update the agent contract to the canonical schema id before runtime validation can proceed.',
+    };
+  }
 
   const schema = getOutputSchema(contract.outputSchema);
   if (!schema) {
@@ -756,7 +902,7 @@ export function validateAgentOutput(agentId, responseText) {
   if (valid) {
     return finalizeWithSemantics(agentId, {
       verdict: 'pass',
-      parsed,
+      parsed: normalizeConfidenceObject({ parsed }),
       errors: [],
       repairNotes: null,
     });
@@ -769,7 +915,7 @@ export function validateAgentOutput(agentId, responseText) {
   if (repairedValid) {
     return finalizeWithSemantics(agentId, {
       verdict: 'repaired',
-      parsed: repaired,
+      parsed: normalizeConfidenceObject({ parsed: repaired }),
       errors,
       repairNotes: buildRepairNotes(errors),
     });
@@ -777,7 +923,7 @@ export function validateAgentOutput(agentId, responseText) {
 
   return finalizeWithSemantics(agentId, {
     verdict: 'failed',
-    parsed,
+    parsed: normalizeConfidenceObject({ parsed }),
     errors: repairedErrors,
     repairNotes: `Repair attempted but ${repairedErrors.length} error(s) remain.`,
   });

@@ -281,3 +281,31 @@ test('createSchemaValidationError preserves structured metadata', () => {
   assert.match(error.message, /ledger/);
   assert.match(formatStructuredOutput({ ok: true }), /"ok": true/);
 });
+
+test('validateAgentOutput normalizes legacy confidence fields into the shared confidence object', () => {
+  const validation = validateAgentOutput(
+    'sage',
+    JSON.stringify({
+      agent: 'sage',
+      objective: 'Define the next strategic operating priorities for Prymal over the next quarter.',
+      situation: 'The product is moving from hardening into a broader beta, with reliability and evidence quality still shaping launch confidence.',
+      recommendations: ['Prioritise reliability, evidence-backed output quality, and operator visibility before wider rollout.'],
+      risks: [
+        {
+          description: 'A wider beta could amplify low-confidence outputs.',
+          likelihood: 'medium',
+          impact: 'high',
+          mitigation: 'Keep quality gates and evidence thresholds tight.',
+        },
+      ],
+      confidenceLevel: 'medium',
+      timeframe: 'Next 90 days',
+    }),
+  );
+
+  assert.equal(validation.verdict, 'pass');
+  assert.equal(validation.parsed.confidence.level, 'medium');
+  assert.equal(typeof validation.parsed.confidence.score, 'number');
+  assert.equal(Array.isArray(validation.parsed.confidence.assumptions), true);
+  assert.equal(Array.isArray(validation.parsed.confidence.unsupportedClaims), true);
+});

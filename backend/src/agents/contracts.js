@@ -70,7 +70,7 @@ export const AGENT_CONTRACTS = {
     contextBudget: 'medium',
     memoryPolicy: {
       readScopes: ['org', 'user', 'restricted', 'temporary_session'],
-      writeScopes: ['user', 'agent_private', 'temporary_session'],
+      writeScopes: ['org', 'user', 'restricted', 'agent_private', 'temporary_session'],
       sensitiveWrites: false,
       enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
@@ -148,7 +148,7 @@ export const AGENT_CONTRACTS = {
     contextBudget: 'high',
     memoryPolicy: {
       readScopes: ['org', 'user', 'restricted', 'temporary_session'],
-      writeScopes: ['user', 'agent_private', 'temporary_session'],
+      writeScopes: ['org', 'user', 'restricted', 'agent_private', 'temporary_session'],
       sensitiveWrites: false,
     },
     modelPolicy: {
@@ -157,6 +157,18 @@ export const AGENT_CONTRACTS = {
       preferredLane: 'anthropic_balanced',
     },
     evalCriteria: ['instruction_following', 'format_accuracy', 'brand_alignment'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'Reformat as forge.contentBrief with contentType, headline, body, sections[], cta, and confidence fields.',
+      hallucinationRiskThreshold: 0.45,
+    },
+    traceMetadata: {
+      schemaViolationField: 'forge_schema_failures',
+      toolPolicyViolationField: 'forge_tool_violations',
+      repairLoopCountField: 'forge_repair_loops',
+      hallucinationRiskField: 'forge_hallucination_risk',
+    },
   },
   atlas: {
     purpose: 'Turn goals into phased execution plans and dependency-aware task breakdowns.',
@@ -203,14 +215,14 @@ export const AGENT_CONTRACTS = {
     disallowedTools: ['financial_reporting'],
     outputStyle: 'Platform-aware, hook-led, concise where needed.',
     structuredOutput: 'social_plan',
-    outputSchema: 'echo.socialPlan',
+    outputSchema: 'echo.socialContent',
     escalationRules: ['Escalate long-form source creation to FORGE when base content is missing.'],
     confidenceBehavior: 'Differentiate assumptions about audience/platform fit from known brand context.',
     retrievalBehavior: 'Use source context for factual claims but keep social drafts light and adaptable.',
     contextBudget: 'medium',
     memoryPolicy: {
       readScopes: ['org', 'user', 'temporary_session'],
-      writeScopes: ['user', 'temporary_session'],
+      writeScopes: ['org', 'restricted', 'user', 'temporary_session'],
       sensitiveWrites: false,
     },
     modelPolicy: {
@@ -218,6 +230,18 @@ export const AGENT_CONTRACTS = {
       preferredLane: 'anthropic_fast',
     },
     evalCriteria: ['platform_fit', 'tone_match', 'output_variety'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'Reformat as echo.socialContent with platform, posts[], campaignName, notes, and confidence fields.',
+      hallucinationRiskThreshold: 0.45,
+    },
+    traceMetadata: {
+      schemaViolationField: 'echo_schema_failures',
+      toolPolicyViolationField: 'echo_tool_violations',
+      repairLoopCountField: 'echo_repair_loops',
+      hallucinationRiskField: 'echo_hallucination_risk',
+    },
   },
   pixel: {
     purpose: 'Generate and brief production-ready visual assets for marketing and product use.',
@@ -234,7 +258,7 @@ export const AGENT_CONTRACTS = {
     contextBudget: 'low',
     memoryPolicy: {
       readScopes: ['org', 'user', 'temporary_session'],
-      writeScopes: ['user', 'temporary_session'],
+      writeScopes: ['org', 'restricted', 'user', 'temporary_session'],
       sensitiveWrites: false,
     },
     modelPolicy: {
@@ -242,6 +266,18 @@ export const AGENT_CONTRACTS = {
       preferredLane: 'openai_premium',
     },
     evalCriteria: ['instruction_following', 'format_accuracy', 'brand_alignment'],
+    enforcement: {
+      toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
+      schemaRepairAttempts: 2,
+      schemaRepairPrompt: 'Reformat as pixel.assetManifest with objective, assetsGenerated, assetUrls[], briefs[], iterationsUsed, and confidence fields.',
+      hallucinationRiskThreshold: 0.55,
+    },
+    traceMetadata: {
+      schemaViolationField: 'pixel_schema_failures',
+      toolPolicyViolationField: 'pixel_tool_violations',
+      repairLoopCountField: 'pixel_repair_loops',
+      hallucinationRiskField: 'pixel_hallucination_risk',
+    },
   },
   oracle: {
     purpose: 'Surface search demand, technical SEO issues, and content opportunities.',
@@ -251,14 +287,14 @@ export const AGENT_CONTRACTS = {
     disallowedTools: ['email_send'],
     outputStyle: 'Priority-led audit with issue severity and actionability.',
     structuredOutput: 'seo_audit',
-    outputSchema: 'oracle.seoAudit',
+    outputSchema: 'oracle.auditReport',
     escalationRules: ['Escalate content production to FORGE when a brief is complete.'],
     confidenceBehavior: 'Separate observable page issues from inferred search opportunities.',
     retrievalBehavior: 'Prefer directly observed page evidence and cited keyword/source evidence.',
     contextBudget: 'high',
     memoryPolicy: {
       readScopes: ['org', 'user', 'restricted'],
-      writeScopes: ['org', 'agent_private'],
+      writeScopes: ['org', 'restricted', 'agent_private'],
       sensitiveWrites: false,
       enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
@@ -270,8 +306,8 @@ export const AGENT_CONTRACTS = {
     enforcement: {
       toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
       schemaRepairAttempts: 2,
-      schemaRepairPrompt: 'Reformat as oracle.seoAudit with url, overallScore, findings[], quickWins[], and strategicRecommendations[] fields.',
-      hallucinationRiskThreshold: 0.5,
+      schemaRepairPrompt: 'Reformat as oracle.auditReport with url, overallScore, findings[], quickWins[], strategicRecommendations[], and confidence fields.',
+      hallucinationRiskThreshold: 0.45,
     },
     traceMetadata: {
       schemaViolationField: 'oracle_schema_failures',
@@ -326,14 +362,14 @@ export const AGENT_CONTRACTS = {
     disallowedTools: ['financial_reporting'],
     outputStyle: 'Clear, empathetic, practical, resolution-focused.',
     structuredOutput: 'support_resolution',
-    outputSchema: 'wren.supportResolution',
+    outputSchema: 'wren.supportResponse',
     escalationRules: ['Escalate policy uncertainty to a human instead of inventing policy.'],
     confidenceBehavior: 'State limitations and next steps cleanly when the answer is not certain.',
     retrievalBehavior: 'Use approved policy context and keep uncertain answers explicit.',
     contextBudget: 'medium',
     memoryPolicy: {
       readScopes: ['org', 'user', 'restricted', 'temporary_session'],
-      writeScopes: ['user', 'restricted', 'temporary_session'],
+      writeScopes: ['org', 'user', 'restricted', 'temporary_session'],
       sensitiveWrites: true,
       enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
@@ -346,7 +382,7 @@ export const AGENT_CONTRACTS = {
     enforcement: {
       toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
       schemaRepairAttempts: 2,
-      schemaRepairPrompt: 'Reformat as wren.supportResolution with issue, response, nextSteps[], escalationNeeded, and policyReferences[] fields.',
+      schemaRepairPrompt: 'Reformat as wren.supportResponse with intent, response, escalate, suggestedActions[], and confidence fields.',
       hallucinationRiskThreshold: 0.5,
     },
     traceMetadata: {
@@ -443,14 +479,14 @@ export const AGENT_CONTRACTS = {
     disallowedTools: ['email_send'],
     outputStyle: 'Evidence-led, comparative, synthesis-oriented.',
     structuredOutput: 'market_scan',
-    outputSchema: 'scout.marketScan',
+    outputSchema: 'scout.researchReport',
     escalationRules: ['Escalate messaging execution to FORGE when research is ready to operationalise.'],
     confidenceBehavior: 'Call out when evidence is thin or second-order rather than directly observed.',
     retrievalBehavior: 'Prioritize live web and cited workspace evidence over generic positioning advice.',
     contextBudget: 'high',
     memoryPolicy: {
       readScopes: ['org', 'user', 'restricted'],
-      writeScopes: ['org', 'agent_private'],
+      writeScopes: ['org', 'restricted', 'agent_private'],
       sensitiveWrites: false,
       enforcementLevel: MEMORY_ENFORCEMENT_LEVELS.STRICT,
     },
@@ -462,8 +498,8 @@ export const AGENT_CONTRACTS = {
     enforcement: {
       toolViolationAction: TOOL_VIOLATION_ACTIONS.BLOCK,
       schemaRepairAttempts: 2,
-      schemaRepairPrompt: 'Reformat as scout.marketScan with topic, summary, sources[], keyFindings[], opportunities[], risks[], and confidence fields.',
-      hallucinationRiskThreshold: 0.5,
+      schemaRepairPrompt: 'Reformat as scout.researchReport with topic, summary, sources[], keyFindings[], opportunities[], risks[], and confidence fields.',
+      hallucinationRiskThreshold: 0.45,
     },
     traceMetadata: {
       schemaViolationField: 'scout_schema_failures',
@@ -480,7 +516,7 @@ export const AGENT_CONTRACTS = {
     disallowedTools: [],
     outputStyle: 'Calm, strategic, high-signal, decision-oriented.',
     structuredOutput: 'decision_memo',
-    outputSchema: 'sage.decisionMemo',
+    outputSchema: 'sage.strategicBrief',
     escalationRules: ['Escalate operational execution to the relevant specialist agent when strategy is set.'],
     confidenceBehavior: 'Differentiate recommendation strength from evidence strength.',
     retrievalBehavior: 'Prefer grounded evidence and trade-off framing over generic strategy language.',
@@ -499,7 +535,7 @@ export const AGENT_CONTRACTS = {
     enforcement: {
       toolViolationAction: TOOL_VIOLATION_ACTIONS.WARN,
       schemaRepairAttempts: 2,
-      schemaRepairPrompt: 'Reformat as sage.decisionMemo with objective, situation, recommendations[], risks[], confidenceLevel, and timeframe fields.',
+      schemaRepairPrompt: 'Reformat as sage.strategicBrief with objective, situation, recommendations[], risks[], confidenceLevel, confidence, and timeframe fields.',
       hallucinationRiskThreshold: 0.55,
     },
     traceMetadata: {
@@ -603,6 +639,24 @@ export function getAgentEnforcement(agentId) {
  */
 export function getAgentTraceFields(agentId) {
   return AGENT_CONTRACTS[agentId]?.traceMetadata ?? null;
+}
+
+export const CANONICAL_AGENT_OUTPUT_SCHEMAS = {
+  oracle: 'oracle.auditReport',
+  wren: 'wren.supportResponse',
+  echo: 'echo.socialContent',
+  sage: 'sage.strategicBrief',
+  atlas: 'atlas.planOutline',
+  pixel: 'pixel.assetManifest',
+  scout: 'scout.researchReport',
+};
+
+export function isCanonicalAgentOutputSchema(agentId, schemaId) {
+  const canonical = CANONICAL_AGENT_OUTPUT_SCHEMAS[agentId];
+  if (!canonical) {
+    return true;
+  }
+  return canonical === schemaId;
 }
 
 /**

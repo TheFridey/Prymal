@@ -89,7 +89,7 @@ function AgentErrorBlock({ errorData, onRetry }) {
       </div>
       <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '0 0 12px', lineHeight: 1.7 }}>
         {errorData?.message ??
-          'Prymal could not reach the model provider or the run stopped early. Wait a moment and try again — credits stay reserved until a successful completion.'}
+          'Prymal could not complete this response or the run stopped early. Wait a moment and try again — credits stay reserved until a successful completion.'}
       </p>
       {retryText ? (
         <Button tone="ghost" onClick={() => onRetry?.(retryText)}>
