@@ -34,6 +34,7 @@ const TYPE_DECAY_SPEED = {
 const MIN_DECAY_FACTOR_NEVER_FORGET = 0.58;
 const MIN_DECAY_FACTOR_PINNED = 0.88;
 const MIN_DECAY_FACTOR_ALWAYS = 0.82;
+const MIN_DECAY_FACTOR_LOCKED = 0.96;
 
 function daysBetween(isoOrDate, nowMs) {
   if (!isoOrDate) return 0;
@@ -66,6 +67,12 @@ export function calculateMemoryDecay(memory, now = new Date()) {
     return { decayFactor: Number(floor.toFixed(4)), reason: 'never_forget_floor' };
   }
 
+  if (memory.userLocked === true) {
+    const ageUnusedDays = daysBetween(memory.lastConfirmedAt ?? memory.confirmedAt ?? memory.updatedAt ?? memory.createdAt, nowMs);
+    const factor = Math.max(MIN_DECAY_FACTOR_LOCKED, 0.995 - Math.min(ageUnusedDays / 540, 0.02));
+    return { decayFactor: Number(factor.toFixed(4)), reason: 'user_locked_resistance' };
+  }
+
   if (memory.pinned === true) {
     const unusedDays = daysBetween(memory.lastUsedAt ?? memory.updatedAt, nowMs);
     const factor = Math.max(MIN_DECAY_FACTOR_PINNED, 0.97 - Math.min(unusedDays / 220, 0.09));
@@ -83,20 +90,31 @@ export function calculateMemoryDecay(memory, now = new Date()) {
   const scopeSpeed = SCOPE_DECAY_SPEED[scope] ?? 1;
   const typeSpeed = TYPE_DECAY_SPEED[memoryType] ?? 1;
 
-  const referenceDate = memory.lastUsedAt ?? memory.promotedAt ?? memory.updatedAt ?? memory.createdAt;
+  const referenceDate = memory.lastSeenAt
+    ?? memory.lastUsedAt
+    ?? memory.lastConfirmedAt
+    ?? memory.promotedAt
+    ?? memory.updatedAt
+    ?? memory.createdAt;
   const idleDays = daysBetween(referenceDate, nowMs);
 
   const provenance = memory.provenanceKind ?? 'inferred';
-  const confirmedMultiplier = provenance === 'confirmed' ? 0.72 : 1;
-
-  const rawPenalty = idleDays * 0.009 * scopeSpeed * typeSpeed * confirmedMultiplier;
-
-  const confirmedAtBoost =
-    provenance === 'confirmed' && memory.confirmedAt
-      ? Math.min(daysBetween(memory.confirmedAt, nowMs) / 520, 0.06)
+  const confirmedMultiplier = provenance === 'confirmed' ? 0.62 : 1;
+  const recentlyConfirmedDays = daysBetween(memory.lastConfirmedAt ?? memory.confirmedAt, nowMs);
+  const confirmationBoost = provenance === 'confirmed' && recentlyConfirmedDays <= 45
+    ? 0.08
+    : provenance === 'confirmed' && recentlyConfirmedDays <= 120
+      ? 0.04
       : 0;
 
-  let decayFactor = Math.max(0.06, 1 - rawPenalty + confirmedAtBoost);
+  const rawPenalty = idleDays * 0.009 * scopeSpeed * typeSpeed * confirmedMultiplier;
+  let decayFactor = Math.max(0.06, 1 - rawPenalty + confirmationBoost);
+
+  if (memory.supersededAt || memory.supersededBy) {
+    decayFactor *= 0.32;
+  } else if (memory.contradictionDetected === true) {
+    decayFactor *= 0.82;
+  }
 
   decayFactor = Number(Math.min(1, decayFactor).toFixed(4));
 
@@ -106,6 +124,18 @@ export function calculateMemoryDecay(memory, now = new Date()) {
     `type_${memoryType}`,
     provenance === 'confirmed' ? 'confirmed_trail' : 'inferred',
   ];
+
+  if (memory.lastSeenAt) {
+    reasonParts.push('seen_tracking');
+  }
+  if (memory.lastConfirmedAt || memory.confirmedAt) {
+    reasonParts.push('confirmed_recency');
+  }
+  if (memory.supersededAt || memory.supersededBy) {
+    reasonParts.push('superseded');
+  } else if (memory.contradictionDetected === true) {
+    reasonParts.push('contradiction_review');
+  }
 
   return { decayFactor, reason: reasonParts.join(';') };
 }

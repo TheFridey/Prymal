@@ -9,6 +9,10 @@ const LEXICAL_OVERLAP_MIN = 0.22;
 const SEMANTIC_SIM_HIGH = 0.88;
 const SEMANTIC_SIM_CONFLICT_FLOOR = 0.76;
 
+export function getLogicalMemoryKey(row) {
+  return row?.metadata?.logicalKey ?? row?.key ?? null;
+}
+
 export function cosineSimilarity(vectorA, vectorB) {
   if (!vectorA?.length || !vectorB?.length || vectorA.length !== vectorB.length) {
     return 0;
@@ -184,7 +188,7 @@ export async function processContradictionsAfterUpsert({ orgId, memoryRow, agent
     for (const sib of siblings) {
       const lexical = relationOverlapRisk(sib.value ?? '', memoryRow.value ?? '');
       const ruleHint = ruleBasedConflictSignals(memoryRow.value ?? '', sib.value ?? '', memoryRow.memoryType ?? '');
-      const sameKeyDifferentValue = sib.key === memoryRow.key && sib.value !== memoryRow.value;
+      const sameKeyDifferentValue = getLogicalMemoryKey(sib) === getLogicalMemoryKey(memoryRow) && sib.value !== memoryRow.value;
 
       if (lexical >= LEXICAL_OVERLAP_MIN || sameKeyDifferentValue || ruleHint?.contradicts) {
         pairScratch.push({ sib, lexical, ruleHint, sameKeyDifferentValue });
@@ -307,7 +311,7 @@ export async function detectContradictions(candidateMemory, orgId) {
   for (const row of siblings) {
     if (row.id === candidateMemory.id) continue;
     const overlap = relationOverlapRisk(row.value ?? '', candidateMemory.value ?? '');
-    const sameKey = row.key === candidateMemory.key;
+    const sameKey = getLogicalMemoryKey(row) === getLogicalMemoryKey(candidateMemory);
     if ((overlap >= 0.35 && overlap < 0.95) || (sameKey && row.value !== candidateMemory.value)) {
       overlaps.push({ memoryId: row.id, overlap });
     }
@@ -358,7 +362,8 @@ export async function markMemoryAsStale(memoryId, orgId) {
     .update(agentMemory)
     .set({
       freshnessScore: sql`least(coalesce(${agentMemory.freshnessScore}, 0.5), 0.25)`,
-      memoryItemStatus: 'expired',
+      memoryItemStatus: 'pending_review',
+      contradictionDetected: true,
       updatedAt: new Date(),
     })
     .where(and(eq(agentMemory.id, memoryId), eq(agentMemory.orgId, orgId)));

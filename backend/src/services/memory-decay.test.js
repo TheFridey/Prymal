@@ -58,3 +58,41 @@ test('never_forget enforces floor', () => {
   assert.equal(reason, 'never_forget_floor');
   assert.ok(decayFactor >= 0.55);
 });
+
+test('confirmed memories with recent confirmation decay more slowly than inferred memories', () => {
+  const created = new Date(Date.now() - 45 * 86400000);
+  const confirmed = {
+    scope: 'org',
+    memoryType: 'business_fact',
+    provenanceKind: 'confirmed',
+    createdAt: created,
+    lastSeenAt: new Date(Date.now() - 5 * 86400000),
+    lastConfirmedAt: new Date(Date.now() - 5 * 86400000),
+    memoryItemStatus: 'active',
+  };
+  const inferred = {
+    scope: 'org',
+    memoryType: 'business_fact',
+    provenanceKind: 'inferred',
+    createdAt: created,
+    lastSeenAt: new Date(Date.now() - 5 * 86400000),
+    memoryItemStatus: 'active',
+  };
+
+  assert.ok(calculateMemoryDecay(confirmed).decayFactor > calculateMemoryDecay(inferred).decayFactor);
+});
+
+test('superseded memories rank as heavily decayed retrieval candidates', () => {
+  const row = {
+    scope: 'org',
+    memoryType: 'project_fact',
+    provenanceKind: 'confirmed',
+    createdAt: new Date(Date.now() - 15 * 86400000),
+    lastSeenAt: new Date(Date.now() - 2 * 86400000),
+    supersededAt: new Date(Date.now() - 1 * 86400000),
+    memoryItemStatus: 'archived',
+  };
+  const result = calculateMemoryDecay(row);
+  assert.equal(result.decayFactor, 0);
+  assert.equal(result.reason, 'not_retrievable_status');
+});

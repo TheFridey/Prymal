@@ -487,14 +487,19 @@ CREATE TABLE agent_memory (
   freshness_score REAL NOT NULL DEFAULT 0.5,
   usage_count  INTEGER NOT NULL DEFAULT 0,
   last_used_at TIMESTAMPTZ,
+  last_seen_at TIMESTAMPTZ,
   confirmed_at TIMESTAMPTZ,
+  last_confirmed_at TIMESTAMPTZ,
   expires_at   TIMESTAMPTZ,
   promoted_at  TIMESTAMPTZ,
   archived_at  TIMESTAMPTZ,
   deleted_at   TIMESTAMPTZ,
+  superseded_at TIMESTAMPTZ,
+  superseded_by UUID,
   memory_item_status memory_item_status NOT NULL DEFAULT 'active',
   visibility memory_visibility NOT NULL DEFAULT 'org_shared',
   contradiction_group_id UUID REFERENCES memory_contradiction_groups(id) ON DELETE SET NULL,
+  contradiction_detected BOOLEAN NOT NULL DEFAULT FALSE,
   parent_memory_id UUID,
   pinned BOOLEAN NOT NULL DEFAULT FALSE,
   always_include BOOLEAN NOT NULL DEFAULT FALSE,
@@ -513,6 +518,10 @@ ALTER TABLE memory_contradiction_groups
 ALTER TABLE agent_memory
   ADD CONSTRAINT agent_memory_parent_memory_id_fkey
   FOREIGN KEY (parent_memory_id) REFERENCES agent_memory(id) ON DELETE SET NULL;
+
+ALTER TABLE agent_memory
+  ADD CONSTRAINT agent_memory_superseded_by_fkey
+  FOREIGN KEY (superseded_by) REFERENCES agent_memory(id) ON DELETE SET NULL;
 
 CREATE INDEX memory_org_agent_idx ON agent_memory(org_id, agent_id);
 CREATE INDEX memory_user_scope_idx ON agent_memory(org_id, user_id, agent_id);

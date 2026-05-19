@@ -19,6 +19,7 @@ import waitlistRouter from './admin/waitlist.js';
 import referralsRouter from './admin/referrals.js';
 import searchRouter from './admin/search.js';
 import operatorRouter from './admin/operator.js';
+import memoryIntelligenceRouter from './admin/memory-intelligence.js';
 import securityRouter from './admin/security.js';
 
 const router = new Hono();
@@ -37,6 +38,7 @@ router.route('/', waitlistRouter);
 router.route('/', referralsRouter);
 router.route('/', searchRouter);
 router.route('/', operatorRouter);
+router.route('/', memoryIntelligenceRouter);
 router.route('/', securityRouter);
 
 export default router;

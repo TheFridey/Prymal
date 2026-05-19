@@ -332,14 +332,196 @@ export async function upsertMemory({
   );
   const nextProvenanceKind = normalizeProvenanceKind(provenanceKind, nextConfidence);
   const now = new Date();
+  const logicalKey = buildLogicalMemoryKey(key, metadata);
 
   if (existing) {
+    if (existing.value !== value) {
+      const resolution = chooseContradictionResolution({
+        existing,
+        incoming: {
+          value,
+          confidence: nextConfidence,
+          provenanceKind: nextProvenanceKind,
+          metadata,
+        },
+      });
+
+      if (resolution.action === 'preserve_existing') {
+        const candidate = await createContradictionCandidateMemory({
+          orgId,
+          scopeIdentity,
+          agentId,
+          normalizedScope,
+          memoryType,
+          logicalKey,
+          value,
+          metadata,
+          confidence: nextConfidence,
+          provenanceKind: nextProvenanceKind,
+          sourceRef,
+          resolvedStatus,
+          now,
+          parentMemoryId: existing.id,
+          reviewReason: resolution.reason,
+        });
+
+        await insertMemoryEvent({
+          orgId,
+          userId: scopeIdentity.userId,
+          agentId,
+          workflowRunId: scopeIdentity.workflowRunId,
+          eventType: 'memory_contradiction_detected',
+          title: 'Memory conflict queued for review',
+          description: `Preserved stronger existing memory for ${logicalKey}.`,
+          importanceScore: 0.66,
+          sourceType: 'memory_pipeline',
+          sourceRef: candidate.id,
+          metadata: {
+            existingMemoryId: existing.id,
+            candidateMemoryId: candidate.id,
+            resolution: resolution.reason,
+          },
+        }).catch(() => {});
+
+        const postCreate = await runMemoryPostWriteHooks({
+          orgId,
+          agentId,
+          memoryId: candidate.id,
+          normalizedScope,
+          operation: 'create',
+        });
+
+        recordSensitiveMemoryWrite({
+          orgId,
+          agentId,
+          scope: normalizedScope,
+          key: candidate.key,
+          scopeKey: scopeIdentity.scopeKey,
+          contract,
+          action: 'review_candidate',
+        });
+
+        return {
+          id: candidate.id,
+          key: candidate.key,
+          scope: normalizedScope,
+          scopeKey: scopeIdentity.scopeKey,
+          created: true,
+          conflict: true,
+          contradictionDetected: true,
+          provenanceKind: nextProvenanceKind,
+          memoryFeedback: [
+            {
+              type: 'review',
+              message: 'A stronger confirmed memory already exists, so Prymal queued this update for review.',
+            },
+            ...postCreate.memoryFeedback,
+          ],
+        };
+      }
+
+      const snapshot = await createSupersededMemorySnapshot({
+        existing,
+        orgId,
+        supersededAt: now,
+        supersededReason: resolution.reason,
+      });
+
+      const mergedMetadata = {
+        ...(existing.metadata ?? {}),
+        ...metadata,
+        logicalKey,
+        lastSource: sourceRef ?? metadata.source ?? existing.sourceRef ?? existing.metadata?.lastSource ?? 'unknown',
+        conflict: true,
+        contradictionDetected: true,
+        previousValue: existing.value,
+        previousMemoryId: snapshot.id,
+        supersedes: snapshot.id,
+        supersessionReason: resolution.reason,
+        scope: normalizedScope,
+      };
+
+      await db
+        .update(agentMemory)
+        .set({
+          userId: scopeIdentity.userId,
+          workflowRunId: scopeIdentity.workflowRunId,
+          sessionKey: scopeIdentity.sessionKey,
+          value,
+          memoryType,
+          metadata: mergedMetadata,
+          sourceRef: sourceRef ?? existing.sourceRef,
+          provenanceKind: nextProvenanceKind,
+          confidence: nextConfidence,
+          content: value,
+          title: metadata.title ?? existing.title ?? key,
+          version: (existing.version ?? 1) + 1,
+          confirmedAt:
+            nextProvenanceKind === 'confirmed'
+              ? existing.confirmedAt ?? now
+              : existing.confirmedAt,
+          lastSeenAt: now,
+          lastConfirmedAt:
+            nextProvenanceKind === 'confirmed'
+              ? now
+              : existing.lastConfirmedAt ?? existing.confirmedAt ?? null,
+          contradictionDetected: true,
+          supersededAt: null,
+          supersededBy: null,
+          expiresAt:
+            expiresAt != null
+              ? new Date(expiresAt)
+              : normalizedScope === 'workflow_run'
+                ? resolveExpiresAtForScope(normalizedScope, null)
+                : existing.expiresAt,
+          updatedAt: now,
+        })
+        .where(eq(agentMemory.id, existing.id));
+
+      recordSensitiveMemoryWrite({
+        orgId,
+        agentId,
+        scope: normalizedScope,
+        key,
+        scopeKey: scopeIdentity.scopeKey,
+        contract,
+        action: 'supersede_update',
+      });
+
+      const postUpdate = await runMemoryPostWriteHooks({
+        orgId,
+        agentId,
+        memoryId: existing.id,
+        normalizedScope,
+        operation: 'update',
+      });
+
+      return {
+        id: existing.id,
+        key,
+        scope: normalizedScope,
+        scopeKey: scopeIdentity.scopeKey,
+        created: false,
+        conflict: true,
+        contradictionDetected: true,
+        supersededMemoryId: snapshot.id,
+        provenanceKind: nextProvenanceKind,
+        memoryFeedback: [
+          {
+            type: 'superseded',
+            message: 'Prymal preserved the older fact and promoted the newer business context.',
+          },
+          ...postUpdate.memoryFeedback,
+        ],
+      };
+    }
+
     const mergedMetadata = {
       ...(existing.metadata ?? {}),
       ...metadata,
+      logicalKey,
       lastSource: sourceRef ?? metadata.source ?? existing.sourceRef ?? existing.metadata?.lastSource ?? 'unknown',
-      conflict: existing.value !== value,
-      previousValue: existing.value !== value ? existing.value : existing.metadata?.previousValue,
+      conflict: false,
       scope: normalizedScope,
     };
 
@@ -362,12 +544,18 @@ export async function upsertMemory({
           nextProvenanceKind === 'confirmed'
             ? existing.confirmedAt ?? now
             : existing.confirmedAt,
+        lastSeenAt: now,
+        lastConfirmedAt:
+          nextProvenanceKind === 'confirmed'
+            ? now
+            : existing.lastConfirmedAt ?? existing.confirmedAt ?? null,
         expiresAt:
           expiresAt != null
             ? new Date(expiresAt)
             : normalizedScope === 'workflow_run'
               ? resolveExpiresAtForScope(normalizedScope, null)
               : existing.expiresAt,
+        contradictionDetected: existing.contradictionDetected ?? false,
         updatedAt: now,
       })
       .where(eq(agentMemory.id, existing.id));
@@ -459,15 +647,19 @@ export async function upsertMemory({
       title: metadata.title ?? key,
       metadata: {
         ...metadata,
+        logicalKey,
         scope: normalizedScope,
       },
       provenanceKind: nextProvenanceKind,
       sourceRef,
       confidence: nextConfidence,
+      lastSeenAt: now,
+      lastConfirmedAt: nextProvenanceKind === 'confirmed' ? now : null,
       confirmedAt: nextProvenanceKind === 'confirmed' ? now : null,
       expiresAt: resolveExpiresAtForScope(normalizedScope, expiresAt),
       memoryItemStatus: resolvedStatus,
       visibility: visibilityForScope(normalizedScope),
+      contradictionDetected: false,
     })
     .returning({ id: agentMemory.id });
 
@@ -665,11 +857,15 @@ export async function persistConversationContextMemories({
     return [];
   }
 
-  const layers = [update.global, update.agent];
+  const layers = [update.global, update.agent, update.project].filter(Boolean);
   const writes = [];
 
   for (const layer of layers) {
-    const scope = layer.scope === 'global' ? 'org' : 'restricted';
+    const scope = layer.scope === 'global'
+      ? 'org'
+      : layer.scope === 'project'
+        ? 'org'
+        : 'restricted';
     const targetAgentId = layer.scope === 'agent' ? agentId : null;
     const dedupedFacts = dedupeMemoryFacts(layer.facts ?? []);
 
@@ -679,7 +875,9 @@ export async function persistConversationContextMemories({
       const memoryType = normalizeContextMemoryType(fact.key);
       const key = layer.scope === 'global'
         ? `global_context:${fact.key}`
-        : `${agentId}_context:${fact.key}`;
+        : layer.scope === 'project'
+          ? `project_context:${layer.projectId}:${fact.key}`
+          : `${agentId}_context:${fact.key}`;
 
       writes.push(
         upsertMemory({
@@ -696,9 +894,15 @@ export async function persistConversationContextMemories({
             conversationId,
             sourceAgentId: agentId,
             sensitivity: fact.sensitivity ?? 'normal',
-            title: buildContextTitle(layer.scope, fact.key, agentId),
+            title: layer.scope === 'project'
+              ? `Project Context - ${fact.key.replace(/_/g, ' ')}`
+              : buildContextTitle(layer.scope, fact.key, agentId),
             summary: fact.summary ?? fact.value,
             suggestedLoreTags: layer.suggestedLoreTags ?? [],
+            projectId: layer.projectId ?? fact.projectId ?? null,
+            projectName: layer.projectName ?? fact.projectName ?? null,
+            projectStatus: layer.status ?? fact.projectStatus ?? null,
+            relatedAgents: layer.relatedAgents ?? [],
           }),
           confidence: fact.confidence ?? 0.75,
           provenanceKind: fact.source === 'agent_inferred' ? 'inferred' : 'confirmed',
@@ -710,15 +914,17 @@ export async function persistConversationContextMemories({
 
     const summaryKey = layer.scope === 'global'
       ? 'global_context_summary'
-      : `${agentId}_context_summary`;
+      : layer.scope === 'project'
+        ? `project_context:${layer.projectId}:summary`
+        : `${agentId}_context_summary`;
 
     writes.push(
       upsertMemory({
         orgId,
         userId: null,
         agentId,
-        scope: layer.scope === 'global' ? 'org' : 'restricted',
-        memoryType: 'system_note',
+        scope: layer.scope === 'project' ? 'org' : layer.scope === 'global' ? 'org' : 'restricted',
+        memoryType: layer.scope === 'project' ? 'project_fact' : 'system_note',
         key: summaryKey,
         value: layer.summary,
         metadata: buildContextMetadata({
@@ -727,9 +933,17 @@ export async function persistConversationContextMemories({
           conversationId,
           sourceAgentId: agentId,
           sensitivity: layer.scope === 'global' ? 'normal' : 'restricted',
-          title: buildContextTitle(layer.scope, 'summary', agentId),
+          title: layer.scope === 'project' ? 'Project Context' : buildContextTitle(layer.scope, 'summary', agentId),
           summary: layer.summary,
           suggestedLoreTags: layer.suggestedLoreTags ?? [],
+          projectId: layer.projectId ?? null,
+          projectName: layer.projectName ?? null,
+          projectStatus: layer.status ?? null,
+          relatedAgents: layer.relatedAgents ?? [],
+          objective: layer.objective ?? null,
+          openQuestions: layer.openQuestions ?? [],
+          milestones: layer.milestones ?? [],
+          risks: layer.risks ?? [],
         }),
         confidence: 0.72,
         provenanceKind: 'inferred',
@@ -750,6 +964,14 @@ function buildContextMetadata({
   title,
   summary,
   suggestedLoreTags = [],
+  projectId = null,
+  projectName = null,
+  projectStatus = null,
+  relatedAgents = [],
+  objective = null,
+  openQuestions = [],
+  milestones = [],
+  risks = [],
 }) {
   return {
     contextLayer,
@@ -761,6 +983,14 @@ function buildContextMetadata({
     title,
     summary,
     suggestedLoreTags,
+    projectId,
+    projectName,
+    projectStatus,
+    relatedAgents,
+    objective,
+    openQuestions,
+    milestones,
+    risks,
     memorySourceKind: 'conversation_summary',
   };
 }
@@ -777,7 +1007,7 @@ function buildContextTitle(scope, key, agentId) {
 function normalizeContextMemoryType(key = '') {
   if (/brand_voice/i.test(key)) return 'brand_voice';
   if (/customer|ideal_customer|pricing|product|company|business/i.test(key)) return 'business_fact';
-  if (/goal|campaign|constraint|objection/i.test(key)) return 'project_fact';
+  if (/goal|campaign|constraint|objection|project|launch|milestone|risk/i.test(key)) return 'project_fact';
   return 'fact';
 }
 
@@ -923,6 +1153,182 @@ function clampConfidence(confidence) {
   return Math.min(Math.max(Number(confidence ?? 0.5), 0), 1);
 }
 
+function buildLogicalMemoryKey(key, metadata = {}) {
+  return String(metadata.logicalKey ?? key ?? '').trim();
+}
+
+function buildHistoricalMemoryKey(logicalKey, suffix = 'snapshot') {
+  return `${logicalKey}__${suffix}__${Date.now()}`;
+}
+
+function scoreMemoryAuthority({ confidence = 0.5, provenanceKind = 'inferred', lastConfirmedAt = null, confirmedAt = null }) {
+  const base = clampConfidence(confidence);
+  const confirmedBoost = provenanceKind === 'confirmed' ? 0.16 : 0;
+  const recentConfirmedBoost = (lastConfirmedAt ?? confirmedAt) ? 0.04 : 0;
+  return Number(Math.min(1.2, base + confirmedBoost + recentConfirmedBoost).toFixed(4));
+}
+
+export function chooseContradictionResolution({ existing, incoming }) {
+  const existingStrength = scoreMemoryAuthority(existing);
+  const incomingStrength = scoreMemoryAuthority(incoming);
+  const existingConfirmed = (existing.provenanceKind ?? 'inferred') === 'confirmed';
+  const incomingConfirmed = (incoming.provenanceKind ?? 'inferred') === 'confirmed';
+
+  if (incomingConfirmed && !existingConfirmed) {
+    return { action: 'replace_current', reason: 'newer_confirmed_fact' };
+  }
+
+  if (!incomingConfirmed && existingConfirmed && incomingStrength + 0.08 < existingStrength) {
+    return { action: 'preserve_existing', reason: 'weaker_inferred_update' };
+  }
+
+  if (incomingStrength >= existingStrength + 0.08) {
+    return { action: 'replace_current', reason: 'higher_confidence_update' };
+  }
+
+  if (existingStrength >= incomingStrength + 0.12) {
+    return { action: 'preserve_existing', reason: 'existing_fact_stronger' };
+  }
+
+  if (incomingConfirmed && existingConfirmed) {
+    return { action: 'replace_current', reason: 'confirmed_update_requires_review' };
+  }
+
+  return { action: 'replace_current', reason: 'latest_context_update' };
+}
+
+async function createSupersededMemorySnapshot({
+  existing,
+  orgId,
+  supersededAt = new Date(),
+  supersededReason = 'superseded',
+}) {
+  const snapshotKey = buildHistoricalMemoryKey(buildLogicalMemoryKey(existing.key, existing.metadata), 'superseded');
+  const [snapshot] = await db
+    .insert(agentMemory)
+    .values({
+      orgId,
+      userId: existing.userId,
+      agentId: existing.agentId,
+      scope: existing.scope,
+      scopeKey: existing.scopeKey,
+      workflowRunId: existing.workflowRunId,
+      sessionKey: existing.sessionKey,
+      memoryType: existing.memoryType,
+      key: snapshotKey,
+      value: existing.value,
+      title: existing.title,
+      content: existing.content ?? existing.value,
+      summary: existing.summary,
+      provenanceKind: existing.provenanceKind,
+      sourceRef: existing.sourceRef,
+      memorySourceKind: existing.memorySourceKind,
+      sourceAgent: existing.sourceAgent,
+      sourceMessageId: existing.sourceMessageId,
+      sourceDocumentId: existing.sourceDocumentId,
+      metadata: {
+        ...(existing.metadata ?? {}),
+        logicalKey: buildLogicalMemoryKey(existing.key, existing.metadata),
+        supersededReason,
+        supersededAt: supersededAt.toISOString(),
+        supersededFromMemoryId: existing.id,
+      },
+      version: existing.version ?? 1,
+      confidence: existing.confidence ?? 0.5,
+      importanceScore: existing.importanceScore ?? 0.5,
+      authorityScore: existing.authorityScore ?? 0.5,
+      freshnessScore: existing.freshnessScore ?? 0.5,
+      usageCount: existing.usageCount ?? 0,
+      lastUsedAt: existing.lastUsedAt ?? null,
+      lastSeenAt: existing.lastSeenAt ?? existing.updatedAt ?? existing.createdAt ?? supersededAt,
+      confirmedAt: existing.confirmedAt ?? null,
+      lastConfirmedAt: existing.lastConfirmedAt ?? existing.confirmedAt ?? null,
+      expiresAt: existing.expiresAt ?? null,
+      promotedAt: existing.promotedAt ?? null,
+      archivedAt: supersededAt,
+      deletedAt: null,
+      supersededAt,
+      supersededBy: existing.id,
+      contradictionDetected: true,
+      memoryItemStatus: 'archived',
+      visibility: existing.visibility,
+      contradictionGroupId: existing.contradictionGroupId ?? null,
+      parentMemoryId: existing.id,
+      pinned: false,
+      alwaysInclude: false,
+      neverForget: false,
+      userLocked: true,
+      confidenceUpdatedAt: supersededAt,
+      createdAt: existing.createdAt ?? supersededAt,
+      updatedAt: supersededAt,
+    })
+    .returning({ id: agentMemory.id, key: agentMemory.key });
+
+  return snapshot;
+}
+
+async function createContradictionCandidateMemory({
+  orgId,
+  scopeIdentity,
+  agentId,
+  normalizedScope,
+  memoryType,
+  logicalKey,
+  value,
+  metadata,
+  confidence,
+  provenanceKind,
+  sourceRef,
+  resolvedStatus,
+  now = new Date(),
+  parentMemoryId = null,
+  reviewReason = 'needs_review',
+}) {
+  const [created] = await db
+    .insert(agentMemory)
+    .values({
+      orgId,
+      userId: scopeIdentity.userId,
+      agentId,
+      scope: normalizedScope,
+      scopeKey: scopeIdentity.scopeKey,
+      workflowRunId: scopeIdentity.workflowRunId,
+      sessionKey: scopeIdentity.sessionKey,
+      memoryType,
+      key: buildHistoricalMemoryKey(logicalKey, 'candidate'),
+      value,
+      title: metadata.title ?? logicalKey,
+      content: value,
+      summary: metadata.summary ?? value,
+      metadata: {
+        ...metadata,
+        logicalKey,
+        contradictionDetected: true,
+        reviewReason,
+      },
+      provenanceKind,
+      sourceRef,
+      confidence,
+      importanceScore: 0.6,
+      authorityScore: 0.5,
+      freshnessScore: 0.48,
+      lastSeenAt: now,
+      lastConfirmedAt: provenanceKind === 'confirmed' ? now : null,
+      confirmedAt: provenanceKind === 'confirmed' ? now : null,
+      expiresAt: resolveExpiresAtForScope(normalizedScope, null),
+      memoryItemStatus: resolvedStatus === 'pending_review' ? 'pending_review' : 'conflicted',
+      visibility: visibilityForScope(normalizedScope),
+      contradictionDetected: true,
+      parentMemoryId,
+      confidenceUpdatedAt: now,
+      updatedAt: now,
+      createdAt: now,
+    })
+    .returning({ id: agentMemory.id, key: agentMemory.key });
+
+  return created;
+}
+
 function buildScopeIdentity({ scope, orgId, userId, agentId, workflowRunId, sessionKey }) {
   switch (scope) {
     case 'user':
@@ -998,11 +1404,15 @@ function shouldScopeTrackUser(scope) {
 export function getMemoryStatus(entry) {
   if (!entry) return 'expired';
 
+  if (entry.supersededAt || entry.supersededBy) {
+    return 'superseded';
+  }
+
   if (entry.expiresAt && new Date(entry.expiresAt).getTime() <= Date.now()) {
     return 'expired';
   }
 
-  const referenceDate = entry.lastUsedAt ?? entry.updatedAt ?? entry.createdAt;
+  const referenceDate = entry.lastSeenAt ?? entry.lastUsedAt ?? entry.lastConfirmedAt ?? entry.updatedAt ?? entry.createdAt;
   if (!referenceDate) return 'fresh';
 
   const ageDays = Math.max((Date.now() - new Date(referenceDate).getTime()) / 86_400_000, 0);

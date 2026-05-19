@@ -28,6 +28,7 @@ import { getErrorMessage } from '../lib/utils';
 import { Button, InlineNotice, PageShell, TextInput } from '../components/ui';
 import { MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
+import { AnswerBlock, FAQSection, LinkCardGrid } from '../components/PublicContent';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
 import { FoundingAccessPopup } from '../features/marketing/FoundingAccessPopup';
@@ -35,7 +36,9 @@ import CookieConsentBanner from '../components/CookieConsentBanner';
 import { SimpleAdvancedModeSection } from '../features/marketing/SimpleAdvancedModeSection';
 import { SeePrymalInActionSection } from '../features/marketing/SeePrymalInActionSection';
 import { useFoundingAccessOffer } from '../features/marketing/founding-access';
+import { HOME_AEO_BLOCK, HOME_FAQ_ITEMS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
+import '../styles/public-content.css';
 
 const PARADE_EXCLUDE = new Set(['sentinel', ...AGENT_UI_LAYERS.core]);
 const AGENT_PARADE_DATA = AGENT_LIBRARY.filter((a) => !PARADE_EXCLUDE.has(a.id)).map((agent) => {
@@ -428,6 +431,8 @@ export default function Landing() {
               </div>
             </section>
 
+            <AnswerBlock title={HOME_AEO_BLOCK.title} answer={HOME_AEO_BLOCK.answer} />
+
             <section id="how-it-works" className="pm-difference">
               <div className="pm-section__header">
                 <div className="pm-section__eyebrow" style={{ '--section-accent': '#9cf5e0' }}>Why this is different</div>
@@ -754,6 +759,35 @@ export default function Landing() {
                 ) : null}
               </div>
             </MotionSection>
+
+            <FAQSection
+              title="Prymal FAQ"
+              items={HOME_FAQ_ITEMS}
+              schemaId="schema-home-faq"
+            />
+
+            <LinkCardGrid
+              items={[
+                {
+                  to: '/features',
+                  title: 'Explore feature pages',
+                  description: 'See how Prymal approaches AI agents, business memory, workflows, trust, reporting, and outreach.',
+                  cta: 'Browse features ->',
+                },
+                {
+                  to: '/blog',
+                  title: 'Read practical guides',
+                  description: 'Get answer-first explainers on AI operating systems, memory, workflows, and business-safe adoption.',
+                  cta: 'Open the blog ->',
+                },
+                {
+                  to: '/compare',
+                  title: 'Compare product categories',
+                  description: 'Understand when Prymal fits better than a chat-first tool, workflow product, or agent platform.',
+                  cta: 'View comparisons ->',
+                },
+              ]}
+            />
 
           </div>
         </PageShell>

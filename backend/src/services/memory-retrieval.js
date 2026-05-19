@@ -12,7 +12,7 @@ function estimateTokens(text) {
 
 function lexicalScore(query, entry) {
   const q = String(query ?? '').toLowerCase();
-  const hay = `${entry.key ?? ''} ${entry.value ?? ''} ${entry.title ?? ''}`.toLowerCase();
+  const hay = `${entry.key ?? ''} ${entry.value ?? ''} ${entry.title ?? ''} ${entry.metadata?.projectName ?? ''} ${entry.metadata?.projectId ?? ''}`.toLowerCase();
   if (!q.trim()) return 0.5;
   const words = q.split(/\s+/).filter(Boolean);
   let hits = 0;
@@ -24,20 +24,25 @@ function lexicalScore(query, entry) {
   return hits / Math.max(words.length, 1);
 }
 
-function rankScore(entry, policy, query, now) {
+export function rankScore(entry, policy, query, now) {
   const { decayFactor, reason } = calculateMemoryDecay(entry, now);
   const prefBoost = policy.preferredTypes?.includes(entry.memoryType) ? 0.12 : 0;
   const pinBoost = entry.pinned ? 0.15 : 0;
   const alwaysBoost = entry.alwaysInclude ? 0.2 : 0;
   const globalContextBoost = entry.metadata?.contextLayer === 'global' ? 0.18 : 0;
   const agentContextBoost = entry.metadata?.contextLayer === 'agent' ? 0.1 : 0;
+  const projectContextBoost = entry.metadata?.contextLayer === 'project' ? 0.14 : 0;
+  const activeProjectBoost = entry.metadata?.contextLayer === 'project' && entry.metadata?.projectStatus === 'active' ? 0.06 : 0;
+  const inactiveProjectPenalty = entry.metadata?.contextLayer === 'project' && ['completed', 'archived'].includes(String(entry.metadata?.projectStatus ?? '').toLowerCase()) ? -0.08 : 0;
   const targetedAgentBoost = entry.metadata?.targetAgentId === entry.agentId ? 0.06 : 0;
   const lex = lexicalScore(query, entry);
   const freshness = entry.freshnessScore ?? 0.5;
   const authority = entry.authorityScore ?? 0.5;
   const conf = entry.effectiveConfidence ?? entry.confidence ?? 0.5;
-  const stalePenalty = entry.status === 'stale' ? -0.08 : entry.status === 'aging' ? -0.04 : 0;
+  const stalePenalty = entry.status === 'stale' ? -0.08 : entry.status === 'aging' ? -0.04 : entry.status === 'superseded' ? -0.18 : 0;
   const conflictPenalty = entry.memoryItemStatus === 'conflicted' && !policy.includeContradictions ? -0.25 : 0;
+  const contradictionPenalty = entry.contradictionDetected === true ? -0.05 : 0;
+  const confirmedBoost = entry.provenanceKind === 'confirmed' ? 0.06 : 0;
 
   const base =
     conf * 0.26 * decayFactor
@@ -49,11 +54,15 @@ function rankScore(entry, policy, query, now) {
     + alwaysBoost
     + globalContextBoost
     + agentContextBoost
+    + projectContextBoost
+    + activeProjectBoost
     + targetedAgentBoost
+    + confirmedBoost
     + stalePenalty
     + conflictPenalty;
+  const adjusted = base + inactiveProjectPenalty + contradictionPenalty;
 
-  const effectiveScore = Number(Math.min(1.05, Math.max(0, base)).toFixed(4));
+  const effectiveScore = Number(Math.min(1.05, Math.max(0, adjusted)).toFixed(4));
 
   return { retrievalScore: effectiveScore, decayFactor, decayReason: reason, effectiveScore };
 }
@@ -83,10 +92,17 @@ export function buildMemoryClientPreview(envelopes, { agentId } = {}) {
       decayReason: e.decayReason,
       redacted,
       lastUsedAt: m.lastUsedAt,
+      lastSeenAt: m.lastSeenAt ?? null,
+      lastConfirmedAt: m.lastConfirmedAt ?? m.confirmedAt ?? null,
       agentId,
       contextLayer: m.metadata?.contextLayer ?? null,
       sourceConversationId: m.metadata?.sourceConversationId ?? null,
       sourceAgentId: m.metadata?.sourceAgentId ?? null,
+      projectId: m.metadata?.projectId ?? null,
+      projectName: m.metadata?.projectName ?? null,
+      projectStatus: m.metadata?.projectStatus ?? null,
+      contradictionDetected: Boolean(m.contradictionDetected),
+      supersededAt: m.supersededAt ?? null,
     };
   });
 }

@@ -1,11 +1,15 @@
+import { Link } from 'react-router-dom';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
+import { FAQSection, AnswerBlock, ResourceCta } from '../components/PublicContent';
 import { PageShell } from '../components/ui';
 import { FoundingAccessPopup } from '../features/marketing/FoundingAccessPopup';
 import { PricingPageContent } from '../features/marketing/PricingPageContent';
 import { useFoundingAccessOffer } from '../features/marketing/founding-access';
 import { PLAN_LIBRARY, getWorkspacePlanMeta } from '../lib/constants';
+import { PRICING_FAQ_ITEMS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/pricing-page.css';
+import '../styles/public-content.css';
 
 export default function Pricing() {
   const freePlan = getWorkspacePlanMeta('free');
@@ -41,8 +45,19 @@ export default function Pricing() {
         <PublicPageNavbar sourcePrefix="pricing" />
 
         <PageShell width="100%" flushMobile>
-          <div className="pricing-page__shell">
+          <div className="pricing-page__shell public-content-page">
+            <AnswerBlock
+              title="How does Prymal pricing work?"
+              answer="Prymal pricing is structured around workspace plans, execution capacity, shared business memory, workflow depth, and team-level control rather than just more chat volume."
+            />
             <PricingPageContent foundingAccessState={foundingAccessState} />
+            <FAQSection title="Pricing FAQ" items={PRICING_FAQ_ITEMS} schemaId="schema-pricing-faq" />
+            <ResourceCta
+              title="Need the product detail behind the plans?"
+              description="Feature pages, comparison pages, and the trust page explain how Prymal approaches business execution, memory, and compliance-ready operations."
+              primary={<Link to="/features" className="pm-btn pm-btn--primary">Explore features</Link>}
+              secondary={<Link to="/trust" className="pm-btn pm-btn--ghost">Review trust</Link>}
+            />
           </div>
         </PageShell>
 

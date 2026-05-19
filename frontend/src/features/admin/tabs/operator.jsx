@@ -43,7 +43,7 @@ function EmptyRow({ children }) {
   return <div className="staff-admin__empty">{children}</div>;
 }
 
-export function OperatorTab({ query, days, onDaysChange }) {
+export function OperatorTab({ query, memoryIntelligenceQuery, days, onDaysChange }) {
   const data = query?.data ?? null;
 
   if (query?.isLoading && !data) {
@@ -59,6 +59,7 @@ export function OperatorTab({ query, days, onDaysChange }) {
   }
 
   const { revenue, usage, video, costMargin, reliability, beta } = data;
+  const memoryIntelligence = memoryIntelligenceQuery?.data ?? null;
 
   return (
     <div style={{ display: 'grid', gap: '18px' }}>
@@ -325,6 +326,66 @@ export function OperatorTab({ query, days, onDaysChange }) {
             </MotionListLikeTable>
           </div>
         ) : null}
+      </Section>
+
+      <Section
+        label="Memory intelligence"
+        title="Business profile confidence"
+        meta={memoryIntelligence?.generatedAt ? `Generated ${new Date(memoryIntelligence.generatedAt).toLocaleString()}` : null}
+      >
+        {memoryIntelligenceQuery?.isLoading && !memoryIntelligence ? (
+          <EmptyRow>Loading memory intelligence...</EmptyRow>
+        ) : memoryIntelligenceQuery?.error ? (
+          <InlineNotice tone="danger">Memory intelligence could not load right now.</InlineNotice>
+        ) : memoryIntelligence?.overview ? (
+          <>
+            <div className="staff-admin__metric-grid staff-admin__metric-grid--billing">
+              <MetricCard label="Overall confidence" value={humanize(memoryIntelligence.overview.confidenceLevel)} accent="mint" />
+              <MetricCard label="Stale facts" value={formatNumber(memoryIntelligence.overview.staleFactsCount)} accent="amber" />
+              <MetricCard label="Contradictions" value={formatNumber(memoryIntelligence.overview.contradictionsCount)} accent="rose" />
+              <MetricCard label="Active projects" value={formatNumber(memoryIntelligence.overview.activeProjectsCount)} accent="blue" />
+            </div>
+            <p style={{ marginTop: '14px', color: 'var(--muted)', lineHeight: 1.7 }}>
+              {memoryIntelligence.overview.safeSummary}
+            </p>
+            <div style={{ display: 'grid', gap: '8px', marginTop: '14px' }}>
+              {(memoryIntelligence.categories ?? []).map((category) => (
+                <div key={category.key} style={TABLE_ROW_STYLE}>
+                  <span><strong>{category.label}</strong></span>
+                  <span>{humanize(category.confidenceLevel)}</span>
+                  <span>{formatNumber(category.staleFactsCount)} stale</span>
+                  <span>{formatNumber(category.contradictionsCount)} contradictions</span>
+                  <span>{category.topMissingContext?.join(', ') || 'Healthy coverage'}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : memoryIntelligence?.organisations?.length ? (
+          <>
+            <div className="staff-admin__metric-grid staff-admin__metric-grid--billing">
+              <MetricCard label="Tracked orgs" value={formatNumber(memoryIntelligence.organisations.length)} accent="mint" />
+              <MetricCard label="Stale facts" value={formatNumber(memoryIntelligence.totals?.staleFactsCount ?? 0)} accent="amber" />
+              <MetricCard label="Contradictions" value={formatNumber(memoryIntelligence.totals?.contradictionsCount ?? 0)} accent="rose" />
+              <MetricCard label="Unsupported" value={formatNumber(memoryIntelligence.totals?.unsupportedClaimsCount ?? 0)} accent="blue" />
+            </div>
+            <div style={{ display: 'grid', gap: '8px', marginTop: '14px' }}>
+              {memoryIntelligence.organisations.map((org) => (
+                <div key={org.orgId} style={TABLE_ROW_STYLE}>
+                  <span>
+                    <strong>{org.orgName}</strong>
+                    <small style={{ display: 'block', color: 'var(--muted)' }}>{org.orgSlug}</small>
+                  </span>
+                  <span>{humanize(org.summary?.overview?.confidenceLevel ?? 'low')}</span>
+                  <span>{formatNumber(org.summary?.overview?.staleFactsCount ?? 0)} stale</span>
+                  <span>{formatNumber(org.summary?.overview?.contradictionsCount ?? 0)} contradictions</span>
+                  <span>{org.summary?.overview?.safeSummary ?? 'No summary available'}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <EmptyRow>No memory intelligence signals available yet.</EmptyRow>
+        )}
       </Section>
     </div>
   );

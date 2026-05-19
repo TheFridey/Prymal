@@ -2,8 +2,11 @@ import { Link } from 'react-router-dom';
 import { PageShell } from '../components/ui';
 import { MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
+import { FAQSection, LinkCardGrid } from '../components/PublicContent';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import { TRUST_FAQ_ITEMS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
+import '../styles/public-content.css';
 
 const TRUST_PILLARS = [
   {
@@ -117,6 +120,30 @@ export default function Trust() {
                   that certification is formally achieved.
                 </p>
               </section>
+            </MotionSection>
+
+            <FAQSection title="Trust FAQ" items={TRUST_FAQ_ITEMS} schemaId="schema-trust-faq" />
+
+            <MotionSection reveal={{ y: 18, blur: 6 }}>
+              <LinkCardGrid
+                items={[
+                  {
+                    to: '/features/ai-security',
+                    title: 'See the security feature page',
+                    description: 'Understand how Prymal frames WARDEN, SENTINEL, deployment hardening, and readiness controls for business use.',
+                  },
+                  {
+                    to: '/compare',
+                    title: 'Compare product categories',
+                    description: 'See where Prymal fits against chat-first and automation-first product categories without hostile positioning.',
+                  },
+                  {
+                    to: '/pricing',
+                    title: 'Review pricing',
+                    description: 'See how plans map to execution capacity, shared context, and team controls.',
+                  },
+                ]}
+              />
             </MotionSection>
           </div>
         </PageShell>

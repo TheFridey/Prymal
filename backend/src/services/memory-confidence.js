@@ -15,6 +15,7 @@ export async function recordMemoryUse(memoryId, { source = 'retrieval' } = {}) {
     .update(agentMemory)
     .set({
       lastUsedAt: new Date(),
+      lastSeenAt: new Date(),
       usageCount: sql`${agentMemory.usageCount} + 1`,
       freshnessScore: sql`least(1.0, coalesce(${agentMemory.freshnessScore}, 0.5) + 0.02)`,
       updatedAt: new Date(),
@@ -37,6 +38,7 @@ export async function adjustMemoryConfidence(memoryId, delta, reason, { orgId = 
     .set({
       confidence: next,
       confidenceUpdatedAt: new Date(),
+      lastSeenAt: new Date(),
       updatedAt: new Date(),
     })
     .where(eq(agentMemory.id, memoryId));
@@ -74,6 +76,8 @@ export async function confirmMemoryConfidence(memoryId, { orgId = null, actor = 
       confidence: CLAMP(Math.max(row.confidence ?? 0.5, 0.92)),
       provenanceKind: 'confirmed',
       confirmedAt: row.confirmedAt ?? new Date(),
+      lastConfirmedAt: new Date(),
+      lastSeenAt: new Date(),
       updatedAt: new Date(),
       confidenceUpdatedAt: new Date(),
     })
@@ -113,6 +117,7 @@ export async function bumpConfidenceOnReuse(memoryId, amount = 0.012) {
     .set({
       confidence: next,
       confidenceUpdatedAt: new Date(),
+      lastSeenAt: new Date(),
       updatedAt: new Date(),
       metadata: { ...meta, lastConfidenceBumpAt: new Date().toISOString() },
     })

@@ -8,6 +8,21 @@ import '../styles/changelog-premium.css';
 
 const CHANGELOG = [
   {
+    version: '1.1.1',
+    date: '2026-05-19',
+    tag: 'Growth',
+    badge: 'Launch',
+    milestone: true,
+    title: 'Business Memory + AEO Launch Layer',
+    impact: 'Prymal now combines stronger business memory intelligence with a broader public content layer for launch readiness, category education, and trust-first growth.',
+    entries: [
+      'Added memory confidence decay, contradiction tracking, supersession history, and Project Context for launch campaigns and active initiatives.',
+      'Introduced Business Profile Confidence signals for operators so context gaps, stale facts, and contradictions are easier to review.',
+      'Expanded the public site with answer-first SEO and AEO content, FAQ schema, feature pages, comparison pages, and a practical blog foundation.',
+      'Improved internal linking between product, trust, pricing, blog, and comparison surfaces so buyers can understand Prymal as a coordinated operating layer.',
+    ],
+  },
+  {
     version: '1.1.0',
     date: '2026-05-19',
     tag: 'Platform',
@@ -368,6 +383,7 @@ const TAG_COLORS = {
   Security: '#FB7185',
   Compliance: '#FACC15',
   Reliability: '#7CFFCB',
+  Growth: '#FFD166',
 };
 
 export default function Changelog() {

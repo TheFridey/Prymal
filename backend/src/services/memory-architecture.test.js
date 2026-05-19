@@ -4,6 +4,7 @@ import { evaluateMemoryPromotion } from './memory-promotion.js';
 import { reviewMemoryCandidate } from './memory-safety.js';
 import { getMemoryPolicyForAgent } from './memory-policies.js';
 import { buildConversationMemoryUpdate, dedupeMemoryFacts, isUnsafeMemoryFact } from './memory-context.js';
+import { chooseContradictionResolution } from './memory.js';
 
 test('reviewMemoryCandidate rejects obvious secrets', () => {
   const verdict = reviewMemoryCandidate({
@@ -43,6 +44,21 @@ test('HERALD-style conversation creates global and agent context memories', () =
   assert.ok(update.agent.summary.includes('direct and premium'));
 });
 
+test('HERALD conversation can create project context for a launch campaign', () => {
+  const update = buildConversationMemoryUpdate({
+    agentId: 'herald',
+    conversationId: '00000000-0000-4000-8000-000000000010',
+    userMessage: 'Our active project is Prymal Beta Launch. Project objective is launch private beta with security-first positioning. Milestone: open the first 50 founder invites.',
+    assistantText: 'I will keep the launch initiative in view.',
+  });
+
+  assert.ok(update?.project);
+  assert.equal(update.project.projectName, 'Prymal Beta Launch');
+  assert.equal(update.project.status, 'active');
+  assert.match(update.project.summary ?? '', /private beta/i);
+  assert.ok(update.project.facts.some((fact) => fact.projectId === 'prymal-beta-launch'));
+});
+
 test('unsafe conversation facts are excluded from persisted memory updates', () => {
   const update = buildConversationMemoryUpdate({
     agentId: 'forge',
@@ -73,6 +89,20 @@ test('duplicate context facts are merged and low-confidence items stay inferred'
   });
 
   assert.ok(update.global.facts.some((fact) => fact.source === 'agent_inferred'));
+});
+
+test('newer user-stated fact supersedes weaker inferred context and stronger confirmed facts resist weaker inferred updates', () => {
+  const replace = chooseContradictionResolution({
+    existing: { confidence: 0.58, provenanceKind: 'inferred' },
+    incoming: { confidence: 0.82, provenanceKind: 'confirmed' },
+  });
+  assert.equal(replace.action, 'replace_current');
+
+  const preserve = chooseContradictionResolution({
+    existing: { confidence: 0.93, provenanceKind: 'confirmed', confirmedAt: new Date().toISOString() },
+    incoming: { confidence: 0.61, provenanceKind: 'inferred' },
+  });
+  assert.equal(preserve.action, 'preserve_existing');
 });
 
 test('conversation-derived memory strips provider, model, routing, and cost internals', () => {

@@ -8,13 +8,34 @@ import { requireOrg } from '../middleware/auth.js';
 import { resolveContradiction } from '../services/memory-contradictions.js';
 import { downgradeMemory } from '../services/memory-confidence.js';
 import { MEMORY_CAPS_BY_TYPE, countMemoryForOrgByType } from '../services/memory-caps.js';
+import { calculateMemoryDecay } from '../services/memory-decay.js';
 import { buildMemoryExplanation } from '../services/memory-explain.js';
+import { buildMemoryIntelligenceSummary } from '../services/memory-intelligence.js';
 import { insertMemoryEvent, groupEventsByDay, summarizeDailyEvents, listMemoryEventsTimeline } from '../services/memory-events.js';
+import { getMemoryStatus } from '../services/memory.js';
 import { evaluateMemoryPromotion, recordPromotionEvaluation } from '../services/memory-promotion.js';
 import { reviewMemoryCandidate } from '../services/memory-safety.js';
 import { recordProductEventOnce } from '../services/telemetry.js';
 
 const router = new Hono();
+
+function enrichMemoryRow(row) {
+  const { decayFactor, reason } = calculateMemoryDecay(row);
+  const confidence = Number(row.confidence ?? 0.5);
+  const confidenceLevel = confidence >= 0.8 ? 'high' : confidence >= 0.55 ? 'medium' : 'low';
+  return {
+    ...row,
+    retrievalStatus: getMemoryStatus(row),
+    decayFactor,
+    decayReason: reason,
+    confidenceLevel,
+    contradictionDetected: Boolean(row.contradictionDetected),
+    lastSeenAt: row.lastSeenAt ?? null,
+    lastConfirmedAt: row.lastConfirmedAt ?? row.confirmedAt ?? null,
+    supersededAt: row.supersededAt ?? null,
+    supersededBy: row.supersededBy ?? null,
+  };
+}
 
 function canEditScope(org, scope, rowUserId) {
   if (scope === 'org' || scope === 'workflow_run') {
@@ -74,7 +95,7 @@ router.get('/', requireOrg, async (context) => {
       return true;
     });
 
-    return context.json({ memory: filtered });
+    return context.json({ memory: filtered.map((row) => enrichMemoryRow(row)) });
   } catch (error) {
     console.error('[memory] GET / failed:', error?.message ?? error);
     return context.json(
@@ -85,6 +106,18 @@ router.get('/', requireOrg, async (context) => {
       503,
     );
   }
+});
+
+router.get('/intelligence', requireOrg, async (context) => {
+  const org = context.get('org');
+  const rows = await db.query.agentMemory.findMany({
+    where: eq(agentMemory.orgId, org.orgId),
+    orderBy: [desc(agentMemory.updatedAt)],
+    limit: 400,
+  });
+
+  const filtered = rows.filter((row) => row.scope !== 'agent_private');
+  return context.json(buildMemoryIntelligenceSummary(filtered, { internal: false }));
 });
 
 router.get('/timeline', requireOrg, async (context) => {
@@ -247,7 +280,7 @@ router.get('/:id', requireOrg, async (context) => {
     return context.json({ error: 'Not found' }, 404);
   }
 
-  return context.json({ memory: row });
+  return context.json({ memory: enrichMemoryRow(row) });
 });
 
 const upsertSchema = z.object({

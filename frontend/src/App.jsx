@@ -25,9 +25,15 @@ const AdminWorkflowCatalogue = lazyPage(() => import('./pages/AdminWorkflowCatal
 const AgentPerformance = lazyPage(() => import('./pages/AgentPerformance'), 'agent-performance');
 const AgentChat = lazyPage(() => import('./pages/AgentChat'), 'agent-chat');
 const AgentProfile = lazyPage(() => import('./pages/AgentProfile'), 'agent-profile');
+const Blog = lazyPage(() => import('./pages/Blog'), 'blog');
+const BlogPost = lazyPage(() => import('./pages/BlogPost'), 'blog-post');
 const Changelog = lazyPage(() => import('./pages/Changelog'), 'changelog');
+const Compare = lazyPage(() => import('./pages/Compare'), 'compare');
+const ComparisonPage = lazyPage(() => import('./pages/ComparisonPage'), 'comparison-page');
 const Cookies = lazyPage(() => import('./pages/Cookies'), 'cookies');
 const Dashboard = lazyPage(() => import('./pages/Dashboard'), 'dashboard');
+const FeaturePage = lazyPage(() => import('./pages/FeaturePage'), 'feature-page');
+const Features = lazyPage(() => import('./pages/Features'), 'features');
 const ForAgencies = lazyPage(() => import('./pages/ForAgencies'), 'for-agencies');
 const ForSmallBusiness = lazyPage(() => import('./pages/ForSmallBusiness'), 'for-small-business');
 const Integrations = lazyPage(() => import('./pages/Integrations'), 'integrations');
@@ -169,6 +175,12 @@ function AppRoutes() {
       <MotionPresence mode="wait" initial={false}>
         <Routes location={location} key={routeKey}>
           <Route path="/" element={<LazyPage label="Loading Prymal..."><Landing /></LazyPage>} />
+          <Route path="/features" element={<LazyPage label="Loading feature library..."><Features /></LazyPage>} />
+          <Route path="/features/:slug" element={<LazyPage label="Loading feature page..."><FeaturePage /></LazyPage>} />
+          <Route path="/blog" element={<LazyPage label="Loading blog..."><Blog /></LazyPage>} />
+          <Route path="/blog/:slug" element={<LazyPage label="Loading article..."><BlogPost /></LazyPage>} />
+          <Route path="/compare" element={<LazyPage label="Loading comparisons..."><Compare /></LazyPage>} />
+          <Route path="/compare/:slug" element={<LazyPage label="Loading comparison..."><ComparisonPage /></LazyPage>} />
           <Route path="/for-agencies" element={<LazyPage label="Loading agency story..."><ForAgencies /></LazyPage>} />
           <Route path="/for-small-business" element={<LazyPage label="Loading small-business story..."><ForSmallBusiness /></LazyPage>} />
           <Route path="/privacy" element={<LazyPage label="Loading privacy policy..."><Privacy /></LazyPage>} />

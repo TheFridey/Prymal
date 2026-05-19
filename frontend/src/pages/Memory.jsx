@@ -23,12 +23,14 @@ function getContextGroup(row) {
   const metadata = getMemoryMetadata(row);
   if (metadata.contextLayer === 'global') return 'global';
   if (metadata.contextLayer === 'agent') return 'agent';
+  if (metadata.contextLayer === 'project') return 'project';
   return 'other';
 }
 
 function getContextHeading(group) {
   if (group === 'global') return 'Global Context';
   if (group === 'agent') return 'Agent Context';
+  if (group === 'project') return 'Project Context';
   return 'Other Memory';
 }
 
@@ -73,6 +75,12 @@ export default function Memory() {
     retry: false,
   });
 
+  const intelligenceQuery = useQuery({
+    queryKey: ['memory-intelligence'],
+    queryFn: () => api.get('/memory/intelligence'),
+    retry: false,
+  });
+
   const timelineQuery = useQuery({
     queryKey: ['memory-timeline'],
     queryFn: () => api.get('/memory/timeline'),
@@ -105,6 +113,7 @@ export default function Memory() {
     const groups = {
       global: [],
       agent: [],
+      project: [],
       other: [],
     };
 
@@ -171,7 +180,7 @@ export default function Memory() {
               />
             ) : (
               <div style={{ display: 'grid', gap: '18px' }}>
-                {['global', 'agent', 'other'].map((group) => (
+                {['global', 'agent', 'project', 'other'].map((group) => (
                   groupedRows[group].length > 0 ? (
                     <section key={group} style={{ display: 'grid', gap: '8px' }}>
                       <SectionLabel>{getContextHeading(group)}</SectionLabel>
@@ -179,6 +188,8 @@ export default function Memory() {
                         {groupedRows[group].map((row) => {
                           const metadata = getMemoryMetadata(row);
                           const confidencePct = Math.round(Math.max(Math.min(Number(row.confidence ?? 0), 1), 0) * 100);
+                          const contradictionDetected = Boolean(row.contradictionDetected ?? row.contradiction_detected);
+                          const retrievalStatus = row.retrievalStatus ?? row.retrieval_status ?? 'active';
                           return (
                             <li key={row.id}>
                               <button
@@ -193,8 +204,15 @@ export default function Memory() {
                                   {metadata.targetAgentId ? (
                                     <span className="memory-page__badge">{metadata.targetAgentId}</span>
                                   ) : null}
+                                  {metadata.projectName ? (
+                                    <span className="memory-page__badge">{metadata.projectName}</span>
+                                  ) : null}
                                   {metadata.sourceConversationId ? (
                                     <span className="memory-page__badge">conversation</span>
+                                  ) : null}
+                                  <span className="memory-page__badge">{retrievalStatus}</span>
+                                  {contradictionDetected ? (
+                                    <span className="memory-page__badge">needs review</span>
                                   ) : null}
                                   <span className="memory-page__muted">{formatDateTime(row.updated_at ?? row.updatedAt)}</span>
                                 </div>
@@ -202,6 +220,11 @@ export default function Memory() {
                                 {Number.isFinite(confidencePct) ? (
                                   <div className="memory-page__muted" style={{ fontSize: '12px' }}>
                                     Confidence {confidencePct}%
+                                  </div>
+                                ) : null}
+                                {row.lastConfirmedAt || row.last_confirmed_at ? (
+                                  <div className="memory-page__muted" style={{ fontSize: '12px' }}>
+                                    Last confirmed {formatDateTime(row.lastConfirmedAt ?? row.last_confirmed_at)}
                                   </div>
                                 ) : null}
                               </button>
@@ -218,6 +241,25 @@ export default function Memory() {
 
           <SurfaceCard className="memory-page__detail">
             <SectionLabel>Why am I seeing this?</SectionLabel>
+            {intelligenceQuery.data?.overview ? (
+              <div className="memory-page__retention">
+                <SectionLabel>Business profile confidence</SectionLabel>
+                <p className="memory-page__muted">
+                  {intelligenceQuery.data.overview.safeSummary}
+                </p>
+                <div className="memory-page__meta">
+                  <span className="memory-page__badge">{intelligenceQuery.data.overview.confidenceLevel}</span>
+                  <span className="memory-page__badge">{intelligenceQuery.data.overview.staleFactsCount} stale</span>
+                  <span className="memory-page__badge">{intelligenceQuery.data.overview.contradictionsCount} contradictions</span>
+                  <span className="memory-page__badge">{intelligenceQuery.data.overview.activeProjectsCount} active projects</span>
+                </div>
+                {intelligenceQuery.data.overview.topMissingContext?.length ? (
+                  <p className="memory-page__muted">
+                    Missing context: {intelligenceQuery.data.overview.topMissingContext.map((entry) => entry.label).join(', ')}.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {selectedRow ? (
               <div className="memory-page__retention">
                 <SectionLabel>Retention & retrieval</SectionLabel>
@@ -286,7 +328,15 @@ export default function Memory() {
                   {selectedMeta.contextLayer ? (
                     <>
                       <dt>Context layer</dt>
-                      <dd>{selectedMeta.contextLayer === 'global' ? 'Global Context' : 'Agent Context'}</dd>
+                      <dd>
+                        {selectedMeta.contextLayer === 'global'
+                          ? 'Global Context'
+                          : selectedMeta.contextLayer === 'agent'
+                            ? 'Agent Context'
+                            : selectedMeta.contextLayer === 'project'
+                              ? 'Project Context'
+                              : selectedMeta.contextLayer}
+                      </dd>
                     </>
                   ) : null}
                   {selectedMeta.targetAgentId ? (
@@ -317,6 +367,48 @@ export default function Memory() {
                     <>
                       <dt>Sensitivity</dt>
                       <dd>{selectedMeta.sensitivity}</dd>
+                    </>
+                  ) : null}
+                  {selectedMeta.projectName ? (
+                    <>
+                      <dt>Project</dt>
+                      <dd>{selectedMeta.projectName}</dd>
+                    </>
+                  ) : null}
+                  {selectedMeta.projectStatus ? (
+                    <>
+                      <dt>Project status</dt>
+                      <dd>{selectedMeta.projectStatus}</dd>
+                    </>
+                  ) : null}
+                  {selectedRow?.lastSeenAt || selectedRow?.last_seen_at ? (
+                    <>
+                      <dt>Last seen</dt>
+                      <dd>{formatDateTime(selectedRow.lastSeenAt ?? selectedRow.last_seen_at)}</dd>
+                    </>
+                  ) : null}
+                  {selectedRow?.lastConfirmedAt || selectedRow?.last_confirmed_at ? (
+                    <>
+                      <dt>Last confirmed</dt>
+                      <dd>{formatDateTime(selectedRow.lastConfirmedAt ?? selectedRow.last_confirmed_at)}</dd>
+                    </>
+                  ) : null}
+                  {selectedRow?.supersededAt || selectedRow?.superseded_at ? (
+                    <>
+                      <dt>Superseded</dt>
+                      <dd>{formatDateTime(selectedRow.supersededAt ?? selectedRow.superseded_at)}</dd>
+                    </>
+                  ) : null}
+                  {selectedRow?.decayReason ? (
+                    <>
+                      <dt>Staleness signal</dt>
+                      <dd>{selectedRow.decayReason}</dd>
+                    </>
+                  ) : null}
+                  {selectedRow?.contradictionDetected || selectedRow?.contradiction_detected ? (
+                    <>
+                      <dt>Review status</dt>
+                      <dd>A recent contradiction or context change needs review.</dd>
                     </>
                   ) : null}
                   {selectedConfidence > 0 ? (

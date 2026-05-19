@@ -154,6 +154,13 @@ export default function Admin() {
     refetchInterval: activeTab === 'operator' ? 60_000 : false,
   });
 
+  const memoryIntelligenceQuery = useQuery({
+    queryKey: ['staff-admin-memory-intelligence'],
+    queryFn: () => api.get('/admin/memory-intelligence?limit=20'),
+    enabled: isStaff && activeTab === 'operator',
+    refetchInterval: activeTab === 'operator' ? 60_000 : false,
+  });
+
   const auditLogsQuery = useQuery({
     queryKey: ['staff-admin-audit-logs'],
     queryFn: () => api.get('/admin/audit-logs?limit=200'),
@@ -1057,6 +1064,7 @@ export default function Admin() {
         {activeTab === 'operator' ? (
           <OperatorTab
             query={operatorQuery}
+            memoryIntelligenceQuery={memoryIntelligenceQuery}
             days={operatorDays}
             onDaysChange={(value) => setOperatorDays(Number(value) || 30)}
           />
