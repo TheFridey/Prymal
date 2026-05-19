@@ -14,6 +14,7 @@
     "test:ci": "node scripts/run-tests.mjs",
     "env:validate": "node scripts/validate-env.mjs --scope backend --mode production",
     "security:preflight": "node scripts/preflight-production-security.mjs",
+    "compliance:evidence": "node scripts/collect-security-evidence.mjs",
     "schema:check": "node scripts/check-schema-drift.mjs",
     "db:verify-local": "node scripts/verify-local-db.mjs",
     "beta:check": "node scripts/beta-readiness-check.mjs",

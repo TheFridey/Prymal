@@ -172,3 +172,30 @@ Suggested evidence log fields:
 - [ ] PostgreSQL not publicly exposed
 - [ ] Cloudflare set to Full (strict)
 - [ ] production `.env` passes `npm run security:preflight`
+
+## Certification Evidence After Deploy
+
+Collect this evidence after every production deployment or restore event:
+
+- `sudo ufw status verbose` screenshot
+- `sudo systemctl status fail2ban --no-pager` screenshot
+- Cloudflare `Full (strict)` screenshot
+- GitHub MFA screenshot for production admins
+- Clerk MFA / admin settings screenshot
+- Stripe webhook health screenshot
+- Clerk webhook health screenshot
+- `NODE_ENV=production npm run env:validate` output
+- `NODE_ENV=production npm run security:preflight` output
+- backend and frontend `npm audit --omit=dev` summaries
+- `curl -I https://api.prymal.io/health` output
+- backup restore test evidence record
+
+Suggested command bundle:
+
+```bash
+cd /home/deploy/prymal/backend
+NODE_ENV=production npm run env:validate
+NODE_ENV=production npm run security:preflight
+npm audit --omit=dev
+curl -I https://api.prymal.io/health
+```

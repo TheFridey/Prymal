@@ -1,163 +1,269 @@
 # Cyber Essentials Readiness
 
-This document maps Prymal's current repo controls and required operator controls against the five Cyber Essentials themes. It is a readiness starter, not a final certification claim.
+This document is Prymal's assessor-ready starter checklist for Cyber Essentials and a useful baseline for Cyber Essentials Plus. It separates repo-backed technical controls from operator evidence that must be gathered on the live VPS and admin consoles.
+
+## Scope
+
+In scope for Prymal beta:
+
+- production VPS hosting the backend and PostgreSQL
+- nginx reverse proxy and TLS posture
+- GitHub repository, Actions, and deployment workflow
+- Clerk, Stripe, Cloudflare, Cloudinary, Resend, OpenAI, Anthropic, VPS provider, and domain registrar admin access
+- founder and staff endpoints used to administer production
+
+Out of scope unless brought into the formal scope statement:
+
+- personal side projects not connected to Prymal
+- marketing experiments that do not process production data
+
+## Patching SLA
+
+Use this minimum operating cadence:
+
+| Severity | SLA | Evidence |
+| --- | --- | --- |
+| Critical | 14 days or faster | vulnerability register entry, fix PR, deploy record |
+| High | 14 days or faster | vulnerability register entry, fix PR, deploy record |
+| Medium | 30 days | review note or patch PR |
+| Low | quarterly review | quarterly dependency review record |
 
 ## 1. Firewalls
 
-What Prymal/repo covers:
+### Repo / technical coverage
 
-- backend is designed to sit behind nginx on localhost
-- CORS allowlists are explicit in live environments
-- production docs assume Cloudflare in front of nginx
+- production backend is intended to sit behind nginx on `127.0.0.1:3001`
+- production docs require Cloudflare in front of nginx
+- explicit live-environment CORS allowlists are enforced
+- PostgreSQL is documented as localhost/private-network only
 
-Operator must evidence:
+### Operator evidence required
 
-- UFW default deny incoming
-- only `22`, `80`, and `443` open
-- PostgreSQL and any Redis service not publicly exposed
-- Cloudflare orange-cloud proxy and Full (strict) mode
+- `ufw` enabled with default deny incoming
+- public ports restricted to `22`, `80`, and `443`
+- PostgreSQL not reachable from the public internet
+- Cloudflare proxied setup with `Full (strict)`
 
-Pass/fail checklist:
+### Assessor checklist
 
-- [ ] UFW enabled
-- [ ] inbound default deny confirmed
-- [ ] public listening ports limited to 22/80/443
-- [ ] backend reachable only through nginx
-- [ ] database not internet-facing
+- [ ] `sudo ufw status verbose` shows default deny incoming
+- [ ] only `22`, `80`, `443` are open publicly
+- [ ] backend is not directly internet-facing on `3001`
+- [ ] PostgreSQL is not publicly exposed on `5432`
+- [ ] Cloudflare is enforcing HTTPS traffic to origin with `Full (strict)`
 
-Screenshot/evidence list:
+### Evidence to collect
 
-- `sudo ufw status verbose`
-- `ss -tulpn`
-- Cloudflare SSL/TLS mode screenshot
-- nginx site config excerpt
+| Evidence | Type |
+| --- | --- |
+| `sudo ufw status verbose` screenshot | operational |
+| `ss -tulpn` or `sudo ss -ltnp` output | operational |
+| nginx site config excerpt | repo/operational |
+| Cloudflare SSL/TLS mode screenshot | operational |
+| VPS firewall ticket or change record | operational |
 
 ## 2. Secure Configuration
 
-What Prymal/repo covers:
+### Repo / technical coverage
 
-- production env validation fails on unsafe URLs, test keys, missing secrets, and local media storage
-- strict security headers are enabled
-- production deploy script runs env validation and security preflight before restart
-- local media storage is blocked in production
+- production env hard-fails on localhost URLs, test auth keys, missing secrets, and unsafe media config
+- production media storage must use Cloudinary
+- security preflight verifies env, rate limits, headers, and media storage posture
+- deploy path is `systemd`-managed and non-root
+- nginx template includes strict security headers
 
-Operator must evidence:
+### Operator evidence required
 
-- hardened SSH config
-- non-root deployment user
-- `.env` file permissions set to `600`
-- unattended security updates enabled
+- non-root `deploy` user
+- `systemd` unit running as `deploy`
+- `.env` permissions set to `600`
+- root SSH login disabled
+- SSH password auth disabled
+- unattended-upgrades enabled
 
-Pass/fail checklist:
+### Assessor checklist
 
 - [ ] `NODE_ENV=production npm run env:validate` passes
-- [ ] `npm run security:preflight` passes
-- [ ] `AllowLocalMediaStorageInProduction` not enabled
-- [ ] root login disabled
-- [ ] password auth disabled
-- [ ] backend systemd unit runs as non-root user
+- [ ] `NODE_ENV=production npm run security:preflight` passes
+- [ ] `.env` is `600`
+- [ ] backend service runs as `deploy`
+- [ ] `PermitRootLogin no`
+- [ ] `PasswordAuthentication no`
+- [ ] unattended-upgrades configured
 
-Screenshot/evidence list:
+### Evidence to collect
 
-- env validation output
-- security preflight output
-- `/etc/ssh/sshd_config` excerpt
-- `ls -l backend/.env`
-- systemd service file excerpt
+| Evidence | Type |
+| --- | --- |
+| env validation output | repo/operational |
+| security preflight output | repo/operational |
+| `ls -l /home/deploy/prymal/backend/.env` screenshot | operational |
+| `systemctl cat prymal-backend` excerpt | operational |
+| `/etc/ssh/sshd_config` excerpt | operational |
+| unattended-upgrades status screenshot | operational |
 
 ## 3. Security Update Management
 
-What Prymal/repo covers:
+### Repo / technical coverage
 
-- Dependabot is configured for npm and GitHub Actions
-- `npm audit --omit=dev` is part of the release checklist and security preflight
-- CI validates backend and frontend continuously
+- backend and frontend dependency audits are part of release validation
+- Dependabot and GitHub security guidance already exist
+- residual dependency exceptions are documented rather than ignored
 
-Operator must evidence:
+### Operator evidence required
 
-- OS patching cadence
-- unattended upgrades enabled
-- dependency review cadence for Dependabot alerts
+- patch review cadence
+- evidence that VPS OS updates are applied
+- evidence that GitHub and dependency alerts are monitored
 
-Pass/fail checklist:
+### Assessor checklist
 
-- [ ] Dependabot alerts enabled
-- [ ] Dependabot security updates enabled
-- [ ] `npm audit --omit=dev` reviewed before release
-- [ ] OS update log available
+- [ ] production dependency audits reviewed before release
+- [ ] VPS package updates applied on schedule
+- [ ] high and critical dependency findings are fixed or risk-accepted
+- [ ] vulnerability register updated for exceptions
 
-Screenshot/evidence list:
+### Evidence to collect
 
-- GitHub Dependabot settings
-- recent `npm audit --omit=dev` output
-- `apt` update history or unattended-upgrades logs
+| Evidence | Type |
+| --- | --- |
+| backend `npm audit --omit=dev` summary | repo |
+| frontend `npm audit --omit=dev` summary | repo |
+| `apt` history or unattended-upgrades log | operational |
+| vulnerability register entry | repo |
+| GitHub Dependabot screenshot | operational |
 
 ## 4. User Access Control
 
-What Prymal/repo covers:
+### Repo / technical coverage
 
-- Clerk auth protects `/api/*` except intended webhooks
-- admin routes require explicit `requireStaff` and permission checks
-- production requires explicit superadmin config
-- Stripe, Clerk, and integration secrets stay server-side
+- Clerk protects API routes except intended webhooks
+- admin routes require explicit staff and permission checks
+- production requires explicit superadmin allowlists
+- safe logging and redaction reduce accidental secret exposure
 
-Operator must evidence:
+### Operator evidence required
 
-- MFA on GitHub, Cloudflare, Clerk, Stripe, Resend, Cloudinary, and VPS access
-- documented access review for staff/admin accounts
-- least-privilege GitHub environment secret access
+- MFA on every cloud service in scope
+- periodic access review for staff/admin accounts
+- least-privilege access to GitHub, VPS, Clerk, Stripe, Cloudinary, Cloudflare, and domain registrar
 
-Pass/fail checklist:
+### Assessor checklist
 
-- [ ] staff routes require staff auth and permission checks
-- [ ] production superadmin allowlist configured
-- [ ] MFA enabled for all admin consoles
-- [ ] access review completed and recorded
+- [ ] production `STAFF_SUPERADMIN_EMAILS` or `STAFF_SUPERADMIN_USER_IDS` configured
+- [ ] GitHub admins reviewed
+- [ ] VPS SSH access reviewed
+- [ ] Clerk, Stripe, Cloudflare, Cloudinary, Resend, OpenAI, Anthropic, VPS provider, and registrar access reviewed
+- [ ] MFA enabled everywhere admin access exists
 
-Screenshot/evidence list:
+### Cloud Service MFA Checklist
 
-- GitHub org/repo security settings
-- Clerk admin user settings
-- staff access review log
-- production env excerpt showing `STAFF_SUPERADMIN_*`
+| Service | MFA required | Evidence required |
+| --- | --- | --- |
+| GitHub | Yes | screenshot of MFA status for owners/admins and branch protection settings |
+| Cloudflare | Yes | screenshot of user security / MFA enabled and SSL mode |
+| Clerk | Yes | screenshot of admin console security settings and admin account MFA |
+| Stripe | Yes | screenshot of team security / 2FA settings and webhook health |
+| Cloudinary | Yes | screenshot of user security settings / MFA enabled |
+| OpenAI | Yes | screenshot of account security / MFA enabled |
+| Anthropic | Yes | screenshot of console security / MFA enabled |
+| Resend | Yes | screenshot of account security / MFA enabled |
+| VPS provider | Yes | screenshot of account MFA enabled |
+| Domain registrar | Yes | screenshot of account MFA enabled |
 
-## 5. Malware Protection
+### Evidence to collect
 
-What Prymal/repo covers:
+| Evidence | Type |
+| --- | --- |
+| quarterly access review register | repo |
+| cloud-service MFA screenshots | operational |
+| VPS `authorized_keys` review record | operational |
+| GitHub environment protection screenshot | operational |
+| Clerk admin settings screenshot | operational |
 
-- uploads are size-limited and content-type checked
-- LORE ingestion uses parsers for text extraction, not code execution
-- WARDEN/SENTINEL layers inspect risky content before it reaches tool execution paths
+## 5. Malware Protection and Device Security
 
-Operator must evidence:
+### Repo / technical coverage
 
-- endpoint protection on operator/admin machines
-- package provenance and dependency review process
-- backup protection against destructive compromise
+- upload size and type validation exists
+- WARDEN and SENTINEL inspect risky content paths
+- dependency review process is built into release checks
 
-Pass/fail checklist:
+### Operator evidence required
 
-- [ ] upload limits active
-- [ ] production dependency audit reviewed
-- [ ] operator devices protected by anti-malware tooling
-- [ ] backup copies exist off-server
+- endpoint protection on developer/admin devices
+- device screen lock and patching
+- disk encryption and remote wipe capability where available
+- backup protection and restore testing
 
-Screenshot/evidence list:
+### Assessor checklist
 
-- backend test output covering upload validation
-- `npm audit --omit=dev` output
-- endpoint protection screenshots for operator laptops
-- backup inventory record
+- [ ] developer laptops use anti-malware or equivalent managed protection
+- [ ] OS patching is current on developer/admin devices
+- [ ] disk encryption enabled on founder/admin devices
+- [ ] production dependency audits reviewed
+- [ ] backups exist and restore tests are recorded
 
-## Summary Evidence Pack
+### Evidence to collect
 
-Prepare this folder or ticket bundle before assessment:
+| Evidence | Type |
+| --- | --- |
+| endpoint protection screenshot per admin/developer device | operational |
+| device encryption screenshot or device-management record | operational |
+| backup/restore test register | repo |
+| upload validation test output | repo |
 
-- firewall screenshots and command output
-- SSH hardening excerpts
-- env validation output
-- preflight output
-- GitHub branch protection screenshots
-- MFA screenshots or attestation
-- backup log
-- restore test note
+## Specific Evidence Checklists
+
+### UFW Evidence Checklist
+
+- [ ] screenshot of `sudo ufw status verbose`
+- [ ] note showing only `22`, `80`, `443` are exposed
+- [ ] date captured and hostname recorded
+
+### fail2ban Evidence Checklist
+
+- [ ] screenshot of `sudo systemctl status fail2ban --no-pager`
+- [ ] screenshot of `sudo fail2ban-client status`
+- [ ] capture date recorded
+
+### SSH Hardening Evidence Checklist
+
+- [ ] `PermitRootLogin no`
+- [ ] `PasswordAuthentication no`
+- [ ] `PubkeyAuthentication yes`
+- [ ] `MaxAuthTries 3`
+- [ ] screenshot or sanitized excerpt of `/etc/ssh/sshd_config`
+
+### No Public Database Evidence Checklist
+
+- [ ] `ss -tulpn` or cloud firewall screenshot shows no public `5432`
+- [ ] PostgreSQL config shows localhost or private bind only
+- [ ] optional external port scan result retained
+
+### Dependency Audit Evidence Checklist
+
+- [ ] backend audit summary captured for release
+- [ ] frontend audit summary captured for release
+- [ ] residual exceptions logged in the vulnerability register
+
+### Production Env Validation Evidence Checklist
+
+- [ ] env validation output retained
+- [ ] security preflight output retained
+- [ ] evidence that production media storage is Cloudinary-backed
+- [ ] evidence that superadmin config exists
+
+## Recommended Assessment Pack
+
+Before a Cyber Essentials assessment, assemble:
+
+- evidence register
+- latest monthly security review output
+- quarterly access review output
+- latest dependency review output
+- screenshots for MFA across all cloud services
+- VPS hardening screenshots
+- env validation and security preflight outputs
+- backup restore test evidence
+- vulnerability register with closure dates

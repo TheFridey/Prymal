@@ -246,6 +246,30 @@ Verify at minimum:
 - admin routes remain staff-only
 - Sentry receives a test event if `SENTRY_DSN` is configured
 
+## Certification Evidence After Deploy
+
+Capture the following immediately after a successful production deploy and store it with the compliance evidence pack:
+
+- screenshot of `sudo ufw status verbose`
+- screenshot of `sudo systemctl status fail2ban --no-pager`
+- screenshot of Cloudflare SSL/TLS mode showing `Full (strict)`
+- screenshot showing GitHub MFA enabled for the production owner/admin account
+- screenshot showing Clerk MFA / admin security settings
+- screenshot showing Stripe webhook delivery health
+- screenshot showing Clerk webhook delivery health
+- `NODE_ENV=production npm run env:validate` output
+- `NODE_ENV=production npm run security:preflight` output
+- backend and frontend `npm audit --omit=dev` summaries
+- `curl -I https://api.prymal.io/health` output
+- latest backup restore test evidence record
+
+If possible, also generate a local non-secret repo evidence bundle with:
+
+```bash
+cd backend
+npm run compliance:evidence
+```
+
 ## Optional Staging on VPS
 
 If you want a VPS staging environment, keep it isolated:

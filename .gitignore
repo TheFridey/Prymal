@@ -25,6 +25,8 @@ coverage/
 *.log
 *.out
 *.err
+*.evidence.local.md
+*.audit.local.md
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -61,3 +63,4 @@ backend/generated-assets/
 backend/web-assets/
 backend/storage/
 backend/runtime/webshots/
+docs/compliance/evidence-output/
