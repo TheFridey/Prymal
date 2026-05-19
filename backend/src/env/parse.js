@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 
 export const DEFAULT_BACKEND_ENV_PATH = fileURLToPath(new URL('../../.env', import.meta.url));
+export const VALID_NODE_ENV_VALUES = ['development', 'staging', 'production', 'test'];
 
 let lastLoadState = {
   attempted: false,
@@ -10,16 +11,23 @@ let lastLoadState = {
   path: DEFAULT_BACKEND_ENV_PATH,
 };
 
+export function isRecognizedNodeEnv(rawNodeEnv = process.env.NODE_ENV) {
+  const normalized = String(rawNodeEnv ?? '').trim().toLowerCase();
+  return normalized === '' || VALID_NODE_ENV_VALUES.includes(normalized);
+}
+
 export function getEnvironmentMode(rawNodeEnv = process.env.NODE_ENV) {
-  if (rawNodeEnv === 'staging') {
+  const normalized = String(rawNodeEnv ?? '').trim().toLowerCase();
+
+  if (normalized === 'staging') {
     return 'staging';
   }
 
-  if (rawNodeEnv === 'production') {
+  if (normalized === 'production') {
     return 'production';
   }
 
-  if (rawNodeEnv === 'test') {
+  if (normalized === 'test') {
     return 'test';
   }
 

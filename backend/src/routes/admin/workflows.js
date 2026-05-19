@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { db } from '../../db/index.js';
 import { adminActionLogs, llmExecutionTraces, organisations, workflowRuns, workflows, workflowWebhooks } from '../../db/schema.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
+import { createRateLimiter } from '../../middleware/rateLimit.js';
+import { RATE_LIMIT_CONFIGS } from '../../middleware/rate-limit-config.js';
 import { findAdminMutationReplay, getAdminMutationMeta } from '../../services/admin-mutations.js';
 import { getBillingSnapshotForOrg } from '../../services/billing-engine.js';
 import { recordAdminActionLog, recordAuditLog } from '../../services/telemetry.js';
@@ -13,6 +15,10 @@ import { dispatchWorkflowRun } from '../../queue/trigger.js';
 import { combineFilters, getPaginationQuery, getWindowDays, getSinceDate, mapTraceRow } from './helpers.js';
 
 const router = new Hono();
+const adminWriteRateLimit = createRateLimiter({
+  ...RATE_LIMIT_CONFIGS.adminWrite,
+  identifier: (context) => context.get('staff')?.userId ?? 'unknown',
+});
 
 const workflowReplaySchema = z.object({
   reasonCode: z.string().trim().min(2).max(80).optional().default('manual_replay'),
@@ -81,6 +87,7 @@ router.post(
   '/workflow-runs/:runId/replay',
   requireStaff,
   requireStaffPermission('admin.workflow.replay'),
+  adminWriteRateLimit,
   zValidator('json', workflowReplaySchema),
   async (context) => {
     const staff = context.get('staff');

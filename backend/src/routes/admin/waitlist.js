@@ -6,10 +6,16 @@ import { z } from 'zod';
 import { db } from '../../db/index.js';
 import { emailQueue, waitlistEntries } from '../../db/schema.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
+import { createRateLimiter } from '../../middleware/rateLimit.js';
+import { RATE_LIMIT_CONFIGS } from '../../middleware/rate-limit-config.js';
 import { getAdminMutationMeta } from '../../services/admin-mutations.js';
 import { recordAdminActionLog } from '../../services/telemetry.js';
 
 const router = new Hono();
+const adminWriteRateLimit = createRateLimiter({
+  ...RATE_LIMIT_CONFIGS.adminWrite,
+  identifier: (context) => context.get('staff')?.userId ?? 'unknown',
+});
 
 export const batchInviteSchema = z.object({
   ids: z.array(z.string().uuid('Each waitlist entry id must be a valid UUID.'))
@@ -167,6 +173,7 @@ router.post(
   '/waitlist/batch-invite',
   requireStaff,
   requireStaffPermission('admin.waitlist.write'),
+  adminWriteRateLimit,
   zValidator('json', batchInviteSchema, batchInviteValidationHook),
   createBatchInviteHandler(),
 );

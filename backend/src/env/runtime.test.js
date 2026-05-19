@@ -12,9 +12,11 @@ import { getEnvironmentMode } from './parse.js';
 
 function buildLiveLikeEnv(overrides = {}) {
   return {
+    NODE_ENV: 'staging',
     DATABASE_URL: 'postgresql://db.example/prymal',
     CLERK_PUBLISHABLE_KEY: 'pk_test_example',
     CLERK_SECRET_KEY: 'sk_test_example',
+    CLERK_WEBHOOK_SECRET: 'whsec_123',
     FRONTEND_URL: 'https://staging.prymal.io',
     API_URL: 'https://staging-api.prymal.io',
     APP_URL: 'https://staging.prymal.io',
@@ -65,6 +67,22 @@ function buildLiveLikeEnv(overrides = {}) {
   };
 }
 
+function buildProductionEnv(overrides = {}) {
+  return buildLiveLikeEnv({
+    NODE_ENV: 'production',
+    CLERK_PUBLISHABLE_KEY: 'pk_live_example',
+    CLERK_SECRET_KEY: 'sk_live_example',
+    STRIPE_SECRET_KEY: 'sk_live_123',
+    FRONTEND_URL: 'https://app.prymal.io',
+    FRONTEND_URLS: 'https://app.prymal.io',
+    API_URL: 'https://api.prymal.io',
+    APP_URL: 'https://app.prymal.io',
+    CLOUDINARY_FOLDER: 'prymal-production',
+    STAFF_SUPERADMIN_EMAILS: 'security@example.com',
+    ...overrides,
+  });
+}
+
 test('getEnvironmentMode recognizes staging', () => {
   assert.equal(getEnvironmentMode('staging'), 'staging');
   assert.equal(isStrictRuntimeValidationEnabled('staging'), true);
@@ -98,14 +116,9 @@ test('staging validation rejects localhost URLs and live Stripe keys', () => {
 
 test('production validation rejects test Clerk keys', () => {
   const result = validateRuntimeEnv(
-    buildLiveLikeEnv({
+    buildProductionEnv({
       CLERK_PUBLISHABLE_KEY: 'pk_test_frontend',
       CLERK_SECRET_KEY: 'sk_test_backend',
-      STRIPE_SECRET_KEY: 'sk_live_123',
-      FRONTEND_URL: 'https://app.prymal.io',
-      API_URL: 'https://api.prymal.io',
-      APP_URL: 'https://app.prymal.io',
-      CLOUDINARY_FOLDER: 'prymal-production',
     }),
     { mode: 'production', strict: true },
   );
@@ -118,6 +131,133 @@ test('production validation rejects test Clerk keys', () => {
 test('well-formed staging env passes runtime validation', () => {
   const result = validateRuntimeEnv(buildLiveLikeEnv(), { mode: 'staging', strict: true });
   assert.equal(result.valid, true);
+});
+
+test('production validation rejects unrecognised NODE_ENV values', () => {
+  const result = validateRuntimeEnv(
+    buildProductionEnv({
+      NODE_ENV: 'preview',
+    }),
+    { mode: 'production', strict: true },
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /NODE_ENV must be one of development, staging, production, test/i);
+});
+
+test('production validation requires CLERK_WEBHOOK_SECRET', () => {
+  const result = validateRuntimeEnv(
+    buildProductionEnv({
+      CLERK_WEBHOOK_SECRET: '',
+    }),
+    { mode: 'production', strict: true },
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /CLERK_WEBHOOK_SECRET must be set/i);
+});
+
+test('production validation requires STRIPE_WEBHOOK_SECRET when Stripe is enabled', () => {
+  const result = validateRuntimeEnv(
+    buildProductionEnv({
+      STRIPE_WEBHOOK_SECRET: '',
+    }),
+    { mode: 'production', strict: true },
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /STRIPE_WEBHOOK_SECRET must be configured when Stripe billing is enabled in production/i);
+});
+
+test('production validation requires INTEGRATION_STATE_SECRET', () => {
+  const result = validateRuntimeEnv(
+    buildProductionEnv({
+      INTEGRATION_STATE_SECRET: '',
+    }),
+    { mode: 'production', strict: true },
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /INTEGRATION_STATE_SECRET must be configured in production/i);
+});
+
+test('production validation requires a valid encryption key', () => {
+  const result = validateRuntimeEnv(
+    buildProductionEnv({
+      ENCRYPTION_KEY: 'short',
+    }),
+    { mode: 'production', strict: true },
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /ENCRYPTION_KEY must be a 64-character hex string in production/i);
+});
+
+test('production validation requires explicit superadmin identity config', () => {
+  const result = validateRuntimeEnv(
+    buildProductionEnv({
+      STAFF_SUPERADMIN_EMAILS: '',
+      STAFF_SUPERADMIN_USER_IDS: '',
+    }),
+    { mode: 'production', strict: true },
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /At least one of STAFF_SUPERADMIN_EMAILS or STAFF_SUPERADMIN_USER_IDS must be configured in production/i);
+});
+
+test('production validation requires Cloudinary media storage', () => {
+  const result = validateRuntimeEnv(
+    buildProductionEnv({
+      MEDIA_STORAGE_DRIVER: 'local',
+    }),
+    { mode: 'production', strict: true },
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /MEDIA_STORAGE_DRIVER must be set to "cloudinary" in production/i);
+});
+
+test('production validation rejects ALLOW_LOCAL_MEDIA_STORAGE_IN_PRODUCTION=true', () => {
+  const result = validateRuntimeEnv(
+    buildProductionEnv({
+      ALLOW_LOCAL_MEDIA_STORAGE_IN_PRODUCTION: 'true',
+    }),
+    { mode: 'production', strict: true },
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /ALLOW_LOCAL_MEDIA_STORAGE_IN_PRODUCTION must remain false in production/i);
+});
+
+test('production validation requires Upstash when using more than one process', () => {
+  const result = validateRuntimeEnv(
+    buildProductionEnv({
+      WEB_CONCURRENCY: '2',
+      UPSTASH_REDIS_REST_URL: '',
+      UPSTASH_REDIS_REST_TOKEN: '',
+    }),
+    { mode: 'production', strict: true },
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must both be configured/i);
+});
+
+test('live-like validation rejects inline scheduler fan-out without Trigger.dev', () => {
+  const result = validateRuntimeEnv(
+    buildProductionEnv({
+      WEB_CONCURRENCY: '2',
+      UPSTASH_REDIS_REST_URL: 'https://upstash.example.com',
+      UPSTASH_REDIS_REST_TOKEN: 'upstash-token',
+      TRIGGER_API_KEY: '',
+      INLINE_SCHEDULER_ENABLED: 'true',
+    }),
+    { mode: 'production', strict: true },
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join('\n'), /INLINE_SCHEDULER_ENABLED must be false when WEB_CONCURRENCY is greater than 1 and Trigger.dev is not configured/i);
 });
 
 test('runtime validation rejects FRONTEND_URL values outside the explicit CORS allowlist', () => {

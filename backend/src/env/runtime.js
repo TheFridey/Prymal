@@ -1,12 +1,15 @@
-import { getEnvironmentMode, loadBackendEnv } from './parse.js';
+import { getEnvironmentMode, isRecognizedNodeEnv, loadBackendEnv, VALID_NODE_ENV_VALUES } from './parse.js';
 import { validateMediaStorageConfiguration } from '../services/media-storage/index.js';
 
 const REQUIRED_IN_ALL_ENVIRONMENTS = ['DATABASE_URL'];
 const REQUIRED_IN_LIVE_ENVIRONMENTS = [
   'CLERK_PUBLISHABLE_KEY',
   'CLERK_SECRET_KEY',
+  'CLERK_WEBHOOK_SECRET',
   'FRONTEND_URL',
   'API_URL',
+  'ENCRYPTION_KEY',
+  'INTEGRATION_STATE_SECRET',
 ];
 const CORE_PLACEHOLDER_GUARDED_KEYS = [
   'CLERK_PUBLISHABLE_KEY',
@@ -14,8 +17,15 @@ const CORE_PLACEHOLDER_GUARDED_KEYS = [
   'ANTHROPIC_API_KEY',
   'OPENAI_API_KEY',
 ];
+const LIVE_ONLY_PLACEHOLDER_GUARDED_KEYS = [
+  'CLERK_WEBHOOK_SECRET',
+  'STRIPE_WEBHOOK_SECRET',
+  'ENCRYPTION_KEY',
+  'INTEGRATION_STATE_SECRET',
+];
 const DEFAULT_MEMORY_SESSION_TTL_HOURS = 24;
 const DEFAULT_MEMORY_WORKFLOW_TTL_HOURS = 168;
+const VALID_URL_ENV_NAMES = ['FRONTEND_URL', 'API_URL'];
 
 let lastBootstrapResult = null;
 
@@ -65,6 +75,29 @@ export function parseEnvList(value) {
     .split(',')
     .map((entry) => entry.trim())
     .filter(Boolean);
+}
+
+function parsePositiveInteger(value) {
+  const parsed = Number.parseInt(String(value ?? '').trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parseBooleanString(value, fallback = false) {
+  const normalized = String(value ?? '').trim().toLowerCase();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
 }
 
 export function getMemorySessionTtlHours(env = process.env) {
@@ -120,6 +153,15 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
   const warnings = [];
   const configuredFrontendOrigins = parseEnvList(env.FRONTEND_URLS);
   const liveLikeMode = mode === 'staging' || mode === 'production';
+  const rawNodeEnv = String(env.NODE_ENV ?? '').trim();
+  const webConcurrency = parsePositiveInteger(env.WEB_CONCURRENCY) ?? 1;
+  const upstashUrl = String(env.UPSTASH_REDIS_REST_URL ?? '').trim();
+  const upstashToken = String(env.UPSTASH_REDIS_REST_TOKEN ?? '').trim();
+  const inlineSchedulerEnabled = parseBooleanString(env.INLINE_SCHEDULER_ENABLED, false);
+
+  if (!isRecognizedNodeEnv(rawNodeEnv)) {
+    errors.push(`NODE_ENV must be one of ${VALID_NODE_ENV_VALUES.join(', ')}. Received "${rawNodeEnv}".`);
+  }
 
   for (const name of REQUIRED_IN_ALL_ENVIRONMENTS) {
     if (!env[name]?.trim()) {
@@ -150,7 +192,23 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
   }
 
   if (liveLikeMode) {
-    for (const name of ['FRONTEND_URL', 'API_URL']) {
+    for (const name of LIVE_ONLY_PLACEHOLDER_GUARDED_KEYS) {
+      const value = env[name];
+
+      if (!value) {
+        continue;
+      }
+
+      if (/xxxx|your_|placeholder/i.test(value)) {
+        errors.push(
+          `${name} is still using a placeholder value in backend/.env. Replace it with a real value before starting the API.`,
+        );
+      }
+    }
+  }
+
+  if (liveLikeMode) {
+    for (const name of VALID_URL_ENV_NAMES) {
       const value = env[name]?.trim();
       if (!value) {
         continue;
@@ -224,6 +282,9 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
   if (mode === 'production' && stripeMode === 'test') {
     errors.push('STRIPE_SECRET_KEY must use Stripe live mode in production.');
   }
+  if (mode === 'production' && hasConfiguredStripe(env) && !hasConfiguredStripeWebhook(env)) {
+    errors.push('STRIPE_WEBHOOK_SECRET must be configured when Stripe billing is enabled in production.');
+  }
   if (
     stripeMode === 'live'
     && ['FRONTEND_URL', 'API_URL', 'APP_URL'].some((name) => isLocalLikeUrl(env[name]))
@@ -272,7 +333,9 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
     );
   }
 
-  if (hasConfiguredIntegrationProvider(env) && !hasValidEncryptionKey(env.ENCRYPTION_KEY)) {
+  if (mode === 'production' && !hasValidEncryptionKey(env.ENCRYPTION_KEY)) {
+    errors.push('ENCRYPTION_KEY must be a 64-character hex string in production.');
+  } else if (hasConfiguredIntegrationProvider(env) && !hasValidEncryptionKey(env.ENCRYPTION_KEY)) {
     errors.push(
       'ENCRYPTION_KEY must be a real 64-character hex key before enabling OAuth integrations.',
     );
@@ -281,9 +344,17 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
   }
 
   if (!env.INTEGRATION_STATE_SECRET?.trim()) {
-    warnings.push('OAuth callback state will be weaker without INTEGRATION_STATE_SECRET.');
+    if (mode === 'production') {
+      errors.push('INTEGRATION_STATE_SECRET must be configured in production.');
+    } else {
+      warnings.push('OAuth callback state will be weaker without INTEGRATION_STATE_SECRET.');
+    }
   } else if (isPlaceholderEnvValue(env.INTEGRATION_STATE_SECRET)) {
-    warnings.push('OAuth callback state signing is disabled because INTEGRATION_STATE_SECRET is still a placeholder.');
+    if (mode === 'production') {
+      errors.push('INTEGRATION_STATE_SECRET must be replaced with a non-placeholder secret in production.');
+    } else {
+      warnings.push('OAuth callback state signing is disabled because INTEGRATION_STATE_SECRET is still a placeholder.');
+    }
   }
 
   if (env.SENTRY_DSN?.trim() && !hasValidSentryDsn(env.SENTRY_DSN)) {
@@ -294,19 +365,27 @@ export function validateRuntimeEnv(env = process.env, { mode = getEnvironmentMod
 
   if (
     !env.STAFF_SUPERADMIN_EMAILS?.trim() &&
-    !env.STAFF_SUPERADMIN_USER_IDS?.trim() &&
-    !env.STAFF_EMAILS?.trim() &&
-    !env.STAFF_USER_IDS?.trim()
+    !env.STAFF_SUPERADMIN_USER_IDS?.trim()
   ) {
-    warnings.push('Staff access is easier to misconfigure without explicit STAFF_* role lists.');
+    if (mode === 'production') {
+      errors.push('At least one of STAFF_SUPERADMIN_EMAILS or STAFF_SUPERADMIN_USER_IDS must be configured in production.');
+    } else {
+      warnings.push('Staff access is easier to misconfigure without explicit STAFF_SUPERADMIN_* role lists.');
+    }
   }
 
-  if (liveLikeMode && !env.UPSTASH_REDIS_REST_URL?.trim() && !env.UPSTASH_REDIS_REST_TOKEN?.trim()) {
+  if (liveLikeMode && !upstashUrl && !upstashToken) {
     warnings.push('Upstash Redis is not configured. Rate limits stay process-local, so scale-out or clustered deployments can drift.');
+  }
+  if (mode === 'production' && webConcurrency > 1 && (!upstashUrl || !upstashToken)) {
+    errors.push('UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must both be configured when WEB_CONCURRENCY is greater than 1 in production.');
   }
 
   if (liveLikeMode && !env.TRIGGER_API_KEY?.trim()) {
     warnings.push('Trigger.dev is not configured. Scheduled workflows depend on the inline scheduler, which must run on exactly one backend process.');
+  }
+  if (liveLikeMode && webConcurrency > 1 && !env.TRIGGER_API_KEY?.trim() && inlineSchedulerEnabled) {
+    errors.push('INLINE_SCHEDULER_ENABLED must be false when WEB_CONCURRENCY is greater than 1 and Trigger.dev is not configured.');
   }
 
   const mediaStorageValidation = validateMediaStorageConfiguration(env);

@@ -1,28 +1,39 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-DEPLOY_PATH="/home/deploy/prymal/backend"
+APP_ROOT="${PRYMAL_APP_ROOT:-/home/deploy/prymal}"
+BACKEND_PATH="${APP_ROOT}/backend"
+SERVICE_NAME="${PRYMAL_SYSTEMD_SERVICE:-prymal-backend}"
+HEALTHCHECK_URL="${PRYMAL_HEALTHCHECK_URL:-http://127.0.0.1:3001/health}"
 
-echo "=== Prymal deploy started: $(date) ==="
+echo "=== Prymal deploy started: $(date --iso-8601=seconds) ==="
 
-cd $DEPLOY_PATH
+cd "${APP_ROOT}"
 
-echo "--- Pulling latest ---"
-git pull origin master
+echo "--- Fetching latest commit ---"
+git fetch --prune origin
+git checkout master
+git pull --ff-only origin master
 
-echo "--- Installing dependencies ---"
+cd "${BACKEND_PATH}"
+
+echo "--- Installing backend dependencies ---"
 npm ci --omit=dev
 
-echo "--- Running migrations ---"
+echo "--- Validating production environment ---"
+NODE_ENV=production npm run env:validate
+
+echo "--- Running security preflight ---"
+NODE_ENV=production npm run security:preflight
+
+echo "--- Applying database migrations ---"
 npm run migrate
 
-echo "--- Restarting backend ---"
-pm2 restart ecosystem.config.cjs --update-env
+echo "--- Restarting backend systemd service ---"
+sudo systemctl restart "${SERVICE_NAME}"
+sudo systemctl --no-pager --full status "${SERVICE_NAME}"
 
-echo "--- Saving PM2 config ---"
-pm2 save
+echo "--- Verifying backend health ---"
+curl --fail --silent --show-error "${HEALTHCHECK_URL}" >/dev/null
 
-echo "--- Status ---"
-pm2 status
-
-echo "=== Deploy complete: $(date) ==="
+echo "=== Deploy complete: $(date --iso-8601=seconds) ==="

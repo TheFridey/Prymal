@@ -16,11 +16,21 @@ import {
   workflowRuns,
 } from '../../db/schema.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
+import { createRateLimiter } from '../../middleware/rateLimit.js';
+import { RATE_LIMIT_CONFIGS } from '../../middleware/rate-limit-config.js';
 import { findAdminMutationReplay, getAdminMutationMeta } from '../../services/admin-mutations.js';
 import { recordAdminActionLog, recordAuditLog } from '../../services/telemetry.js';
 import { combineFilters, getPaginationQuery, getSinceDate, getWindowDays } from './helpers.js';
 
 const router = new Hono();
+const adminSensitiveWriteRateLimit = createRateLimiter({
+  ...RATE_LIMIT_CONFIGS.adminSensitiveWrite,
+  identifier: (context) => context.get('staff')?.userId ?? 'unknown',
+});
+const adminWriteRateLimit = createRateLimiter({
+  ...RATE_LIMIT_CONFIGS.adminWrite,
+  identifier: (context) => context.get('staff')?.userId ?? 'unknown',
+});
 
 const orgUpdateSchema = z.object({
   plan: z.enum(['free', 'solo', 'pro', 'teams', 'agency']).optional(),
@@ -39,6 +49,7 @@ router.patch(
   '/organisations/:orgId',
   requireStaff,
   requireStaffPermission('admin.org.update'),
+  adminSensitiveWriteRateLimit,
   zValidator('json', orgUpdateSchema),
   async (context) => {
     const staff = context.get('staff');
@@ -180,6 +191,7 @@ router.put(
   '/organisations/:orgId/feature-flags/:flagKey',
   requireStaff,
   requireStaffPermission('admin.org.flags.write'),
+  adminWriteRateLimit,
   zValidator('json', featureFlagSchema),
   async (context) => {
     const staff = context.get('staff');

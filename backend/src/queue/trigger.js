@@ -1,34 +1,64 @@
 import { executeWorkflowRunWithValidation } from '../services/workflow-runner.js';
 import { registerSchedule, deregisterSchedule } from '../services/inline-scheduler.js';
 
-let clientPromise = null;
+const DEFAULT_TRIGGER_API_URL = 'https://api.trigger.dev';
 
-export function hasTriggerDevConfig() {
-  return Boolean(process.env.TRIGGER_API_KEY);
+function getTriggerApiKey() {
+  return process.env.TRIGGER_API_KEY?.trim() || null;
 }
 
-async function getClient() {
-  if (!hasTriggerDevConfig()) {
+function getTriggerApiBaseUrl() {
+  return process.env.TRIGGER_API_URL?.trim() || DEFAULT_TRIGGER_API_URL;
+}
+
+export function hasTriggerDevConfig() {
+  return Boolean(getTriggerApiKey());
+}
+
+async function sendTriggerEvent(event) {
+  const apiKey = getTriggerApiKey();
+  if (!apiKey) {
     return null;
   }
 
-  if (!clientPromise) {
-    clientPromise = import('@trigger.dev/sdk').then(({ TriggerClient }) =>
-      new TriggerClient({
-        id: 'prymal-platform',
-        apiKey: process.env.TRIGGER_API_KEY,
-        apiUrl: process.env.TRIGGER_API_URL ?? 'https://api.trigger.dev',
-      }),
-    );
+  const response = await fetch(new URL('/api/v1/events', getTriggerApiBaseUrl()), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      event,
+      options: {},
+    }),
+  });
+
+  if (response.ok) {
+    return response.json();
   }
 
-  return clientPromise;
+  let detail = `${response.status} ${response.statusText}`.trim();
+
+  try {
+    const payload = await response.json();
+    const message = typeof payload?.error === 'string'
+      ? payload.error
+      : typeof payload?.message === 'string'
+        ? payload.message
+        : null;
+
+    if (message) {
+      detail = `${detail}: ${message}`;
+    }
+  } catch {
+    // Preserve the HTTP status detail when Trigger.dev does not return JSON.
+  }
+
+  throw new Error(`Trigger.dev event dispatch failed: ${detail}`);
 }
 
 export async function dispatchWorkflowRun({ runId, workflow, orgContext }) {
-  const triggerClient = await getClient();
-
-  if (!triggerClient) {
+  if (!hasTriggerDevConfig()) {
     queueMicrotask(async () => {
       try {
         await executeWorkflowRunWithValidation({ runId, workflow, orgContext });
@@ -42,7 +72,7 @@ export async function dispatchWorkflowRun({ runId, workflow, orgContext }) {
     };
   }
 
-  await triggerClient.sendEvent({
+  await sendTriggerEvent({
     name: 'prymal.workflow.run',
     payload: {
       runId,

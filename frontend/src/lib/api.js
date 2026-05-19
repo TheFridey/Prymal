@@ -289,8 +289,13 @@ async function createApiError(response) {
 
 function resolveApiBaseUrl() {
   const configured = import.meta.env.VITE_API_URL?.trim();
+  const mode = String(import.meta.env.MODE ?? '').trim().toLowerCase();
+  const allowLocalFallback = mode === 'development' || mode === 'test';
 
   if (!configured) {
+    if (!allowLocalFallback) {
+      throw new Error('VITE_API_URL must be configured for staging and production frontend builds.');
+    }
     return FALLBACK_API_BASE_URL;
   }
 

@@ -15,7 +15,7 @@ const sections = [
       'Account data: name, email address, organisation name, and authentication identifiers managed through Clerk.',
       'Usage data: agent interactions, workflow runs, feature usage events, session data, and product analytics events recorded by Prymal\'s internal event system. We do not use Google Analytics, Meta Pixel, or similar third-party client-side tracking.',
       'Content data: prompts you submit to agents, documents you upload to the knowledge base (LORE), workflow inputs and outputs, and knowledge base content you create or import.',
-      'Technical data: IP address, browser type and version, device identifiers, and infrastructure logs from Railway and Cloudflare required for security monitoring and service reliability.',
+      'Technical data: IP address, browser type and version, device identifiers, and infrastructure logs from our VPS hosting provider and Cloudflare required for security monitoring and service reliability.',
       'Billing data: subscription tier, billing interval, and payment history. Stripe manages card data directly — Prymal never sees or stores card numbers, CVVs, or raw payment credentials.',
       'Communications: support messages, feedback submissions, and responses to transactional emails sent by Prymal.',
     ],
@@ -44,7 +44,7 @@ const sections = [
     heading: '5. Data sharing and third-party processors',
     paragraphs: [
       'Prymal does not sell personal data to third parties. Prymal does not use customer data to train AI models.',
-      'We share data with the following sub-processors to deliver the service: Clerk (authentication), Stripe (billing), Railway (hosting), Cloudflare (CDN and security), Resend (transactional email), Sentry (error monitoring), Cloudinary (generated media storage), OpenAI (LLM inference and transcription), Anthropic (LLM inference), and Google (Gemini and Veo — LLM inference and AI video generation).',
+      'We share data with the following sub-processors to deliver the service: Clerk (authentication), Stripe (billing), our VPS hosting provider (application hosting), Cloudflare (CDN and security), Resend (transactional email), Sentry (error monitoring), Cloudinary (generated media storage), OpenAI (LLM inference and transcription), Anthropic (LLM inference), and Google (Gemini and Veo — LLM inference and AI video generation).',
       'Prompt content and documents are processed by LLM providers (OpenAI, Anthropic, Google) solely to generate agent responses. These providers process data under their API data processing agreements. Prymal uses API access — not consumer products — which means your content is not used to train foundation models by these providers under their standard API terms. See Anthropic\'s privacy policy, OpenAI\'s privacy policy, and Google\'s privacy policy for their data retention practices.',
       'We may disclose personal data where required by law, court order, or competent regulatory authority. We will notify you of any such disclosure where legally permitted to do so.',
     ],
@@ -78,7 +78,7 @@ const sections = [
   {
     heading: '9. Security',
     paragraphs: [
-      'We implement technical and organisational measures to protect personal data against unauthorised access, loss, or destruction. These include the WARDEN input safety firewall, SENTINEL output validation, Clerk-managed authentication with MFA support, TLS encryption for all data in transit, Railway container isolation, and Cloudflare WAF protection.',
+      'We implement technical and organisational measures to protect personal data against unauthorised access, loss, or destruction. These include the WARDEN input safety firewall, SENTINEL output validation, Clerk-managed authentication with MFA support, TLS encryption for all data in transit, hardened VPS access controls, and Cloudflare edge protections.',
       'No system is 100% secure. In the event of a personal data breach that is likely to result in a risk to your rights and freedoms, we will notify you without undue delay and within 72 hours of becoming aware of the breach. We will also notify the ICO where required.',
     ],
   },

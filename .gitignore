@@ -59,3 +59,5 @@ coverage-final.json
 # Generated assets
 backend/generated-assets/
 backend/web-assets/
+backend/storage/
+backend/runtime/webshots/

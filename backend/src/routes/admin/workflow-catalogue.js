@@ -2,6 +2,9 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
+import { createRateLimiter } from '../../middleware/rateLimit.js';
+import { RATE_LIMIT_CONFIGS } from '../../middleware/rate-limit-config.js';
+import { sanitizeErrorForClient } from '../../services/security/redaction.js';
 import {
   approveCatalogueItem,
   archiveCatalogueItem,
@@ -12,6 +15,10 @@ import {
 } from '../../services/workflow-catalogue.js';
 
 const router = new Hono();
+const adminWriteRateLimit = createRateLimiter({
+  ...RATE_LIMIT_CONFIGS.adminWrite,
+  identifier: (context) => context.get('staff')?.userId ?? 'unknown',
+});
 
 const rejectSchema = z.object({
   reason: z.string().trim().min(5).max(1000),
@@ -46,6 +53,7 @@ router.post(
   '/workflow-catalogue/:id/approve',
   requireStaff,
   requireStaffPermission('admin.workflow.catalogue.manage'),
+  adminWriteRateLimit,
   async (context) => withCatalogueErrors(context, async () => {
     const staff = context.get('staff');
     const item = await approveCatalogueItem(context.req.param('id'), staff.userId);
@@ -57,6 +65,7 @@ router.post(
   '/workflow-catalogue/:id/reject',
   requireStaff,
   requireStaffPermission('admin.workflow.catalogue.manage'),
+  adminWriteRateLimit,
   zValidator('json', rejectSchema),
   async (context) => withCatalogueErrors(context, async () => {
     const staff = context.get('staff');
@@ -69,6 +78,7 @@ router.post(
   '/workflow-catalogue/:id/archive',
   requireStaff,
   requireStaffPermission('admin.workflow.catalogue.manage'),
+  adminWriteRateLimit,
   async (context) => withCatalogueErrors(context, async () => {
     const staff = context.get('staff');
     const item = await archiveCatalogueItem(context.req.param('id'), staff.userId);
@@ -80,6 +90,7 @@ router.post(
   '/workflow-catalogue/official',
   requireStaff,
   requireStaffPermission('admin.workflow.catalogue.manage'),
+  adminWriteRateLimit,
   zValidator('json', officialSchema),
   async (context) => withCatalogueErrors(context, async () => {
     const staff = context.get('staff');
@@ -92,7 +103,12 @@ async function withCatalogueErrors(context, action) {
   try {
     return await action();
   } catch (error) {
-    return context.json({ error: error.message || 'Workflow Catalogue admin request failed.' }, error.status ?? 500);
+    return context.json({
+      error: sanitizeErrorForClient(error, {
+        fallback: 'Workflow Catalogue admin request failed.',
+        internalFallback: 'Workflow Catalogue admin request failed.',
+      }),
+    }, error.status ?? 500);
   }
 }
 

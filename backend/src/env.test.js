@@ -47,6 +47,7 @@ test('bootstrapRuntimeEnv allows placeholder values in test mode without throwin
 test('validateRuntimeEnv enforces placeholder protection in strict runtime modes', () => {
   const result = validateRuntimeEnv(
     {
+      NODE_ENV: 'development',
       DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/prymal',
       OPENAI_API_KEY: 'your_openai_key_here',
     },
@@ -60,6 +61,7 @@ test('validateRuntimeEnv enforces placeholder protection in strict runtime modes
 test('validateRuntimeEnv allows optional placeholder Stripe and encryption values in development', () => {
   const result = validateRuntimeEnv(
     {
+      NODE_ENV: 'development',
       DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/prymal',
       OPENAI_API_KEY: 'sk-real-ish-openai-key',
       ANTHROPIC_API_KEY: 'sk-ant-real-ish-key',
@@ -79,6 +81,7 @@ test('validateRuntimeEnv allows optional placeholder Stripe and encryption value
 test('validateRuntimeEnv warns when SENTRY_DSN is configured with an invalid value', () => {
   const result = validateRuntimeEnv(
     {
+      NODE_ENV: 'development',
       DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/prymal',
       OPENAI_API_KEY: 'sk-real-ish-openai-key',
       ANTHROPIC_API_KEY: 'sk-ant-real-ish-key',
@@ -94,6 +97,7 @@ test('validateRuntimeEnv warns when SENTRY_DSN is configured with an invalid val
 test('validateRuntimeEnv warns instead of throwing when development uses live Stripe with localhost URLs', () => {
   const result = validateRuntimeEnv(
     {
+      NODE_ENV: 'development',
       DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/prymal',
       OPENAI_API_KEY: 'sk-real-ish-openai-key',
       ANTHROPIC_API_KEY: 'sk-ant-real-ish-key',
@@ -118,6 +122,7 @@ test('getMemorySessionTtlHours falls back to 24 hours when unset or invalid', ()
 test('validateRuntimeEnv requires a real encryption key when OAuth integrations are configured', () => {
   const result = validateRuntimeEnv(
     {
+      NODE_ENV: 'development',
       DATABASE_URL: 'postgresql://postgres:postgres@localhost:5433/prymal',
       OPENAI_API_KEY: 'sk-real-ish-openai-key',
       ANTHROPIC_API_KEY: 'sk-ant-real-ish-key',
@@ -191,6 +196,7 @@ test('bootstrapRuntimeEnv allows production startup with Cloudinary media storag
   process.env.CLOUDINARY_API_KEY = '123456';
   process.env.CLOUDINARY_API_SECRET = 'secret';
   process.env.CLOUDINARY_FOLDER = 'prymal-test';
+  process.env.STAFF_SUPERADMIN_EMAILS = 'security@example.com';
 
   assert.doesNotThrow(() => bootstrapRuntimeEnv({ mode: 'production', force: true }));
 });

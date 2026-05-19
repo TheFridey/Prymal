@@ -6,6 +6,8 @@ import { db } from '../db/index.js';
 import { integrations } from '../db/schema.js';
 import { hasConfiguredEnvValue } from '../env.js';
 import { requireOrg, requireRole } from '../middleware/auth.js';
+import { createRateLimiter, planAwareRateLimit } from '../middleware/rateLimit.js';
+import { RATE_LIMIT_CONFIGS } from '../middleware/rate-limit-config.js';
 import { recordDeliveryOutcome } from '../services/moat-feedback.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
 import {
@@ -16,8 +18,17 @@ import {
   sanitizeIntegrationSettings,
 } from '../services/integration-catalog.js';
 import { dispatchRuntimePublish, dispatchRuntimeTest } from '../services/integration-runtime-handlers.js';
+import { redactSensitiveText, sanitizeErrorForClient } from '../services/security/redaction.js';
 
 const router = new Hono();
+const integrationAuthRateLimit = createRateLimiter({
+  ...RATE_LIMIT_CONFIGS.integrationsConnectAndCallback,
+  identifier: (context) => `${context.req.param('service')}:${resolveClientIp(context)}`,
+});
+const integrationWriteRateLimit = planAwareRateLimit({
+  ...RATE_LIMIT_CONFIGS.integrationsWrite,
+  identifier: (context) => `${context.get('org')?.orgId ?? 'unknown'}:${context.req.param('service') ?? 'unknown'}`,
+});
 
 const optionalTrimmedString = (max) =>
   z.preprocess(
@@ -125,7 +136,7 @@ router.get('/', requireOrg, async (context) => {
   });
 });
 
-router.get('/:service/connect', requireOrg, requireRole('owner', 'admin'), async (context) => {
+router.get('/:service/connect', requireOrg, requireRole('owner', 'admin'), integrationAuthRateLimit, async (context) => {
   const org = context.get('org');
   const { service } = context.req.param();
   const integration = getIntegrationDefinition(service);
@@ -163,7 +174,7 @@ router.get('/:service/connect', requireOrg, requireRole('owner', 'admin'), async
   return context.redirect(`${integration.authUrl}?${params.toString()}`);
 });
 
-router.get('/:service/callback', async (context) => {
+router.get('/:service/callback', integrationAuthRateLimit, async (context) => {
   const { service } = context.req.param();
   const integration = getIntegrationDefinition(service);
   const code = context.req.query('code');
@@ -187,6 +198,10 @@ router.get('/:service/callback', async (context) => {
   try {
     decodedState = await decodeState(state);
   } catch {
+    return context.redirect(`${process.env.FRONTEND_URL}/app/integrations?error=invalid_state`);
+  }
+
+  if (decodedState.service !== service) {
     return context.redirect(`${process.env.FRONTEND_URL}/app/integrations?error=invalid_state`);
   }
 
@@ -250,7 +265,7 @@ router.get('/:service/callback', async (context) => {
 
     return context.redirect(`${process.env.FRONTEND_URL}/app/integrations?connected=${service}`);
   } catch (exchangeError) {
-    console.error('[INTEGRATIONS] OAuth callback failed:', exchangeError);
+    console.error('[INTEGRATIONS] OAuth callback failed:', redactSensitiveText(exchangeError?.message || 'OAuth callback failed.'));
     return context.redirect(`${process.env.FRONTEND_URL}/app/integrations?error=oauth_failed`);
   }
 });
@@ -259,6 +274,7 @@ router.post(
   '/:service/manual',
   requireOrg,
   requireRole('owner', 'admin'),
+  integrationWriteRateLimit,
   zValidator('json', manualConnectionSchema),
   async (context) => {
     const org = context.get('org');
@@ -302,7 +318,12 @@ router.post(
           settings,
         });
       } catch (error) {
-        return context.json({ error: error.message || 'Connection test failed.' }, 400);
+        return context.json({
+          error: sanitizeErrorForClient(error, {
+            fallback: 'Connection test failed.',
+            internalFallback: 'Connection test failed.',
+          }),
+        }, 400);
       }
     }
 
@@ -392,6 +413,7 @@ router.patch(
   '/:service/settings',
   requireOrg,
   requireRole('owner', 'admin'),
+  integrationWriteRateLimit,
   zValidator('json', integrationSettingsSchema),
   async (context) => {
     const org = context.get('org');
@@ -448,7 +470,7 @@ router.patch(
   },
 );
 
-router.post('/:service/test', requireOrg, requireRole('owner', 'admin'), async (context) => {
+router.post('/:service/test', requireOrg, requireRole('owner', 'admin'), integrationWriteRateLimit, async (context) => {
   const org = context.get('org');
   const { service } = context.req.param();
   const integration = getIntegrationDefinition(service);
@@ -481,7 +503,10 @@ router.post('/:service/test', requireOrg, requireRole('owner', 'admin'), async (
       health: {
         status: 'degraded',
         checkedAt: new Date().toISOString(),
-        message: error.message || 'Connection test failed.',
+        message: sanitizeErrorForClient(error, {
+          fallback: 'Connection test failed.',
+          internalFallback: 'Connection test failed.',
+        }),
       },
     };
 
@@ -493,7 +518,12 @@ router.post('/:service/test', requireOrg, requireRole('owner', 'admin'), async (
       })
       .where(eq(integrations.id, connection.id));
 
-    return context.json({ error: error.message || 'Connection test failed.' }, 400);
+    return context.json({
+      error: sanitizeErrorForClient(error, {
+        fallback: 'Connection test failed.',
+        internalFallback: 'Connection test failed.',
+      }),
+    }, 400);
   }
 
   const nextMeta = {
@@ -525,6 +555,7 @@ router.post(
   '/:service/publish',
   requireOrg,
   requireRole('owner', 'admin'),
+  integrationWriteRateLimit,
   zValidator('json', publishPayloadSchema),
   async (context) => {
     const org = context.get('org');
@@ -572,10 +603,18 @@ router.post(
         metadata: {
           service,
           targetId: payload.targetId ?? null,
-          error: error.message || 'Publish failed.',
+          error: sanitizeErrorForClient(error, {
+            fallback: 'Publish failed.',
+            internalFallback: 'Publish failed.',
+          }),
         },
       });
-      return context.json({ error: error.message || 'Publish failed.' }, 400);
+      return context.json({
+        error: sanitizeErrorForClient(error, {
+          fallback: 'Publish failed.',
+          internalFallback: 'Publish failed.',
+        }),
+      }, 400);
     }
 
     const nextMeta = buildDeliveryMeta(service, connection.meta ?? {}, delivery);
@@ -640,7 +679,7 @@ router.post(
   },
 );
 
-router.delete('/:service', requireOrg, requireRole('owner', 'admin'), async (context) => {
+router.delete('/:service', requireOrg, requireRole('owner', 'admin'), integrationWriteRateLimit, async (context) => {
   const org = context.get('org');
   const { service } = context.req.param();
 
@@ -1646,7 +1685,17 @@ function parseScopes(scopeValue) {
     .filter(Boolean);
 }
 
-async function encodeState(value) {
+function resolveClientIp(context) {
+  const forwardedFor = context.req.header('x-forwarded-for');
+  return (
+    context.req.header('cf-connecting-ip')
+    ?? forwardedFor?.split(',')[0]?.trim()
+    ?? context.req.header('x-real-ip')
+    ?? 'unknown'
+  );
+}
+
+export async function encodeState(value) {
   const payload = Buffer.from(
     JSON.stringify({
       ...value,
@@ -1658,7 +1707,7 @@ async function encodeState(value) {
   return `${payload}.${signature}`;
 }
 
-async function decodeState(value) {
+export async function decodeState(value) {
   const [payload, signature] = String(value ?? '').split('.');
 
   if (!payload || !signature) {

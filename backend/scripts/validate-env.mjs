@@ -8,6 +8,7 @@ import {
   classifyClerkKeyMode,
   classifyStripeSecretMode,
   isLocalLikeUrl,
+  validateRuntimeEnv,
 } from '../src/env/runtime.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -54,6 +55,13 @@ if (errors.length > 0) {
 console.log(`[ok] Environment validation passed for scope=${scopeArg} mode=${mode}`);
 
 function validateBackendEnv(currentMode) {
+  const runtimeValidation = validateRuntimeEnv(process.env, {
+    mode: currentMode,
+    strict: true,
+  });
+  errors.push(...runtimeValidation.errors);
+  warnings.push(...runtimeValidation.warnings);
+
   requireValue('DATABASE_URL', 'backend');
 
   if (['staging', 'production'].includes(currentMode)) {
@@ -146,14 +154,6 @@ function validateBackendEnv(currentMode) {
 
   if (['staging', 'production'].includes(currentMode) && !hasConfigured('SENTRY_DSN')) {
     warnings.push('SENTRY_DSN is not configured. Production errors will only appear in process logs.');
-  }
-
-  if (['staging', 'production'].includes(currentMode) && !hasConfigured('UPSTASH_REDIS_REST_URL') && !hasConfigured('UPSTASH_REDIS_REST_TOKEN')) {
-    warnings.push('Upstash Redis is not configured. Rate limits stay process-local, so scale-out or clustered deployments can drift.');
-  }
-
-  if (['staging', 'production'].includes(currentMode) && !hasConfigured('TRIGGER_API_KEY')) {
-    warnings.push('Trigger.dev is not configured. Scheduled workflows depend on the inline scheduler, which must run on exactly one backend process.');
   }
 
   if (hasConfigured('GOOGLE_CLIENT_ID') || hasConfigured('NOTION_CLIENT_ID') || hasConfigured('SLACK_CLIENT_ID')) {

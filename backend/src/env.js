@@ -1,9 +1,11 @@
 export {
   DEFAULT_BACKEND_ENV_PATH,
   getEnvironmentMode,
+  isRecognizedNodeEnv,
   loadBackendEnv,
   resetEnvLoaderForTests,
   shouldLoadEnvFile,
+  VALID_NODE_ENV_VALUES,
 } from './env/parse.js';
 export {
   bootstrapRuntimeEnv,

@@ -7,6 +7,7 @@ import { db } from '../db/index.js';
 import { loreChunks, loreDocuments } from '../db/schema.js';
 import { requireOrg } from '../middleware/auth.js';
 import { planAwareRateLimit } from '../middleware/rateLimit.js';
+import { RATE_LIMIT_CONFIGS } from '../middleware/rate-limit-config.js';
 import { parseUploadedFile, SUPPORTED_UPLOAD_ACCEPT } from '../services/ingestion/parsers.js';
 import {
   checkForContradictions,
@@ -26,6 +27,7 @@ import {
 } from '../services/warden/index.js';
 
 import { recordProductEventOnce } from '../services/telemetry.js';
+import { sanitizeErrorForClient } from '../services/security/redaction.js';
 
 const router = new Hono();
 
@@ -70,14 +72,9 @@ async function maybeRecordFirstLoreDocument({ orgId, userId, documentId, source 
   });
 }
 
-const loreIngestRateLimit = planAwareRateLimit({
-  free: 5,
-  solo: 20,
-  pro: 50,
-  teams: 100,
-  agency: null,
-  keyPrefix: 'lore-ingest',
-});
+const loreIngestRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.loreIngest);
+const loreSearchRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.loreSearch);
+const loreReindexRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.loreReindex);
 
 router.get('/', requireOrg, async (context) => {
   const org = context.get('org');
@@ -127,7 +124,12 @@ router.post('/feedback', requireOrg, zValidator('json', feedbackSchema), async (
 
     return context.json({ feedback, content: asset }, 201);
   } catch (error) {
-    return context.json({ error: error.message || 'Feedback could not be recorded.' }, 404);
+    return context.json({
+      error: sanitizeErrorForClient(error, {
+        fallback: 'Feedback could not be recorded.',
+        internalFallback: 'Feedback could not be recorded.',
+      }),
+    }, 404);
   }
 });
 
@@ -321,7 +323,12 @@ router.post('/crawl', requireOrg, loreIngestRateLimit, zValidator('json', crawlS
 
     responseText = await response.text();
   } catch (error) {
-    return context.json({ error: `Could not fetch URL: ${error.message}` }, 400);
+    return context.json({
+      error: sanitizeErrorForClient(error, {
+        fallback: 'Could not fetch that URL for LORE ingestion.',
+        internalFallback: 'Could not fetch that URL for LORE ingestion.',
+      }),
+    }, 400);
   }
 
   const preparedUrl = await prepareUrlContentForLore({
@@ -383,7 +390,7 @@ router.post('/crawl', requireOrg, loreIngestRateLimit, zValidator('json', crawlS
   return context.json({ document, contradictions, message: 'URL queued for indexing.' }, 201);
 });
 
-router.get('/search', requireOrg, async (context) => {
+router.get('/search', requireOrg, loreSearchRateLimit, async (context) => {
   const org = context.get('org');
   const query = context.req.query('q');
   const limit = Number.parseInt(context.req.query('limit') ?? '5', 10);
@@ -435,7 +442,7 @@ router.delete('/:id', requireOrg, async (context) => {
   return context.json({ success: true });
 });
 
-router.post('/:id/reindex', requireOrg, async (context) => {
+router.post('/:id/reindex', requireOrg, loreReindexRateLimit, async (context) => {
   const org = context.get('org');
   const { id } = context.req.param();
   const document = await db.query.loreDocuments.findFirst({

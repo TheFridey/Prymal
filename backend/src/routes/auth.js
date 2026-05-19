@@ -11,6 +11,7 @@ import { sendInvitationEmail, sendWelcomeEmail } from '../services/email.js';
 import { getPlanConfig } from '../services/entitlements.js';
 import { getOrgLearningSnapshot } from '../services/moat-feedback.js';
 import { normalizeOrgAiControls } from '../services/model-policy.js';
+import { redactSensitiveText, sanitizeErrorForClient } from '../services/security/redaction.js';
 import { getStaffRole, isStaffUser, listStaffPermissions } from '../services/staff.js';
 import { recordAuditLog, recordProductEvent } from '../services/telemetry.js';
 import { assertSeatCapacity, getSeatSnapshot, isInvitationExpired, normalizeEmail } from '../services/team.js';
@@ -540,19 +541,23 @@ router.post('/team/invitations', requireOrg, requireRole('owner', 'admin'), zVal
     orgId: org.orgId,
     userId: org.userId,
   }).catch(async (error) => {
+    const safeDeliveryMessage = redactSensitiveText(error?.message || 'Invitation email delivery failed.');
     await recordAuditLog({
       orgId: org.orgId,
       actorUserId: org.userId,
       action: 'team.invitation.email_failed',
       targetType: 'organisation_invitation',
       targetId: invitation.id,
-      metadata: { email, message: error.message },
+      metadata: { email, message: safeDeliveryMessage },
     });
     return {
       delivered: false,
       provider: 'none',
       fallback: true,
-      message: error.message,
+      message: sanitizeErrorForClient(error, {
+        fallback: 'Invitation email delivery failed.',
+        internalFallback: 'Invitation email delivery failed.',
+      }),
     };
   });
 
@@ -610,19 +615,23 @@ router.post('/team/invitations/:id/resend', requireOrg, requireRole('owner', 'ad
     orgId: org.orgId,
     userId: org.userId,
   }).catch(async (error) => {
+    const safeDeliveryMessage = redactSensitiveText(error?.message || 'Invitation email delivery failed.');
     await recordAuditLog({
       orgId: org.orgId,
       actorUserId: org.userId,
       action: 'team.invitation.email_failed',
       targetType: 'organisation_invitation',
       targetId: invitation.id,
-      metadata: { email: invitation.email, message: error.message },
+      metadata: { email: invitation.email, message: safeDeliveryMessage },
     });
     return {
       delivered: false,
       provider: 'none',
       fallback: true,
-      message: error.message,
+      message: sanitizeErrorForClient(error, {
+        fallback: 'Invitation email delivery failed.',
+        internalFallback: 'Invitation email delivery failed.',
+      }),
     };
   });
 

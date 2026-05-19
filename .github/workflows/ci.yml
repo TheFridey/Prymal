@@ -324,7 +324,6 @@ jobs:
         name: Check VPS deployment configuration
         shell: bash
         env:
-          VPS_DEPLOY_ENABLED: ${{ vars.VPS_DEPLOY_ENABLED || '' }}
           VPS_HOST: ${{ secrets.VPS_HOST || '' }}
           VPS_USER: ${{ secrets.VPS_USER || '' }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY || '' }}
@@ -345,8 +344,6 @@ jobs:
           event_name="${{ github.event_name }}"
           ref_name="${{ github.ref_name }}"
           deploy_input="${{ inputs.deploy_vps && 'true' || 'false' }}"
-          deploy_enabled="$(printf '%s' "${VPS_DEPLOY_ENABLED}" | tr '[:upper:]' '[:lower:]')"
-
           if [ "$event_name" = "pull_request" ]; then
             echo "mode=skipped" >> "$GITHUB_OUTPUT"
             {
@@ -396,41 +393,15 @@ jobs:
             exit 0
           fi
 
-          if [ "$event_name" != "push" ]; then
+          if [ "$event_name" != "workflow_dispatch" ]; then
             echo "mode=skipped" >> "$GITHUB_OUTPUT"
             {
-              echo "VPS deployment is only configured for \`push\` and \`workflow_dispatch\` events."
+              echo "VPS deployment is manual-only and is not configured for this event."
               echo ""
               echo "Current event: \`$event_name\`"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-
-          if [ "$deploy_enabled" != "true" ]; then
-            echo "mode=skipped" >> "$GITHUB_OUTPUT"
-            {
-              echo "VPS deployment is disabled for normal pushes because \`VPS_DEPLOY_ENABLED\` is not set to \`true\`."
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          if [ "${#missing[@]}" -gt 0 ]; then
-            echo "mode=skipped" >> "$GITHUB_OUTPUT"
-            {
-              echo "VPS deployment is enabled for pushes, but required secrets are unavailable, so deployment was skipped."
-              echo ""
-              echo "Missing variables:"
-              for key in "${missing[@]}"; do
-                echo "- $key"
-              done
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-
-          echo "mode=run" >> "$GITHUB_OUTPUT"
-          {
-            echo "VPS deployment is enabled for this push and all required secrets are present."
-          } >> "$GITHUB_STEP_SUMMARY"
 
   deploy-vps:
     name: Deploy to VPS

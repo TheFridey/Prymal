@@ -49,7 +49,7 @@ npm run beta:evidence
 
 Authenticated browser proof stays optional for normal dev certification until you fill the local-only `.env.playwright` file with Clerk test users.
 
-1. Copy the role layout from [.env.playwright.example](/abs/path/C:/Users/rhysl/OneDrive/Documents/GitHub/Prymal/.env.playwright.example:1) into your ignored `.env.playwright`.
+1. Copy the role layout from `.env.playwright.example` into your ignored `.env.playwright`.
 2. Use Clerk test users only. Do not place production credentials here.
 3. Run `cd backend && npm run dev:fixtures` to provision the local QA users, orgs, workflow/action/billing evidence, and admin-visible trace data.
 4. Run `cd frontend && npm run test:e2e:auth:check`.

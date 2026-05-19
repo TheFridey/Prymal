@@ -8,6 +8,7 @@ import { db } from '../db/index.js';
 import { agentMemory, auditLogs, conversations, messages, videoGenerationEvents } from '../db/schema.js';
 import { requireOrg } from '../middleware/auth.js';
 import { planAwareRateLimit } from '../middleware/rateLimit.js';
+import { RATE_LIMIT_CONFIGS } from '../middleware/rate-limit-config.js';
 import { canAccessAgent } from '../services/entitlements.js';
 import {
   commitExecutionUsage,
@@ -48,6 +49,7 @@ import {
   wrapPastedReference,
   WARDEN_VERDICTS,
 } from '../services/warden/index.js';
+import { sanitizeErrorForClient } from '../services/security/redaction.js';
 
 const router = new Hono();
 
@@ -118,14 +120,22 @@ const videoGenerationSchema = z.object({
   })).max(3).optional(),
   useNegativePrompt: z.boolean().optional().default(true),
 });
-const mediaGenerationRateLimit = planAwareRateLimit({
-  free: 4,
-  solo: 8,
-  pro: 16,
-  teams: 40,
-  agency: 120,
-  keyPrefix: 'agents-media',
-});
+const mediaGenerationRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.agentsMedia);
+const chatRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.agentsChat);
+const transcribeRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.agentsTranscribe);
+const realtimeTokenRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.agentsRealtimeToken);
+const SUPPORTED_AUDIO_MIME_TYPES = new Set([
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/webm',
+  'audio/ogg',
+  'audio/mp4',
+  'audio/m4a',
+  'video/webm',
+]);
+const SUPPORTED_AUDIO_EXTENSIONS = ['.mp3', '.wav', '.webm', '.ogg', '.mp4', '.m4a'];
 
 const realtimeTokenSchema = z.object({
   agentId: z.enum(AGENT_IDS).optional(),
@@ -248,14 +258,7 @@ router.get('/conversations/:conversationId/messages', requireOrg, async (context
   return context.json({ messages: history });
 });
 
-router.post('/chat', requireOrg, planAwareRateLimit({
-  free: 10,
-  solo: 30,
-  pro: 60,
-  teams: 100,
-  agency: null,
-  keyPrefix: 'agents-chat',
-}), zValidator('json', chatSchema), async (context) => {
+router.post('/chat', requireOrg, chatRateLimit, zValidator('json', chatSchema), async (context) => {
   const org = context.get('org');
   const payload = context.req.valid('json');
 
@@ -385,10 +388,10 @@ router.post('/chat', requireOrg, planAwareRateLimit({
   return streamSSE(context, async (stream) => {
     const startedAt = Date.now();
     let creditsCommitted = false;
-    const safeErrorMessage = (error) => {
-      const message = String(error?.message ?? '').trim();
-      return message || 'Generation failed.';
-    };
+    const safeErrorMessage = (error) => sanitizeErrorForClient(error, {
+      fallback: 'Generation failed.',
+      internalFallback: 'Generation failed.',
+    });
 
     const runner = runAgentChat({
       agentId: payload.agentId,
@@ -1005,7 +1008,10 @@ router.post('/generate-image', requireOrg, mediaGenerationRateLimit, zValidator(
 
     return context.json(
       {
-        error: error.message || 'Image generation failed.',
+        error: sanitizeErrorForClient(error, {
+          fallback: 'Image generation failed.',
+          internalFallback: 'Image generation failed.',
+        }),
         code: error.code ?? 'IMAGE_GENERATION_FAILED',
         upgrade: Boolean(error.upgrade),
       },
@@ -1179,7 +1185,10 @@ router.post('/generate-video', requireOrg, mediaGenerationRateLimit, zValidator(
 
     return context.json(
       {
-        error: error?.message ?? 'Reference images could not be prepared for rendering.',
+        error: sanitizeErrorForClient(error, {
+          fallback: 'Reference images could not be prepared for rendering.',
+          internalFallback: 'Reference images could not be prepared for rendering.',
+        }),
         code: error?.code ?? 'VIDEO_REFERENCE_IMAGE_FAILED',
       },
       error?.status ?? 400,
@@ -1323,22 +1332,15 @@ router.get('/video-jobs/:jobId', requireOrg, async (context) => {
   });
 });
 
-router.post('/transcribe', requireOrg, async (context) => {
+router.post('/transcribe', requireOrg, transcribeRateLimit, async (context) => {
   const formData = await context.req.formData();
   const audio = formData.get('audio');
   const language = String(formData.get('language') ?? 'en').trim() || 'en';
   const prompt = String(formData.get('prompt') ?? '').trim();
 
-  if (!(audio instanceof File)) {
-    return context.json({ error: 'Audio file is required.' }, 400);
-  }
-
-  if (audio.size === 0) {
-    return context.json({ error: 'Audio file is empty.' }, 400);
-  }
-
-  if (audio.size > 12 * 1024 * 1024) {
-    return context.json({ error: 'Audio file is too large. Keep voice clips under 12 MB.' }, 400);
+  const uploadValidation = validateTranscriptionUpload(audio);
+  if (!uploadValidation.ok) {
+    return context.json({ error: uploadValidation.error }, uploadValidation.status);
   }
 
   const transcript = await transcribeAudioFile(audio, {
@@ -1349,7 +1351,7 @@ router.post('/transcribe', requireOrg, async (context) => {
   return context.json({ text: transcript });
 });
 
-router.post('/realtime-token', requireOrg, zValidator('json', realtimeTokenSchema), async (context) => {
+router.post('/realtime-token', requireOrg, realtimeTokenRateLimit, zValidator('json', realtimeTokenSchema), async (context) => {
   const org = context.get('org');
   const payload = context.req.valid('json');
   const agentId = payload.agentId ?? 'cipher';
@@ -1680,7 +1682,15 @@ End your response with a structured JSON summary block:
         });
       }
 
-      await stream.writeSSE({ data: JSON.stringify({ type: 'error', error: error.message }) });
+      await stream.writeSSE({
+        data: JSON.stringify({
+          type: 'error',
+          error: sanitizeErrorForClient(error, {
+            fallback: 'Audit failed.',
+            internalFallback: 'Audit failed.',
+          }),
+        }),
+      });
     }
   });
 });
@@ -1808,6 +1818,10 @@ router.post('/herald/send-email', requireOrg, zValidator('json', heraldSendEmail
 
   if (!gmailResponse.ok) {
     const message = gmailData?.error?.message || 'Gmail send failed.';
+    const safeMessage = sanitizeErrorForClient(message, {
+      fallback: 'Gmail send failed.',
+      internalFallback: 'Gmail send failed.',
+    });
     await recordDeliveryOutcome({
       orgId: org.orgId,
       userId: org.userId,
@@ -1816,9 +1830,9 @@ router.post('/herald/send-email', requireOrg, zValidator('json', heraldSendEmail
       sourceAgent: 'herald',
       contentType: 'email',
       delivered: false,
-      metadata: { provider: 'gmail', to, subject, error: message },
+      metadata: { provider: 'gmail', to, subject, error: safeMessage },
     });
-    return context.json({ error: message }, 502);
+    return context.json({ error: safeMessage }, 502);
   }
 
   await recordDeliveryOutcome({
@@ -1901,10 +1915,50 @@ router.post('/atlas/export-notion', requireOrg, zValidator('json', atlasNotionEx
 
   if (!notionResponse.ok) {
     const message = notionData?.message || 'Notion export failed.';
-    return context.json({ error: message }, 502);
+    return context.json({
+      error: sanitizeErrorForClient(message, {
+        fallback: 'Notion export failed.',
+        internalFallback: 'Notion export failed.',
+      }),
+    }, 502);
   }
 
   return context.json({ success: true, pageUrl: notionData.url ?? null, pageId: notionData.id ?? null });
 });
 
 export default router;
+
+export function isSupportedAudioUpload(file) {
+  const normalizedType = String(file?.type ?? '').trim().toLowerCase();
+
+  if (normalizedType && SUPPORTED_AUDIO_MIME_TYPES.has(normalizedType)) {
+    return true;
+  }
+
+  const fileName = String(file?.name ?? '').trim().toLowerCase();
+  return SUPPORTED_AUDIO_EXTENSIONS.some((extension) => fileName.endsWith(extension));
+}
+
+export function validateTranscriptionUpload(audio) {
+  if (!(audio instanceof File)) {
+    return { ok: false, status: 400, error: 'Audio file is required.' };
+  }
+
+  if (audio.size === 0) {
+    return { ok: false, status: 400, error: 'Audio file is empty.' };
+  }
+
+  if (audio.size > 12 * 1024 * 1024) {
+    return { ok: false, status: 400, error: 'Audio file is too large. Keep voice clips under 12 MB.' };
+  }
+
+  if (!isSupportedAudioUpload(audio)) {
+    return {
+      ok: false,
+      status: 400,
+      error: 'Unsupported audio file type. Upload MP3, WAV, M4A, MP4, OGG, or WEBM audio.',
+    };
+  }
+
+  return { ok: true };
+}

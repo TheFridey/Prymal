@@ -13,6 +13,8 @@ import {
 } from '../db/schema.js';
 import { hasConfiguredStripe, hasConfiguredStripeWebhook } from '../env.js';
 import { requireOrg, requireRole } from '../middleware/auth.js';
+import { planAwareRateLimit } from '../middleware/rateLimit.js';
+import { RATE_LIMIT_CONFIGS } from '../middleware/rate-limit-config.js';
 import {
   completeCreditPurchase,
   createPendingCreditPurchase,
@@ -47,6 +49,7 @@ import {
 } from '../services/email/email-trigger-utils.js';
 
 const router = new Hono();
+const billingMutationRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.billingMutations);
 
 const LEGACY_AGENCY_STRIPE_PRICE_IDS = {
   monthly: process.env.STRIPE_PRICE_AGENCY_LEGACY?.trim(),
@@ -124,7 +127,7 @@ function getStripe() {
   });
 }
 
-router.post('/checkout', requireOrg, requireRole('owner', 'admin'), async (context) => {
+router.post('/checkout', requireOrg, requireRole('owner', 'admin'), billingMutationRateLimit, async (context) => {
   const stripe = getStripe();
   const org = context.get('org');
   const parsed = checkoutSchema.safeParse(await context.req.json());
@@ -240,7 +243,7 @@ router.post('/checkout', requireOrg, requireRole('owner', 'admin'), async (conte
   });
 });
 
-router.post('/packs/checkout', requireOrg, requireRole('owner', 'admin'), async (context) => {
+router.post('/packs/checkout', requireOrg, requireRole('owner', 'admin'), billingMutationRateLimit, async (context) => {
   const stripe = getStripe();
   const org = context.get('org');
   const parsed = creditPackCheckoutSchema.safeParse(await context.req.json());
@@ -310,7 +313,7 @@ router.post('/packs/checkout', requireOrg, requireRole('owner', 'admin'), async 
   return context.json({ url: session.url });
 });
 
-router.post('/portal', requireOrg, requireRole('owner', 'admin'), async (context) => {
+router.post('/portal', requireOrg, requireRole('owner', 'admin'), billingMutationRateLimit, async (context) => {
   const stripe = getStripe();
   const org = context.get('org');
   const organisation = await db.query.organisations.findFirst({
@@ -333,7 +336,7 @@ const seatAddonSchema = z.object({
   additionalSeats: z.number().int().min(1).max(20),
 });
 
-router.post('/seat-addon', requireOrg, requireRole('owner', 'admin'), async (context) => {
+router.post('/seat-addon', requireOrg, requireRole('owner', 'admin'), billingMutationRateLimit, async (context) => {
   const stripe = getStripe();
   const org = context.get('org');
 
@@ -517,8 +520,8 @@ router.post('/webhook/stripe', async (context) => {
 
   try {
     event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET);
-  } catch (error) {
-    return context.json({ error: error.message }, 400);
+  } catch {
+    return context.json({ error: 'Invalid Stripe webhook signature.' }, 400);
   }
 
   switch (event.type) {

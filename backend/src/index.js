@@ -35,6 +35,10 @@ import {
 } from './services/media-storage/index.js';
 import { readWebAsset } from './services/web-research.js';
 import { bootstrapRuntimeEnv, getEnvironmentMode, parseEnvList } from './env.js';
+import {
+  redactSensitiveText,
+  sanitizeStructuredData,
+} from './services/security/redaction.js';
 
 bootstrapRuntimeEnv();
 
@@ -45,14 +49,16 @@ if (process.env.SENTRY_DSN) {
     release: process.env.npm_package_version,
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0,
     beforeSend(event) {
-      if (event.request?.data && typeof event.request.data === 'object') {
-        const sanitised = { ...event.request.data };
-        for (const key of ['password', 'apiKey', 'secret', 'token', 'key']) {
-          if (sanitised[key]) {
-            sanitised[key] = '[REDACTED]';
-          }
-        }
-        event.request.data = sanitised;
+      if (event.request?.data) {
+        event.request.data = sanitizeStructuredData(event.request.data);
+      }
+
+      if (event.request?.headers) {
+        event.request.headers = sanitizeStructuredData(event.request.headers, { stripContent: false });
+      }
+
+      if (event.extra) {
+        event.extra = sanitizeStructuredData(event.extra);
       }
 
       return event;
@@ -197,12 +203,23 @@ app.get('/generated-video-assets/:fileName', async (context) => {
 // Keep auth strict outside local development, but leave enough headroom for
 // Playwright/browser certification to reuse localhost sessions without tripping
 // the guardrail on repeated /auth/me hydration checks.
-const authLimiter = createRateLimiter({
+const authReadLimiter = createRateLimiter({
   windowMs: 60_000,
   max: process.env.NODE_ENV === 'development' ? 120 : 20,
   message: 'Too many auth requests. Please try again shortly.',
 });
-app.use('/api/auth/*', authLimiter);
+const authMutationLimiter = createRateLimiter({
+  windowMs: 60_000,
+  max: process.env.NODE_ENV === 'development' ? 60 : 20,
+  message: 'Too many auth requests. Please try again shortly.',
+});
+app.use('/api/auth/me', authReadLimiter);
+app.use('/api/auth/onboard', authMutationLimiter);
+app.use('/api/auth/team/*', authMutationLimiter);
+app.use('/api/auth/api-keys', authMutationLimiter);
+app.use('/api/auth/api-keys/*', authMutationLimiter);
+app.use('/api/auth/organisation/model-controls', authMutationLimiter);
+app.use('/api/auth/referral', authReadLimiter);
 
 // 5 requests per IP per 15 minutes on waitlist signup
 const waitlistLimiter = createRateLimiter({ windowMs: 15 * 60_000, max: 5, message: 'Too many waitlist requests. Please try again in 15 minutes.' });
@@ -249,6 +266,10 @@ app.onError((error, context) => {
   const code = error.code || 'INTERNAL_ERROR';
   const provider = resolveErrorProvider(error);
   const errorType = resolveErrorType(error);
+  const safeErrorMessage = redactSensitiveText(error?.message || 'Internal server error');
+  if (typeof error?.message === 'string') {
+    error.message = safeErrorMessage;
+  }
   const userMessage = status >= 500
     ? 'Something went wrong — try again.'
     : error.message || 'Something went wrong — try again.';
@@ -265,7 +286,7 @@ app.onError((error, context) => {
     path: context.req.path,
     status,
     code,
-    message: error.message || 'Internal server error',
+    message: safeErrorMessage,
     stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
     timestamp: new Date().toISOString(),
   }));
@@ -280,6 +301,7 @@ app.onError((error, context) => {
         provider,
         errorType,
         requestId,
+        errorMessage: safeErrorMessage,
       },
     });
   }

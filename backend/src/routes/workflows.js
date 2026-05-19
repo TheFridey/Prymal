@@ -6,7 +6,8 @@ import { z } from 'zod';
 import { db } from '../db/index.js';
 import { organisations, workflowRuns, workflows, workflowTemplates, workflowWebhooks } from '../db/schema.js';
 import { requireOrg, requireRole } from '../middleware/auth.js';
-import { planAwareRateLimit } from '../middleware/rateLimit.js';
+import { createRateLimiter, planAwareRateLimit } from '../middleware/rateLimit.js';
+import { RATE_LIMIT_CONFIGS } from '../middleware/rate-limit-config.js';
 import { getBillingSnapshotForOrg } from '../services/billing-engine.js';
 import { dispatchWorkflowRun, registerCron, unregisterCron } from '../queue/trigger.js';
 import { createScheduledWorkflowRunHandler } from '../services/inline-scheduler.js';
@@ -72,6 +73,12 @@ const workflowTemplateSchema = z.object({
 });
 const runAgainSchema = z.object({
   input: z.unknown().optional(),
+});
+const workflowRunRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.workflowRun);
+const workflowRerunRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.workflowRerun);
+const workflowWebhookRateLimit = createRateLimiter({
+  ...RATE_LIMIT_CONFIGS.workflowWebhookTrigger,
+  identifier: (context) => `${context.req.param('id')}:${resolveClientIp(context)}`,
 });
 
 router.get('/', requireOrg, async (context) => {
@@ -609,14 +616,7 @@ router.delete('/:id', requireOrg, requireRole('owner', 'admin'), async (context)
   return context.json({ success: true });
 });
 
-router.post('/:id/run', requireOrg, planAwareRateLimit({
-  free: 3,
-  solo: 10,
-  pro: 30,
-  teams: 60,
-  agency: null,
-  keyPrefix: 'workflow-run',
-}), async (context) => {
+router.post('/:id/run', requireOrg, workflowRunRateLimit, async (context) => {
   const org = context.get('org');
   const { id } = context.req.param();
   const idempotencyKey = context.req.header('Idempotency-Key')?.trim() || null;
@@ -635,7 +635,7 @@ router.post('/:id/run', requireOrg, planAwareRateLimit({
     userId: org.userId,
     orgId: org.orgId,
     confirmationId,
-    isAdmin: org.role === 'owner' || org.role === 'admin',
+    isAdmin: isOrgAdminUser(org),
   });
 
   if (!workflowSafety.allowed) {
@@ -761,7 +761,7 @@ router.post('/:id/run', requireOrg, planAwareRateLimit({
   );
 });
 
-router.post('/:id/run-again', requireOrg, requireRole('owner', 'admin'), zValidator('json', runAgainSchema), async (context) => {
+router.post('/:id/run-again', requireOrg, requireRole('owner', 'admin'), workflowRerunRateLimit, zValidator('json', runAgainSchema), async (context) => {
   const org = context.get('org');
   const { id } = context.req.param();
   const payload = context.req.valid('json');
@@ -781,7 +781,7 @@ router.post('/:id/run-again', requireOrg, requireRole('owner', 'admin'), zValida
     userId: org.userId,
     orgId: org.orgId,
     confirmationId: confirmationIdRunAgain,
-    isAdmin: org.role === 'owner' || org.role === 'admin',
+    isAdmin: isOrgAdminUser(org),
   });
 
   if (!workflowSafety.allowed) {
@@ -836,7 +836,7 @@ router.post('/:id/run-again', requireOrg, requireRole('owner', 'admin'), zValida
   return context.json({ runId: run.id, status: 'queued', executionMode: dispatch.mode }, 202);
 });
 
-router.post('/webhook/:id/:secret', async (context) => {
+router.post('/webhook/:id/:secret', workflowWebhookRateLimit, async (context) => {
   const { id, secret } = context.req.param();
   const idempotencyKey = context.req.header('Idempotency-Key')?.trim() || context.req.header('X-Prymal-Idempotency-Key')?.trim() || null;
   const workflow = await db.query.workflows.findFirst({
@@ -956,7 +956,7 @@ router.post('/confirmations/:id/approve', requireOrg, requireRole('owner', 'admi
   const org = context.get('org');
   const { id } = context.req.param();
   const payload = context.req.valid('json');
-  const isAdmin = org.role === 'owner' || org.role === 'admin';
+  const isAdmin = isOrgAdminUser(org);
   const result = await approveWorkflowConfirmation({
     confirmationId: id,
     orgId: org.orgId,
@@ -1031,7 +1031,7 @@ router.get('/runs/:runId', requireOrg, async (context) => {
   return context.json({ run });
 });
 
-router.post('/runs/:runId/replay', requireOrg, requireRole('owner', 'admin'), async (context) => {
+router.post('/runs/:runId/replay', requireOrg, requireRole('owner', 'admin'), workflowRerunRateLimit, async (context) => {
   const org = context.get('org');
   const { runId } = context.req.param();
 
@@ -1319,4 +1319,18 @@ function queueControlPlaneShadow({ workflow, input, org, runId }) {
       runId,
     });
   });
+}
+
+function resolveClientIp(context) {
+  const forwardedFor = context.req.header('x-forwarded-for');
+  return (
+    context.req.header('cf-connecting-ip')
+    ?? forwardedFor?.split(',')[0]?.trim()
+    ?? context.req.header('x-real-ip')
+    ?? 'unknown'
+  );
+}
+
+export function isOrgAdminUser(org = {}) {
+  return org?.userRole === 'owner' || org?.userRole === 'admin';
 }

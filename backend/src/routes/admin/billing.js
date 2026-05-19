@@ -12,6 +12,8 @@ import {
 } from '../../db/schema.js';
 import { hasConfiguredStripe } from '../../env.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
+import { createRateLimiter } from '../../middleware/rateLimit.js';
+import { RATE_LIMIT_CONFIGS } from '../../middleware/rate-limit-config.js';
 import { findAdminMutationReplay, getAdminMutationMeta } from '../../services/admin-mutations.js';
 import { applyCreditAdjustment, getBillingSnapshotForOrg } from '../../services/billing-engine.js';
 import { enrichAdminEconomicsDashboard } from '../../services/billing-admin-economics.js';
@@ -19,6 +21,10 @@ import { getMonthlyInternalBurnCapGbp } from '../../services/billing-catalog.js'
 import { recordAdminActionLog } from '../../services/telemetry.js';
 
 const router = new Hono();
+const adminSensitiveWriteRateLimit = createRateLimiter({
+  ...RATE_LIMIT_CONFIGS.adminSensitiveWrite,
+  identifier: (context) => context.get('staff')?.userId ?? 'unknown',
+});
 
 const PLAN_PRICES_GBP = { free: 0, solo: 49.99, pro: 99, teams: 179, agency: 299 };
 
@@ -167,6 +173,7 @@ router.post(
   '/organisations/:orgId/credits/adjust',
   requireStaff,
   requireStaffPermission('admin.credits.adjust'),
+  adminSensitiveWriteRateLimit,
   zValidator('json', creditAdjustmentSchema),
   async (context) => {
     const staff = context.get('staff');

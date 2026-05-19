@@ -6,12 +6,18 @@ import { z } from 'zod';
 import { db } from '../../db/index.js';
 import { emailQueue, emailUnsubscribes, powerups } from '../../db/schema.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
+import { createRateLimiter } from '../../middleware/rateLimit.js';
+import { RATE_LIMIT_CONFIGS } from '../../middleware/rate-limit-config.js';
 import { findAdminMutationReplay, getAdminMutationMeta } from '../../services/admin-mutations.js';
 import { sendDay3Email, sendDay7Email } from '../../services/email.js';
 import { pruneExpiredMemory } from '../../services/memory-pruner.js';
 import { recordAdminActionLog, recordAuditLog } from '../../services/telemetry.js';
 
 const router = new Hono();
+const adminWriteRateLimit = createRateLimiter({
+  ...RATE_LIMIT_CONFIGS.adminWrite,
+  identifier: (context) => context.get('staff')?.userId ?? 'unknown',
+});
 
 const memoryPruneSchema = z.object({ dryRun: z.boolean().optional().default(false) });
 
@@ -33,6 +39,7 @@ router.post(
   '/memory/prune',
   requireStaff,
   requireStaffPermission('admin.memory.prune'),
+  adminWriteRateLimit,
   zValidator('json', memoryPruneSchema),
   async (context) => {
     const staff = context.get('staff');
@@ -91,7 +98,7 @@ router.get('/email-queue', requireStaff, requireStaffPermission('admin.activity.
   return context.json({ queue: rows, count: rows.length });
 });
 
-router.post('/process-email-queue', requireStaff, requireStaffPermission('admin.email.process'), async (context) => {
+router.post('/process-email-queue', requireStaff, requireStaffPermission('admin.email.process'), adminWriteRateLimit, async (context) => {
   const staff = context.get('staff');
   const mutationMeta = getAdminMutationMeta(context);
   const replay = await findAdminMutationReplay({
@@ -179,13 +186,13 @@ router.get('/powerups', requireStaff, requireStaffPermission('admin.activity.rea
   return context.json({ powerups: rows });
 });
 
-router.post('/powerups', requireStaff, requireStaffPermission('admin.powerups.manage'), zValidator('json', powerupCreateSchema), async (context) => {
+router.post('/powerups', requireStaff, requireStaffPermission('admin.powerups.manage'), adminWriteRateLimit, zValidator('json', powerupCreateSchema), async (context) => {
   const body = context.req.valid('json');
   const [row] = await db.insert(powerups).values(body).returning();
   return context.json({ powerup: row }, 201);
 });
 
-router.patch('/powerups/:id', requireStaff, requireStaffPermission('admin.powerups.manage'), zValidator('json', powerupUpdateSchema), async (context) => {
+router.patch('/powerups/:id', requireStaff, requireStaffPermission('admin.powerups.manage'), adminWriteRateLimit, zValidator('json', powerupUpdateSchema), async (context) => {
   const { id } = context.req.param();
   const body = context.req.valid('json');
   const [row] = await db.update(powerups).set({ ...body, updatedAt: new Date() }).where(eq(powerups.id, id)).returning();
@@ -193,7 +200,7 @@ router.patch('/powerups/:id', requireStaff, requireStaffPermission('admin.poweru
   return context.json({ powerup: row });
 });
 
-router.delete('/powerups/:id', requireStaff, requireStaffPermission('admin.powerups.manage'), async (context) => {
+router.delete('/powerups/:id', requireStaff, requireStaffPermission('admin.powerups.manage'), adminWriteRateLimit, async (context) => {
   const { id } = context.req.param();
   const deleted = await db.delete(powerups).where(eq(powerups.id, id)).returning({ id: powerups.id });
   if (deleted.length === 0) return context.json({ error: 'Power-up not found.' }, 404);

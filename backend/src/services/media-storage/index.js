@@ -166,6 +166,12 @@ export function validateMediaStorageConfiguration(env = process.env) {
     );
   }
 
+  if (config.mode === 'production' && config.localOverrideAllowed) {
+    errors.push(
+      'ALLOW_LOCAL_MEDIA_STORAGE_IN_PRODUCTION must remain false in production. Local media storage is not permitted for the live VPS deployment.',
+    );
+  }
+
   if (config.driver === MEDIA_STORAGE_DRIVERS.cloudinary && !config.cloudinaryConfigured) {
     errors.push(
       'Cloudinary media storage is enabled, but CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET are not all configured.',
@@ -191,9 +197,15 @@ export function validateMediaStorageConfiguration(env = process.env) {
     && config.driver === MEDIA_STORAGE_DRIVERS.local
     && config.localOverrideAllowed
   ) {
-    warnings.push(
-      'Local media storage override is active in a live-like environment. Generated media will not survive instance replacement.',
-    );
+    if (config.mode === 'production') {
+      errors.push(
+        'Local media storage override is active in production. Generated media must not rely on backend-local disk in the live VPS deployment.',
+      );
+    } else {
+      warnings.push(
+        'Local media storage override is active in a live-like environment. Generated media will not survive instance replacement.',
+      );
+    }
   }
 
   return {

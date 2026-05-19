@@ -6,10 +6,16 @@ import { z } from 'zod';
 import { db } from '../../db/index.js';
 import { users } from '../../db/schema.js';
 import { requireStaff, requireStaffPermission } from '../../middleware/auth.js';
+import { createRateLimiter } from '../../middleware/rateLimit.js';
+import { RATE_LIMIT_CONFIGS } from '../../middleware/rate-limit-config.js';
 import { findAdminMutationReplay, getAdminMutationMeta } from '../../services/admin-mutations.js';
 import { recordAdminActionLog, recordAuditLog } from '../../services/telemetry.js';
 
 const router = new Hono();
+const adminSensitiveWriteRateLimit = createRateLimiter({
+  ...RATE_LIMIT_CONFIGS.adminSensitiveWrite,
+  identifier: (context) => context.get('staff')?.userId ?? 'unknown',
+});
 
 const userUpdateSchema = z.object({
   role: z.enum(['owner', 'admin', 'member']).optional(),
@@ -39,6 +45,7 @@ router.patch(
   '/users/:userId',
   requireStaff,
   requireStaffPermission('admin.user.update'),
+  adminSensitiveWriteRateLimit,
   zValidator('json', userUpdateSchema),
   async (context) => {
     const staff = context.get('staff');

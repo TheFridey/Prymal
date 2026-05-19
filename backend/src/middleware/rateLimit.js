@@ -1,8 +1,12 @@
+import { getEnvironmentMode } from '../env/parse.js';
+
 const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_MAX = 10;
 const UPSTASH_WARNING_PREFIX = '[RATE LIMIT]';
 
 let warnedAboutUpstash = false;
+let warnedAboutProductionMemoryStore = false;
+let lastResolvedStoreKind = 'memory';
 
 class MemoryRateLimitStore {
   constructor() {
@@ -100,6 +104,7 @@ function createDefaultStore() {
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
 
   if (upstashUrl && upstashToken) {
+    lastResolvedStoreKind = 'upstash';
     return new UpstashRateLimitStore({
       url: upstashUrl,
       token: upstashToken,
@@ -107,6 +112,13 @@ function createDefaultStore() {
     });
   }
 
+  const mode = getEnvironmentMode(process.env.NODE_ENV);
+  if ((mode === 'staging' || mode === 'production') && !warnedAboutProductionMemoryStore) {
+    warnedAboutProductionMemoryStore = true;
+    console.warn(`${UPSTASH_WARNING_PREFIX} Redis-backed limiting is not configured in ${mode}; falling back to process-local memory counters.`);
+  }
+
+  lastResolvedStoreKind = 'memory';
   return defaultMemoryStore;
 }
 
@@ -232,3 +244,18 @@ export function planAwareRateLimit(options = {}) {
 }
 
 export { MemoryRateLimitStore };
+
+export function getRateLimitRuntimeStatus(env = process.env) {
+  const upstashUrl = String(env.UPSTASH_REDIS_REST_URL ?? '').trim();
+  const upstashToken = String(env.UPSTASH_REDIS_REST_TOKEN ?? '').trim();
+  const mode = getEnvironmentMode(env.NODE_ENV);
+  const upstashConfigured = Boolean(upstashUrl && upstashToken);
+
+  return {
+    mode,
+    upstashConfigured,
+    configuredStore: upstashConfigured ? 'upstash' : 'memory',
+    lastResolvedStoreKind,
+    productionFallbackWarningActive: (mode === 'staging' || mode === 'production') && !upstashConfigured,
+  };
+}

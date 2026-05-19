@@ -1,4 +1,4 @@
-const DEFAULT_SECURITY_HEADERS = {
+export const DEFAULT_SECURITY_HEADERS = {
   'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
   'Cross-Origin-Resource-Policy': 'same-site',
   'Permissions-Policy': 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()',

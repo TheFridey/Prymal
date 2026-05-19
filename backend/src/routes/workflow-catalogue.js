@@ -7,6 +7,7 @@ import { workflowCatalogueItems } from '../db/schema.js';
 import { requireOrg, requireRole } from '../middleware/auth.js';
 import { recordProductEvent } from '../services/telemetry.js';
 import { fireAndForgetEmail, notifyWorkflowInstalled } from '../services/email/email-trigger-utils.js';
+import { sanitizeErrorForClient } from '../services/security/redaction.js';
 import {
   createCataloguePurchase,
   createCatalogueReview,
@@ -201,7 +202,12 @@ async function withCatalogueErrors(context, action) {
   try {
     return await action();
   } catch (error) {
-    return context.json({ error: error.message || 'Workflow Catalogue request failed.' }, error.status ?? 500);
+    return context.json({
+      error: sanitizeErrorForClient(error, {
+        fallback: 'Workflow Catalogue request failed.',
+        internalFallback: 'Workflow Catalogue request failed.',
+      }),
+    }, error.status ?? 500);
   }
 }
 
