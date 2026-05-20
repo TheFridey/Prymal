@@ -1,8 +1,17 @@
+import { useDeferredValue, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageShell } from '../components/ui';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
-import { BLOG_POSTS } from '../lib/blog-posts';
-import { PublicHero, ResourceCta, SectionBlock, buildCollectionSchema } from '../components/PublicContent';
+import {
+  PremiumHero,
+  ReadingPathGrid,
+  ResourceCta,
+  SearchFilterBar,
+  SectionBlock,
+  buildCollectionSchema,
+} from '../components/PublicContent';
+import { BLOG_POSTS, getBlogCategories, getBlogReadingPaths } from '../lib/blog-posts';
+import { PUBLIC_OG_DEFAULTS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
 
@@ -49,7 +58,23 @@ function BlogMetaRow({ post }) {
 }
 
 export default function Blog() {
-  const [featuredPost, ...otherPosts] = BLOG_POSTS;
+  const categories = getBlogCategories();
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('All');
+  const deferredSearch = useDeferredValue(search);
+  const featuredPost = BLOG_POSTS.find((post) => post.featured) ?? BLOG_POSTS[0];
+
+  const filteredPosts = useMemo(() => {
+    const query = deferredSearch.trim().toLowerCase();
+    return BLOG_POSTS.filter((post) => {
+      const categoryMatch = category === 'All' || post.category === category;
+      const textBlob = [post.title, post.answer, post.category, ...(post.tags ?? [])].join(' ').toLowerCase();
+      const queryMatch = !query || textBlob.includes(query);
+      return categoryMatch && queryMatch;
+    });
+  }, [category, deferredSearch]);
+
+  const otherPosts = filteredPosts.filter((post) => post.slug !== featuredPost.slug);
 
   return (
     <div className="marketing-page prymal-marketing pm-page">
@@ -57,6 +82,8 @@ export default function Blog() {
         title="Blog - Prymal"
         description="Detailed guides on AI operating systems, business memory, AI agents, workflow automation, trust, and business-ready execution."
         canonicalPath="/blog"
+        ogImage={PUBLIC_OG_DEFAULTS.blog.image}
+        ogImageAlt={PUBLIC_OG_DEFAULTS.blog.imageAlt}
       />
       <JsonLd
         id="schema-blog"
@@ -68,16 +95,23 @@ export default function Blog() {
       />
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="blog" />
-        <PageShell width="1120px">
+        <PageShell width="1180px">
           <div className="public-content-page">
-            <PublicHero
-              eyebrow="Prymal blog"
+            <PremiumHero
+              eyebrow="Editorial hub"
               title="Editorial guides for teams using AI to get real business work done"
-              description="The Prymal blog is now built as a long-form knowledge library: detailed category education, buyer guidance, trust-first implementation advice, and practical operating-system thinking for serious teams."
+              description="The Prymal blog is a long-form category and operating library: practical guides, buyer education, trust-first implementation advice, and business-memory thinking that goes beyond generic AI commentary."
               answerTitle="What is the Prymal blog for?"
               answer="The Prymal blog helps teams understand how coordinated agents, shared business memory, workflows, trust controls, and operator visibility turn AI into a usable business execution layer."
+              chips={['Long-form guides', 'Answer-first structure', 'Workflow thinking', 'Trust-aware adoption']}
+              stats={[
+                { label: 'Guides live', value: String(BLOG_POSTS.length) },
+                { label: 'Average depth', value: 'Long-form' },
+                { label: 'Editorial posture', value: 'Business-ready' },
+              ]}
               primaryCta={<Link to="/features" className="pm-btn pm-btn--primary">Explore features</Link>}
               secondaryCta={<Link to="/compare" className="pm-btn pm-btn--ghost">View comparisons</Link>}
+              visual={<ReadingPathGrid items={getBlogReadingPaths()} className="public-reading-path-grid--hero" />}
             />
 
             <section className="public-blog-featured">
@@ -87,7 +121,7 @@ export default function Blog() {
                 <p>{featuredPost.intro}</p>
                 <BlogMetaRow post={featuredPost} />
                 <div className="public-blog-takeaways">
-                  {featuredPost.takeaways.map((takeaway) => (
+                  {featuredPost.takeaways.slice(0, 3).map((takeaway) => (
                     <article key={takeaway}>
                       <strong>Key takeaway</strong>
                       <p>{takeaway}</p>
@@ -96,7 +130,7 @@ export default function Blog() {
                 </div>
                 <div className="public-content-hero__actions">
                   <Link to={`/blog/${featuredPost.slug}`} className="pm-btn pm-btn--primary">
-                    Read the full guide
+                    Read the featured guide
                   </Link>
                   <Link to="/trust" className="pm-btn pm-btn--ghost">
                     Trust and readiness
@@ -107,10 +141,19 @@ export default function Blog() {
             </section>
 
             <SectionBlock
-              eyebrow="Library"
-              title="Browse detailed business AI guides"
-              description="Every article is structured for deeper reading with answer-first summaries, richer sections, internal product links, and neutral outbound references."
+              eyebrow="Find the right guide"
+              title="Search by category, title, or theme"
+              description="Filter the editorial library by what you are trying to learn right now: category fit, trust, memory, workflow automation, or agency-scale delivery."
             >
+              <SearchFilterBar
+                searchValue={search}
+                onSearchChange={setSearch}
+                filterValue={category}
+                onFilterChange={setCategory}
+                filterLabel="Category"
+                options={categories.map((entry) => ({ label: entry, value: entry }))}
+              />
+
               <div className="public-blog-card-grid">
                 {otherPosts.map((post) => (
                   <Link key={post.slug} to={`/blog/${post.slug}`} className="public-blog-card">
@@ -119,6 +162,10 @@ export default function Blog() {
                       <BlogMetaRow post={post} />
                       <div className="public-blog-card__title">{post.title}</div>
                       <p>{post.answer}</p>
+                      <div className="public-blog-callout">
+                        <strong>Key takeaway</strong>
+                        <p>{post.keyTakeaway}</p>
+                      </div>
                       <div className="public-blog-card__tags">
                         {post.tags.map((tag) => (
                           <span key={tag}>{tag}</span>

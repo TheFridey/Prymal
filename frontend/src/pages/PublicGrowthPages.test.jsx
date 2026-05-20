@@ -1,9 +1,12 @@
 import fs from 'node:fs';
+import { fireEvent } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
 import { renderWithProviders } from '../test/renderWithProviders';
 import Landing from './Landing';
 import Trust from './Trust';
+import Features from './Features';
 import FeaturePage from './FeaturePage';
 import Blog from './Blog';
 import BlogPost from './BlogPost';
@@ -53,6 +56,16 @@ test('feature page sets a unique meta title from the content model', () => {
   expect(document.title).toBe('Prymal AI Agents | Specialist agents for business execution');
 });
 
+test('features page renders premium module labels and system language', () => {
+  const { container } = renderWithProviders(<Features />);
+  const text = container.textContent ?? '';
+
+  expect(text).toContain('Feature operating map');
+  expect(text).toContain('Operating modules');
+  expect(text).toContain('System architecture');
+  expect(text).toContain('LORE memory');
+});
+
 test('blog pages render Article metadata', () => {
   const { getByAltText } = renderWithProviders(
     <Routes>
@@ -67,6 +80,22 @@ test('blog pages render Article metadata', () => {
   expect(schema['@type']).toBe('Article');
   expect(schema.headline).toContain('AI Operating System for Business');
   expect(getByAltText(/Editorial illustration for What Is an AI Operating System for Business/i)).toBeTruthy();
+});
+
+test('blog post renders TOC, related links, FAQ, and outbound references', () => {
+  const { container } = renderWithProviders(
+    <Routes>
+      <Route path="/blog/:slug" element={<BlogPost />} />
+    </Routes>,
+    { route: '/blog/what-is-an-ai-operating-system-for-business' },
+  );
+
+  const text = container.textContent ?? '';
+  expect(text).toContain('Article map');
+  expect(text).toContain('Prymal lens');
+  expect(text).toContain('Outbound references');
+  expect(text).toContain('Keep reading');
+  expect(text).toContain('FAQ');
 });
 
 test('blog posts meet the long-form floor and include internal and external reading paths', () => {
@@ -91,6 +120,17 @@ test('blog hub renders featured editorial metadata without exposing provider int
   expect(text).not.toMatch(/OpenAI|Anthropic|Gemini|Veo|Sora|provider cost|token cost|routeReason/i);
 });
 
+test('blog hub filter and search narrow the article set', async () => {
+  const { container } = renderWithProviders(<Blog />);
+
+  fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'memory' } });
+  expect(container.textContent ?? '').toContain('Why Business AI Needs Memory, Not Just Prompts');
+  expect(container.textContent ?? '').not.toContain('AI Agents for Small Businesses: What They Can Actually Do');
+
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Trust' } });
+  expect(container.textContent ?? '').toContain('Building Trust in AI Automation');
+});
+
 test('comparison pages avoid hostile competitor language and provider leakage', () => {
   const { container } = renderWithProviders(
     <Routes>
@@ -102,6 +142,7 @@ test('comparison pages avoid hostile competitor language and provider leakage', 
   const text = container.textContent ?? '';
   expect(text).not.toMatch(/unsafe|scam|bad competitor|just wrappers/i);
   expect(text).not.toMatch(/OpenAI|Anthropic|Gemini|Veo|Sora/i);
+  expect(text).toContain('Comparison matrix');
 });
 
 test('public trust page keeps readiness language without certification claims', () => {
@@ -109,6 +150,7 @@ test('public trust page keeps readiness language without certification claims', 
   const text = container.textContent ?? '';
   expect(text).toContain('readiness');
   expect(text).toContain('not a certification claim');
+  expect(text).toContain('Trust architecture');
   expect(text).not.toMatch(/Prymal is (Cyber Essentials|Cyber Essentials Plus|ISO\/IEC 27001|ISO 27001) certified/i);
 });
 

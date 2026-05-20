@@ -1,4 +1,4 @@
-import { waitFor } from '@testing-library/react';
+import { fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import Onboarding from './Onboarding';
@@ -23,7 +23,7 @@ test(
     const user = userEvent.setup();
     const view = renderWithProviders(<Onboarding />, { route: '/app/onboarding?ref=launch' });
 
-    await user.type(view.getByPlaceholderText('Prymal Labs'), 'Launch Ops');
+    fireEvent.change(view.getByPlaceholderText('Prymal Labs'), { target: { value: 'Launch Ops' } });
     await user.click(view.getByRole('button', { name: /continue to first win/i }));
 
     expect(view.getByRole('heading', { name: /choose how you want to start/i })).toBeInTheDocument();
@@ -32,8 +32,8 @@ test(
     await user.click(view.getByRole('tab', { name: 'Advanced Mode' }));
     expect(view.getByRole('heading', { name: /build a custom workflow/i })).toBeInTheDocument();
 
-    await user.selectOptions(view.getByDisplayValue('Marketing agency'), 'Consultancy');
-    await user.selectOptions(view.getByDisplayValue('Win and progress more leads'), 'Build repeatable workflows');
+    fireEvent.change(view.getByDisplayValue('Marketing agency'), { target: { value: 'Consultancy' } });
+    fireEvent.change(view.getByDisplayValue('Win and progress more leads'), { target: { value: 'Build repeatable workflows' } });
     await user.click(view.getByRole('button', { name: /create workspace and open/i }));
 
     await waitFor(

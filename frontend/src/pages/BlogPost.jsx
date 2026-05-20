@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { PageShell } from '../components/ui';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
@@ -126,6 +127,8 @@ export default function BlogPost() {
       description: entry.answer,
     }));
 
+  const insertIndex = Math.max(1, Math.floor(post.sections.length * 0.35));
+
   return (
     <div className="marketing-page prymal-marketing pm-page">
       <PageMeta
@@ -133,6 +136,8 @@ export default function BlogPost() {
         description={post.metaDescription}
         canonicalPath={`/blog/${post.slug}`}
         ogType="article"
+        ogImage={post.ogImage}
+        ogImageAlt={post.ogImageAlt}
       />
       <JsonLd
         id={`schema-blog-post-${post.slug}`}
@@ -155,7 +160,7 @@ export default function BlogPost() {
       />
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix={`blog-${post.slug}`} />
-        <PageShell width="1140px">
+        <PageShell width="1180px">
           <div className="public-content-page">
             <div className="public-content-breadcrumbs">
               <Link to="/">Home</Link>
@@ -216,25 +221,44 @@ export default function BlogPost() {
                   </nav>
                 </section>
 
+                <section className="public-blog-sidebar__panel">
+                  <div className="public-section-block__eyebrow">Prymal lens</div>
+                  <h2>Why this matters inside the product</h2>
+                  <p>{post.prymalLens}</p>
+                </section>
+
                 <ResourceLinks title="Relevant Prymal pages" items={post.inboundLinks} />
                 <ResourceLinks title="Neutral external references" items={post.outboundLinks} external />
               </aside>
 
               <article className="public-blog-article">
-                {post.sections.map((section) => (
-                  <section key={section.heading} className="public-blog-article__section" id={slugifyHeading(section.heading)}>
-                    <h2>{section.heading}</h2>
-                    {section.paragraphs.map((paragraph) => (
-                      <p key={paragraph}>{paragraph}</p>
-                    ))}
-                    {section.bullets?.length ? (
-                      <ul className="public-bullet-list">
-                        {section.bullets.map((bullet) => (
-                          <li key={bullet}>{bullet}</li>
-                        ))}
-                      </ul>
+                {post.sections.map((section, index) => (
+                  <Fragment key={section.heading}>
+                    <section className="public-blog-article__section" id={slugifyHeading(section.heading)}>
+                      <h2>{section.heading}</h2>
+                      {section.paragraphs.map((paragraph) => (
+                        <p key={paragraph}>{paragraph}</p>
+                      ))}
+                      {section.bullets?.length ? (
+                        <ul className="public-bullet-list">
+                          {section.bullets.map((bullet) => (
+                            <li key={bullet}>{bullet}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </section>
+                    {index === insertIndex ? (
+                      <div className="public-blog-inline-cta">
+                        <div className="public-section-block__eyebrow">Apply this live</div>
+                        <strong>Move from category understanding into a working Prymal workspace.</strong>
+                        <p>Use the feature pages and trust layer to translate the ideas from this guide into real operating structure.</p>
+                        <div className="public-content-hero__actions">
+                          <Link to="/signup" className="pm-btn pm-btn--primary">Get early access</Link>
+                          <Link to="/compare" className="pm-btn pm-btn--ghost">Compare categories</Link>
+                        </div>
+                      </div>
                     ) : null}
-                  </section>
+                  </Fragment>
                 ))}
               </article>
             </div>

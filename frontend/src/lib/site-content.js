@@ -1,5 +1,38 @@
 import { BLOG_POSTS } from './blog-posts';
 
+export const PUBLIC_OG_DEFAULTS = {
+  home: {
+    title: 'Prymal | AI operating system for business execution',
+    description: 'Specialist agents, shared business memory, workflow automation, and trust controls in one coordinated workspace.',
+    image: BLOG_POSTS[0]?.heroImage ?? null,
+    imageAlt: 'Prymal editorial cover for business execution, memory, workflows, and trust.',
+  },
+  features: {
+    title: 'Prymal features | Execution, memory, workflows, and trust',
+    description: 'Explore coordinated agents, LORE business memory, workflow automation, and security layers.',
+    image: BLOG_POSTS[2]?.heroImage ?? BLOG_POSTS[0]?.heroImage ?? null,
+    imageAlt: 'Prymal features editorial cover showing shared context and connected execution modules.',
+  },
+  blog: {
+    title: 'Prymal blog | Long-form business AI guides',
+    description: 'Detailed guides on business memory, AI agents, secure automation, and execution-first AI.',
+    image: BLOG_POSTS[0]?.heroImage ?? null,
+    imageAlt: 'Prymal blog editorial cover.',
+  },
+  trust: {
+    title: 'Prymal trust | Readiness, boundaries, and deployment controls',
+    description: 'Review Prymal trust posture, readiness language, deployment controls, and data boundaries.',
+    image: BLOG_POSTS[7]?.heroImage ?? BLOG_POSTS[3]?.heroImage ?? null,
+    imageAlt: 'Prymal trust editorial cover focused on governance and operational controls.',
+  },
+  compare: {
+    title: 'Compare Prymal | Business AI categories explained fairly',
+    description: 'Compare Prymal with chat tools, agent platforms, and workflow automation categories.',
+    image: BLOG_POSTS[5]?.heroImage ?? BLOG_POSTS[0]?.heroImage ?? null,
+    imageAlt: 'Prymal comparison editorial cover for business AI categories.',
+  },
+};
+
 export const HOME_FAQ_ITEMS = [
   {
     question: 'What is Prymal?',
@@ -411,3 +444,167 @@ export function getBlogPostBySlug(slug) {
 export function getComparisonPageBySlug(slug) {
   return COMPARISON_PAGES.find((entry) => entry.slug === slug) ?? null;
 }
+
+const FEATURE_PAGE_ENHANCEMENTS = {
+  'ai-agents': {
+    glyph: 'AG',
+    proofPoint: '14 specialist agents sharing context without forcing every workflow through one generic prompt thread.',
+    useCaseChips: ['Sales follow-up', 'Content systems', 'Support handoffs', 'Launch execution'],
+    architectureRole: 'Specialist execution',
+    trustNote: 'Public outputs stay provider-agnostic while staff and operators retain deeper diagnostics privately.',
+    beforeState: [
+      'One general chat thread trying to hold every role at once',
+      'Context restated repeatedly across sales, content, and support work',
+      'Weak handoffs between analysis, drafting, and execution',
+    ],
+    withState: [
+      'Specialist agents work from shared business context',
+      'Relevant context follows the work without transcript dumping',
+      'Execution paths feel coordinated instead of improvised',
+    ],
+  },
+  'lore-business-memory': {
+    glyph: 'LO',
+    proofPoint: 'Global Context, Agent Context, and Project Context keep durable business state reviewable instead of opaque.',
+    useCaseChips: ['Brand voice', 'Offer memory', 'Launch context', 'Deletion controls'],
+    architectureRole: 'Memory and evidence',
+    trustNote: 'Context can be reviewed, deleted, locked, decayed, or superseded instead of persisting as an invisible side effect.',
+    beforeState: [
+      'Important context buried in prompts, docs, and scattered chats',
+      'Agents forget active initiatives or use stale assumptions',
+      'No clear provenance for where a fact came from',
+    ],
+    withState: [
+      'Shared memory stays structured, bounded, and provenance-aware',
+      'Active projects remain visible without polluting permanent context',
+      'Confidence, staleness, and contradiction signals improve trust',
+    ],
+  },
+  'ai-workflow-automation': {
+    glyph: 'NX',
+    proofPoint: 'Memory-aware workflows combine specialist execution, approvals, replay, and operator review.',
+    useCaseChips: ['Approvals', 'Replay paths', 'Lead nurture', 'Operational cadence'],
+    architectureRole: 'Orchestration',
+    trustNote: 'Sensitive actions can stay behind approval and audit boundaries rather than becoming blind automation.',
+    beforeState: [
+      'Every repeated task rebuilt manually from scratch',
+      'Human handoffs depend on memory and goodwill',
+      'Automation lacks current business context',
+    ],
+    withState: [
+      'Repeatable paths carry context between steps',
+      'Approvals and replay make automation governable',
+      'Specialists contribute inside the workflow, not beside it',
+    ],
+  },
+  'ai-security': {
+    glyph: 'TR',
+    proofPoint: 'WARDEN, SENTINEL, env hardening, rate limits, and evidence prep turn trust into an operating layer.',
+    useCaseChips: ['Input screening', 'Output validation', 'Evidence prep', 'Deployment controls'],
+    architectureRole: 'Trust boundary',
+    trustNote: 'Prymal speaks in readiness and evidence language, not premature certification claims.',
+    beforeState: [
+      'Security treated as after-the-fact reassurance',
+      'Unsafe input and risky output paths stay too implicit',
+      'Operational evidence is hard to collect consistently',
+    ],
+    withState: [
+      'Trust boundaries are explicit at product and deployment level',
+      'Risky paths can be screened, validated, and reviewed',
+      'Evidence collection supports serious buyer conversations',
+    ],
+  },
+  'ai-content-and-outreach': {
+    glyph: 'CM',
+    proofPoint: 'Content, outreach, social, and pipeline specialists work from the same brand and offer context.',
+    useCaseChips: ['Campaign systems', 'Founder messaging', 'Lead nurture', 'Social adaptation'],
+    architectureRole: 'Commercial execution',
+    trustNote: 'The public surface stays Prymal-native while the internal operator layer retains richer execution insight.',
+    beforeState: [
+      'Messaging drifts between strategy, writing, and follow-up',
+      'Founders repeat the same brief in every tool',
+      'Social and outreach feel disconnected from the real offer',
+    ],
+    withState: [
+      'Shared context keeps offer, tone, and objections aligned',
+      'Specialist agents translate one brief into multiple lanes',
+      'Outputs feel more usable and less like prompt theatre',
+    ],
+  },
+  'ai-reporting-and-strategy': {
+    glyph: 'IN',
+    proofPoint: 'Reporting, SEO, research, and strategy stay grounded in current priorities and evidence-aware context.',
+    useCaseChips: ['SEO strategy', 'Market research', 'Reporting rhythm', 'Decision support'],
+    architectureRole: 'Intelligence',
+    trustNote: 'Confidence, contradiction, and evidence signals help strategic work stay calibrated.',
+    beforeState: [
+      'Research and reporting live in disconnected prompt sessions',
+      'Recommendations drift away from current initiatives',
+      'Strategic outputs look polished but lack evidence cues',
+    ],
+    withState: [
+      'Intelligence work stays linked to current business context',
+      'Specialists can move from research into recommendation faster',
+      'Teams see clearer confidence and evidence boundaries',
+    ],
+  },
+};
+
+FEATURE_PAGES.forEach((page) => {
+  const enhancement = FEATURE_PAGE_ENHANCEMENTS[page.slug] ?? {};
+  Object.assign(page, enhancement, {
+    ogImage: enhancement.ogImage ?? PUBLIC_OG_DEFAULTS.features.image,
+    ogImageAlt: enhancement.ogImageAlt ?? `${page.title} editorial cover for Prymal.`,
+  });
+});
+
+const COMPARISON_PAGE_ENHANCEMENTS = {
+  'prymal-vs-chatgpt-for-business': {
+    matrix: [
+      { label: 'Shared business memory', prymal: 'Built around durable shared context', other: 'Mostly conversation-centric memory patterns' },
+      { label: 'Workflow execution', prymal: 'Multi-step execution with approvals and replay', other: 'Best for direct conversation and drafting' },
+      { label: 'Governance', prymal: 'Operator-facing review boundaries', other: 'Usually lighter workflow governance' },
+      { label: 'Team operating model', prymal: 'Designed for shared business execution', other: 'Strong for individual or lightweight team use' },
+    ],
+  },
+  'prymal-vs-ai-chatbots': {
+    matrix: [
+      { label: 'Role structure', prymal: 'Specialist execution lanes', other: 'Usually one surface for everything' },
+      { label: 'Context continuity', prymal: 'Global, Agent, and Project Context', other: 'Often chat-history-led' },
+      { label: 'Workflow depth', prymal: 'Repeatable execution paths', other: 'Great for ad hoc conversation' },
+      { label: 'Operator oversight', prymal: 'Review-aware by design', other: 'Usually limited governance tooling' },
+    ],
+  },
+  'prymal-vs-ai-agent-platforms': {
+    matrix: [
+      { label: 'Product posture', prymal: 'Opinionated business operating layer', other: 'More builder-flexible platform posture' },
+      { label: 'Memory model', prymal: 'Business-memory-first narrative', other: 'Varies by platform and implementation' },
+      { label: 'Workflow posture', prymal: 'Execution-first with operator controls', other: 'Often lower-level orchestration primitives' },
+      { label: 'Team adoption path', prymal: 'Faster for operator-led teams', other: 'Often stronger for engineering-heavy experimentation' },
+    ],
+  },
+  'prymal-vs-workflow-automation-tools': {
+    matrix: [
+      { label: 'AI depth', prymal: 'Specialist AI work inside the flow', other: 'Often deterministic app orchestration' },
+      { label: 'Memory awareness', prymal: 'Shared business context available at runtime', other: 'Usually external or manual' },
+      { label: 'Approvals', prymal: 'Designed for sensitive AI-assisted steps', other: 'Strong for general workflow gating' },
+      { label: 'Best fit', prymal: 'Mixed human and AI business execution', other: 'Fixed logic between tools and systems' },
+    ],
+  },
+  'best-ai-agents-for-business': {
+    matrix: [
+      { label: 'Memory depth', prymal: 'Core buying criterion', other: 'Often under-developed' },
+      { label: 'Governance', prymal: 'Operator and trust boundaries matter', other: 'Frequently treated as secondary' },
+      { label: 'Workflow fitness', prymal: 'Critical for repeatable value', other: 'Sometimes not central' },
+      { label: 'Team usability', prymal: 'Shared context and collaboration are key', other: 'Can be overly solo-user oriented' },
+    ],
+  },
+};
+
+COMPARISON_PAGES.forEach((page) => {
+  const enhancement = COMPARISON_PAGE_ENHANCEMENTS[page.slug] ?? {};
+  Object.assign(page, enhancement, {
+    ogImage: enhancement.ogImage ?? PUBLIC_OG_DEFAULTS.compare.image,
+    ogImageAlt: enhancement.ogImageAlt ?? `${page.title} editorial comparison cover for Prymal.`,
+  });
+});

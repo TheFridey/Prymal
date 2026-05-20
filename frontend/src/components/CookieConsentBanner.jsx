@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 
 const CONSENT_KEY = 'cookie_consent';
@@ -41,7 +42,11 @@ export default function CookieConsentBanner() {
     return null;
   }
 
-  return (
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  return createPortal(
     <div className="cookie-banner" role="region" aria-label="Cookie consent">
       <p className="cookie-banner__text">
         We use essential cookies for authentication.{' '}
@@ -55,6 +60,7 @@ export default function CookieConsentBanner() {
       >
         Accept
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }

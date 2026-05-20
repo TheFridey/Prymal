@@ -6,7 +6,17 @@ import { AgentAvatar, BrandMark, Button, ThemeToggle } from './ui';
 
 export const SITE_URL = 'https://prymal.io';
 
-export function PageMeta({ title, description, canonicalPath, ogType = 'website', twitterCard = 'summary_large_image' }) {
+export function PageMeta({
+  title,
+  description,
+  canonicalPath,
+  ogType = 'website',
+  twitterCard = 'summary_large_image',
+  ogImage,
+  ogImageAlt,
+  ogImageWidth = '1200',
+  ogImageHeight = '630',
+}) {
   useEffect(() => {
     if (title) {
       document.title = title;
@@ -36,6 +46,7 @@ export function PageMeta({ title, description, canonicalPath, ogType = 'website'
     }
 
     setMeta('meta[property="og:type"]', ogType);
+    setMeta('meta[property="og:site_name"]', 'Prymal');
     setMeta('meta[name="twitter:card"]', twitterCard);
 
     if (canonicalPath) {
@@ -51,11 +62,22 @@ export function PageMeta({ title, description, canonicalPath, ogType = 'website'
       link.setAttribute('href', canonicalUrl);
     }
 
+    if (ogImage) {
+      setMeta('meta[property="og:image"]', ogImage);
+      setMeta('meta[name="twitter:image"]', ogImage);
+      setMeta('meta[property="og:image:width"]', String(ogImageWidth));
+      setMeta('meta[property="og:image:height"]', String(ogImageHeight));
+      if (ogImageAlt) {
+        setMeta('meta[property="og:image:alt"]', ogImageAlt);
+        setMeta('meta[name="twitter:image:alt"]', ogImageAlt);
+      }
+    }
+
     return () => {
       // Restore defaults on unmount
       document.title = 'Prymal | AI-Powered Team';
     };
-  }, [title, description, canonicalPath, ogType, twitterCard]);
+  }, [title, description, canonicalPath, ogType, twitterCard, ogImage, ogImageAlt, ogImageWidth, ogImageHeight]);
 
   return null;
 }

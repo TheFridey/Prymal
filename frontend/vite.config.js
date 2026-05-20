@@ -21,7 +21,7 @@ export default defineConfig({
     modulePreload: {
       resolveDependencies(_, dependencies) {
         return dependencies.filter(
-          (dependency) => !/vendor-three|vendor-workflow|app-workflow-builder/i.test(dependency),
+          (dependency) => !/vendor-three|vendor-three-core|vendor-three-fiber|vendor-three-drei|vendor-workflow|app-workflow-builder/i.test(dependency),
         );
       },
     },
@@ -51,8 +51,14 @@ export default defineConfig({
           if (id.includes('node_modules/gsap')) {
             return 'vendor-gsap';
           }
-          if (id.includes('node_modules/three') || id.includes('node_modules/@react-three/')) {
-            return 'vendor-three';
+          if (id.includes('node_modules/@react-three/drei')) {
+            return 'vendor-three-drei';
+          }
+          if (id.includes('node_modules/@react-three/fiber')) {
+            return 'vendor-three-fiber';
+          }
+          if (id.includes('node_modules/three')) {
+            return 'vendor-three-core';
           }
           if (
             id.includes('node_modules/react-markdown')

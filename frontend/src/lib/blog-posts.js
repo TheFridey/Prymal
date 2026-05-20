@@ -1218,8 +1218,95 @@ export const BLOG_POSTS = [
   }),
 ];
 
+const BLOG_READING_PATHS = [
+  {
+    slug: 'start-here',
+    eyebrow: 'Start here',
+    title: 'Understand the operating-system category first',
+    description: 'Begin with the category lens, then move into agents, memory, and workflows in order.',
+    chips: ['Category fit', 'Execution-first AI', 'Operating model'],
+    to: '/blog/what-is-an-ai-operating-system-for-business',
+  },
+  {
+    slug: 'for-agencies',
+    eyebrow: 'For agencies',
+    title: 'See how shared context scales delivery',
+    description: 'Follow the path for agencies that need content, reporting, onboarding, and repeatable client execution.',
+    chips: ['Agency operations', 'Client delivery', 'Shared context'],
+    to: '/blog/how-agencies-can-use-ai-agents-to-scale-client-delivery',
+  },
+  {
+    slug: 'secure-ai',
+    eyebrow: 'For secure AI adoption',
+    title: 'Start with trust, boundaries, and controls',
+    description: 'Use the trust-first path for buyers thinking about governance, approvals, evidence, and readiness.',
+    chips: ['Trust', 'Governance', 'Readiness'],
+    to: '/blog/how-to-use-ai-safely-in-a-business',
+  },
+  {
+    slug: 'workflow-automation',
+    eyebrow: 'For workflow automation',
+    title: 'Map how AI turns into repeatable execution',
+    description: 'Follow the workflow path if your team cares about coordination, approvals, and reusable operating rhythm.',
+    chips: ['Workflow execution', 'Approvals', 'Replay paths'],
+    to: '/blog/ai-workflow-automation-a-practical-guide-for-growing-teams',
+  },
+];
+
+const BLOG_ENHANCEMENTS = {
+  'what-is-an-ai-operating-system-for-business': {
+    featured: true,
+    keyTakeaway: 'The category matters once AI needs continuity, memory, workflows, and governance.',
+    prymalLens: 'Prymal treats the operating-system layer as the coordination surface between specialist agents, shared business memory, workflow execution, and trust boundaries.',
+  },
+  'ai-agents-for-small-businesses-what-they-can-actually-do': {
+    keyTakeaway: 'Small businesses gain the most when agents remove repeated execution scaffolding, not when they only add novelty.',
+    prymalLens: 'The useful lens is not “how many bots can I add?” but “which recurring work deserves shared context and specialist execution?”',
+  },
+  'why-business-ai-needs-memory-not-just-prompts': {
+    keyTakeaway: 'Shared memory turns AI from a fresh-start drafting tool into a durable business system.',
+    prymalLens: 'Global Context, Agent Context, and Project Context make the workspace feel like one coordinated operating layer instead of isolated chats.',
+  },
+  'how-to-use-ai-safely-in-a-business': {
+    keyTakeaway: 'Safe adoption depends on boundaries, visibility, approvals, and honest readiness language.',
+    prymalLens: 'Prymal keeps trust visible through WARDEN, SENTINEL, memory controls, and deployment discipline rather than marketing reassurance alone.',
+  },
+  'ai-workflow-automation-a-practical-guide-for-growing-teams': {
+    keyTakeaway: 'Workflow automation compounds value when AI participates inside repeatable, reviewable business paths.',
+    prymalLens: 'Prymal treats workflows as governed execution paths that carry context, approvals, and specialist work between stages.',
+  },
+  'the-difference-between-ai-chatbots-and-ai-agents': {
+    keyTakeaway: 'The biggest difference is not personality, but structure around roles, context, tools, and execution.',
+    prymalLens: 'Prymal positions specialist agents as part of one operating system, not as isolated personalities competing for the same prompt thread.',
+  },
+  'how-agencies-can-use-ai-agents-to-scale-client-delivery': {
+    keyTakeaway: 'Agencies scale better when AI strengthens delivery systems without flattening creative and commercial judgment.',
+    prymalLens: 'Shared memory and project-aware execution help agencies keep quality high while reducing repeated setup work around every client lane.',
+  },
+  'building-trust-in-ai-automation': {
+    keyTakeaway: 'Trust becomes durable when automation is legible, reviewable, and bounded by real controls.',
+    prymalLens: 'Prymal keeps normal-user surfaces simple while preserving richer operator visibility where investigation and governance matter.',
+  },
+};
+
+BLOG_POSTS.forEach((post) => {
+  const enhancement = BLOG_ENHANCEMENTS[post.slug] ?? {};
+  Object.assign(post, enhancement, {
+    ogImage: enhancement.ogImage ?? post.heroImage ?? null,
+    ogImageAlt: enhancement.ogImageAlt ?? `Editorial cover for ${post.title}`,
+  });
+});
+
 export function getBlogPostWordFloor() {
   return BLOG_WORD_FLOOR;
+}
+
+export function getBlogCategories() {
+  return ['All', ...new Set(BLOG_POSTS.map((post) => post.category))];
+}
+
+export function getBlogReadingPaths() {
+  return BLOG_READING_PATHS;
 }
 
 export function getBlogPostBySlug(slug) {

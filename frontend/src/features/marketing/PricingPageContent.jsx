@@ -519,7 +519,7 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         </div>
       </section>
 
-      <section className="pricing-explainer" aria-labelledby="usage-packs-heading">
+      <section className="pricing-explainer pricing-explainer--packs" aria-labelledby="usage-packs-heading">
         <h2 id="usage-packs-heading" className="pricing-section-title" style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
           Usage packs
         </h2>
