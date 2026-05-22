@@ -2,9 +2,17 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { AGENT_LIBRARY } from '../lib/constants';
+import {
+  DEFAULT_OG_IMAGE_ALT,
+  SITE_NAME,
+  SITE_URL,
+  TWITTER_SITE,
+  resolveOgImage,
+} from '../lib/seo';
 import { AgentAvatar, BrandMark, Button, ThemeToggle } from './ui';
+import { PublicCtaLink } from './PublicCta';
 
-export const SITE_URL = 'https://prymal.io';
+export { SITE_URL };
 
 export function PageMeta({
   title,
@@ -13,16 +21,20 @@ export function PageMeta({
   ogType = 'website',
   twitterCard = 'summary_large_image',
   ogImage,
-  ogImageAlt,
+  ogImageAlt = DEFAULT_OG_IMAGE_ALT,
   ogImageWidth = '1200',
   ogImageHeight = '630',
+  robots = 'index,follow',
 }) {
+  const resolvedOgImage = resolveOgImage(ogImage);
+
   useEffect(() => {
     if (title) {
       document.title = title;
     }
 
     const setMeta = (selector, value) => {
+      if (!value) return;
       let el = document.querySelector(selector);
       if (!el) {
         el = document.createElement('meta');
@@ -46,38 +58,44 @@ export function PageMeta({
     }
 
     setMeta('meta[property="og:type"]', ogType);
-    setMeta('meta[property="og:site_name"]', 'Prymal');
+    setMeta('meta[property="og:site_name"]', SITE_NAME);
     setMeta('meta[name="twitter:card"]', twitterCard);
+    setMeta('meta[name="twitter:site"]', TWITTER_SITE);
+    setMeta('meta[name="robots"]', robots);
 
-    if (canonicalPath) {
-      const canonicalUrl = `${SITE_URL}${canonicalPath}`;
-      setMeta('meta[property="og:url"]', canonicalUrl);
+    const canonicalUrl = canonicalPath ? `${SITE_URL}${canonicalPath}` : SITE_URL;
+    setMeta('meta[property="og:url"]', canonicalUrl);
 
-      let link = document.querySelector('link[rel="canonical"]');
-      if (!link) {
-        link = document.createElement('link');
-        link.setAttribute('rel', 'canonical');
-        document.head.appendChild(link);
-      }
-      link.setAttribute('href', canonicalUrl);
+    let link = document.querySelector('link[rel="canonical"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.setAttribute('rel', 'canonical');
+      document.head.appendChild(link);
     }
+    link.setAttribute('href', canonicalUrl);
 
-    if (ogImage) {
-      setMeta('meta[property="og:image"]', ogImage);
-      setMeta('meta[name="twitter:image"]', ogImage);
-      setMeta('meta[property="og:image:width"]', String(ogImageWidth));
-      setMeta('meta[property="og:image:height"]', String(ogImageHeight));
-      if (ogImageAlt) {
-        setMeta('meta[property="og:image:alt"]', ogImageAlt);
-        setMeta('meta[name="twitter:image:alt"]', ogImageAlt);
-      }
-    }
+    setMeta('meta[property="og:image"]', resolvedOgImage);
+    setMeta('meta[name="twitter:image"]', resolvedOgImage);
+    setMeta('meta[property="og:image:width"]', String(ogImageWidth));
+    setMeta('meta[property="og:image:height"]', String(ogImageHeight));
+    setMeta('meta[property="og:image:alt"]', ogImageAlt);
+    setMeta('meta[name="twitter:image:alt"]', ogImageAlt);
 
     return () => {
-      // Restore defaults on unmount
-      document.title = 'Prymal | AI-Powered Team';
+      document.title = `${SITE_NAME} | AI operating system for business execution`;
     };
-  }, [title, description, canonicalPath, ogType, twitterCard, ogImage, ogImageAlt, ogImageWidth, ogImageHeight]);
+  }, [
+    title,
+    description,
+    canonicalPath,
+    ogType,
+    twitterCard,
+    resolvedOgImage,
+    ogImageAlt,
+    ogImageWidth,
+    ogImageHeight,
+    robots,
+  ]);
 
   return null;
 }
@@ -154,7 +172,7 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
             Pricing
           </Link>
           <Link className={`marketing-link${pathname === '/trust' ? ' is-active' : ''}`} to="/trust">
-            Trust
+            Trust Centre
           </Link>
           <Link className={`marketing-link${pathname === '/changelog' ? ' is-active' : ''}`} to="/changelog">
             Changelog
@@ -183,12 +201,25 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
           <ThemeToggle />
           <SignedOut>
             <Link className="marketing-link" to="/login">Login</Link>
-            <Link to="/signup" onClick={() => fireSignup('nav')}>
+            <PublicCtaLink
+              to="/signup"
+              cta="signup"
+              surface={buildSignupSource(sourcePrefix, 'nav')}
+              intent="convert"
+              onClick={() => fireSignup('nav')}
+            >
               <Button tone="accent">Start free</Button>
-            </Link>
+            </PublicCtaLink>
           </SignedOut>
           <SignedIn>
-            <Link to="/app/dashboard"><Button tone="accent">Open workspace</Button></Link>
+            <PublicCtaLink
+              to="/app/dashboard"
+              cta="open-workspace"
+              surface={buildSignupSource(sourcePrefix, 'nav')}
+              intent="retain"
+            >
+              <Button tone="accent">Open workspace</Button>
+            </PublicCtaLink>
           </SignedIn>
         </div>
 
@@ -255,7 +286,7 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
                 to="/trust"
                 onClick={closeMenu}
               >
-                Trust
+                Trust Centre
               </Link>
               <Link
                 className={`marketing-nav__drawer-link${pathname === '/changelog' ? ' is-active' : ''}`}
@@ -307,14 +338,31 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
                 <Link className="marketing-nav__drawer-secondary" to="/login" onClick={closeMenu}>
                   Log in
                 </Link>
-                <Link to="/signup" onClick={() => fireSignup('menu')} className="marketing-nav__drawer-cta">
+                <PublicCtaLink
+                  to="/signup"
+                  cta="signup"
+                  surface={buildSignupSource(sourcePrefix, 'menu')}
+                  intent="convert"
+                  onClick={() => {
+                    fireSignup('menu');
+                    closeMenu();
+                  }}
+                  className="marketing-nav__drawer-cta"
+                >
                   <Button tone="accent">Get early access</Button>
-                </Link>
+                </PublicCtaLink>
               </SignedOut>
               <SignedIn>
-                <Link to="/app/dashboard" onClick={closeMenu} className="marketing-nav__drawer-cta">
+                <PublicCtaLink
+                  to="/app/dashboard"
+                  cta="open-workspace"
+                  surface={buildSignupSource(sourcePrefix, 'menu')}
+                  intent="retain"
+                  onClick={closeMenu}
+                  className="marketing-nav__drawer-cta"
+                >
                   <Button tone="accent">Open workspace</Button>
-                </Link>
+                </PublicCtaLink>
               </SignedIn>
             </div>
           </div>
@@ -345,10 +393,18 @@ export function PublicPageFooter({ sourcePrefix = '', onSignupClick = () => {} }
         </div>
         <div className="prymal-footer__column">
           <span className="prymal-footer__label">Product</span>
-          <Link to="/trust">Trust</Link>
+          <Link to="/trust">Trust Centre</Link>
           <Link to="/pricing">Pricing</Link>
           <Link to="/changelog">Changelog</Link>
-          <Link to="/signup" onClick={() => fireSignup('footer')}>Get early access</Link>
+          <PublicCtaLink
+            to="/signup"
+            cta="signup"
+            surface={buildSignupSource(sourcePrefix, 'footer')}
+            intent="convert"
+            onClick={() => fireSignup('footer')}
+          >
+            Get early access
+          </PublicCtaLink>
         </div>
         <div className="prymal-footer__column">
           <span className="prymal-footer__label">Legal</span>

@@ -3853,6 +3853,15 @@ textarea {
   place-items: center;
 }
 
+.workspace-studio__ghost-icon:focus-visible,
+.workspace-studio__mini-action:focus-visible,
+.workspace-studio__agent-pill:focus-visible,
+.workspace-studio__command-item:focus-visible,
+.workspace-studio__action-chip:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--studio-accent) 70%, white);
+  outline-offset: 2px;
+}
+
 .workspace-studio__ghost-icon:hover,
 .workspace-studio__mini-action:hover,
 .workspace-studio__mini-action.is-active {
@@ -4590,29 +4599,71 @@ textarea {
   position: relative;
   display: inline-flex;
   flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+}
+
+.workspace-studio__attachment-preview {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+  background: color-mix(in srgb, var(--studio-accent) 6%, var(--panel-soft));
 }
 
 .workspace-studio__attachment-image-remove {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 18px;
-  height: 18px;
+  top: -10px;
+  right: -10px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: transparent;
+  border: none;
   cursor: pointer;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   color: var(--muted);
   padding: 0;
   line-height: 1;
 }
 
-.workspace-studio__attachment-image-remove:hover {
+.workspace-studio__attachment-image-remove span {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+}
+
+.workspace-studio__attachment-image-remove:hover span,
+.workspace-studio__attachment-image-remove:focus-visible span {
   color: var(--text-strong);
+  border-color: color-mix(in srgb, var(--studio-accent) 28%, var(--line));
+}
+
+.workspace-studio__attachment-chip button,
+.workspace-studio__attachment-chip-remove {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.7rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+
+.workspace-studio__file-input {
+  display: none;
 }
 
 .workspace-studio__composer-field {
@@ -4645,6 +4696,9 @@ textarea {
   box-shadow: 0 20px 44px color-mix(in srgb, var(--studio-accent) 10%, rgba(8, 13, 24, 0.14));
   backdrop-filter: blur(16px);
   z-index: 8;
+  max-height: min(280px, 42vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .workspace-studio__command-item {
@@ -4733,6 +4787,29 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .workspace-studio__composer--first-run::before {
     animation: none;
+  }
+
+  .workspace-studio__hero-avatar,
+  .workspace-studio__main-avatar,
+  .workspace-studio__voice-status.is-live .workspace-studio__voice-dot {
+    animation: none !important;
+  }
+
+  .workspace-studio__agent-pill,
+  .workspace-studio__command-item,
+  .workspace-studio__mini-action,
+  .workspace-studio__ghost-icon,
+  .workspace-studio__action-chip {
+    transition: none !important;
+  }
+
+  .workspace-studio__agent-pill:hover,
+  .workspace-studio__agent-pill.is-active,
+  .workspace-studio__command-item:hover,
+  .workspace-studio__command-item.is-active,
+  .workspace-studio__mini-action:hover,
+  .workspace-studio__ghost-icon:hover {
+    transform: none !important;
   }
 }
 

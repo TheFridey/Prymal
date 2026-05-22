@@ -2910,20 +2910,20 @@
 }
 
 .app-main--studio:has(.workspace-studio--agents) {
-  height: 100vh !important;
-  min-height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
   overflow: hidden !important;
   padding: 0 !important;
 }
 
 .workspace-studio--agents {
-  height: 100vh;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
 }
 
 .workspace-studio--agents .workspace-studio__shell {
   gap: 0 !important;
-  min-height: 100vh;
+  min-height: 100dvh;
   border-radius: 0 !important;
   grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) !important;
 }
@@ -2932,8 +2932,8 @@
 .workspace-studio--agents .agent-chat-sidebar {
   display: flex !important;
   flex-direction: column !important;
-  min-height: 100vh !important;
-  height: 100vh !important;
+  min-height: 100dvh !important;
+  height: 100dvh !important;
   padding: 20px 16px 16px !important;
   gap: 14px !important;
   border-radius: 0 !important;
@@ -3095,12 +3095,17 @@
   border-radius: 18px !important;
 }
 
+.agent-chat-sidebar .workspace-studio__mini-action {
+  min-width: 44px;
+  min-height: 44px;
+}
+
 /* Chat pane */
 .workspace-studio--agents .workspace-studio__chat-pane {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
   overflow: hidden;
   background:
     radial-gradient(circle at 50% -8%, color-mix(in srgb, var(--studio-accent) 8%, transparent), transparent 40%),
@@ -3377,7 +3382,11 @@
 /* Footer / composer */
 .workspace-studio--agents .workspace-studio__chat-footer {
   flex-shrink: 0;
-  padding: 0 24px 14px;
+  padding:
+    0
+    max(24px, env(safe-area-inset-right))
+    max(14px, env(safe-area-inset-bottom))
+    max(24px, env(safe-area-inset-left));
   border-top: 1px solid color-mix(in srgb, var(--studio-accent) 12%, var(--line));
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
@@ -3396,6 +3405,11 @@
   display: flex;
   align-items: flex-end;
   gap: 10px;
+  flex-wrap: nowrap;
+}
+
+.workspace-studio--agents .workspace-studio__composer-row .workspace-studio__composer-send {
+  min-width: 44px;
 }
 
 .workspace-studio--agents .workspace-studio__composer-row .workspace-studio__composer-field {
@@ -3487,7 +3501,85 @@
   }
 
   .workspace-studio--agents .workspace-studio__composer-row {
-    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .workspace-studio--agents .workspace-studio__composer--inline .workspace-studio__composer-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .agent-chat-sidebar__history {
+    max-height: min(42svh, 320px);
+  }
+}
+
+@media (max-width: 768px) {
+  .workspace-studio--agents .workspace-studio__shell {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .workspace-studio--agents .agent-chat-sidebar {
+    padding: 14px 12px max(12px, env(safe-area-inset-bottom)) !important;
+    gap: 10px !important;
+  }
+
+  .workspace-studio__agent-pill {
+    width: 52px;
+    height: 52px;
+  }
+
+  .agent-chat-sidebar__agents {
+    padding-inline: max(8px, env(safe-area-inset-left)) !important;
+  }
+}
+
+@media (max-width: 414px) {
+  .workspace-studio--agents .workspace-studio__chat-header,
+  .workspace-studio--agents .workspace-studio__chat-footer,
+  .workspace-studio--agents .workspace-studio__messages,
+  .workspace-studio--agents .workspace-studio__first-run-hint,
+  .workspace-studio--agents .workspace-studio__prompt-row {
+    padding-inline: max(12px, env(safe-area-inset-left)) !important;
+    padding-right: max(12px, env(safe-area-inset-right)) !important;
+  }
+
+  .workspace-studio--agents .workspace-studio__composer-send {
+    padding: 0 14px !important;
+  }
+}
+
+@media (max-width: 375px) {
+  .agent-chat-sidebar .workspace-studio__agent-name {
+    font-size: 1rem !important;
+  }
+
+  .workspace-studio__agent-strip-shell {
+    padding: 8px !important;
+  }
+}
+
+@media (max-width: 320px) {
+  .workspace-studio__agent-pill {
+    width: 48px;
+    height: 48px;
+  }
+
+  .workspace-studio--agents .workspace-studio__composer-row {
+    gap: 6px;
+  }
+
+  .workspace-studio--agents .workspace-studio__composer--inline .field--textarea {
+    font-size: 0.88rem !important;
+    padding-inline: 12px !important;
+  }
+}
+
+@media (hover: none) {
+  .workspace-studio__agent-pill:hover {
+    transform: none;
+    box-shadow: none;
   }
 }
 

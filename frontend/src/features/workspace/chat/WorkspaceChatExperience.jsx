@@ -461,6 +461,12 @@ export default function WorkspaceChatExperience({
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       setCommandIndex((c) => (c - 1 + filteredCommands.length) % filteredCommands.length);
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      setCommandIndex(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      setCommandIndex(filteredCommands.length - 1);
     } else if (event.key === 'Enter') {
       event.preventDefault();
       applySlashCommand(filteredCommands[commandIndex] ?? filteredCommands[0]);
@@ -468,6 +474,11 @@ export default function WorkspaceChatExperience({
       event.preventDefault();
       setCommandMenuOpen(false);
       setCommandFilter('');
+      setCommandIndex(0);
+    } else if (event.key === 'Tab') {
+      setCommandMenuOpen(false);
+      setCommandFilter('');
+      setCommandIndex(0);
     }
   }
 

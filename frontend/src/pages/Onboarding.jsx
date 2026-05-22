@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { getRecommendedAgentsForWorkspaceProfile } from '../lib/constants';
 import { FIRST_RUN_OUTCOMES } from '../lib/first-run-outcomes';
-import { trackProductEvent } from '../lib/product-events';
+import { trackFirstWinSelected, trackOnboardingStarted } from '../lib/analytics';
 import { getRecommendedWorkflowTemplateForProfile } from '../lib/workflow-templates';
 import { getErrorMessage } from '../lib/utils';
 import { BrandMark, Button, InlineNotice, TextInput, ThemeToggle } from '../components/ui';
@@ -122,6 +122,10 @@ export default function Onboarding() {
   const canContinueStepOne = inviteToken || orgName.trim().length >= 2;
   const progressPercent = Math.round((step / totalSteps) * 100);
 
+  useEffect(() => {
+    trackOnboardingStarted({ surface: 'onboarding', step: inviteToken ? 2 : 1 });
+  }, [inviteToken]);
+
   const onboardMutation = useMutation({
     mutationFn: (payload) => api.post('/auth/onboard', payload),
     onSuccess: async (result) => {
@@ -130,10 +134,10 @@ export default function Onboarding() {
       sessionStorage.removeItem('prymal_start_redirect');
       await queryClient.invalidateQueries({ queryKey: ['viewer'] });
       const selectedOutcome = FIRST_RUN_OUTCOMES.find((outcome) => outcome.id === firstRunOutcomeId) ?? FIRST_RUN_OUTCOMES[0];
-      void trackProductEvent('first_run_outcome_selected', {
+      trackFirstWinSelected({
         outcome_id: selectedOutcome.id,
         recommended_agent_id: selectedOutcome.recommendedAgentId,
-        surface: 'onboarding',
+        surface: 'onboarding_complete',
       });
       notify({
         type: 'success',
@@ -297,7 +301,14 @@ export default function Onboarding() {
                     <button
                       key={outcome.id}
                       type="button"
-                      onClick={() => setFirstRunOutcomeId(outcome.id)}
+                      onClick={() => {
+                        setFirstRunOutcomeId(outcome.id);
+                        trackFirstWinSelected({
+                          outcome_id: outcome.id,
+                          recommended_agent_id: outcome.recommendedAgentId,
+                          surface: 'onboarding_picker',
+                        });
+                      }}
                       className={`pm-onboarding__option${firstRunOutcomeId === outcome.id ? ' pm-onboarding__option--selected' : ''}`}
                     >
                       <div className="pm-onboarding__option-label">{outcome.title}</div>

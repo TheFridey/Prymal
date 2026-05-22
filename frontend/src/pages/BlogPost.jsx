@@ -4,13 +4,18 @@ import { PageShell } from '../components/ui';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import {
   FAQSection,
-  LinkCardGrid,
   ResourceCta,
   buildArticleSchema,
   buildBreadcrumbSchema,
 } from '../components/PublicContent';
 import { BLOG_POSTS, getBlogPostBySlug } from '../lib/blog-posts';
-import { getComparisonPageBySlug, getFeaturePageBySlug } from '../lib/site-content';
+import { BLOG_AUTHOR, getBlogConversionConfig } from '../lib/blog-conversion';
+import { BlogConversionStrip } from '../features/marketing/blog/BlogCta';
+import { BlogFounderNote } from '../features/marketing/blog/BlogFounderNote';
+import { BlogInternalLinks } from '../features/marketing/blog/BlogInternalLinks';
+import { BlogLeadMagnet } from '../features/marketing/blog/BlogLeadMagnet';
+import { BlogNextAction } from '../features/marketing/blog/BlogNextAction';
+import { BlogRelatedReading } from '../features/marketing/blog/BlogRelatedReading';
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
 
@@ -90,42 +95,12 @@ export default function BlogPost() {
     return <Navigate to="/blog" replace />;
   }
 
+  const conversion = getBlogConversionConfig(post);
+
   const sectionAnchors = post.sections.map((section) => ({
     id: slugifyHeading(section.heading),
     title: section.heading,
   }));
-
-  const relatedItems = [
-    ...(post.relatedFeatures ?? []).map((featureSlug) => {
-      const feature = getFeaturePageBySlug(featureSlug);
-      return feature
-        ? {
-            to: `/features/${feature.slug}`,
-            title: feature.title,
-            description: feature.answer,
-          }
-        : null;
-    }),
-    ...(post.relatedComparisons ?? []).map((compareSlug) => {
-      const comparison = getComparisonPageBySlug(compareSlug);
-      return comparison
-        ? {
-            to: `/compare/${comparison.slug}`,
-            title: comparison.title,
-            description: comparison.answer,
-          }
-        : null;
-    }),
-  ].filter(Boolean);
-
-  const relatedPosts = BLOG_POSTS.filter((entry) => entry.slug !== post.slug)
-    .filter((entry) => entry.category === post.category || entry.tags.some((tag) => post.tags.includes(tag)))
-    .slice(0, 3)
-    .map((entry) => ({
-      to: `/blog/${entry.slug}`,
-      title: entry.title,
-      description: entry.answer,
-    }));
 
   const insertIndex = Math.max(1, Math.floor(post.sections.length * 0.35));
 
@@ -148,6 +123,12 @@ export default function BlogPost() {
           datePublished: post.publishedAt,
           dateModified: post.updatedAt,
           keywords: post.tags,
+          image: post.ogImage ?? post.heroImage,
+          wordCount: post.wordCount,
+          authorName: BLOG_AUTHOR.name,
+          authorType: 'Person',
+          authorJobTitle: BLOG_AUTHOR.jobTitle,
+          authorUrl: BLOG_AUTHOR.url,
         })}
       />
       <JsonLd
@@ -184,10 +165,7 @@ export default function BlogPost() {
                   <div className="public-answer-block__eyebrow">Short answer</div>
                   <p>{post.answer}</p>
                 </div>
-                <div className="public-content-hero__actions">
-                  <Link to="/pricing" className="pm-btn pm-btn--primary">Join early access</Link>
-                  <Link to="/features" className="pm-btn pm-btn--ghost">Explore features</Link>
-                </div>
+                <BlogConversionStrip slug={post.slug} conversion={conversion} />
               </div>
               <BlogVisual hero={post.hero} image={post.heroImage} title={post.title} />
             </header>
@@ -206,6 +184,8 @@ export default function BlogPost() {
                 </article>
               ))}
             </section>
+
+            <BlogInternalLinks post={post} />
 
             <div className="public-blog-layout">
               <aside className="public-blog-sidebar">
@@ -227,6 +207,7 @@ export default function BlogPost() {
                   <p>{post.prymalLens}</p>
                 </section>
 
+                <BlogLeadMagnet slug={post.slug} />
                 <ResourceLinks title="Relevant Prymal pages" items={post.inboundLinks} />
                 <ResourceLinks title="Neutral external references" items={post.outboundLinks} external />
               </aside>
@@ -251,11 +232,8 @@ export default function BlogPost() {
                       <div className="public-blog-inline-cta">
                         <div className="public-section-block__eyebrow">Apply this live</div>
                         <strong>Move from category understanding into a working Prymal workspace.</strong>
-                        <p>Use the feature pages and trust layer to translate the ideas from this guide into real operating structure.</p>
-                        <div className="public-content-hero__actions">
-                          <Link to="/signup" className="pm-btn pm-btn--primary">Get early access</Link>
-                          <Link to="/compare" className="pm-btn pm-btn--ghost">Compare categories</Link>
-                        </div>
+                        <p>Use the feature pages, workflow templates, and trust layer to translate this guide into repeatable execution.</p>
+                        <BlogConversionStrip slug={post.slug} conversion={conversion} compact />
                       </div>
                     ) : null}
                   </Fragment>
@@ -263,33 +241,25 @@ export default function BlogPost() {
               </article>
             </div>
 
+            <BlogFounderNote
+              note={conversion.founderNote}
+              publishedAt={post.publishedAt}
+              updatedAt={post.updatedAt}
+            />
+
             <FAQSection
               title={`${post.title} FAQ`}
               items={post.faq}
               schemaId={`schema-blog-faq-${post.slug}`}
             />
 
-            {relatedItems.length ? (
-              <section className="public-blog-resource-panel">
-                <div className="public-section-block__eyebrow">Related product pages</div>
-                <h2>Go deeper into the operating layer</h2>
-                <LinkCardGrid items={relatedItems} />
-              </section>
-            ) : null}
-
-            {relatedPosts.length ? (
-              <section className="public-blog-resource-panel">
-                <div className="public-section-block__eyebrow">Keep reading</div>
-                <h2>More articles from the Prymal blog</h2>
-                <LinkCardGrid items={relatedPosts} />
-              </section>
-            ) : null}
+            <BlogRelatedReading post={post} />
+            <BlogNextAction slug={post.slug} conversion={conversion} />
 
             <ResourceCta
               title="Want to apply this inside a real workspace?"
               description="Prymal is designed for teams that need AI to work from shared business context, current initiatives, and reviewable execution paths instead of isolated prompt sessions."
-              primary={<Link to="/signup" className="pm-btn pm-btn--primary">Get early access</Link>}
-              secondary={<Link to="/compare" className="pm-btn pm-btn--ghost">Compare categories</Link>}
+              primary={<BlogConversionStrip slug={post.slug} conversion={conversion} compact />}
             />
           </div>
         </PageShell>

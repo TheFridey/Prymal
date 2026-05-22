@@ -14,7 +14,9 @@ import AppLayout from './components/AppLayout';
 import { BrandMark, Button, InlineNotice, LoadingPanel, ThemeToggle } from './components/ui';
 import { MotionPage, MotionPresence } from './components/motion';
 import { ThemeProvider, getClerkAppearance, useTheme } from './components/theme';
+import { AnalyticsPageView } from './components/AnalyticsPageView';
 import { api, configureApi } from './lib/api';
+import { trackSignupStarted } from './lib/analytics';
 import { lazyWithRetry } from './lib/lazyWithRetry';
 import { useAppStore } from './stores/useAppStore';
 
@@ -172,6 +174,7 @@ function AppRoutes() {
 
   return (
     <ErrorBoundary label="Application">
+      <AnalyticsPageView />
       <MotionPresence mode="wait" initial={false}>
         <Routes location={location} key={routeKey}>
           <Route
@@ -249,6 +252,18 @@ function LazyPage({ label, children }) {
 function AuthPage({ mode }) {
   const location = useLocation();
   const onboardingUrl = resolveSignupOnboardingUrl(location.search);
+
+  useEffect(() => {
+    if (mode !== 'sign-up') {
+      return;
+    }
+
+    const offer = new URLSearchParams(location.search).get('offer')?.trim();
+    trackSignupStarted({
+      surface: 'signup_page',
+      ...(offer ? { offer } : {}),
+    });
+  }, [location.search, mode]);
   const panel =
     mode === 'sign-up' ? (
       <>
@@ -258,6 +273,8 @@ function AuthPage({ mode }) {
           <Link to="/terms" style={{ color: 'var(--accent, #00FFD1)', textDecoration: 'none' }}>Terms of Service</Link>
           {' '}and{' '}
           <Link to="/privacy" style={{ color: 'var(--accent, #00FFD1)', textDecoration: 'none' }}>Privacy Policy</Link>.
+          {' '}Review how Prymal handles safety and data in the{' '}
+          <Link to="/trust" style={{ color: 'var(--accent, #00FFD1)', textDecoration: 'none' }}>Trust Centre</Link>.
         </p>
       </>
     ) : (

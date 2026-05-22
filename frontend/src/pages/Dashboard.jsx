@@ -22,6 +22,7 @@ import {
   readFirstWinState,
   writeFirstWinState,
 } from '../lib/first-run-outcomes';
+import { trackFirstWinSelected, trackWorkflowTemplateOpened } from '../lib/analytics';
 import { trackProductEvent } from '../lib/product-events';
 import { isInternalDiagnosticsVisible } from '../lib/diagnostics';
 
@@ -430,6 +431,11 @@ export default function Dashboard() {
 
   const handleOpenWorkflowTemplate = useCallback(
     (template) => {
+      trackWorkflowTemplateOpened({
+        template_slug: template.slug,
+        surface: 'dashboard',
+        action: 'open_builder',
+      });
       navigate(`/app/workflows?view=builder&template=${encodeURIComponent(template.slug)}`);
     },
     [navigate],
@@ -443,10 +449,11 @@ export default function Dashboard() {
         recommendedAgentId: outcome.recommendedAgentId,
       });
       setFirstWinState(nextState);
-      void trackProductEvent('first_run_outcome_selected', {
+      trackFirstWinSelected({
         outcome_id: outcome.id,
         recommended_agent_id: outcome.recommendedAgentId,
         credit_intensity: outcome.creditIntensity,
+        surface: 'dashboard_first_run',
       });
       void trackProductEvent('credit_estimate_shown', {
         surface: 'dashboard_first_run',

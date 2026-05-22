@@ -79,8 +79,8 @@ export default function Blog() {
   return (
     <div className="marketing-page prymal-marketing pm-page">
       <PageMeta
-        title="Blog - Prymal"
-        description="Detailed guides on AI operating systems, business memory, AI agents, workflow automation, trust, and business-ready execution."
+        title={PUBLIC_OG_DEFAULTS.blog.title}
+        description={PUBLIC_OG_DEFAULTS.blog.description}
         canonicalPath="/blog"
         ogImage={PUBLIC_OG_DEFAULTS.blog.image}
         ogImageAlt={PUBLIC_OG_DEFAULTS.blog.imageAlt}

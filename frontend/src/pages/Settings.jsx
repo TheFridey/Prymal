@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useClerk, useUser } from '@clerk/clerk-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
+import { trackCheckoutStarted } from '../lib/analytics';
 import { api } from '../lib/api';
 import { getWorkspacePlanMeta } from '../lib/constants';
 import { getErrorMessage } from '../lib/utils';
@@ -97,6 +98,14 @@ export default function Settings() {
 
   const checkoutMutation = useMutation({
     mutationFn: (payload) => api.post('/billing/checkout', payload),
+    onMutate: (payload) => {
+      trackCheckoutStarted({
+        checkout_type: 'plan',
+        plan_id: payload.plan,
+        interval: payload.interval,
+        surface: 'settings_billing',
+      });
+    },
     onSuccess: (result) => {
       if (result.message) {
         notify({ type: 'info', title: 'Pricing updated', message: result.message });
@@ -135,6 +144,14 @@ export default function Settings() {
 
   const creditPackCheckoutMutation = useMutation({
     mutationFn: (payload) => api.post('/billing/packs/checkout', payload),
+    onMutate: (payload) => {
+      trackCheckoutStarted({
+        checkout_type: 'credit_pack',
+        pack_id: payload.packId,
+        credit_type: payload.creditType,
+        surface: 'settings_billing',
+      });
+    },
     onSuccess: (result) => {
       window.location.href = result.url;
     },

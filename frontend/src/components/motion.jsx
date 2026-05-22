@@ -60,7 +60,7 @@ export function usePrymalReducedMotion() {
     if (forced === 'on') {
       return false;
     }
-    return false;
+    return systemReducedMotion;
   }
   return systemReducedMotion;
 }

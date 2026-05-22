@@ -17,6 +17,10 @@ import {
   getChatUsageGateUserMessage,
   isVideoPaywallCode,
 } from '../../../../lib/usageGateCopy';
+import {
+  trackFirstAgentRunCompleted,
+  trackFirstAgentRunStarted,
+} from '../../../../lib/analytics';
 import { trackProductEvent } from '../../../../lib/product-events';
 import { FIRST_WIN_STATES, writeFirstWinState } from '../../../../lib/first-run-outcomes';
 import { IMAGE_GENERATION_REQUEST_TIMEOUT_MS } from '../media-generation';
@@ -465,6 +469,13 @@ export function useChatSend({
     setDraft('');
     setAttachedFiles([]);
     setStreamingText('');
+    if (isFirstMessage) {
+      trackFirstAgentRunStarted({
+        agent_id: targetAgent.id,
+        outcome_id: firstRunOutcomeId || undefined,
+        surface: 'agent_chat',
+      });
+    }
     setStreamingTask(buildStreamingTask({
       kind: 'chat',
       targetAgent,
@@ -608,6 +619,15 @@ export function useChatSend({
             });
           }
 
+          if (isFirstMessage) {
+            trackFirstAgentRunCompleted({
+              agent_id: targetAgent.id,
+              conversation_id: event.conversationId,
+              message_id: event.messageId,
+              outcome_id: firstRunOutcomeId || undefined,
+            });
+          }
+
           notifyMemoryFeedbackEvents(event.memoryEvents, notify);
 
           if (targetAgent.id === activeAgentRef.current?.id) {
@@ -622,14 +642,6 @@ export function useChatSend({
             queryClient.invalidateQueries({ queryKey: ['billing-stats'] }),
             queryClient.invalidateQueries({ queryKey: ['viewer'] }),
           ]);
-
-          if (
-            isFirstMessage &&
-            typeof window !== 'undefined' &&
-            typeof window.prymalTrack === 'function'
-          ) {
-            window.prymalTrack('agent_first_message_sent', { agent: targetAgent.id });
-          }
 
           if (
             settings.voiceReplies &&

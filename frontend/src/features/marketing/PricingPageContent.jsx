@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
+import { PublicCtaButton, PublicCtaLink } from '../../components/PublicCta';
+import {
+  PLAN_DECISION_HELPERS,
+  PRICING_OBJECTION_CARDS,
+  RECOMMENDED_STARTER_PLAN_ID,
+} from '../../lib/pricing-conversion';
 import {
   TbBolt,
   TbCheck,
@@ -18,6 +24,7 @@ import {
   getPlanPrice,
 } from '../../lib/constants';
 import { shouldShowFoundingPricingUi } from './founding-access';
+import { usePricingPlanImpressions } from './usePricingPlanImpressions';
 
 const PERSONA_LINE = {
   solo: 'For individuals getting started',
@@ -131,6 +138,8 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
   const foundingAccessActive = shouldShowFoundingPricingUi(foundingAccessState);
   const devPricingUnavailable = Boolean(foundingAccessState.offer?.devPricingUnavailable);
 
+  usePricingPlanImpressions(activeInterval.id);
+
   return (
     <>
       <section className="pricing-hero" aria-labelledby="pricing-hero-title">
@@ -148,20 +157,45 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         </p>
         <div className="pricing-hero__ctas">
           <SignedOut>
-            <Link to="/signup" className="button button--accent">
+            <PublicCtaLink
+              to="/signup"
+              cta="signup"
+              surface="pricing-hero"
+              intent="convert"
+              className="button button--accent"
+            >
               Start now
-            </Link>
-            <button type="button" className="pricing-hero__secondary" onClick={scrollToPricingGrid}>
+            </PublicCtaLink>
+            <PublicCtaButton
+              type="button"
+              cta="view-plans"
+              surface="pricing-hero"
+              intent="learn"
+              className="pricing-hero__secondary"
+              onClick={scrollToPricingGrid}
+            >
               View pricing
-            </button>
+            </PublicCtaButton>
           </SignedOut>
           <SignedIn>
-            <Link to="/app/dashboard" className="button button--accent">
+            <PublicCtaLink
+              to="/app/dashboard"
+              cta="open-workspace"
+              surface="pricing-hero"
+              intent="retain"
+              className="button button--accent"
+            >
               Open workspace
-            </Link>
-            <Link to="/app/settings?tab=Billing" className="pricing-hero__secondary">
+            </PublicCtaLink>
+            <PublicCtaLink
+              to="/app/settings?tab=Billing"
+              cta="billing"
+              surface="pricing-hero"
+              intent="upgrade"
+              className="pricing-hero__secondary"
+            >
               Billing &amp; upgrade
-            </Link>
+            </PublicCtaLink>
           </SignedIn>
         </div>
       </section>
@@ -184,9 +218,16 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
               billing portal for your quote).
             </p>
           </div>
-          <button type="button" className="button button--accent" onClick={scrollToPricingGrid}>
+          <PublicCtaButton
+            type="button"
+            cta="claim-founding"
+            surface="pricing-founding-banner"
+            intent="convert"
+            className="button button--accent"
+            onClick={scrollToPricingGrid}
+          >
             Claim Founding Access
-          </button>
+          </PublicCtaButton>
         </section>
       ) : null}
 
@@ -236,6 +277,17 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         </div>
       </div>
 
+      <section className="pricing-decision-guide" aria-labelledby="pricing-decision-heading">
+        <div className="pricing-decision-guide__header">
+          <h2 id="pricing-decision-heading">Choose the lane that matches your operating rhythm</h2>
+          <p>
+            Recommended starter plan:{' '}
+            <strong>{PLAN_LIBRARY.find((plan) => plan.id === RECOMMENDED_STARTER_PLAN_ID)?.name ?? 'Pro'}</strong>
+            {' '}for production weekly work. Use the helpers below to compare fit before checkout.
+          </p>
+        </div>
+      </section>
+
       <p className="pricing-cards-hint">Swipe to compare plans</p>
       <div
         id="pricing-plans"
@@ -248,13 +300,17 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
           const price = getPlanPrice(plan, activeInterval.id);
           const isPro = plan.id === 'pro';
           const planBadge = PLAN_BADGES[plan.id];
+          const helper = PLAN_DECISION_HELPERS[plan.id];
           return (
             <article
               key={plan.id}
-              className={`pricing-card${isPro ? ' pricing-card--pro' : ''}${foundingAccessActive ? ' pricing-card--founding' : ''}`}
+              data-pricing-plan-id={plan.id}
+              className={`pricing-card${isPro ? ' pricing-card--pro' : ''}${foundingAccessActive ? ' pricing-card--founding' : ''}${helper?.recommendedStarter ? ' pricing-card--starter' : ''}`}
               aria-label={`${plan.name} plan`}
             >
-              {planBadge ? (
+              {helper?.recommendedStarter ? (
+                <div className="pricing-card__badge pricing-card__badge--starter">Recommended starter</div>
+              ) : planBadge ? (
                 <div className={`pricing-card__badge${plan.id === 'agency' ? ' pricing-card__badge--scale' : ''}`}>
                   {planBadge}
                 </div>
@@ -320,22 +376,49 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
                     : 'Single-lane execution runs (upgrade for more)'}
                 </li>
               </ul>
+              {helper ? (
+                <dl className="pricing-card__decision">
+                  <div>
+                    <dt>Best for</dt>
+                    <dd>{helper.bestFor}</dd>
+                  </div>
+                  <div>
+                    <dt>Replaces</dt>
+                    <dd>{helper.replaces}</dd>
+                  </div>
+                  <div>
+                    <dt>First win</dt>
+                    <dd>{helper.firstWin}</dd>
+                  </div>
+                  <div>
+                    <dt>Expected usage</dt>
+                    <dd>{helper.expectedUsage}</dd>
+                  </div>
+                </dl>
+              ) : null}
               <div className="pricing-card__cta">
                 <SignedOut>
-                  <Link
+                  <PublicCtaLink
                     to={foundingAccessActive ? '/signup?offer=founding-access' : '/signup'}
+                    cta={foundingAccessActive ? 'claim-founding' : isPro ? 'start-pro' : 'start-plan'}
+                    surface={`pricing-card-${plan.id}`}
+                    intent="convert"
                     className={(isPro || foundingAccessActive) ? 'button button--accent button--block' : 'button button--ghost button--block'}
                   >
                     {foundingAccessActive ? 'Claim Founding Access' : isPro ? 'Start on Pro' : 'Start now'}
-                  </Link>
+                  </PublicCtaLink>
                 </SignedOut>
                 <SignedIn>
-                  <Link
+                  <PublicCtaLink
                     to={foundingAccessActive ? '/app/settings?tab=Billing&offer=founding-access' : '/app/settings?tab=Billing'}
+                    cta={foundingAccessActive ? 'claim-founding' : isPro ? 'upgrade-pro' : 'choose-plan'}
+                    surface={`pricing-card-${plan.id}`}
+                    intent="upgrade"
+                    plan_id={plan.id}
                     className={(isPro || foundingAccessActive) ? 'button button--accent button--block' : 'button button--ghost button--block'}
                   >
                     {foundingAccessActive ? 'Claim Founding Access' : isPro ? 'Upgrade to Pro' : 'Choose plan'}
-                  </Link>
+                  </PublicCtaLink>
                 </SignedIn>
               </div>
             </article>
@@ -559,15 +642,48 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
           </p>
         </div>
         <SignedOut>
-          <Link to="/signup" className="button button--ghost">
+          <PublicCtaLink
+            to="/signup"
+            cta="start-workflow"
+            surface="pricing-scale-simple"
+            intent="convert"
+            className="button button--ghost"
+          >
             Start with one workflow
-          </Link>
+          </PublicCtaLink>
         </SignedOut>
         <SignedIn>
-          <Link to="/app/workflows" className="button button--ghost">
+          <PublicCtaLink
+            to="/app/workflows"
+            cta="start-workflow"
+            surface="pricing-scale-simple"
+            intent="retain"
+            className="button button--ghost"
+          >
             Start with one workflow
-          </Link>
+          </PublicCtaLink>
         </SignedIn>
+      </section>
+
+      <section className="pricing-objections" aria-labelledby="pricing-objections-heading">
+        <div className="pricing-objections__header">
+          <h2 id="pricing-objections-heading">Questions before you choose</h2>
+          <p>
+            Clear answers on fit, credits, trust, cancellation, and plan selection.
+            {' '}
+            <Link to="/trust">Review the Trust Centre</Link>
+            {' '}
+            for safety, data boundaries, and readiness detail.
+          </p>
+        </div>
+        <div className="pricing-objections__grid">
+          {PRICING_OBJECTION_CARDS.map((item) => (
+            <article key={item.id} className="pricing-objections__card">
+              <h3>{item.title}</h3>
+              <p>{item.answer}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="pricing-faq" aria-labelledby="faq-heading">
@@ -585,20 +701,44 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         <p>No jargon, no surprise mechanics — just clear plans and live usage in your workspace.</p>
         <div className="pricing-final-cta__row">
           <SignedOut>
-            <Link to="/signup" className="button button--accent">
+            <PublicCtaLink
+              to="/signup"
+              cta="signup"
+              surface="pricing-final-cta"
+              intent="convert"
+              className="button button--accent"
+            >
               Start free
-            </Link>
-            <Link to="/login" className="button button--ghost">
+            </PublicCtaLink>
+            <PublicCtaLink
+              to="/login"
+              cta="sign-in"
+              surface="pricing-final-cta"
+              intent="retain"
+              className="button button--ghost"
+            >
               Sign in
-            </Link>
+            </PublicCtaLink>
           </SignedOut>
           <SignedIn>
-            <Link to="/app/dashboard" className="button button--accent">
+            <PublicCtaLink
+              to="/app/dashboard"
+              cta="open-workspace"
+              surface="pricing-final-cta"
+              intent="retain"
+              className="button button--accent"
+            >
               Go to workspace
-            </Link>
-            <Link to="/app/settings?tab=Billing" className="button button--ghost">
+            </PublicCtaLink>
+            <PublicCtaLink
+              to="/app/settings?tab=Billing"
+              cta="billing"
+              surface="pricing-final-cta"
+              intent="upgrade"
+              className="button button--ghost"
+            >
               Manage billing
-            </Link>
+            </PublicCtaLink>
           </SignedIn>
         </div>
       </section>

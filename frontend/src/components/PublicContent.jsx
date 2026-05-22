@@ -1,72 +1,20 @@
 import { Link } from 'react-router-dom';
 import { JsonLd } from './PublicPageChrome';
+import { PublicCtaLink } from './PublicCta';
+import {
+  buildArticleSchema,
+  buildBreadcrumbSchema,
+  buildCollectionSchema,
+  buildFaqPageSchema,
+} from '../lib/seo';
 import { MotionCard, MotionList, MotionListItem, MotionPanel, MotionSection } from './motion';
 
-export function buildFaqPageSchema(items = []) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: items.map((item) => ({
-      '@type': 'Question',
-      name: item.question,
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: item.answer,
-      },
-    })),
-  };
-}
-
-export function buildBreadcrumbSchema(items = []) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: items.map((item, index) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      name: item.name,
-      item: `https://prymal.io${item.path}`,
-    })),
-  };
-}
-
-export function buildArticleSchema({
-  headline,
-  description,
-  path,
-  datePublished,
-  dateModified,
-  keywords = [],
-}) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline,
-    description,
-    datePublished,
-    dateModified: dateModified ?? datePublished,
-    mainEntityOfPage: `https://prymal.io${path}`,
-    author: {
-      '@type': 'Organization',
-      name: 'Prymal',
-    },
-    publisher: {
-      '@type': 'Organization',
-      name: 'Prymal',
-    },
-    keywords: keywords.join(', '),
-  };
-}
-
-export function buildCollectionSchema({ name, description, path }) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'CollectionPage',
-    name,
-    description,
-    url: `https://prymal.io${path}`,
-  };
-}
+export {
+  buildArticleSchema,
+  buildBreadcrumbSchema,
+  buildCollectionSchema,
+  buildFaqPageSchema,
+};
 
 export function AnswerBlock({ title = 'Quick answer', answer }) {
   return (
@@ -122,15 +70,22 @@ export function BulletList({ items = [] }) {
   );
 }
 
-export function LinkCardGrid({ items = [] }) {
+export function LinkCardGrid({ items = [], surface = 'content-hub' }) {
   return (
     <div className="public-link-grid">
       {items.map((item) => (
-        <Link key={item.to} to={item.to} className="public-link-card">
+        <PublicCtaLink
+          key={item.to}
+          to={item.to}
+          cta={item.cta ?? 'explore'}
+          surface={surface}
+          intent="learn"
+          className="public-link-card"
+        >
           <div className="public-link-card__title">{item.title}</div>
           <p>{item.description}</p>
           <span>{item.cta ?? 'Read more ->'}</span>
-        </Link>
+        </PublicCtaLink>
       ))}
     </div>
   );

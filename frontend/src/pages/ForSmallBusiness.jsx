@@ -5,6 +5,8 @@ import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../compone
 import { getAgentMeta } from '../lib/constants';
 import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import { buildFaqPageSchema, buildWebPageSchema } from '../lib/seo';
+import { PUBLIC_OG_DEFAULTS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/app-rebuild.css';
 
@@ -179,22 +181,21 @@ export default function ForSmallBusiness() {
   return (
     <div className="marketing-page prymal-marketing pm-page">
       <PageMeta
-        title="Prymal for Small Business | 15 AI agents from GBP 49.99/month"
-        description="Support, follow-ups, reporting, and website review handled by specialist AI agents. Built for owner-led businesses and lean teams."
+        title={PUBLIC_OG_DEFAULTS.forSmallBusiness.title}
+        description={PUBLIC_OG_DEFAULTS.forSmallBusiness.description}
         canonicalPath="/for-small-business"
+        ogImage={PUBLIC_OG_DEFAULTS.forSmallBusiness.image}
+        ogImageAlt={PUBLIC_OG_DEFAULTS.forSmallBusiness.imageAlt}
       />
       <JsonLd
-        id="schema-faq-smb"
-        schema={{
-          '@context': 'https://schema.org',
-          '@type': 'FAQPage',
-          mainEntity: faqItems.map((item) => ({
-            '@type': 'Question',
-            name: item.question,
-            acceptedAnswer: { '@type': 'Answer', text: item.answer },
-          })),
-        }}
+        id="schema-webpage-smb"
+        schema={buildWebPageSchema({
+          name: PUBLIC_OG_DEFAULTS.forSmallBusiness.title,
+          description: PUBLIC_OG_DEFAULTS.forSmallBusiness.description,
+          path: '/for-small-business',
+        })}
       />
+      <JsonLd id="schema-faq-smb" schema={buildFaqPageSchema(faqItems)} />
 
       <MagicalCanvas reducedMotion={reducedMotion} />
 

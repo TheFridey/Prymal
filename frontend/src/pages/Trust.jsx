@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import { PageShell } from '../components/ui';
 import { MotionSection } from '../components/motion';
-import { PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
+import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
+import { PublicCtaLink } from '../components/PublicCta';
 import {
+  BulletList,
   FAQSection,
   PremiumHero,
   ResourceCta,
@@ -10,6 +12,7 @@ import {
   SignalCards,
   SystemDiagram,
 } from '../components/PublicContent';
+import { buildWebPageSchema } from '../lib/seo';
 import { PUBLIC_OG_DEFAULTS, TRUST_FAQ_ITEMS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
@@ -18,9 +21,9 @@ const TRUST_ARCHITECTURE_NODES = [
   { label: 'WARDEN', detail: 'Input and action screening', glyph: 'WD', x: 16, y: 26, accent: '#ffd166', highlight: true },
   { label: 'LORE', detail: 'Scoped business memory', glyph: 'LO', x: 50, y: 18, accent: '#c77dff', highlight: true },
   { label: 'SENTINEL', detail: 'Output validation and holds', glyph: 'SE', x: 84, y: 26, accent: '#fb7185', highlight: true },
-  { label: 'Deployment controls', detail: 'Headers, env validation, rate limits', glyph: 'DP', x: 20, y: 72, accent: '#4cc9f0' },
-  { label: 'Compliance evidence', detail: 'Policies, registers, runbooks, evidence', glyph: 'EV', x: 50, y: 82, accent: '#7cffe0' },
-  { label: 'Data boundaries', detail: 'User-safe outputs and diagnostics separation', glyph: 'DB', x: 80, y: 72, accent: '#80ffdb' },
+  { label: 'Tenant scope', detail: 'Org-isolated workspaces', glyph: 'TN', x: 20, y: 72, accent: '#4cc9f0' },
+  { label: 'Evidence prep', detail: 'Policies, registers, runbooks', glyph: 'EV', x: 50, y: 82, accent: '#7cffe0' },
+  { label: 'Data boundaries', detail: 'Safe outputs, private diagnostics', glyph: 'DB', x: 80, y: 72, accent: '#80ffdb' },
 ];
 
 const TRUST_ARCHITECTURE_LINKS = [
@@ -31,69 +34,87 @@ const TRUST_ARCHITECTURE_LINKS = [
   { fromX: 50, fromY: 24, toX: 50, toY: 76, accent: 'rgba(255,255,255,0.18)' },
 ];
 
-const TRUST_SIGNALS = [
+const WHAT_WE_STORE = [
+  'Account and organisation profile data managed through Clerk authentication.',
+  'Agent conversations, workflow inputs and outputs, and execution traces scoped to your workspace.',
+  'LORE documents, uploaded files, crawled sources, and memory records your team adds or approves.',
+  'Billing plan metadata and usage metering — payment card data stays with Stripe, not Prymal.',
+  'Security audit events from WARDEN and operational logs needed to run and protect the platform.',
+];
+
+const WHAT_WE_DO_NOT_CLAIM = [
   {
-    eyebrow: 'What Prymal protects against',
-    title: 'Context drift and unsafe automation paths',
-    body: 'Shared memory, contradiction handling, approvals, and validation reduce the chance that a workflow keeps acting on stale assumptions or unscreened outputs.',
-    chips: ['Stale memory', 'Unchecked output', 'Drift reduction'],
-    accent: '#7cffe0',
+    eyebrow: 'Certifications',
+    title: 'No premature certification badges',
+    body: 'Prymal does not claim Cyber Essentials, Cyber Essentials Plus, or ISO/IEC 27001 certification until those certifications are formally achieved and can be verified.',
+    chips: ['Readiness only', 'Verifiable status', 'No badge theatre'],
+    accent: '#fb7185',
   },
   {
-    eyebrow: 'What Prymal protects against',
-    title: 'Blind action paths and hidden trust assumptions',
-    body: 'The architecture is designed to keep risky steps reviewable through bounded execution, audit trails, rate limits, hardened configuration, and safer evidence collection.',
-    chips: ['Approvals', 'Auditability', 'Hardened deploy'],
+    eyebrow: 'Guarantees',
+    title: 'No “100% safe AI” promises',
+    body: 'Safety layers reduce risk and improve reviewability. They do not eliminate every harmful output, model limitation, or operator mistake.',
+    chips: ['Risk reduction', 'Human review', 'Honest limits'],
+    accent: '#ffd166',
+  },
+  {
+    eyebrow: 'Scope',
+    title: 'No hidden training on your workspace',
+    body: 'Prymal does not position customer workspace content as training data for public consumer AI systems. Processing boundaries are documented in the Privacy Policy.',
+    chips: ['API inference', 'Privacy-led', 'DPA available'],
+    accent: '#7cffe0',
+  },
+];
+
+const PRODUCTION_READINESS_CHECKLIST = [
+  'Production environment validation, secure defaults, and dependency review before deploy.',
+  'Security headers, rate limits, and media storage controls verified on the live stack.',
+  'Tenant isolation enforced on routes, queries, workflows, memory writes, and integrations.',
+  'Backup, restore, access review, and incident drill evidence tracked in compliance runbooks.',
+  'WARDEN and SENTINEL enabled on supported plans with audit trails for operator review.',
+];
+
+const CERTIFICATION_ROADMAP = [
+  {
+    eyebrow: 'Cyber Essentials',
+    title: 'Baseline UK security hygiene',
+    body: 'Prymal is preparing evidence for Cyber Essentials readiness: boundary firewalls, secure configuration, access control, malware protection, and patch management.',
+    chips: ['In preparation', 'Not certified yet', 'Evidence tracked'],
     accent: '#4cc9f0',
   },
   {
-    eyebrow: 'Data boundaries',
-    title: 'Public-safe outputs with private operator diagnostics',
-    body: 'Normal users get clarity about evidence and confidence without seeing internal routing, provider, or cost details that belong in staff and operator surfaces only.',
-    chips: ['Public-safe', 'Operator-only diagnostics', 'No routing leakage'],
-    accent: '#fb7185',
+    eyebrow: 'ISO 27001 alignment',
+    title: 'Information security management',
+    body: 'Policies, risk registers, change control, incident handling, and backup evidence are maintained in-repo to support ISO 27001 alignment conversations with serious buyers.',
+    chips: ['Aligned controls', 'Not certified yet', 'Operator review'],
+    accent: '#c77dff',
   },
-];
-
-const READINESS_TIMELINE = [
-  { eyebrow: 'Step 1', title: 'Code and deploy hardening', body: 'Production env validation, rate limits, media controls, secure logging, dependency audit cleanup, and VPS hardening guidance.' },
-  { eyebrow: 'Step 2', title: 'Evidence preparation', body: 'Policies, registers, runbooks, evidence collection, and operator-ready security workflows are tracked in-repo for repeatable review.' },
-  { eyebrow: 'Step 3', title: 'Operational validation', body: 'VPS evidence, backup restore tests, access reviews, dependency reviews, and trust runbooks support readiness conversations with serious buyers.' },
-];
-
-const CLAIM_BOUNDARIES = [
   {
-    eyebrow: 'What we claim',
-    title: 'Readiness, controls, and evidence preparation',
-    body: 'Prymal documents trust boundaries, deployment controls, memory governance, and compliance evidence preparation openly.',
-    chips: ['Readiness', 'Aligned controls', 'Evidence prep'],
+    eyebrow: 'GDPR / DPA',
+    title: 'UK GDPR documentation',
+    body: 'Privacy Policy, cookie policy, retention schedules, breach response guidance, and Data Processing Agreement availability for business customers.',
+    chips: ['Privacy Policy', 'DPA on request', 'UK GDPR'],
     accent: '#7cffe0',
   },
-  {
-    eyebrow: 'What we do not claim',
-    title: 'No premature certification language',
-    body: 'Prymal does not claim Cyber Essentials, Cyber Essentials Plus, or ISO/IEC 27001 certification until those certifications are formally achieved.',
-    chips: ['No overclaiming', 'Precise language', 'Formal status only'],
-    accent: '#fb7185',
-  },
-];
-
-const EVIDENCE_CHECKLIST = [
-  'Deployment hardening runbook and production preflight output',
-  'Security headers, rate-limit, and media-storage verification results',
-  'Dependency audit summary and documented residual risk treatment',
-  'Access review, backup restore, and incident drill evidence records',
 ];
 
 export default function Trust() {
   return (
-    <div className="marketing-page prymal-marketing pm-page">
+    <div className="marketing-page prymal-marketing pm-page trust-centre-page">
       <PageMeta
-        title="Trust - Prymal"
-        description="Learn how Prymal approaches tenant isolation, safety systems, secure deployment, dependency management, and compliance readiness."
+        title={PUBLIC_OG_DEFAULTS.trust.title}
+        description={PUBLIC_OG_DEFAULTS.trust.description}
         canonicalPath="/trust"
         ogImage={PUBLIC_OG_DEFAULTS.trust.image}
         ogImageAlt={PUBLIC_OG_DEFAULTS.trust.imageAlt}
+      />
+      <JsonLd
+        id="schema-trust-webpage"
+        schema={buildWebPageSchema({
+          name: PUBLIC_OG_DEFAULTS.trust.title,
+          description: PUBLIC_OG_DEFAULTS.trust.description,
+          path: '/trust',
+        })}
       />
 
       <div className="marketing-shell prymal-marketing__shell">
@@ -103,19 +124,29 @@ export default function Trust() {
           <div className="public-content-page">
             <MotionSection>
               <PremiumHero
-                eyebrow="Trust and security"
-                title="How Prymal handles trust in production"
-                description="Prymal is built to separate unsafe input from trusted instructions, keep workspace data scoped, and support hardened deployments with repeatable operational evidence."
-                answerTitle="What should you expect from Prymal trust language?"
-                answer="Prymal talks about readiness, evidence preparation, aligned controls, and operational boundaries. This is readiness work and evidence preparation, not a certification claim. Prymal does not claim Cyber Essentials or ISO 27001 certification unless that certification has been formally achieved."
-                chips={['Tenant isolation', 'WARDEN + SENTINEL', 'Deployment controls', 'Evidence preparation']}
+                eyebrow="Trust Centre"
+                title="Safety you can explain to your team and your buyers"
+                description="Prymal separates unsafe input from trusted work, keeps workspace data scoped, and documents readiness without pretending certifications already exist."
+                answerTitle="What is the Prymal Trust Centre?"
+                answer="The Trust Centre explains what Prymal stores, how WARDEN and SENTINEL protect execution, how LORE memory can be governed, and how we prepare for formal assurance work. This is readiness and evidence preparation — not a certification claim."
+                chips={['Tenant isolation', 'WARDEN + SENTINEL', 'LORE controls', 'Readiness-first language']}
                 stats={[
-                  { label: 'Trust posture', value: 'Readiness-first' },
-                  { label: 'Evidence style', value: 'Operational' },
-                  { label: 'Certification language', value: 'Precise' },
+                  { label: 'Posture', value: 'Explainable' },
+                  { label: 'Certifications', value: 'Not claimed yet' },
+                  { label: 'Privacy contact', value: 'privacy@prymal.io' },
                 ]}
-                primaryCta={<Link to="/signup" className="pm-btn pm-btn--primary">Start free</Link>}
-                secondaryCta={<Link to="/privacy" className="pm-btn pm-btn--ghost">Read privacy</Link>}
+                primaryCta={(
+                  <PublicCtaLink
+                    to="/signup"
+                    cta="signup"
+                    surface="trust-hero"
+                    intent="convert"
+                    className="pm-btn pm-btn--primary"
+                  >
+                    Start free
+                  </PublicCtaLink>
+                )}
+                secondaryCta={<Link to="/privacy" className="pm-btn pm-btn--ghost">Read privacy policy</Link>}
                 visual={(
                   <div className="public-hero-rail">
                     <SystemDiagram
@@ -126,14 +157,14 @@ export default function Trust() {
                     />
                     <div className="public-hero-rail__grid public-hero-rail__grid--duo">
                       <div className="public-premium-summary-card public-premium-summary-card--compact">
-                        <div className="public-section-block__eyebrow">Claim boundary</div>
-                        <strong>Readiness and evidence, not premature certification language</strong>
-                        <p>Prymal talks about aligned controls, operational evidence, and readiness work without implying certifications that have not been formally achieved.</p>
+                        <div className="public-section-block__eyebrow">Buyer-friendly</div>
+                        <strong>Clear boundaries, not security theatre</strong>
+                        <p>We describe controls in plain language so operators, founders, and procurement teams can review the posture without decoding internal jargon.</p>
                       </div>
                       <div className="public-premium-summary-card public-premium-summary-card--compact">
-                        <div className="public-section-block__eyebrow">Operator review</div>
-                        <strong>Serious teams can inspect the trust posture</strong>
-                        <p>Deployment checks, evidence records, and safer memory controls give operators a reviewable trust surface instead of vague reassurance.</p>
+                        <div className="public-section-block__eyebrow">Evidence-led</div>
+                        <strong>Runbooks and registers support diligence</strong>
+                        <p>Deployment checks, incident drills, and policy evidence give serious teams something concrete to inspect during evaluation.</p>
                       </div>
                     </div>
                   </div>
@@ -142,53 +173,174 @@ export default function Trust() {
             </MotionSection>
 
             <MotionSection>
-              <SectionBlock eyebrow="Trust architecture" title="What Prymal protects against">
-                <SignalCards items={TRUST_SIGNALS} />
-              </SectionBlock>
-            </MotionSection>
-
-            <MotionSection>
-              <SectionBlock eyebrow="Clarity" title="What we claim and what we do not claim">
-                <SignalCards items={CLAIM_BOUNDARIES} />
-              </SectionBlock>
-            </MotionSection>
-
-            <MotionSection>
-              <SectionBlock eyebrow="Readiness timeline" title="How the trust posture matures operationally">
-                <SignalCards items={READINESS_TIMELINE.map((item) => ({ ...item, accent: '#4cc9f0' }))} />
-              </SectionBlock>
-            </MotionSection>
-
-            <MotionSection>
-              <SectionBlock eyebrow="Operational evidence" title="What serious buyers and internal operators can review">
-                <ul className="public-bullet-list">
-                  {EVIDENCE_CHECKLIST.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </SectionBlock>
-            </MotionSection>
-
-            <MotionSection>
-              <SectionBlock eyebrow="Data boundaries" title="How Prymal keeps user-facing surfaces cleaner">
+              <SectionBlock
+                eyebrow="1. Data inventory"
+                title="What Prymal stores"
+                description="Every workspace keeps the data needed to run agents, memory, and workflows — scoped to your organisation."
+              >
+                <BulletList items={WHAT_WE_STORE} />
                 <div className="public-premium-note">
-                  <strong>Normal users see safe abstractions.</strong>
+                  <strong>Retention and deletion</strong>
                   <p>
-                    Workspace users can see confidence, evidence freshness, contradiction warnings, and whether an answer
-                    used workspace knowledge or live research. Internal routing, provider, model, and cost diagnostics stay
-                    on staff and operator surfaces instead of leaking into the public experience.
+                    Workspace data is retained for the life of your subscription plus a short post-cancellation window unless you request earlier deletion.
+                    {' '}
+                    <Link to="/privacy">See the Privacy Policy</Link>
+                    {' '}
+                    for retention schedules and your UK GDPR rights.
                   </p>
                 </div>
               </SectionBlock>
             </MotionSection>
 
-            <FAQSection title="Trust FAQ" items={TRUST_FAQ_ITEMS} schemaId="schema-trust-faq" />
+            <MotionSection>
+              <SectionBlock eyebrow="2. Honest boundaries" title="What Prymal does not claim">
+                <SignalCards items={WHAT_WE_DO_NOT_CLAIM} />
+              </SectionBlock>
+            </MotionSection>
+
+            <MotionSection>
+              <SectionBlock
+                eyebrow="3. Input safety"
+                title="WARDEN — the input safety layer"
+                description="Before risky content becomes action, WARDEN screens what enters the system."
+              >
+                <div className="public-premium-note">
+                  <strong>In plain terms</strong>
+                  <p>
+                    WARDEN checks prompts, uploads, linked URLs, and sensitive workflow steps for signs of injection, policy bypass, unsafe media, or actions that should not run automatically.
+                    When something looks risky, Prymal can block, flag, or require confirmation instead of letting it flow straight through.
+                  </p>
+                </div>
+                <BulletList items={[
+                  'Screens chat input, file uploads, and crawled URL content before it influences agents or memory.',
+                  'Applies trust labels to LORE evidence so retrieved context can be treated with appropriate caution.',
+                  'Records audit events so operators can review what was blocked, flagged, or allowed.',
+                  'Works alongside tenant isolation so one workspace cannot read another’s data.',
+                ]} />
+              </SectionBlock>
+            </MotionSection>
+
+            <MotionSection>
+              <SectionBlock
+                eyebrow="4. Output safety"
+                title="SENTINEL — output validation before delivery"
+                description="After agents produce work, SENTINEL reviews outputs before they become business decisions."
+              >
+                <div className="public-premium-note">
+                  <strong>In plain terms</strong>
+                  <p>
+                    SENTINEL acts like a QA gate on agent and workflow outputs. It can pass clean results, suggest repairs, or hold an answer when confidence is low or the content looks risky.
+                    Holds appear in the product so your team knows review is needed instead of seeing a polished but unreliable answer.
+                  </p>
+                </div>
+                <BulletList items={[
+                  'Reviews selected agent outputs and workflow node results on eligible plans.',
+                  'Can return PASS, REPAIR, or HOLD verdicts with repair guidance where applicable.',
+                  'Helps reduce obviously weak, off-schema, or high-risk answers reaching downstream actions.',
+                  'Does not replace human judgement for regulated, legal, or high-stakes decisions.',
+                ]} />
+              </SectionBlock>
+            </MotionSection>
+
+            <MotionSection>
+              <SectionBlock
+                eyebrow="5. Memory governance"
+                title="LORE memory and deletion controls"
+                description="Business memory should be useful, scoped, and removable — not a black box."
+              >
+                <BulletList items={[
+                  'Upload or import approved documents, notes, and sources into org-scoped LORE.',
+                  'Review, lock, adjust trust, or delete memory records instead of treating context as permanent.',
+                  'See when evidence was used in a response through freshness and confidence cues where available.',
+                  'Request broader workspace deletion or data rights actions via privacy@prymal.io.',
+                ]} />
+                <p className="public-section-block__description">
+                  LORE supports pasted text, crawled URLs, plain-text and markdown files, CSV, PDF, and DOCX ingestion today.
+                  {' '}
+                  <Link to="/features/lore-business-memory">Explore the LORE feature page</Link>
+                  {' '}
+                  for product detail.
+                </p>
+              </SectionBlock>
+            </MotionSection>
+
+            <MotionSection>
+              <SectionBlock
+                eyebrow="6. Processing boundaries"
+                title="Model providers and customer data"
+                description="Your workspace content is processed to deliver the service — not to train public consumer models."
+              >
+                <div className="public-premium-note">
+                  <strong>How inference works</strong>
+                  <p>
+                    When you run an agent or workflow, Prymal sends the minimum necessary prompt context to LLM API providers to generate a response.
+                    Prymal uses commercial API access, not consumer chat products, and does not use customer workspace content to train public foundation models.
+                  </p>
+                </div>
+                <BulletList items={[
+                  'Prompts, documents, and workflow inputs are transmitted to inference providers only to produce outputs for your workspace.',
+                  'Authentication, billing, email, hosting, error monitoring, and media storage use separate sub-processors listed in the Privacy Policy.',
+                  'Business customers can request a Data Processing Agreement covering sub-processors and UK GDPR obligations.',
+                  'Product analytics and security events avoid prompt text, document bodies, and other sensitive content in event payloads.',
+                ]} />
+                <p className="public-section-block__description">
+                  For the full processor list, legal bases, and retention periods,
+                  {' '}
+                  <Link to="/privacy">read the Privacy Policy</Link>.
+                </p>
+              </SectionBlock>
+            </MotionSection>
+
+            <MotionSection>
+              <SectionBlock
+                eyebrow="7. Production readiness"
+                title="Production readiness checklist"
+                description="What Prymal maintains before and during live operation."
+              >
+                <BulletList items={PRODUCTION_READINESS_CHECKLIST} />
+              </SectionBlock>
+            </MotionSection>
+
+            <MotionSection>
+              <SectionBlock
+                eyebrow="8. Assurance roadmap"
+                title="Certification readiness — without overclaiming"
+                description="Formal certifications take time. Prymal documents the path and the evidence already in place."
+              >
+                <SignalCards items={CERTIFICATION_ROADMAP} />
+              </SectionBlock>
+            </MotionSection>
+
+            <MotionSection>
+              <SectionBlock
+                eyebrow="9. Contact"
+                title="Security contact and incident reporting"
+                description="If you see something wrong, tell us directly."
+              >
+                <div className="public-premium-note">
+                  <strong>Report a security concern</strong>
+                  <p>
+                    Email <a href="mailto:privacy@prymal.io?subject=Security%20Report">privacy@prymal.io</a>
+                    {' '}
+                    with the subject line &quot;Security Report&quot;. Include what you observed, when it happened, affected workspace identifiers if known, and steps to reproduce if applicable.
+                  </p>
+                </div>
+                <BulletList items={[
+                  'We triage good-faith reports promptly and will ask for clarification when needed.',
+                  'If a personal data breach likely affects your rights, we follow UK GDPR notification obligations.',
+                  'For privacy rights requests, data deletion, or DPA enquiries, use the same privacy contact.',
+                  'For general product support, use your in-app channels or account email where available.',
+                ]} />
+              </SectionBlock>
+            </MotionSection>
+
+            <FAQSection title="Trust Centre FAQ" items={TRUST_FAQ_ITEMS} schemaId="schema-trust-faq" />
 
             <ResourceCta
-              title="Want the architectural view too?"
-              description="The security feature page, comparison hub, and blog show how Prymal frames trust alongside memory, workflows, and operator-grade execution."
+              title="Evaluating Prymal for a serious team?"
+              description="Pair the Trust Centre with feature pages, pricing, and comparison guides to see how safety sits alongside memory, workflows, and operator controls."
               primary={<Link to="/features/ai-security" className="pm-btn pm-btn--primary">Security feature page</Link>}
-              secondary={<Link to="/compare" className="pm-btn pm-btn--ghost">Compare categories</Link>}
+              secondary={<Link to="/pricing" className="pm-btn pm-btn--ghost">Review pricing</Link>}
             />
           </div>
         </PageShell>

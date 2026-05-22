@@ -11,6 +11,11 @@ import { EditIcon, PinIcon, TrashIcon } from '../chat/icons';
 import { CogIcon } from '../chat/icons';
 import { MotionList, MotionListItem, MotionPanel, MotionPresence } from '../../../components/motion';
 import { getAgentCapabilities, getCapabilityTone } from '../../../lib/agentCapabilities';
+import {
+  canUseHoverTooltips,
+  resolveAgentStripIndex,
+  resolveAgentStripNeighbor,
+} from './agentStripA11y';
 
 const SIDEBAR_TONE_COLORS = {
   lore: '#b8a0ff',
@@ -62,6 +67,7 @@ export default function AgentSidebar({
 }) {
   const stripShellRef = useRef(null);
   const tooltipRef = useRef(null);
+  const pillRefs = useRef(new Map());
   const [activeTooltip, setActiveTooltip] = useState(null);
 
   const showAgentTooltip = (event, agent) => {
@@ -82,8 +88,65 @@ export default function AgentSidebar({
     });
   };
 
+  const showAgentTooltipFromHover = (event, agent) => {
+    if (!canUseHoverTooltips()) {
+      return;
+    }
+
+    showAgentTooltip(event, agent);
+  };
+
   const hideAgentTooltip = () => {
     setActiveTooltip(null);
+  };
+
+  const focusAgentPill = (agentId) => {
+    pillRefs.current.get(agentId)?.focus();
+  };
+
+  const selectNeighborAgent = (direction) => {
+    const currentIndex = resolveAgentStripIndex(unlockedAgents, activeAgent.id);
+    const neighbor = resolveAgentStripNeighbor(unlockedAgents, currentIndex, direction);
+
+    if (!neighbor) {
+      return;
+    }
+
+    onSelectAgent(neighbor.id, agentStripDragRef);
+    requestAnimationFrame(() => focusAgentPill(neighbor.id));
+  };
+
+  const handleAgentStripKeyDown = (event) => {
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      selectNeighborAgent('next');
+      return;
+    }
+
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      selectNeighborAgent('prev');
+      return;
+    }
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      const first = unlockedAgents[0];
+      if (first) {
+        onSelectAgent(first.id, agentStripDragRef);
+        requestAnimationFrame(() => focusAgentPill(first.id));
+      }
+      return;
+    }
+
+    if (event.key === 'End') {
+      event.preventDefault();
+      const last = unlockedAgents[unlockedAgents.length - 1];
+      if (last) {
+        onSelectAgent(last.id, agentStripDragRef);
+        requestAnimationFrame(() => focusAgentPill(last.id));
+      }
+    }
   };
 
   useLayoutEffect(() => {
@@ -200,13 +263,18 @@ export default function AgentSidebar({
                               </Button>
                             </div>
                           ) : (
-                            <div key="normal">
-                              <button type="button" className="workspace-studio__conversation-main" onClick={() => onSelectConversation(conversation.id)}>
+                            <div key="normal" className="workspace-studio__conversation-row">
+                              <button
+                                type="button"
+                                className="workspace-studio__conversation-main"
+                                onClick={() => onSelectConversation(conversation.id)}
+                                aria-current={isActive ? 'true' : undefined}
+                              >
                                 <div className="workspace-studio__conversation-title">{conversation.title || 'Untitled conversation'}</div>
                                 <div className="workspace-studio__conversation-meta">{formatDateTime(conversation.lastActiveAt)}</div>
                               </button>
-                              <div className="workspace-studio__conversation-actions">
-                                <button type="button" className={`workspace-studio__mini-action${isPinned ? ' is-active' : ''}`} onClick={() => onTogglePinned(conversation.id)} aria-label="Pin conversation">
+                              <div className="workspace-studio__conversation-actions" role="group" aria-label={`Actions for ${conversation.title || 'Untitled conversation'}`}>
+                                <button type="button" className={`workspace-studio__mini-action${isPinned ? ' is-active' : ''}`} onClick={() => onTogglePinned(conversation.id)} aria-label="Pin conversation" aria-pressed={isPinned}>
                                   <PinIcon />
                                 </button>
                                 <button type="button" className="workspace-studio__mini-action" onClick={() => onOpenRename(conversation)} aria-label="Rename conversation">
@@ -235,30 +303,46 @@ export default function AgentSidebar({
           className="workspace-studio__agent-strip"
           role="tablist"
           aria-label="Available agents"
+          aria-orientation="horizontal"
+          onKeyDown={handleAgentStripKeyDown}
           onPointerDown={onAgentStripPointerDown}
           onPointerMove={onAgentStripPointerMove}
           onPointerUp={onAgentStripPointerEnd}
           onPointerCancel={onAgentStripPointerEnd}
           onWheel={onAgentStripWheel}
         >
-          {unlockedAgents.map((agent) => (
-            <button
-              key={agent.id}
-              type="button"
-              className={`workspace-studio__agent-pill${agent.id === activeAgent.id ? ' is-active' : ''}${recentAgentIds.has(agent.id) && agent.id !== activeAgent.id ? ' is-recent' : ''}`}
-              onClick={() => onSelectAgent(agent.id, agentStripDragRef)}
-              onMouseEnter={(event) => showAgentTooltip(event, agent)}
-              onMouseLeave={hideAgentTooltip}
-              onFocus={(event) => showAgentTooltip(event, agent)}
-              onBlur={hideAgentTooltip}
-              aria-label={`${agent.name}: ${agent.description ?? agent.title}`}
-              aria-describedby={activeTooltip?.agent.id === agent.id ? 'agent-strip-tooltip' : undefined}
-            >
-              <AgentAvatar agent={agent} size={42} active={agent.id === activeAgent.id} />
-              <span className="workspace-studio__agent-pill-glow" aria-hidden="true" />
-              <span className="workspace-studio__agent-pill-ring" aria-hidden="true" />
-            </button>
-          ))}
+          {unlockedAgents.map((agent) => {
+            const isSelected = agent.id === activeAgent.id;
+            return (
+              <button
+                key={agent.id}
+                ref={(node) => {
+                  if (node) {
+                    pillRefs.current.set(agent.id, node);
+                  } else {
+                    pillRefs.current.delete(agent.id);
+                  }
+                }}
+                type="button"
+                role="tab"
+                data-agent-id={agent.id}
+                tabIndex={isSelected ? 0 : -1}
+                aria-selected={isSelected}
+                className={`workspace-studio__agent-pill${isSelected ? ' is-active' : ''}${recentAgentIds.has(agent.id) && !isSelected ? ' is-recent' : ''}`}
+                onClick={() => onSelectAgent(agent.id, agentStripDragRef)}
+                onMouseEnter={(event) => showAgentTooltipFromHover(event, agent)}
+                onMouseLeave={hideAgentTooltip}
+                onFocus={(event) => showAgentTooltip(event, agent)}
+                onBlur={hideAgentTooltip}
+                aria-label={`${agent.name}: ${agent.description ?? agent.title}`}
+                aria-describedby={activeTooltip?.agent.id === agent.id ? 'agent-strip-tooltip' : undefined}
+              >
+                <AgentAvatar agent={agent} size={42} active={isSelected} />
+                <span className="workspace-studio__agent-pill-glow" aria-hidden="true" />
+                <span className="workspace-studio__agent-pill-ring" aria-hidden="true" />
+              </button>
+            );
+          })}
         </div>
         {activeTooltip ? (
           <div

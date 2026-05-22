@@ -28,15 +28,19 @@ import { getErrorMessage } from '../lib/utils';
 import { Button, InlineNotice, PageShell, TextInput } from '../components/ui';
 import { MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
-import { AnswerBlock, FAQSection, LinkCardGrid } from '../components/PublicContent';
+import { AnswerBlock, FAQSection, LinkCardGrid, buildFaqPageSchema } from '../components/PublicContent';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
 import { FoundingAccessPopup } from '../features/marketing/FoundingAccessPopup';
 import CookieConsentBanner from '../components/CookieConsentBanner';
 import { SimpleAdvancedModeSection } from '../features/marketing/SimpleAdvancedModeSection';
 import { SeePrymalInActionSection } from '../features/marketing/SeePrymalInActionSection';
+import { HomeProofStrip } from '../features/marketing/HomeProofStrip';
 import { useFoundingAccessOffer } from '../features/marketing/founding-access';
-import { HOME_AEO_BLOCK, HOME_FAQ_ITEMS } from '../lib/site-content';
+import { PublicCtaAnchor, PublicCtaLink } from '../components/PublicCta';
+import { trackPublicEvent } from '../lib/public-analytics';
+import { buildSoftwareApplicationSchema, buildWebPageSchema } from '../lib/seo';
+import { HOME_AEO_BLOCK, HOME_FAQ_ITEMS, PUBLIC_OG_DEFAULTS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
 
@@ -181,6 +185,10 @@ export default function Landing() {
 
   const nexusEntryHref = isSignedIn ? '/app/workflows' : '/signup';
   const freePlan = getWorkspacePlanMeta('free');
+
+  const trackSignup = (source) => {
+    trackPublicEvent('signup_button_clicked', { source });
+  };
 
   const waitlistMutation = useMutation({
     mutationFn: async (nextEmail) => api.post('/waitlist', { email: nextEmail, source: 'landing_page' }),
@@ -344,18 +352,15 @@ export default function Landing() {
   return (
     <div ref={scopeRef} className="marketing-page prymal-marketing prymal-marketing--home">
       <PageMeta
-        title="Prymal | Run your business with AI, not just prompts"
-        description="Prymal is a multi-agent AI operating system for workflows, memory, validation, and predictable execution control."
+        title={PUBLIC_OG_DEFAULTS.home.title}
+        description={PUBLIC_OG_DEFAULTS.home.description}
         canonicalPath="/"
+        ogImage={PUBLIC_OG_DEFAULTS.home.image}
+        ogImageAlt={PUBLIC_OG_DEFAULTS.home.imageAlt}
       />
       <JsonLd
         id="schema-home-product"
-        schema={{
-          '@context': 'https://schema.org',
-          '@type': 'SoftwareApplication',
-          name: 'Prymal',
-          applicationCategory: 'BusinessApplication',
-          operatingSystem: 'Web',
+        schema={buildSoftwareApplicationSchema({
           description:
             'Prymal is a multi-agent AI operating system with specialist agents, SENTINEL QA, grounded memory, workflow orchestration, and an operator-grade control plane.',
           offers: [
@@ -367,13 +372,22 @@ export default function Landing() {
               priceCurrency: 'GBP',
             })),
           ],
-        }}
+        })}
       />
+      <JsonLd
+        id="schema-home-webpage"
+        schema={buildWebPageSchema({
+          name: PUBLIC_OG_DEFAULTS.home.title,
+          description: PUBLIC_OG_DEFAULTS.home.description,
+          path: '/',
+        })}
+      />
+      <JsonLd id="schema-home-faq" schema={buildFaqPageSchema(HOME_FAQ_ITEMS)} />
 
       <MagicalCanvas reducedMotion={reducedMotion} startDelayMs={2500} />
 
       <div className="marketing-shell prymal-marketing__shell">
-        <PublicPageNavbar sourcePrefix="landing" />
+        <PublicPageNavbar sourcePrefix="landing" onSignupClick={trackSignup} />
 
         <PageShell width="100%">
           <div className="prymal-homepage prymal-homepage--primal">
@@ -416,12 +430,44 @@ export default function Landing() {
 
               <div className="pm-hero__ctas">
                 <SignedOut>
-                  <Link to={nexusEntryHref} className="pm-btn pm-btn--primary">Start building workflows</Link>
-                  <a href="#how-it-works" className="pm-btn pm-btn--ghost">See how it works</a>
+                  <PublicCtaLink
+                    to={nexusEntryHref}
+                    cta="start-workflows"
+                    surface="landing-hero"
+                    intent="convert"
+                    className="pm-btn pm-btn--primary"
+                  >
+                    Start building workflows
+                  </PublicCtaLink>
+                  <PublicCtaAnchor
+                    href="#how-it-works"
+                    cta="see-how-it-works"
+                    surface="landing-hero"
+                    intent="learn"
+                    className="pm-btn pm-btn--ghost"
+                  >
+                    See how it works
+                  </PublicCtaAnchor>
                 </SignedOut>
                 <SignedIn>
-                  <Link to={nexusEntryHref} className="pm-btn pm-btn--primary">Start building workflows</Link>
-                  <a href="#how-it-works" className="pm-btn pm-btn--ghost">See how it works</a>
+                  <PublicCtaLink
+                    to={nexusEntryHref}
+                    cta="start-workflows"
+                    surface="landing-hero"
+                    intent="retain"
+                    className="pm-btn pm-btn--primary"
+                  >
+                    Start building workflows
+                  </PublicCtaLink>
+                  <PublicCtaAnchor
+                    href="#how-it-works"
+                    cta="see-how-it-works"
+                    surface="landing-hero"
+                    intent="learn"
+                    className="pm-btn pm-btn--ghost"
+                  >
+                    See how it works
+                  </PublicCtaAnchor>
                 </SignedIn>
               </div>
 
@@ -430,7 +476,14 @@ export default function Landing() {
                   <span key={item}><TbCircleCheck aria-hidden="true" /> {item}</span>
                 ))}
               </div>
+              <p className="pm-hero__trust-link">
+                <Link to="/trust">Trust Centre</Link>
+                {' '}
+                — safety, data boundaries, and readiness without overclaiming certifications.
+              </p>
             </section>
+
+            <HomeProofStrip />
 
             <AnswerBlock title={HOME_AEO_BLOCK.title} answer={HOME_AEO_BLOCK.answer} />
 
@@ -712,18 +765,37 @@ export default function Landing() {
                 teams — see every tier, limits, and FAQs on the dedicated pricing page.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 20 }}>
-                <Link to="/pricing" className="button button--accent">
+                <PublicCtaLink
+                  to="/pricing"
+                  cta="view-pricing"
+                  surface="landing-pricing-teaser"
+                  intent="learn"
+                  className="button button--accent"
+                >
                   View pricing
-                </Link>
+                </PublicCtaLink>
                 <SignedOut>
-                  <Link to="/signup" className="button button--ghost">
+                  <PublicCtaLink
+                    to="/signup"
+                    cta="signup"
+                    surface="landing-pricing-teaser"
+                    intent="convert"
+                    className="button button--ghost"
+                    onClick={() => trackSignup('landing-pricing-teaser')}
+                  >
                     Start now
-                  </Link>
+                  </PublicCtaLink>
                 </SignedOut>
                 <SignedIn>
-                  <Link to="/app/settings?tab=Billing" className="button button--ghost">
+                  <PublicCtaLink
+                    to="/app/settings?tab=Billing"
+                    cta="billing"
+                    surface="landing-pricing-teaser"
+                    intent="upgrade"
+                    className="button button--ghost"
+                  >
                     Billing
-                  </Link>
+                  </PublicCtaLink>
                 </SignedIn>
               </div>
             </MotionSection>
@@ -768,6 +840,7 @@ export default function Landing() {
             />
 
             <LinkCardGrid
+              surface="landing-footer-hub"
               items={[
                 {
                   to: '/features',
@@ -793,7 +866,7 @@ export default function Landing() {
           </div>
         </PageShell>
 
-        <PublicPageFooter />
+        <PublicPageFooter sourcePrefix="landing" onSignupClick={trackSignup} />
       </div>
       <FoundingAccessPopup
         offer={foundingAccessState.status === 'ready' ? foundingAccessState.offer : null}

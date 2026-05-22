@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, InlineNotice, SectionLabel, StatusPill, SurfaceCard, TextInput } from '../../components/ui';
+import { trackUpgradeIntent } from '../../lib/analytics';
 import {
   AGENT_LIBRARY,
   BILLING_INTERVALS,
@@ -304,7 +305,14 @@ export function BillingSettingsTab({
             {canUpgradePlan && nextPlanId ? (
               <Button
                 tone="accent"
-                onClick={() => checkoutMutation.mutate({ plan: nextPlanId, interval: billingInterval })}
+                onClick={() => {
+                  trackUpgradeIntent({
+                    surface: 'settings_billing',
+                    plan_id: nextPlanId,
+                    intent: 'upgrade',
+                  });
+                  checkoutMutation.mutate({ plan: nextPlanId, interval: billingInterval });
+                }}
                 disabled={checkoutMutation.isPending || creditPackCheckoutMutation?.isPending}
               >
                 {`Upgrade to ${nextPlanName}`}
@@ -520,7 +528,14 @@ export function BillingSettingsTab({
                 {plan.id !== currentPlan ? (
                   <Button
                     tone="accent"
-                    onClick={() => checkoutMutation.mutate({ plan: plan.id, interval: billingInterval })}
+                    onClick={() => {
+                      trackUpgradeIntent({
+                        surface: 'settings_billing',
+                        plan_id: plan.id,
+                        intent: 'upgrade',
+                      });
+                      checkoutMutation.mutate({ plan: plan.id, interval: billingInterval });
+                    }}
                     disabled={checkoutMutation.isPending || !billingQuery.data?.canManageBilling}
                     data-testid={`billing-upgrade-${plan.id}`}
                   >

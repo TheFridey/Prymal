@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "generate:seo": "node scripts/generate-seo-assets.mjs",
+    "prebuild": "npm run generate:seo",
     "build": "vite build",
     "lint": "eslint .",
     "typecheck": "npm run build",
@@ -59,7 +61,7 @@
   },
   "optionalDependencies": {
     "@esbuild/win32-arm64": "^0.21.5",
-    "@rollup/rollup-win32-arm64-msvc": "^4.60.3",
+    "@rollup/rollup-win32-arm64-msvc": "^4.60.4",
     "@rollup/rollup-win32-x64-msvc": "^4.60.3"
   },
   "overrides": {

@@ -71,8 +71,8 @@ export default function Features() {
   return (
     <div className="marketing-page prymal-marketing pm-page">
       <PageMeta
-        title="Features - Prymal"
-        description="Explore Prymal features across AI agents, business memory, workflow automation, security, outreach, reporting, and strategy."
+        title={PUBLIC_OG_DEFAULTS.features.title}
+        description={PUBLIC_OG_DEFAULTS.features.description}
         canonicalPath="/features"
         ogImage={PUBLIC_OG_DEFAULTS.features.image}
         ogImageAlt={PUBLIC_OG_DEFAULTS.features.imageAlt}

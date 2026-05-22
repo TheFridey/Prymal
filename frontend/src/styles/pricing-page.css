@@ -1244,4 +1244,113 @@
     width: 100%;
     justify-content: center;
   }
+
+  .pricing-objections__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pricing-decision-guide {
+  margin: 0 0 1.25rem;
+  padding: 1.15rem 1.25rem;
+  border-radius: 18px;
+  border: 1px solid rgba(156, 245, 224, 0.14);
+  background: linear-gradient(135deg, rgba(156, 245, 224, 0.07), rgba(199, 125, 255, 0.05));
+}
+
+.pricing-decision-guide__header h2 {
+  margin: 0 0 0.45rem;
+  font-size: clamp(1.15rem, 2.2vw, 1.45rem);
+}
+
+.pricing-decision-guide__header p {
+  margin: 0;
+  color: var(--muted, #9aa4b2);
+  line-height: 1.6;
+  font-size: 0.92rem;
+}
+
+.pricing-card__decision {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.pricing-card__decision div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.pricing-card__decision dt {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(156, 245, 224, 0.82);
+  font-weight: 700;
+}
+
+.pricing-card__decision dd {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.pricing-card--starter {
+  box-shadow: 0 0 0 1px rgba(156, 245, 224, 0.18);
+}
+
+.pricing-card__badge--starter {
+  background: rgba(156, 245, 224, 0.14);
+  color: #9cf5e0;
+}
+
+.pricing-objections {
+  margin: 0 0 3rem;
+}
+
+.pricing-objections__header h2 {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.25rem, 2.4vw, 1.65rem);
+}
+
+.pricing-objections__header p {
+  margin: 0 0 1rem;
+  color: var(--muted, #9aa4b2);
+  line-height: 1.6;
+}
+
+.pricing-objections__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.pricing-objections__card {
+  padding: 1rem 1.05rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.pricing-objections__card h3 {
+  margin: 0 0 0.45rem;
+  font-size: 0.98rem;
+}
+
+.pricing-objections__card p {
+  margin: 0;
+  color: var(--muted, #9aa4b2);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+@media (max-width: 780px) {
+  .pricing-objections__grid {
+    grid-template-columns: 1fr;
+  }
 }

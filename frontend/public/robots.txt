@@ -3,4 +3,37 @@ Allow: /
 Disallow: /app/
 Disallow: /login/
 Disallow: /signup/
+
+User-agent: GPTBot
+Allow: /
+Disallow: /app/
+Disallow: /login/
+Disallow: /signup/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /app/
+Disallow: /login/
+Disallow: /signup/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /app/
+Disallow: /login/
+Disallow: /signup/
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /app/
+Disallow: /login/
+Disallow: /signup/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /app/
+Disallow: /login/
+Disallow: /signup/
+
 Sitemap: https://prymal.io/sitemap.xml
+
+# Answer-engine summary: https://prymal.io/llms.txt

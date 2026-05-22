@@ -5,9 +5,13 @@
 // All state is owned by WorkspaceStudio; this component is presentational.
 // ─────────────────────────────────────────────────────────────────
 
+import { useEffect } from 'react';
 import { Button } from '../../../components/ui';
 import { motion, MotionPanel, MotionPresence } from '../../../components/motion';
 import { AttachIcon, MicIcon } from './icons';
+import SlashCommandMenu from './SlashCommandMenu';
+
+const SLASH_MENU_ID = 'composer-slash-menu';
 
 export default function MessageInput({
   // Agent
@@ -60,6 +64,44 @@ export default function MessageInput({
     : hasConversationContent
       ? 'Type / for prompts, clear chat, settings, and toggles.'
       : 'Try a starter prompt or open / commands.';
+  const activeCommand = filteredCommands[commandIndex] ?? filteredCommands[0] ?? null;
+  const activeDescendantId = commandMenuOpen && activeCommand ? `slash-cmd-${activeCommand.name}` : undefined;
+  const fileInputId = 'workspace-composer-file-input';
+
+  useEffect(() => {
+    if (!commandMenuOpen || !activeDescendantId) {
+      return;
+    }
+
+    document.getElementById(activeDescendantId)?.scrollIntoView({ block: 'nearest' });
+  }, [activeDescendantId, commandMenuOpen]);
+
+  const composerField = (
+    <div className="workspace-studio__composer-field">
+      <textarea
+        ref={composerRef}
+        value={draft}
+        onChange={onDraftChange}
+        onKeyDown={onComposerKeyDown}
+        placeholder={placeholder}
+        rows={1}
+        className="field field--textarea"
+        aria-expanded={commandMenuOpen}
+        aria-controls={commandMenuOpen ? SLASH_MENU_ID : undefined}
+        aria-activedescendant={activeDescendantId}
+        aria-autocomplete={commandMenuOpen ? 'list' : undefined}
+        aria-haspopup={commandMenuOpen ? 'listbox' : undefined}
+      />
+      <SlashCommandMenu
+        open={commandMenuOpen}
+        commands={filteredCommands}
+        commandIndex={commandIndex}
+        commandFilter={commandFilter}
+        listboxId={SLASH_MENU_ID}
+        onApply={onApplySlashCommand}
+      />
+    </div>
+  );
 
   return (
     <MotionPanel className={composerClassName}>
@@ -72,23 +114,32 @@ export default function MessageInput({
                   <img
                     src={f.previewUrl}
                     alt={f.name}
-                    style={{ maxWidth: '80px', maxHeight: '80px', objectFit: 'cover', borderRadius: '8px', display: 'block' }}
+                    className="workspace-studio__attachment-preview"
+                    width={80}
+                    height={80}
+                    loading="lazy"
+                    decoding="async"
                   />
                   <button
                     type="button"
                     className="workspace-studio__attachment-image-remove"
                     aria-label={`Remove ${f.name}`}
                     onClick={() => onRemoveFile(f.name)}
-                  >✕</button>
+                  >
+                    <span aria-hidden="true">✕</span>
+                  </button>
                 </div>
               ) : (
                 <div key={f.name} className="workspace-studio__attachment-chip">
                   <span>{f.isPdf ? '📄 ' : ''}{f.name}</span>
                   <button
                     type="button"
+                    className="workspace-studio__attachment-chip-remove"
                     aria-label={`Remove ${f.name}`}
                     onClick={() => onRemoveFile(f.name)}
-                  >✕</button>
+                  >
+                    <span aria-hidden="true">✕</span>
+                  </button>
                 </div>
               )
             ))}
@@ -97,11 +148,12 @@ export default function MessageInput({
       </MotionPresence>
 
       <input
+        id={fileInputId}
         ref={fileInputRef}
         type="file"
         accept=".txt,.md,.csv,.json,.html,.xml,.pdf,image/png,image/jpeg,image/webp,image/gif"
         multiple
-        style={{ display: 'none' }}
+        className="workspace-studio__file-input"
         onChange={onFileAttach}
       />
 
@@ -113,43 +165,12 @@ export default function MessageInput({
               className={`workspace-studio__action-chip workspace-studio__action-chip--composer${attachedFiles.length > 0 ? ' is-active' : ''}`}
               onClick={onAttachClick}
               aria-label="Attach file"
-              title="Attach a text, CSV, or JSON file"
+              aria-controls={fileInputId}
+              title="Attach text, markdown, CSV, JSON, PDF, or image files"
             >
               <AttachIcon />
             </button>
-            <div className="workspace-studio__composer-field">
-              <textarea
-                ref={composerRef}
-                value={draft}
-                onChange={onDraftChange}
-                onKeyDown={onComposerKeyDown}
-                placeholder={placeholder}
-                rows={1}
-                className="field field--textarea"
-              />
-              {commandMenuOpen ? (
-                <div className="workspace-studio__command-menu">
-                  {filteredCommands.length > 0 ? (
-                    filteredCommands.map((command, index) => (
-                      <button
-                        key={command.name}
-                        type="button"
-                        className={`workspace-studio__command-item${index === commandIndex ? ' is-active' : ''}`}
-                        onMouseDown={(event) => {
-                          event.preventDefault();
-                          onApplySlashCommand(command);
-                        }}
-                      >
-                        <span className="workspace-studio__command-name">/{command.name}</span>
-                        <span className="workspace-studio__command-description">{command.description}</span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="workspace-studio__command-empty">No commands match &quot;/{commandFilter.trim()}&quot;.</div>
-                  )}
-                </div>
-              ) : null}
-            </div>
+            {composerField}
             {voiceSupported ? (
               <button
                 type="button"
@@ -180,29 +201,20 @@ export default function MessageInput({
               placeholder={placeholder}
               rows={1}
               className="field field--textarea"
+              aria-expanded={commandMenuOpen}
+              aria-controls={commandMenuOpen ? SLASH_MENU_ID : undefined}
+              aria-activedescendant={activeDescendantId}
+              aria-autocomplete={commandMenuOpen ? 'list' : undefined}
+              aria-haspopup={commandMenuOpen ? 'listbox' : undefined}
             />
-            {commandMenuOpen ? (
-              <div className="workspace-studio__command-menu">
-                {filteredCommands.length > 0 ? (
-                  filteredCommands.map((command, index) => (
-                    <button
-                      key={command.name}
-                      type="button"
-                      className={`workspace-studio__command-item${index === commandIndex ? ' is-active' : ''}`}
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                        onApplySlashCommand(command);
-                      }}
-                    >
-                      <span className="workspace-studio__command-name">/{command.name}</span>
-                      <span className="workspace-studio__command-description">{command.description}</span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="workspace-studio__command-empty">No commands match &quot;/{commandFilter.trim()}&quot;.</div>
-                )}
-              </div>
-            ) : null}
+            <SlashCommandMenu
+              open={commandMenuOpen}
+              commands={filteredCommands}
+              commandIndex={commandIndex}
+              commandFilter={commandFilter}
+              listboxId={SLASH_MENU_ID}
+              onApply={onApplySlashCommand}
+            />
           </>
         )}
       </div>
@@ -256,7 +268,8 @@ export default function MessageInput({
               className={`workspace-studio__action-chip workspace-studio__action-chip--composer${attachedFiles.length > 0 ? ' is-active' : ''}`}
               onClick={onAttachClick}
               aria-label="Attach file"
-              title="Attach a text, CSV, or JSON file"
+              aria-controls={fileInputId}
+              title="Attach text, markdown, CSV, JSON, PDF, or image files"
             >
               <AttachIcon />
             </button>
@@ -273,6 +286,7 @@ export default function MessageInput({
             ) : null}
             <Button
               tone="accent"
+              className="workspace-studio__composer-send"
               onClick={() => onSend()}
               disabled={(!draft.trim() && attachedFiles.length === 0) || isStreaming}
             >

@@ -11,6 +11,7 @@ import {
   SignalCards,
   buildBreadcrumbSchema,
 } from '../components/PublicContent';
+import { buildWebPageSchema } from '../lib/seo';
 import { getComparisonPageBySlug } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
@@ -54,6 +55,14 @@ export default function ComparisonPage() {
         canonicalPath={`/compare/${page.slug}`}
         ogImage={page.ogImage}
         ogImageAlt={page.ogImageAlt}
+      />
+      <JsonLd
+        id={`schema-webpage-compare-${page.slug}`}
+        schema={buildWebPageSchema({
+          name: page.metaTitle,
+          description: page.metaDescription,
+          path: `/compare/${page.slug}`,
+        })}
       />
       <JsonLd
         id={`schema-breadcrumbs-compare-${page.slug}`}

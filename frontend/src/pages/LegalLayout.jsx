@@ -1,12 +1,15 @@
 import { Link } from 'react-router-dom';
 import { Button, PageShell, Reveal } from '../components/ui';
 import { usePrymalReducedMotion } from '../components/motion';
-import { PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
+import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import { buildWebPageSchema } from '../lib/seo';
+import { PUBLIC_OG_DEFAULTS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 
 export default function LegalLayout({ eyebrow, title, description, sections, updated, pageTitle, canonicalPath }) {
   const reducedMotion = usePrymalReducedMotion();
+  const legalMeta = PUBLIC_OG_DEFAULTS.legal;
 
   const trackSignup = () => {
     if (typeof window !== 'undefined' && typeof window.prymalTrack === 'function') {
@@ -16,7 +19,25 @@ export default function LegalLayout({ eyebrow, title, description, sections, upd
 
   return (
     <div className="marketing-page prymal-marketing pm-page">
-      {pageTitle && <PageMeta title={pageTitle} description={description} canonicalPath={canonicalPath} />}
+      {pageTitle ? (
+        <>
+          <PageMeta
+            title={pageTitle}
+            description={description}
+            canonicalPath={canonicalPath}
+            ogImage={legalMeta.image}
+            ogImageAlt={legalMeta.imageAlt}
+          />
+          <JsonLd
+            id={`schema-legal-${canonicalPath?.replace(/\//g, '') ?? 'page'}`}
+            schema={buildWebPageSchema({
+              name: pageTitle,
+              description,
+              path: canonicalPath,
+            })}
+          />
+        </>
+      ) : null}
       <MagicalCanvas reducedMotion={reducedMotion} />
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="legal" onSignupClick={trackSignup} />

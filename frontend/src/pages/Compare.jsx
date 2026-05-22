@@ -42,8 +42,8 @@ export default function Compare() {
   return (
     <div className="marketing-page prymal-marketing pm-page">
       <PageMeta
-        title="Compare Prymal - Prymal"
-        description="Compare Prymal with general chat tools, AI chatbots, agent platforms, and workflow automation categories for business use."
+        title={PUBLIC_OG_DEFAULTS.compare.title}
+        description={PUBLIC_OG_DEFAULTS.compare.description}
         canonicalPath="/compare"
         ogImage={PUBLIC_OG_DEFAULTS.compare.image}
         ogImageAlt={PUBLIC_OG_DEFAULTS.compare.imageAlt}

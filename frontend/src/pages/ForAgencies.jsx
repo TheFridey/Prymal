@@ -5,6 +5,8 @@ import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../compone
 import { getAgentMeta } from '../lib/constants';
 import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import { buildFaqPageSchema, buildWebPageSchema } from '../lib/seo';
+import { PUBLIC_OG_DEFAULTS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/app-rebuild.css';
 
@@ -190,22 +192,21 @@ export default function ForAgencies() {
   return (
     <div className="marketing-page prymal-marketing pm-page">
       <PageMeta
-        title="Prymal for Agencies | Your AI content, outreach, and ops team"
-        description="Give your agency an AI pod for outreach, content, proposals, delivery planning, and client comms. First useful output in under 5 minutes."
+        title={PUBLIC_OG_DEFAULTS.forAgencies.title}
+        description={PUBLIC_OG_DEFAULTS.forAgencies.description}
         canonicalPath="/for-agencies"
+        ogImage={PUBLIC_OG_DEFAULTS.forAgencies.image}
+        ogImageAlt={PUBLIC_OG_DEFAULTS.forAgencies.imageAlt}
       />
       <JsonLd
-        id="schema-faq-agencies"
-        schema={{
-          '@context': 'https://schema.org',
-          '@type': 'FAQPage',
-          mainEntity: faqItems.map((item) => ({
-            '@type': 'Question',
-            name: item.question,
-            acceptedAnswer: { '@type': 'Answer', text: item.answer },
-          })),
-        }}
+        id="schema-webpage-agencies"
+        schema={buildWebPageSchema({
+          name: PUBLIC_OG_DEFAULTS.forAgencies.title,
+          description: PUBLIC_OG_DEFAULTS.forAgencies.description,
+          path: '/for-agencies',
+        })}
       />
+      <JsonLd id="schema-faq-agencies" schema={buildFaqPageSchema(faqItems)} />
 
       <MagicalCanvas reducedMotion={reducedMotion} />
 

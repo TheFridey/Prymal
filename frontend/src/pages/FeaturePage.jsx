@@ -14,6 +14,7 @@ import {
   SignalCards,
   buildBreadcrumbSchema,
 } from '../components/PublicContent';
+import { buildWebPageSchema } from '../lib/seo';
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
 
@@ -44,6 +45,14 @@ export default function FeaturePage() {
         canonicalPath={`/features/${page.slug}`}
         ogImage={page.ogImage}
         ogImageAlt={page.ogImageAlt}
+      />
+      <JsonLd
+        id={`schema-webpage-feature-${page.slug}`}
+        schema={buildWebPageSchema({
+          name: page.metaTitle,
+          description: page.metaDescription,
+          path: `/features/${page.slug}`,
+        })}
       />
       <JsonLd
         id={`schema-breadcrumbs-feature-${page.slug}`}

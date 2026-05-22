@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
+import { trackWorkflowTemplateOpened } from '../lib/analytics';
 import { api } from '../lib/api';
 import { getAgentMeta } from '../lib/constants';
 import WorkflowTemplateCard from '../features/workspace/workflows/WorkflowTemplateCard';
@@ -68,6 +69,14 @@ export default function Workflows() {
   const selectedRun = (runsQuery.data?.runs ?? []).find((run) => run.id === selectedRunId) ?? null;
 
   const openBuilder = (templateSlug = null) => {
+    if (templateSlug) {
+      trackWorkflowTemplateOpened({
+        template_slug: templateSlug,
+        surface: 'workflows',
+        action: 'open_builder',
+      });
+    }
+
     const next = new URLSearchParams(searchParams);
     next.set('view', 'builder');
 

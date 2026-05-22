@@ -13,6 +13,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { trackWorkflowTemplateOpened } from '../lib/analytics';
 import { api } from '../lib/api';
 import { AGENT_LIBRARY } from '../lib/constants';
 import { WORKFLOW_TEMPLATES } from '../lib/workflow-templates';
@@ -457,6 +458,11 @@ export default function WorkflowBuilder({ onClose, initialTemplate = null }) {
     });
     resetExecutionStory();
     appliedTemplateSlugRef.current = template.slug;
+    trackWorkflowTemplateOpened({
+      template_slug: template.slug,
+      surface: 'workflow_builder',
+      action: 'load_template',
+    });
   }, [resetExecutionStory, setEdges, setNodes, stopSimulation]);
 
   const startBlankWorkflow = useCallback(() => {

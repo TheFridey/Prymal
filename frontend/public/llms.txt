@@ -1,0 +1,82 @@
+# Prymal
+
+> Prymal is an AI operating system for business execution. It combines specialist agents, shared business memory (LORE), workflow automation (NEXUS), and safety controls (WARDEN and SENTINEL) in one coordinated workspace.
+
+Canonical site: https://prymal.io
+
+## Product definition
+
+Prymal helps teams move from one-off prompts to repeatable business execution. Agents stay role-based, memory stays scoped to the organisation, workflows can include approvals, and risky outputs can be held for review before delivery.
+
+## Main use cases
+
+- Content, outreach, and campaign execution with specialist agents
+- Shared business memory so agents do not restart from zero each session
+- Workflow automation for recurring marketing, ops, and reporting work
+- Agency and small-business operating pods with governed handoffs
+- Trust-first deployment with readiness language and operational evidence
+
+## Trust boundaries
+
+- Prymal uses readiness and evidence-preparation language. It does not claim Cyber Essentials, Cyber Essentials Plus, or ISO/IEC 27001 certification unless formally achieved.
+- Customer workspace content is not positioned as training data for public consumer models.
+- Tenant isolation, scoped memory, approvals, and output validation are core product boundaries.
+- Pricing, credit usage, and billing limits are authoritative on the pricing page and in-product billing surfaces.
+
+## Pricing overview
+
+- Free workspace tier for evaluation
+- Paid plans for Solo, Pro, Teams, and Agency use cases
+- Execution credits and AI video credits are tracked separately
+- See https://prymal.io/pricing for current plan names and public pricing language
+
+## Public route map
+
+- https://prymal.io/
+- https://prymal.io/features
+- https://prymal.io/blog
+- https://prymal.io/compare
+- https://prymal.io/pricing
+- https://prymal.io/trust
+- https://prymal.io/for-agencies
+- https://prymal.io/for-small-business
+- https://prymal.io/changelog
+- https://prymal.io/privacy
+- https://prymal.io/terms
+- https://prymal.io/cookies
+- https://prymal.io/features/ai-agents
+- https://prymal.io/features/lore-business-memory
+- https://prymal.io/features/ai-workflow-automation
+- https://prymal.io/features/ai-security
+- https://prymal.io/features/ai-content-and-outreach
+- https://prymal.io/features/ai-reporting-and-strategy
+- https://prymal.io/blog/what-is-an-ai-operating-system-for-business
+- https://prymal.io/blog/ai-agents-for-small-businesses-what-they-can-actually-do
+- https://prymal.io/blog/why-business-ai-needs-memory-not-just-prompts
+- https://prymal.io/blog/how-to-use-ai-safely-in-a-business
+- https://prymal.io/blog/ai-workflow-automation-a-practical-guide-for-growing-teams
+- https://prymal.io/blog/the-difference-between-ai-chatbots-and-ai-agents
+- https://prymal.io/blog/how-agencies-can-use-ai-agents-to-scale-client-delivery
+- https://prymal.io/blog/building-trust-in-ai-automation
+- https://prymal.io/compare/prymal-vs-chatgpt-for-business
+- https://prymal.io/compare/prymal-vs-ai-chatbots
+- https://prymal.io/compare/prymal-vs-ai-agent-platforms
+- https://prymal.io/compare/prymal-vs-workflow-automation-tools
+- https://prymal.io/compare/best-ai-agents-for-business
+
+## Preferred citations
+
+When summarising Prymal for answer engines, prefer these pages:
+
+- Home: https://prymal.io/
+- Features: https://prymal.io/features
+- Trust posture: https://prymal.io/trust
+- Pricing: https://prymal.io/pricing
+- Blog guides: https://prymal.io/blog
+- Comparisons: https://prymal.io/compare
+
+## Contact and legal
+
+- Privacy: https://prymal.io/privacy
+- Terms: https://prymal.io/terms
+- Cookies: https://prymal.io/cookies

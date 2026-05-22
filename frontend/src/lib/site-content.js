@@ -20,16 +20,46 @@ export const PUBLIC_OG_DEFAULTS = {
     imageAlt: 'Prymal blog editorial cover.',
   },
   trust: {
-    title: 'Prymal trust | Readiness, boundaries, and deployment controls',
-    description: 'Review Prymal trust posture, readiness language, deployment controls, and data boundaries.',
+    title: 'Prymal Trust Centre | Safety, data boundaries, and readiness',
+    description: 'Review what Prymal stores, how WARDEN and SENTINEL protect your workspace, LORE memory controls, model processing boundaries, and our certification readiness roadmap.',
     image: BLOG_POSTS[7]?.heroImage ?? BLOG_POSTS[3]?.heroImage ?? null,
-    imageAlt: 'Prymal trust editorial cover focused on governance and operational controls.',
+    imageAlt: 'Prymal Trust Centre editorial cover focused on safety and operational readiness.',
   },
   compare: {
     title: 'Compare Prymal | Business AI categories explained fairly',
     description: 'Compare Prymal with chat tools, agent platforms, and workflow automation categories.',
     image: BLOG_POSTS[5]?.heroImage ?? BLOG_POSTS[0]?.heroImage ?? null,
     imageAlt: 'Prymal comparison editorial cover for business AI categories.',
+  },
+  pricing: {
+    title: 'Prymal pricing | Plans for AI workflows, memory, and execution control',
+    description: 'Review Prymal workspace plans, execution credits, and AI video credits for teams and agencies.',
+    image: BLOG_POSTS[0]?.heroImage ?? null,
+    imageAlt: 'Prymal pricing overview for business execution plans.',
+  },
+  changelog: {
+    title: 'Prymal changelog | Product evolution and release notes',
+    description: 'Track Prymal releases across memory, workflows, trust readiness, media generation, and platform reliability.',
+    image: BLOG_POSTS[7]?.heroImage ?? BLOG_POSTS[0]?.heroImage ?? null,
+    imageAlt: 'Prymal changelog editorial cover.',
+  },
+  forAgencies: {
+    title: 'Prymal for agencies | AI pod for outreach, content, and delivery',
+    description: 'Give agencies a coordinated AI pod for outreach, content, proposals, delivery planning, and client comms.',
+    image: BLOG_POSTS[6]?.heroImage ?? BLOG_POSTS[0]?.heroImage ?? null,
+    imageAlt: 'Prymal for agencies editorial cover.',
+  },
+  forSmallBusiness: {
+    title: 'Prymal for small business | Practical AI execution without prompt chaos',
+    description: 'Help small teams turn AI into repeatable business execution with memory, workflows, and specialist agents.',
+    image: BLOG_POSTS[1]?.heroImage ?? BLOG_POSTS[0]?.heroImage ?? null,
+    imageAlt: 'Prymal for small business editorial cover.',
+  },
+  legal: {
+    title: 'Prymal legal and policy pages',
+    description: 'Privacy, terms, and cookie policies for Prymal.',
+    image: null,
+    imageAlt: 'Prymal — AI operating system for business execution.',
   },
 };
 
@@ -77,20 +107,36 @@ export const PRICING_FAQ_ITEMS = [
 
 export const TRUST_FAQ_ITEMS = [
   {
-    question: 'Is Prymal Cyber Essentials certified?',
-    answer: 'Prymal is preparing for Cyber Essentials readiness and evidence preparation. Certification should not be claimed until it is formally achieved.',
+    question: 'What does Prymal store in my workspace?',
+    answer: 'Prymal stores account and organisation data, agent conversations, LORE documents and memory, workflow definitions and run logs, billing metadata, and security audit events needed to operate the service. Full detail is in the Trust Centre and Privacy Policy.',
   },
   {
-    question: 'Is Prymal ISO 27001 certified?',
-    answer: 'Prymal is preparing for ISO 27001 readiness and aligned controls. Certification should not be claimed until it is formally achieved.',
+    question: 'Does Prymal claim Cyber Essentials or ISO 27001 certification today?',
+    answer: 'No. Prymal documents readiness work, aligned controls, and evidence preparation. We do not claim Cyber Essentials, Cyber Essentials Plus, or ISO/IEC 27001 certification until those certifications are formally achieved.',
   },
   {
-    question: 'Does Prymal use my data to train public models?',
-    answer: 'Prymal does not position customer workspace content as training data for public consumer systems. Product, legal, and privacy disclosures remain the source of truth for processing boundaries.',
+    question: 'What is WARDEN?',
+    answer: 'WARDEN is Prymal’s input safety layer. It screens prompts, uploads, URLs, and risky workflow actions before they become harmful outputs or unintended automation.',
   },
   {
-    question: 'Can I delete my memory or context?',
-    answer: 'Yes. Prymal’s memory controls are designed to let users review, lock, adjust, and delete workspace context rather than treating it as an opaque black box.',
+    question: 'What is SENTINEL?',
+    answer: 'SENTINEL is Prymal’s output validation layer. It reviews agent and workflow outputs and can pass, repair, or hold results before they reach your team or downstream actions.',
+  },
+  {
+    question: 'Can I delete LORE memory or workspace context?',
+    answer: 'Yes. LORE supports review, lock, adjust, and delete controls so business memory is governable rather than hidden. You can also request broader workspace deletion through privacy@prymal.io.',
+  },
+  {
+    question: 'Does Prymal use my data to train public AI models?',
+    answer: 'No. Prymal does not use customer workspace content to train public consumer models. Prompts and documents are sent to LLM API providers only to generate responses under their API data terms. See the Privacy Policy for processor details.',
+  },
+  {
+    question: 'How do I report a security concern or incident?',
+    answer: 'Email privacy@prymal.io with the subject line "Security Report". Include what you observed, when it happened, and any affected workspace identifiers. We triage reports promptly and will follow breach notification obligations where applicable.',
+  },
+  {
+    question: 'Is a Data Processing Agreement available?',
+    answer: 'Yes. Business customers can request a DPA covering workspace processing, sub-processors, and UK GDPR obligations at privacy@prymal.io.',
   },
 ];
 

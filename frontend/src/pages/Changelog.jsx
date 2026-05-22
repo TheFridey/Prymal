@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import { PageShell } from '../components/ui';
 import { MotionSection, usePrymalReducedMotion } from '../components/motion';
-import { PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
+import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import { buildWebPageSchema } from '../lib/seo';
+import { PUBLIC_OG_DEFAULTS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/changelog-premium.css';
 
@@ -402,9 +404,19 @@ export default function Changelog() {
   return (
     <div className="marketing-page prymal-marketing pm-page pm-changelog-page">
       <PageMeta
-        title="Changelog - Prymal"
-        description="Follow Prymal's product evolution: trust, workflows, memory, media generation, platform reliability, and workspace improvements."
+        title={PUBLIC_OG_DEFAULTS.changelog.title}
+        description={PUBLIC_OG_DEFAULTS.changelog.description}
         canonicalPath="/changelog"
+        ogImage={PUBLIC_OG_DEFAULTS.changelog.image}
+        ogImageAlt={PUBLIC_OG_DEFAULTS.changelog.imageAlt}
+      />
+      <JsonLd
+        id="schema-changelog"
+        schema={buildWebPageSchema({
+          name: PUBLIC_OG_DEFAULTS.changelog.title,
+          description: PUBLIC_OG_DEFAULTS.changelog.description,
+          path: '/changelog',
+        })}
       />
 
       <MagicalCanvas reducedMotion={reducedMotion} />
