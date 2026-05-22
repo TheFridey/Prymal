@@ -8,6 +8,7 @@ import './styles/agents.css';
 import './index.css';
 import './styles/motion-system.css';
 import './styles/premium-overrides.css';
+import './styles/app-rebuild.css';
 import './styles/rebuild/core-system.css';
 import './styles/rebuild/marketing-usecase.css';
 import './styles/rebuild/premium-motion.css';

@@ -21,7 +21,6 @@ import { BrandMark, ThemeToggle } from './ui';
 import { WorkspaceCreditAlerts } from '../features/workspace/billing/WorkspaceCreditAlerts';
 import { WorkspaceCommandPalette } from '../features/workspace/command/WorkspaceCommandPalette';
 import { MotionModal, MotionPresence, motion } from './motion';
-import '../styles/app-rebuild.css';
 
 const BASE_RAIL_ITEMS = [
   { to: '/app/dashboard', label: 'Dashboard', short: 'DB', icon: 'dashboard' },
