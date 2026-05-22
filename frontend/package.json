@@ -61,5 +61,8 @@
     "@esbuild/win32-arm64": "^0.21.5",
     "@rollup/rollup-win32-arm64-msvc": "^4.60.3",
     "@rollup/rollup-win32-x64-msvc": "^4.60.3"
+  },
+  "overrides": {
+    "js-cookie": "3.0.7"
   }
 }
