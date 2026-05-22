@@ -222,22 +222,16 @@ export default function Landing() {
       gsap.registerPlugin(ScrollTrigger);
 
       gsapContext = gsap.context(() => {
-        gsap.from('.pm-hero__intro > *', {
-          y: 28,
-          opacity: 0,
-          duration: 0.9,
-          ease: 'power3.out',
-          stagger: 0.08,
-        });
-
-        gsap.from('.pm-core-constellation__card', {
-          y: 36,
-          opacity: 0,
-          scale: 0.92,
-          duration: 0.85,
-          ease: 'power3.out',
-          stagger: 0.12,
-        });
+        const heroIntroItems = gsap.utils.toArray('.pm-hero__intro > *');
+        if (heroIntroItems.length > 0) {
+          gsap.from(heroIntroItems, {
+            y: 28,
+            opacity: 0,
+            duration: 0.9,
+            ease: 'power3.out',
+            stagger: 0.08,
+          });
+        }
 
         gsap.utils.toArray('.pm-agents-parade__grid .pm-agent-float').forEach((card, i) => {
           gsap.fromTo(
@@ -287,18 +281,21 @@ export default function Landing() {
           );
         });
 
-        gsap.fromTo(
-          '.pm-agent-float__icon-badge',
-          { opacity: 0, scale: 0 },
-          {
-            opacity: 1,
-            scale: 1,
-            duration: 0.4,
-            ease: 'back.out(2)',
-            stagger: 0.05,
-            scrollTrigger: { trigger: '.pm-agents-parade', start: 'top 70%', toggleActions: 'play none none none' },
-          },
-        );
+        const agentIconBadges = gsap.utils.toArray('.pm-agent-float__icon-badge');
+        if (agentIconBadges.length > 0) {
+          gsap.fromTo(
+            agentIconBadges,
+            { opacity: 0, scale: 0 },
+            {
+              opacity: 1,
+              scale: 1,
+              duration: 0.4,
+              ease: 'back.out(2)',
+              stagger: 0.05,
+              scrollTrigger: { trigger: '.pm-agents-parade', start: 'top 70%', toggleActions: 'play none none none' },
+            },
+          );
+        }
 
         // Hero stat counter — counts up to 15 on scroll into view
         const countEl = document.querySelector('.prymal-hero-stat--count');
