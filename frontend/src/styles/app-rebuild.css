@@ -2903,14 +2903,120 @@
   }
 }
 
-/* ── Agent workspace polish (Sintra-inspired) ── */
+/* ── Agent workspace: full-bleed chat (Sintra-inspired) ── */
+.app-shell--studio:has(.workspace-studio--agents) {
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+.app-main--studio:has(.workspace-studio--agents) {
+  height: 100vh !important;
+  min-height: 100vh !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+.workspace-studio--agents {
+  height: 100vh;
+  min-height: 100vh;
+}
+
+.workspace-studio--agents .workspace-studio__shell {
+  gap: 0 !important;
+  min-height: 100vh;
+  border-radius: 0 !important;
+}
+
+.workspace-studio--agents .workspace-studio__sidebar {
+  min-height: 100vh;
+  border-radius: 0 !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-left: none !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.09) !important;
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.workspace-studio--agents .workspace-studio__agent-hero {
+  padding: 18px 16px !important;
+  border-radius: 24px !important;
+  box-shadow: 0 14px 34px rgba(7, 12, 26, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+}
+
+.workspace-studio--agents .workspace-studio__hero-avatar {
+  margin-top: 14px;
+  margin-bottom: 12px;
+}
+
+.workspace-studio--agents .workspace-studio__main {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 100vh !important;
+  height: 100vh !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+  background:
+    radial-gradient(circle at 50% -10%, color-mix(in srgb, var(--studio-accent) 10%, transparent), transparent 42%),
+    color-mix(in srgb, var(--panel) 96%, #0a1021) !important;
+}
+
+.workspace-studio--agents .workspace-studio__main::before,
+.workspace-studio--agents .workspace-studio__main::after {
+  content: none !important;
+  display: none !important;
+}
+
 .workspace-studio--agents .workspace-studio__main > * {
   max-width: none !important;
   margin-inline: 0 !important;
+  width: 100% !important;
+}
+
+.workspace-studio--agents .workspace-studio__panel-switcher {
+  flex-shrink: 0;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 16px 24px 12px !important;
+  border-radius: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.workspace-studio--agents .workspace-studio__first-run-hint,
+.workspace-studio--agents .workspace-studio__prompt-row {
+  flex-shrink: 0;
+  padding-inline: 24px !important;
+}
+
+.workspace-studio--agents .workspace-studio__url-audit-bar {
+  flex-shrink: 0;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 12px 24px !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--studio-accent) 14%, var(--line)) !important;
+  background: transparent !important;
+}
+
+.workspace-studio--agents .workspace-studio__prompt-row {
+  padding-bottom: 12px !important;
 }
 
 .workspace-studio--agents .workspace-studio__messages {
-  padding: 24px 26px !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  padding: 8px 24px 24px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
 }
 
 .workspace-studio--agents .workspace-studio__messages::before {
@@ -2924,8 +3030,16 @@
   gap: 20px;
 }
 
+.workspace-studio--agents .workspace-studio__message:not(.is-user) .workspace-studio__bubble {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+.workspace-studio--agents .workspace-studio__message.is-user .workspace-studio__bubble {
+  max-width: min(720px, 78%) !important;
+}
+
 .workspace-studio--agents .workspace-studio__bubble {
-  max-width: min(1120px, 96%) !important;
   border-radius: 20px !important;
   box-shadow: 0 14px 36px rgba(6, 10, 24, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
   font-size: 1rem !important;
@@ -2944,25 +3058,19 @@
   line-height: 1.75 !important;
 }
 
-.workspace-studio--agents .workspace-studio__sidebar {
-  border-right: 1px solid rgba(255, 255, 255, 0.09) !important;
-  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.05) !important;
-}
-
-.workspace-studio--agents .workspace-studio__agent-hero {
-  padding: 18px 16px !important;
-  border-radius: 24px !important;
-  box-shadow: 0 14px 34px rgba(7, 12, 26, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
-}
-
-.workspace-studio--agents .workspace-studio__hero-avatar {
-  margin-top: 14px;
-  margin-bottom: 12px;
-}
-
 .workspace-studio--agents .workspace-studio__composer {
-  border-radius: 24px !important;
-  box-shadow: 0 12px 30px rgba(5, 10, 24, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  flex-shrink: 0;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 16px 24px 20px !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-top: 1px solid color-mix(in srgb, var(--studio-accent) 16%, var(--line)) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+    color-mix(in srgb, var(--panel-strong) 94%, #0a1021) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
 }
 
 .workspace-studio--agents .workspace-studio__composer-field .field--textarea {
@@ -2990,5 +3098,34 @@
   border-radius: 14px !important;
   font-size: 0.9rem !important;
   font-weight: 700;
+}
+
+@media (max-width: 1024px) {
+  .app-main--studio:has(.workspace-studio--agents) {
+    height: auto !important;
+    min-height: calc(100svh - 76px) !important;
+    overflow: auto !important;
+    padding: 0 !important;
+  }
+
+  .workspace-studio--agents,
+  .workspace-studio--agents .workspace-studio__shell,
+  .workspace-studio--agents .workspace-studio__main,
+  .workspace-studio--agents .workspace-studio__sidebar {
+    height: auto !important;
+    min-height: calc(100svh - 76px) !important;
+  }
+
+  .workspace-studio--agents .workspace-studio__panel-switcher,
+  .workspace-studio--agents .workspace-studio__first-run-hint,
+  .workspace-studio--agents .workspace-studio__prompt-row,
+  .workspace-studio--agents .workspace-studio__messages,
+  .workspace-studio--agents .workspace-studio__composer {
+    padding-inline: 16px !important;
+  }
+
+  .workspace-studio--agents .workspace-studio__message.is-user .workspace-studio__bubble {
+    max-width: 100% !important;
+  }
 }
 
