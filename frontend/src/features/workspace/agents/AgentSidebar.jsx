@@ -107,7 +107,7 @@ export default function AgentSidebar({
   }, [activeTooltip?.agent?.id, activeTooltip?.anchorLeft]);
 
   return (
-    <MotionPanel className="workspace-studio__sidebar agent-chat-sidebar">
+    <MotionPanel className="workspace-studio__sidebar agent-chat-sidebar" data-agent-sidebar="v2">
       <div className="agent-chat-sidebar__profile">
         <div className="agent-chat-sidebar__profile-main">
           <AgentAvatar agent={activeAgent} size={56} active className="agent-chat-sidebar__avatar" />

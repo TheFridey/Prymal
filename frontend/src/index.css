@@ -3733,17 +3733,6 @@ textarea {
   border-right: 1px solid color-mix(in srgb, var(--studio-accent) 18%, var(--line));
 }
 
-.workspace-studio__agent-hero {
-  position: relative;
-  z-index: 1;
-  flex-shrink: 0;
-  padding: 14px;
-  border-radius: 24px;
-  border: 1px solid color-mix(in srgb, var(--studio-accent) 24%, var(--line));
-  background: color-mix(in srgb, var(--studio-accent) 8%, rgba(255, 255, 255, 0.72));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
-}
-
 .workspace-studio__agent-topbar,
 .workspace-studio__history-header,
 .workspace-studio__main-topbar,
@@ -7549,20 +7538,6 @@ body::after {
 
 .workspace-studio__sidebar {
   padding: 18px;
-}
-
-.workspace-studio__agent-hero {
-  gap: 16px;
-  padding: 18px;
-  border-radius: 30px;
-  border: 1px solid color-mix(in srgb, var(--studio-accent) 26%, var(--line));
-  background:
-    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--studio-accent) 14%, transparent), transparent 36%),
-    rgba(255, 255, 255, 0.08);
-}
-
-.workspace-studio__hero-avatar {
-  box-shadow: 0 34px 74px color-mix(in srgb, var(--studio-accent) 16%, transparent);
 }
 
 .workspace-studio__agent-name {
