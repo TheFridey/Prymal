@@ -1719,6 +1719,17 @@ function normalizeLLMError(error, provider = 'anthropic') {
       return normalized;
     }
   } else if (provider === 'google') {
+    if (
+      normalized.code === 'PERMISSION_DENIED'
+      || /permission[_ -]?denied|denied access|project has been denied access|403/i.test(rawMessage)
+    ) {
+      normalized.message =
+        'Google AI denied this project. Update or disable GEMINI_API_KEY in backend/.env, then restart the backend.';
+      normalized.code = 'GEMINI_AUTH_INVALID';
+      normalized.status = 503;
+      return normalized;
+    }
+
     if (/api.?key|invalid.?key|authentication|unauthorized|401/i.test(rawMessage)) {
       normalized.message =
         'GEMINI_API_KEY was rejected by Google. Update backend/.env with a valid key and restart the backend.';
