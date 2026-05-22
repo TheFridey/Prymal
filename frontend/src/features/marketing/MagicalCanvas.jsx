@@ -52,17 +52,21 @@ export function MagicalCanvas({ reducedMotion = false }) {
 
     let animationId = 0;
     let lastScrollY = window.scrollY;
+    let viewportWidth = window.innerWidth;
+    let viewportHeight = window.innerHeight;
 
-    const stars = createStars(200);
-    const orbs = createOrbs(15);
+    const stars = createStars(120);
+    const orbs = createOrbs(8);
     const trails = [];
 
     stateRef.current = { stars, orbs, trails };
 
     function resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
+      viewportWidth = window.innerWidth;
+      viewportHeight = window.innerHeight;
+      canvas.width = viewportWidth * dpr;
+      canvas.height = viewportHeight * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
@@ -72,12 +76,12 @@ export function MagicalCanvas({ reducedMotion = false }) {
     function handleScroll() {
       const dy = Math.abs(window.scrollY - lastScrollY);
       lastScrollY = window.scrollY;
-      if (dy > 2 && trails.length < 40) {
+      if (dy > 2 && trails.length < 24) {
         const count = Math.min(Math.ceil(dy / 20), 5);
-        for (let i = 0; i < count && trails.length < 40; i++) {
+        for (let i = 0; i < count && trails.length < 24; i++) {
           trails.push({
-            x: Math.random() * window.innerWidth,
-            y: window.innerHeight + 10,
+            x: Math.random() * viewportWidth,
+            y: viewportHeight + 10,
             opacity: 1,
             born: performance.now(),
           });
@@ -87,36 +91,33 @@ export function MagicalCanvas({ reducedMotion = false }) {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
 
-    const w = () => window.innerWidth;
-    const h = () => window.innerHeight;
-
     function draw(now) {
-      ctx.clearRect(0, 0, w(), h());
+      ctx.clearRect(0, 0, viewportWidth, viewportHeight);
 
       for (const star of stars) {
-        star.y -= star.driftSpeed / h();
+        star.y -= star.driftSpeed / viewportHeight;
         if (star.y < -0.02) star.y = 1.02;
 
         const twinkle = 0.5 + 0.5 * Math.sin(((now + star.twinkleOffset) / star.twinklePeriod) * Math.PI * 2);
         const opacity = star.baseOpacity * (0.4 + 0.6 * twinkle);
 
         ctx.beginPath();
-        ctx.arc(star.x * w(), star.y * h(), star.r, 0, Math.PI * 2);
+        ctx.arc(star.x * viewportWidth, star.y * viewportHeight, star.r, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(255,255,255,${opacity})`;
         ctx.fill();
       }
 
       for (const orb of orbs) {
-        orb.x += orb.dx / w();
-        orb.y += orb.dy / h();
+        orb.x += orb.dx / viewportWidth;
+        orb.y += orb.dy / viewportHeight;
 
         if (orb.x < 0 || orb.x > 1) orb.dx *= -1;
         if (orb.y < 0 || orb.y > 1) orb.dy *= -1;
         orb.x = Math.max(0, Math.min(1, orb.x));
         orb.y = Math.max(0, Math.min(1, orb.y));
 
-        const px = orb.x * w();
-        const py = orb.y * h();
+        const px = orb.x * viewportWidth;
+        const py = orb.y * viewportHeight;
 
         ctx.save();
         ctx.globalAlpha = orb.opacity;
