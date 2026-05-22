@@ -30,134 +30,152 @@ function createOrbs(count) {
   }));
 }
 
-export function MagicalCanvas({ reducedMotion = false }) {
+export function MagicalCanvas({ reducedMotion = false, startDelayMs = 0 }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
 
   useEffect(() => {
     if (reducedMotion) return undefined;
 
-    const canvas = canvasRef.current;
-    if (!canvas) return undefined;
-    if (import.meta.env?.MODE === 'test') return undefined;
+    let cleanup = undefined;
+    let delayId = 0;
 
-    let ctx = null;
-    try {
-      ctx = canvas.getContext('2d');
-    } catch {
-      // jsdom and some privacy-hardened browsers can expose canvas without 2D support.
-      return undefined;
-    }
-    if (!ctx) return undefined;
+    const startCanvas = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return undefined;
+      if (import.meta.env?.MODE === 'test') return undefined;
 
-    let animationId = 0;
-    let lastScrollY = window.scrollY;
-    let viewportWidth = window.innerWidth;
-    let viewportHeight = window.innerHeight;
+      let ctx = null;
+      try {
+        ctx = canvas.getContext('2d');
+      } catch {
+        // jsdom and some privacy-hardened browsers can expose canvas without 2D support.
+        return undefined;
+      }
+      if (!ctx) return undefined;
 
-    const stars = createStars(120);
-    const orbs = createOrbs(8);
-    const trails = [];
+      let animationId = 0;
+      let lastScrollY = window.scrollY;
+      let viewportWidth = window.innerWidth;
+      let viewportHeight = window.innerHeight;
 
-    stateRef.current = { stars, orbs, trails };
+      const stars = createStars(120);
+      const orbs = createOrbs(8);
+      const trails = [];
 
-    function resize() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      viewportWidth = window.innerWidth;
-      viewportHeight = window.innerHeight;
-      canvas.width = viewportWidth * dpr;
-      canvas.height = viewportHeight * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
+      stateRef.current = { stars, orbs, trails };
 
-    resize();
-    window.addEventListener('resize', resize);
+      function resize() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        viewportWidth = window.innerWidth;
+        viewportHeight = window.innerHeight;
+        canvas.width = viewportWidth * dpr;
+        canvas.height = viewportHeight * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
 
-    function handleScroll() {
-      const dy = Math.abs(window.scrollY - lastScrollY);
-      lastScrollY = window.scrollY;
-      if (dy > 2 && trails.length < 24) {
-        const count = Math.min(Math.ceil(dy / 20), 5);
-        for (let i = 0; i < count && trails.length < 24; i++) {
-          trails.push({
-            x: Math.random() * viewportWidth,
-            y: viewportHeight + 10,
-            opacity: 1,
-            born: performance.now(),
-          });
+      resize();
+      window.addEventListener('resize', resize);
+
+      function handleScroll() {
+        const dy = Math.abs(window.scrollY - lastScrollY);
+        lastScrollY = window.scrollY;
+        if (dy > 2 && trails.length < 24) {
+          const count = Math.min(Math.ceil(dy / 20), 5);
+          for (let i = 0; i < count && trails.length < 24; i++) {
+            trails.push({
+              x: Math.random() * viewportWidth,
+              y: viewportHeight + 10,
+              opacity: 1,
+              born: performance.now(),
+            });
+          }
         }
       }
-    }
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
+      window.addEventListener('scroll', handleScroll, { passive: true });
 
-    function draw(now) {
-      ctx.clearRect(0, 0, viewportWidth, viewportHeight);
+      function draw(now) {
+        ctx.clearRect(0, 0, viewportWidth, viewportHeight);
 
-      for (const star of stars) {
-        star.y -= star.driftSpeed / viewportHeight;
-        if (star.y < -0.02) star.y = 1.02;
+        for (const star of stars) {
+          star.y -= star.driftSpeed / viewportHeight;
+          if (star.y < -0.02) star.y = 1.02;
 
-        const twinkle = 0.5 + 0.5 * Math.sin(((now + star.twinkleOffset) / star.twinklePeriod) * Math.PI * 2);
-        const opacity = star.baseOpacity * (0.4 + 0.6 * twinkle);
+          const twinkle = 0.5 + 0.5 * Math.sin(((now + star.twinkleOffset) / star.twinklePeriod) * Math.PI * 2);
+          const opacity = star.baseOpacity * (0.4 + 0.6 * twinkle);
 
-        ctx.beginPath();
-        ctx.arc(star.x * viewportWidth, star.y * viewportHeight, star.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${opacity})`;
-        ctx.fill();
-      }
-
-      for (const orb of orbs) {
-        orb.x += orb.dx / viewportWidth;
-        orb.y += orb.dy / viewportHeight;
-
-        if (orb.x < 0 || orb.x > 1) orb.dx *= -1;
-        if (orb.y < 0 || orb.y > 1) orb.dy *= -1;
-        orb.x = Math.max(0, Math.min(1, orb.x));
-        orb.y = Math.max(0, Math.min(1, orb.y));
-
-        const px = orb.x * viewportWidth;
-        const py = orb.y * viewportHeight;
-
-        ctx.save();
-        ctx.globalAlpha = orb.opacity;
-        ctx.beginPath();
-        ctx.arc(px, py, orb.r * 3, 0, Math.PI * 2);
-        ctx.fillStyle = orb.color;
-        ctx.filter = 'blur(18px)';
-        ctx.fill();
-        ctx.filter = 'none';
-        ctx.restore();
-      }
-
-      for (let i = trails.length - 1; i >= 0; i--) {
-        const trail = trails[i];
-        const age = (now - trail.born) / 1500;
-        if (age >= 1) {
-          trails.splice(i, 1);
-          continue;
+          ctx.beginPath();
+          ctx.arc(star.x * viewportWidth, star.y * viewportHeight, star.r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,255,${opacity})`;
+          ctx.fill();
         }
-        trail.y -= 1.2;
-        trail.opacity = 1 - age;
-        const size = 2 * (1 - age * 0.5);
 
-        ctx.beginPath();
-        ctx.arc(trail.x, trail.y, size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,215,0,${trail.opacity * 0.7})`;
-        ctx.fill();
+        for (const orb of orbs) {
+          orb.x += orb.dx / viewportWidth;
+          orb.y += orb.dy / viewportHeight;
+
+          if (orb.x < 0 || orb.x > 1) orb.dx *= -1;
+          if (orb.y < 0 || orb.y > 1) orb.dy *= -1;
+          orb.x = Math.max(0, Math.min(1, orb.x));
+          orb.y = Math.max(0, Math.min(1, orb.y));
+
+          const px = orb.x * viewportWidth;
+          const py = orb.y * viewportHeight;
+
+          ctx.save();
+          ctx.globalAlpha = orb.opacity;
+          ctx.beginPath();
+          ctx.arc(px, py, orb.r * 3, 0, Math.PI * 2);
+          ctx.fillStyle = orb.color;
+          ctx.filter = 'blur(18px)';
+          ctx.fill();
+          ctx.filter = 'none';
+          ctx.restore();
+        }
+
+        for (let i = trails.length - 1; i >= 0; i--) {
+          const trail = trails[i];
+          const age = (now - trail.born) / 1500;
+          if (age >= 1) {
+            trails.splice(i, 1);
+            continue;
+          }
+          trail.y -= 1.2;
+          trail.opacity = 1 - age;
+          const size = 2 * (1 - age * 0.5);
+
+          ctx.beginPath();
+          ctx.arc(trail.x, trail.y, size, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,215,0,${trail.opacity * 0.7})`;
+          ctx.fill();
+        }
+
+        animationId = requestAnimationFrame(draw);
       }
 
       animationId = requestAnimationFrame(draw);
+
+      return () => {
+        cancelAnimationFrame(animationId);
+        window.removeEventListener('resize', resize);
+        window.removeEventListener('scroll', handleScroll);
+      };
+    };
+
+    if (startDelayMs > 0) {
+      delayId = window.setTimeout(() => {
+        cleanup = startCanvas();
+      }, startDelayMs);
+    } else {
+      cleanup = startCanvas();
     }
 
-    animationId = requestAnimationFrame(draw);
-
     return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener('resize', resize);
-      window.removeEventListener('scroll', handleScroll);
+      window.clearTimeout(delayId);
+      cleanup?.();
     };
-  }, [reducedMotion]);
+  }, [reducedMotion, startDelayMs]);
 
   if (reducedMotion) return null;
 

@@ -174,7 +174,14 @@ function AppRoutes() {
     <ErrorBoundary label="Application">
       <MotionPresence mode="wait" initial={false}>
         <Routes location={location} key={routeKey}>
-          <Route path="/" element={<LazyPage label="Loading Prymal..."><Landing /></LazyPage>} />
+          <Route
+            path="/"
+            element={(
+              <Suspense fallback={null}>
+                <Landing />
+              </Suspense>
+            )}
+          />
           <Route path="/features" element={<LazyPage label="Loading feature library..."><Features /></LazyPage>} />
           <Route path="/features/:slug" element={<LazyPage label="Loading feature page..."><FeaturePage /></LazyPage>} />
           <Route path="/blog" element={<LazyPage label="Loading blog..."><Blog /></LazyPage>} />

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
@@ -173,7 +173,7 @@ const USE_CASES = [
 export default function Landing() {
   const reducedMotion = usePrymalReducedMotion();
   const { isSignedIn } = useAuth();
-  const foundingAccessState = useFoundingAccessOffer();
+  const foundingAccessState = useFoundingAccessOffer({ delayMs: 5000 });
   const [email, setEmail] = useState('');
   const [waitlistResult, setWaitlistResult] = useState(null);
   const [specialistsOpen, setSpecialistsOpen] = useState(false);
@@ -204,13 +204,14 @@ export default function Landing() {
     return undefined;
   }, [waitlistResult]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (reducedMotion || !scopeRef.current) return undefined;
 
     let active = true;
     let gsapContext = null;
+    let animationDelayId = 0;
 
-    (async () => {
+    const startAnimations = async () => {
       const [{ default: gsap }, { ScrollTrigger }] = await Promise.all([
         import('gsap'),
         import('gsap/ScrollTrigger'),
@@ -323,10 +324,13 @@ export default function Landing() {
           );
         }
       }, scopeRef);
-    })();
+    };
+
+    animationDelayId = window.setTimeout(startAnimations, 1600);
 
     return () => {
       active = false;
+      window.clearTimeout(animationDelayId);
       gsapContext?.revert();
     };
   }, [reducedMotion]);
@@ -369,7 +373,7 @@ export default function Landing() {
         }}
       />
 
-      <MagicalCanvas reducedMotion={reducedMotion} />
+      <MagicalCanvas reducedMotion={reducedMotion} startDelayMs={2500} />
 
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="landing" />

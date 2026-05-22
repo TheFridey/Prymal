@@ -65,7 +65,7 @@ export async function submitFoundingAccessLead({ email, source }) {
   return data;
 }
 
-export function useFoundingAccessOffer() {
+export function useFoundingAccessOffer({ delayMs = 0 } = {}) {
   const { getToken, isLoaded } = useAuth();
   const [state, setState] = useState({ status: 'idle', offer: null });
 
@@ -75,10 +75,11 @@ export function useFoundingAccessOffer() {
     }
 
     let cancelled = false;
+    let delayId = 0;
 
     setState({ status: 'loading', offer: null });
 
-    fetchFoundingAccessOffer({ getToken })
+    const loadOffer = () => fetchFoundingAccessOffer({ getToken })
       .then((result) => {
         if (!cancelled) {
           setState({ status: 'ready', offer: result });
@@ -106,10 +107,19 @@ export function useFoundingAccessOffer() {
         }
       });
 
+    if (delayMs > 0) {
+      delayId = window.setTimeout(loadOffer, delayMs);
+    } else {
+      loadOffer();
+    }
+
     return () => {
       cancelled = true;
+      if (delayId) {
+        window.clearTimeout(delayId);
+      }
     };
-  }, [getToken, isLoaded]);
+  }, [delayMs, getToken, isLoaded]);
 
   return state;
 }
