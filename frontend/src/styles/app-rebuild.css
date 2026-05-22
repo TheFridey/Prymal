@@ -2638,6 +2638,12 @@
 @media (max-width: 768px) {
   .pm-dash__hero-content { grid-template-columns: 1fr; }
   .pm-dash__command-deck { grid-template-columns: 1fr; }
+  .pm-dash__hero { padding: 24px 18px; }
+  .pm-dash__first-win { padding: 20px 16px; }
+  .pm-dash__continue-card { padding: 16px; }
+  .pm-dash__demo-scenarios { padding: 16px; }
+  .pm-dash__card { padding: 20px 16px; }
+  .page-shell__inner { padding-left: 0; padding-right: 0; }
   .pm-dash__nexus-field { flex-direction: column; }
   .pm-dash__nexus-submit { width: 100%; padding: 12px 16px; }
   .pm-dash__flow-plate--empty { flex-direction: column; align-items: flex-start; }
@@ -2732,10 +2738,16 @@
   }
 
   .app-shell--studio {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0;
+    gap: 0;
     min-height: calc(100svh - 76px);
   }
 
   .app-main--studio {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
     height: auto;
     min-height: calc(100svh - 76px);
     padding: 8px;

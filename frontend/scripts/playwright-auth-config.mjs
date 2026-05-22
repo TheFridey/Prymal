@@ -18,6 +18,7 @@ export const PLAYWRIGHT_AUTH_ROLE_NAMES = Object.freeze(Object.keys(PLAYWRIGHT_R
 
 export const PLAYWRIGHT_PUBLIC_SPEC_LIST = Object.freeze([
   'tests/marketing-smoke.spec.js',
+  'tests/mobile-layout.spec.js',
   'tests/onboarding-smoke.spec.js',
 ]);
 
@@ -33,6 +34,7 @@ export const PLAYWRIGHT_AUTH_SPEC_LIST = Object.freeze([
   'tests/chat-runtime.spec.js',
   'tests/dashboard-first-win.spec.js',
   'tests/invite-membership.spec.js',
+  'tests/mobile-layout.spec.js',
   'tests/onboarding-regression.spec.js',
   'tests/security-boundaries.spec.js',
   'tests/settings-smoke.spec.js',

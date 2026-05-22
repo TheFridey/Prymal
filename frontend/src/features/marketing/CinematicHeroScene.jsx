@@ -1,7 +1,9 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Float, PerspectiveCamera } from '@react-three/drei';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { usePrymalReducedMotion } from '../../components/motion';
+import { shouldPreferStaticHeroScene } from '../../lib/webgl';
 
 function getRgb(hex) {
   if (!hex || !hex.startsWith('#')) {
@@ -210,37 +212,32 @@ function IntelligenceCore({ agents, reducedMotion }) {
   );
 }
 
-export default function CinematicHeroScene({ agents = [] }) {
-  const reducedMotion = usePrymalReducedMotion();
-  const sceneAgents = agents.slice(0, 6);
-  const accentGlow = getRgb(sceneAgents[0]?.color);
-  const accentSecondary = getRgb(sceneAgents[1]?.color ?? '#7f8cff');
+function CinematicHeroFallback({ sceneAgents, accentGlow, accentSecondary }) {
+  return (
+    <div
+      className="prymal-cinematic-stage__fallback"
+      style={{
+        '--hero-accent-rgb': accentGlow,
+        '--hero-accent-rgb-secondary': accentSecondary,
+      }}
+    >
+      <div className="prymal-cinematic-stage__fallback-core" />
+      <div className="prymal-cinematic-stage__fallback-ring prymal-cinematic-stage__fallback-ring--inner" />
+      <div className="prymal-cinematic-stage__fallback-ring prymal-cinematic-stage__fallback-ring--outer" />
+      {sceneAgents.map((agent) => (
+        <span
+          key={agent.id}
+          className="prymal-cinematic-stage__fallback-node"
+          style={{ '--node-accent': agent.color }}
+        >
+          {agent.name}
+        </span>
+      ))}
+    </div>
+  );
+}
 
-  if (reducedMotion) {
-    return (
-      <div
-        className="prymal-cinematic-stage__fallback"
-        style={{
-          '--hero-accent-rgb': accentGlow,
-          '--hero-accent-rgb-secondary': accentSecondary,
-        }}
-      >
-        <div className="prymal-cinematic-stage__fallback-core" />
-        <div className="prymal-cinematic-stage__fallback-ring prymal-cinematic-stage__fallback-ring--inner" />
-        <div className="prymal-cinematic-stage__fallback-ring prymal-cinematic-stage__fallback-ring--outer" />
-        {sceneAgents.map((agent) => (
-          <span
-            key={agent.id}
-            className="prymal-cinematic-stage__fallback-node"
-            style={{ '--node-accent': agent.color }}
-          >
-            {agent.name}
-          </span>
-        ))}
-      </div>
-    );
-  }
-
+function CinematicHeroCanvas({ sceneAgents, accentGlow, accentSecondary, reducedMotion }) {
   return (
     <div
       className="prymal-cinematic-stage__canvas-wrap"
@@ -250,8 +247,13 @@ export default function CinematicHeroScene({ agents = [] }) {
       }}
     >
       <Canvas
-        dpr={[1, 1.6]}
-        gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+        dpr={[1, 1.35]}
+        gl={{
+          antialias: true,
+          alpha: true,
+          powerPreference: 'default',
+          failIfMajorPerformanceCaveat: false,
+        }}
         className="prymal-cinematic-stage__canvas"
       >
         <PerspectiveCamera makeDefault position={[0, 0.8, 7.2]} fov={36} />
@@ -259,5 +261,62 @@ export default function CinematicHeroScene({ agents = [] }) {
         <IntelligenceCore agents={sceneAgents} reducedMotion={reducedMotion} />
       </Canvas>
     </div>
+  );
+}
+
+export default function CinematicHeroScene({ agents = [] }) {
+  const reducedMotion = usePrymalReducedMotion();
+  const sceneAgents = agents.slice(0, 6);
+  const accentGlow = getRgb(sceneAgents[0]?.color);
+  const accentSecondary = getRgb(sceneAgents[1]?.color ?? '#7f8cff');
+  const [preferStatic, setPreferStatic] = useState(() =>
+    shouldPreferStaticHeroScene({ reducedMotion }),
+  );
+
+  useEffect(() => {
+    const mobileQuery = window.matchMedia('(max-width: 768px)');
+    const coarseQuery = window.matchMedia('(pointer: coarse)');
+    const wideTouchQuery = window.matchMedia('(max-width: 1024px)');
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const sync = () => {
+      setPreferStatic(shouldPreferStaticHeroScene({ reducedMotion }));
+    };
+
+    sync();
+    mobileQuery.addEventListener('change', sync);
+    coarseQuery.addEventListener('change', sync);
+    wideTouchQuery.addEventListener('change', sync);
+    motionQuery.addEventListener('change', sync);
+
+    return () => {
+      mobileQuery.removeEventListener('change', sync);
+      coarseQuery.removeEventListener('change', sync);
+      wideTouchQuery.removeEventListener('change', sync);
+      motionQuery.removeEventListener('change', sync);
+    };
+  }, [reducedMotion]);
+
+  const fallback = (
+    <CinematicHeroFallback
+      sceneAgents={sceneAgents}
+      accentGlow={accentGlow}
+      accentSecondary={accentSecondary}
+    />
+  );
+
+  if (reducedMotion || preferStatic) {
+    return fallback;
+  }
+
+  return (
+    <ErrorBoundary label="Hero scene" fallback={fallback}>
+      <CinematicHeroCanvas
+        sceneAgents={sceneAgents}
+        accentGlow={accentGlow}
+        accentSecondary={accentSecondary}
+        reducedMotion={reducedMotion}
+      />
+    </ErrorBoundary>
   );
 }

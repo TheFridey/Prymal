@@ -114,10 +114,7 @@ export default function AgentProfile() {
 
             <div className="agent-profile__hero-scene" aria-hidden="true">
               <Suspense fallback={<div style={{ height: '240px' }} />}>
-                <CinematicHeroScene
-                  agentColor={agent?.color ?? '#68F5D0'}
-                  reducedMotion={reducedMotion}
-                />
+                <CinematicHeroScene agents={[agent]} />
               </Suspense>
             </div>
 

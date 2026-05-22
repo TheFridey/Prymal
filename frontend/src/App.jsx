@@ -282,24 +282,24 @@ function AuthPage({ mode }) {
     );
 
   return (
-    <div className="auth-screen">
-      <div className="auth-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap' }}>
+    <div className="auth-screen auth-screen--gate">
+      <div className="auth-card auth-card--gate">
+        <div className="auth-card__top">
           <BrandMark />
           <ThemeToggle />
         </div>
-        <div className="setup-screen__header">
+        <div className="auth-card__hero setup-screen__header">
           <div className="eyebrow" style={{ '--eyebrow-accent': 'var(--accent)' }}>
             {mode === 'sign-up' ? 'Create workspace' : 'Welcome back'}
           </div>
-          <h1 className="setup-screen__title" style={{ fontSize: 'clamp(2rem, 5vw, 2.8rem)' }}>
+          <h1 className="setup-screen__title auth-card__title">
             {mode === 'sign-up' ? 'Start your Prymal workspace.' : 'Enter the command layer.'}
           </h1>
-          <p className="setup-screen__copy">
+          <p className="setup-screen__copy auth-card__copy">
             Dark by default, glassy by design, and wired into the same Clerk-backed auth flow as the product.
           </p>
         </div>
-        {panel}
+        <div className="auth-card__panel">{panel}</div>
       </div>
     </div>
   );
