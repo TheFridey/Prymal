@@ -12,7 +12,7 @@ import {
   SentinelReviewBadge,
 } from './MessageArtifacts';
 import AgentMessageFeedback from './AgentMessageFeedback';
-import { buildMessagePresentation } from './messagePresentation';
+import { buildMessagePresentation, tokenizeMarkdownWithTables } from './messagePresentation';
 import { getAgentHandoffs } from '../../../lib/agentHandoffs';
 import { getAgentMeta } from '../../../lib/constants';
 import { trackProductEvent } from '../../../lib/product-events';
@@ -376,23 +376,57 @@ function StructuredAgentOutput({ parsed, agentId }) {
   return <GenericStructuredCard data={parsed} />;
 }
 
-function shouldUseCardTableLayout(table) {
-  return table.headers.length >= 3 && table.rows.length <= 2;
+function isCompactTableCell(value) {
+  const text = String(value ?? '').trim();
+  if (!text || text === '-') return true;
+  if (text.includes('\n- ') || text.includes('\n* ') || text.split('\n').filter(Boolean).length > 1) {
+    return false;
+  }
+  return text.length <= 56;
+}
+
+function MetadataTable({ headers, row }) {
+  const items = headers.map((header, index) => ({
+    header,
+    value: row[index] || '-',
+  }));
+  const compactItems = items.filter((item) => isCompactTableCell(item.value));
+  const detailItems = items.filter((item) => !isCompactTableCell(item.value));
+
+  return (
+    <div className="workspace-studio__markdown-meta">
+      {compactItems.length > 0 ? (
+        <div className="workspace-studio__markdown-stats">
+          {compactItems.map(({ header, value }) => (
+            <div key={header} className="workspace-studio__markdown-stat">
+              <span className="workspace-studio__markdown-stat-label">{header}</span>
+              <span className="workspace-studio__markdown-stat-value">{value}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {detailItems.map(({ header, value }) => (
+        <div key={header} className="workspace-studio__markdown-detail">
+          <div className="workspace-studio__markdown-detail-label">{header}</div>
+          <div className="workspace-studio__markdown-detail-body markdown">
+            <ReactMarkdown>{value}</ReactMarkdown>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function MarkdownTable({ table }) {
-  if (shouldUseCardTableLayout(table)) {
+  if (table.headers.length >= 3) {
+    if (table.rows.length === 1) {
+      return <MetadataTable headers={table.headers} row={table.rows[0]} />;
+    }
+
     return (
-      <div className="workspace-studio__markdown-cards">
-        {table.headers.map((header, columnIndex) => (
-          <div key={`${header}-${columnIndex}`} className="workspace-studio__markdown-card">
-            <div className="workspace-studio__markdown-card-label">{header}</div>
-            <div className="workspace-studio__markdown-card-body markdown">
-              {table.rows.map((row, rowIndex) => (
-                <ReactMarkdown key={`row-${rowIndex}`}>{row[columnIndex] || '-'}</ReactMarkdown>
-              ))}
-            </div>
-          </div>
+      <div className="workspace-studio__markdown-rows">
+        {table.rows.map((row, rowIndex) => (
+          <MetadataTable key={`table-row-${rowIndex}`} headers={table.headers} row={row} />
         ))}
       </div>
     );
@@ -422,6 +456,32 @@ function MarkdownTable({ table }) {
   );
 }
 
+function MarkdownTextBlock({ content }) {
+  const blocks = tokenizeMarkdownWithTables(content);
+
+  if (blocks.length === 1 && blocks[0].type === 'text') {
+    return (
+      <div className="markdown">
+        <ReactMarkdown>{blocks[0].content}</ReactMarkdown>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {blocks.map((block, index) =>
+        block.type === 'table' ? (
+          <MarkdownTable key={`text-table-${index}`} table={block} />
+        ) : (
+          <div key={`text-block-${index}`} className="markdown">
+            <ReactMarkdown>{block.content}</ReactMarkdown>
+          </div>
+        ),
+      )}
+    </>
+  );
+}
+
 function MessageBody({ presentation, agentId }) {
   if (presentation.structuredData && !presentation.markdown) {
     return <StructuredAgentOutput parsed={presentation.structuredData} agentId={agentId} />;
@@ -433,9 +493,7 @@ function MessageBody({ presentation, agentId }) {
         block.type === 'table' ? (
           <MarkdownTable key={`table-${index}`} table={block} />
         ) : (
-          <div key={`text-${index}`} className="markdown">
-            <ReactMarkdown>{block.content}</ReactMarkdown>
-          </div>
+          <MarkdownTextBlock key={`text-${index}`} content={block.content} />
         ),
       )}
 
@@ -654,24 +712,12 @@ function WorkflowFromChatCta({ agentId, content, conversationId }) {
   }
 
   return (
-    <div
-      style={{
-        marginTop: '12px',
-        padding: '12px 14px',
-        borderRadius: '12px',
-        border: '1px dashed rgba(247,37,133,0.34)',
-        background: 'rgba(247,37,133,0.06)',
-        display: 'grid',
-        gap: '8px',
-      }}
-    >
-      <div>
-        <strong style={{ fontSize: '13px', color: 'var(--text-strong)' }}>Turn this into a workflow</strong>
-        <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>
-          Workflows are how Prymal turns one useful result into a repeatable system.
-        </div>
+    <div className="workspace-studio__workflow-cta">
+      <div className="workspace-studio__workflow-cta-copy">
+        <strong>Turn this into a workflow</strong>
+        <span>Save this result as a repeatable NEXUS blueprint.</span>
       </div>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      <div className="workspace-studio__workflow-cta-actions">
         <button type="button" className="button button--ghost" onClick={handleClick}>
           Create draft blueprint
         </button>
