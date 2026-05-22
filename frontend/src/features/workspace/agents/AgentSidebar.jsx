@@ -107,129 +107,65 @@ export default function AgentSidebar({
   }, [activeTooltip?.agent?.id, activeTooltip?.anchorLeft]);
 
   return (
-    <MotionPanel className="workspace-studio__sidebar">
-      <div className="workspace-studio__agent-hero">
-        <div className="workspace-studio__agent-topbar">
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+    <MotionPanel className="workspace-studio__sidebar agent-chat-sidebar">
+      <div className="agent-chat-sidebar__profile">
+        <div className="agent-chat-sidebar__profile-main">
+          <AgentAvatar agent={activeAgent} size={56} active className="agent-chat-sidebar__avatar" />
+          <div className="agent-chat-sidebar__identity">
+            <div className="agent-chat-sidebar__name-row">
               <div className="workspace-studio__agent-name">{activeAgent.name}</div>
               {activeAgent.recommendedStarter ? (
-                <span style={{ fontSize: '9px', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: '999px', border: '1px solid rgba(0,255,209,0.35)', color: '#00FFD1' }}>
-                  Starter path
-                </span>
+                <span className="agent-chat-sidebar__starter-badge">Starter path</span>
               ) : null}
             </div>
             <div className="workspace-studio__agent-title">{activeAgent.title}</div>
           </div>
-          <button type="button" className="workspace-studio__ghost-icon" onClick={onOpenSettings} aria-label="Open chat settings">
-            <CogIcon />
-          </button>
         </div>
-        <AgentAvatar agent={activeAgent} size={120} active className="workspace-studio__hero-avatar" />
-        <div className="workspace-studio__hero-description">{activeAgent.description}</div>
-        {activeAgent.bestFor ? (
-          <div
-            style={{
-              display: 'grid',
-              gap: '6px',
-              margin: '0 0 12px',
-              fontSize: '12px',
-              color: 'var(--muted)',
-              lineHeight: 1.55,
-            }}
-          >
-            <div>
-              <span style={{ color: 'var(--text)', fontWeight: 600 }}>Best for:</span> {activeAgent.bestFor}
+        <button type="button" className="workspace-studio__ghost-icon" onClick={onOpenSettings} aria-label="Open chat settings">
+          <CogIcon />
+        </button>
+      </div>
+
+      <Button tone="accent" block className="agent-chat-sidebar__new-chat" onClick={onStartNewChat}>
+        + New chat
+      </Button>
+
+      {powerCards.length > 0 ? (
+        <div className="agent-chat-sidebar__powerups">
+          <div className="agent-chat-sidebar__section-label">Power-Ups</div>
+          <div className="workspace-studio__power-grid">
+            {powerCards.map((item) => (
+              <button key={item} type="button" className="workspace-studio__power-card" onClick={() => onSetDraft(`Help me with ${item.toLowerCase()}.`)}>
+                <div className="workspace-studio__power-label">Power-Up</div>
+                <div className="workspace-studio__power-value">{item}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <details className="agent-chat-sidebar__about">
+        <summary>About {activeAgent.name}</summary>
+        <div className="agent-chat-sidebar__about-body">
+          <p className="workspace-studio__hero-description">{activeAgent.description}</p>
+          {activeAgent.bestFor ? (
+            <div className="agent-chat-sidebar__meta">
+              <div><strong>Best for:</strong> {activeAgent.bestFor}</div>
+              {activeAgent.useWhen ? <div><strong>Use when:</strong> {activeAgent.useWhen}</div> : null}
             </div>
-            {activeAgent.useWhen ? (
-              <div>
-                <span style={{ color: 'var(--text)', fontWeight: 600 }}>Use when:</span> {activeAgent.useWhen}
-              </div>
-            ) : null}
-            {activeAgent.exampleOutputChips?.length ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {(activeAgent.exampleOutputChips ?? []).map((chip) => (
-                  <span
-                    key={chip}
-                    style={{
-                      fontSize: '10px',
-                      padding: '3px 8px',
-                      borderRadius: '999px',
-                      border: '1px solid rgba(255,255,255,0.09)',
-                      color: 'var(--text)',
-                    }}
-                  >
-                    {chip}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-        <AgentCapabilityStrip agentId={activeAgent.id} />
-        <div className="workspace-studio__hero-actions">
-          <Button tone="accent" block onClick={onStartNewChat}>New chat</Button>
+          ) : null}
+          {activeAgent.exampleOutputChips?.length ? (
+            <div className="agent-chat-sidebar__chips">
+              {activeAgent.exampleOutputChips.map((chip) => (
+                <span key={chip} className="agent-chat-sidebar__chip">{chip}</span>
+              ))}
+            </div>
+          ) : null}
+          <AgentCapabilityStrip agentId={activeAgent.id} />
         </div>
-        <div className="workspace-studio__power-grid">
-          {powerCards.map((item) => (
-            <button key={item} type="button" className="workspace-studio__power-card" onClick={() => onSetDraft(`Help me with ${item.toLowerCase()}.`)}>
-              <div className="workspace-studio__power-label">Power-Up</div>
-              <div className="workspace-studio__power-value">{item}</div>
-            </button>
-          ))}
-        </div>
-      </div>
+      </details>
 
-      <div ref={stripShellRef} className="workspace-studio__agent-strip-shell">
-        <div
-          ref={agentStripRef}
-          className="workspace-studio__agent-strip"
-          role="tablist"
-          aria-label="Available agents"
-          onPointerDown={onAgentStripPointerDown}
-          onPointerMove={onAgentStripPointerMove}
-          onPointerUp={onAgentStripPointerEnd}
-          onPointerCancel={onAgentStripPointerEnd}
-          onWheel={onAgentStripWheel}
-        >
-          {unlockedAgents.map((agent) => (
-            <button
-              key={agent.id}
-              type="button"
-              className={`workspace-studio__agent-pill${agent.id === activeAgent.id ? ' is-active' : ''}${recentAgentIds.has(agent.id) && agent.id !== activeAgent.id ? ' is-recent' : ''}`}
-              onClick={() => onSelectAgent(agent.id, agentStripDragRef)}
-              onMouseEnter={(event) => showAgentTooltip(event, agent)}
-              onMouseLeave={hideAgentTooltip}
-              onFocus={(event) => showAgentTooltip(event, agent)}
-              onBlur={hideAgentTooltip}
-              aria-label={`${agent.name}: ${agent.description ?? agent.title}`}
-              aria-describedby={activeTooltip?.agent.id === agent.id ? 'agent-strip-tooltip' : undefined}
-            >
-              <AgentAvatar agent={agent} size={42} active={agent.id === activeAgent.id} />
-              <span className="workspace-studio__agent-pill-glow" aria-hidden="true" />
-              <span className="workspace-studio__agent-pill-ring" aria-hidden="true" />
-            </button>
-          ))}
-        </div>
-        {activeTooltip ? (
-          <div
-            id="agent-strip-tooltip"
-            ref={tooltipRef}
-            className="workspace-studio__agent-tooltip"
-            role="tooltip"
-            style={{
-              left: `${activeTooltip.anchorLeft}px`,
-              top: `${activeTooltip.anchorTop}px`,
-              '--agent-tooltip-shift': '0px',
-            }}
-          >
-            <strong>{activeTooltip.agent.name}</strong>
-            <span>{activeTooltip.agent.description ?? activeTooltip.agent.title}</span>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="workspace-studio__history">
+      <div className="agent-chat-sidebar__history workspace-studio__history">
         <div className="workspace-studio__history-header">
           <div>
             <div className="workspace-studio__history-title">History</div>
@@ -291,6 +227,55 @@ export default function AgentSidebar({
             ))
           )}
         </div>
+      </div>
+
+      <div ref={stripShellRef} className="agent-chat-sidebar__agents workspace-studio__agent-strip-shell">
+        <div
+          ref={agentStripRef}
+          className="workspace-studio__agent-strip"
+          role="tablist"
+          aria-label="Available agents"
+          onPointerDown={onAgentStripPointerDown}
+          onPointerMove={onAgentStripPointerMove}
+          onPointerUp={onAgentStripPointerEnd}
+          onPointerCancel={onAgentStripPointerEnd}
+          onWheel={onAgentStripWheel}
+        >
+          {unlockedAgents.map((agent) => (
+            <button
+              key={agent.id}
+              type="button"
+              className={`workspace-studio__agent-pill${agent.id === activeAgent.id ? ' is-active' : ''}${recentAgentIds.has(agent.id) && agent.id !== activeAgent.id ? ' is-recent' : ''}`}
+              onClick={() => onSelectAgent(agent.id, agentStripDragRef)}
+              onMouseEnter={(event) => showAgentTooltip(event, agent)}
+              onMouseLeave={hideAgentTooltip}
+              onFocus={(event) => showAgentTooltip(event, agent)}
+              onBlur={hideAgentTooltip}
+              aria-label={`${agent.name}: ${agent.description ?? agent.title}`}
+              aria-describedby={activeTooltip?.agent.id === agent.id ? 'agent-strip-tooltip' : undefined}
+            >
+              <AgentAvatar agent={agent} size={42} active={agent.id === activeAgent.id} />
+              <span className="workspace-studio__agent-pill-glow" aria-hidden="true" />
+              <span className="workspace-studio__agent-pill-ring" aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+        {activeTooltip ? (
+          <div
+            id="agent-strip-tooltip"
+            ref={tooltipRef}
+            className="workspace-studio__agent-tooltip"
+            role="tooltip"
+            style={{
+              left: `${activeTooltip.anchorLeft}px`,
+              top: `${activeTooltip.anchorTop}px`,
+              '--agent-tooltip-shift': '0px',
+            }}
+          >
+            <strong>{activeTooltip.agent.name}</strong>
+            <span>{activeTooltip.agent.description ?? activeTooltip.agent.title}</span>
+          </div>
+        ) : null}
       </div>
     </MotionPanel>
   );

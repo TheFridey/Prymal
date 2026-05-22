@@ -49,8 +49,9 @@ export default function MessageInput({
   onToggleListening,
   onApplySlashCommand,
   onAttachClick,
+  layout = 'stacked',
 }) {
-  const composerClassName = `workspace-studio__composer${isFirstRun ? ' workspace-studio__composer--first-run' : ''}`;
+  const composerClassName = `workspace-studio__composer${isFirstRun ? ' workspace-studio__composer--first-run' : ''}${layout === 'inline' ? ' workspace-studio__composer--inline' : ''}`;
   const placeholder = isFirstRun
     ? 'Ask me to generate content, automate a task, or analyse something'
     : `Message ${activeAgent.name}... Type / for prompts, clear, settings, and more.`;
@@ -104,38 +105,106 @@ export default function MessageInput({
         onChange={onFileAttach}
       />
 
-      <div className="workspace-studio__composer-field">
-        <textarea
-          ref={composerRef}
-          value={draft}
-          onChange={onDraftChange}
-          onKeyDown={onComposerKeyDown}
-          placeholder={placeholder}
-          rows={1}
-          className="field field--textarea"
-        />
-        {commandMenuOpen ? (
-          <div className="workspace-studio__command-menu">
-            {filteredCommands.length > 0 ? (
-              filteredCommands.map((command, index) => (
-                <button
-                  key={command.name}
-                  type="button"
-                  className={`workspace-studio__command-item${index === commandIndex ? ' is-active' : ''}`}
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    onApplySlashCommand(command);
-                  }}
-                >
-                  <span className="workspace-studio__command-name">/{command.name}</span>
-                  <span className="workspace-studio__command-description">{command.description}</span>
-                </button>
-              ))
-            ) : (
-              <div className="workspace-studio__command-empty">No commands match &quot;/{commandFilter.trim()}&quot;.</div>
-            )}
-          </div>
-        ) : null}
+      <div className={layout === 'inline' ? 'workspace-studio__composer-row' : 'workspace-studio__composer-field'}>
+        {layout === 'inline' ? (
+          <>
+            <button
+              type="button"
+              className={`workspace-studio__action-chip workspace-studio__action-chip--composer${attachedFiles.length > 0 ? ' is-active' : ''}`}
+              onClick={onAttachClick}
+              aria-label="Attach file"
+              title="Attach a text, CSV, or JSON file"
+            >
+              <AttachIcon />
+            </button>
+            <div className="workspace-studio__composer-field">
+              <textarea
+                ref={composerRef}
+                value={draft}
+                onChange={onDraftChange}
+                onKeyDown={onComposerKeyDown}
+                placeholder={placeholder}
+                rows={1}
+                className="field field--textarea"
+              />
+              {commandMenuOpen ? (
+                <div className="workspace-studio__command-menu">
+                  {filteredCommands.length > 0 ? (
+                    filteredCommands.map((command, index) => (
+                      <button
+                        key={command.name}
+                        type="button"
+                        className={`workspace-studio__command-item${index === commandIndex ? ' is-active' : ''}`}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          onApplySlashCommand(command);
+                        }}
+                      >
+                        <span className="workspace-studio__command-name">/{command.name}</span>
+                        <span className="workspace-studio__command-description">{command.description}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="workspace-studio__command-empty">No commands match &quot;/{commandFilter.trim()}&quot;.</div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+            {voiceSupported ? (
+              <button
+                type="button"
+                className={`workspace-studio__action-chip workspace-studio__action-chip--composer${isListening ? ' is-active' : ''}`}
+                onClick={onToggleListening}
+                aria-label={isListening ? 'Stop voice dictation' : 'Start voice dictation'}
+                aria-pressed={isListening}
+              >
+                <MicIcon />
+              </button>
+            ) : null}
+            <Button
+              tone="accent"
+              className="workspace-studio__composer-send"
+              onClick={() => onSend()}
+              disabled={(!draft.trim() && attachedFiles.length === 0) || isStreaming}
+            >
+              Send
+            </Button>
+          </>
+        ) : (
+          <>
+            <textarea
+              ref={composerRef}
+              value={draft}
+              onChange={onDraftChange}
+              onKeyDown={onComposerKeyDown}
+              placeholder={placeholder}
+              rows={1}
+              className="field field--textarea"
+            />
+            {commandMenuOpen ? (
+              <div className="workspace-studio__command-menu">
+                {filteredCommands.length > 0 ? (
+                  filteredCommands.map((command, index) => (
+                    <button
+                      key={command.name}
+                      type="button"
+                      className={`workspace-studio__command-item${index === commandIndex ? ' is-active' : ''}`}
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                        onApplySlashCommand(command);
+                      }}
+                    >
+                      <span className="workspace-studio__command-name">/{command.name}</span>
+                      <span className="workspace-studio__command-description">{command.description}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="workspace-studio__command-empty">No commands match &quot;/{commandFilter.trim()}&quot;.</div>
+                )}
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
 
       <MotionPresence initial={false}>
@@ -180,35 +249,37 @@ export default function MessageInput({
           {voiceMode === 'recording' ? ' | ⏺ Recording' : null}
           {attachedFiles.length > 0 ? ` | ${attachedFiles.length} file${attachedFiles.length > 1 ? 's' : ''} attached` : ''}
         </div>
-        <div className="workspace-studio__composer-cta">
-          <button
-            type="button"
-            className={`workspace-studio__action-chip workspace-studio__action-chip--composer${attachedFiles.length > 0 ? ' is-active' : ''}`}
-            onClick={onAttachClick}
-            aria-label="Attach file"
-            title="Attach a text, CSV, or JSON file"
-          >
-            <AttachIcon />
-          </button>
-          {voiceSupported ? (
+        {layout === 'stacked' ? (
+          <div className="workspace-studio__composer-cta">
             <button
               type="button"
-              className={`workspace-studio__action-chip workspace-studio__action-chip--composer${isListening ? ' is-active' : ''}`}
-              onClick={onToggleListening}
-              aria-label={isListening ? 'Stop voice dictation' : 'Start voice dictation'}
-              aria-pressed={isListening}
+              className={`workspace-studio__action-chip workspace-studio__action-chip--composer${attachedFiles.length > 0 ? ' is-active' : ''}`}
+              onClick={onAttachClick}
+              aria-label="Attach file"
+              title="Attach a text, CSV, or JSON file"
             >
-              <MicIcon />
+              <AttachIcon />
             </button>
-          ) : null}
-          <Button
-            tone="accent"
-            onClick={() => onSend()}
-            disabled={(!draft.trim() && attachedFiles.length === 0) || isStreaming}
-          >
-            Send
-          </Button>
-        </div>
+            {voiceSupported ? (
+              <button
+                type="button"
+                className={`workspace-studio__action-chip workspace-studio__action-chip--composer${isListening ? ' is-active' : ''}`}
+                onClick={onToggleListening}
+                aria-label={isListening ? 'Stop voice dictation' : 'Start voice dictation'}
+                aria-pressed={isListening}
+              >
+                <MicIcon />
+              </button>
+            ) : null}
+            <Button
+              tone="accent"
+              onClick={() => onSend()}
+              disabled={(!draft.trim() && attachedFiles.length === 0) || isStreaming}
+            >
+              Send
+            </Button>
+          </div>
+        ) : null}
       </div>
     </MotionPanel>
   );

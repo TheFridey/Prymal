@@ -376,7 +376,28 @@ function StructuredAgentOutput({ parsed, agentId }) {
   return <GenericStructuredCard data={parsed} />;
 }
 
+function shouldUseCardTableLayout(table) {
+  return table.headers.length >= 3 && table.rows.length <= 2;
+}
+
 function MarkdownTable({ table }) {
+  if (shouldUseCardTableLayout(table)) {
+    return (
+      <div className="workspace-studio__markdown-cards">
+        {table.headers.map((header, columnIndex) => (
+          <div key={`${header}-${columnIndex}`} className="workspace-studio__markdown-card">
+            <div className="workspace-studio__markdown-card-label">{header}</div>
+            <div className="workspace-studio__markdown-card-body markdown">
+              {table.rows.map((row, rowIndex) => (
+                <ReactMarkdown key={`row-${rowIndex}`}>{row[columnIndex] || '-'}</ReactMarkdown>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="workspace-studio__markdown-table-shell">
       <table className="workspace-studio__markdown-table">

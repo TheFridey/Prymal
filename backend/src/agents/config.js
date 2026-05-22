@@ -12,7 +12,6 @@ export const AGENTS = {
     glyph: '∑',
     color: '#00FFD1',
     description: 'Transforms raw data into structured insight reports.',
-    sintraEquiv: 'Dexter',
     maxResponseTokens: 10000,
     useExtendedThinking: true,
     thinkingBudgetTokens: 8000,
@@ -59,7 +58,6 @@ Knowledge base: You have access to the organisation's LORE knowledge base. Use i
     glyph: '✉',
     color: '#FF6B35',
     description: 'Writes, sequences, and sends emails.',
-    sintraEquiv: 'Emmie',
     maxResponseTokens: 6000,
     capabilities: ['email_send', 'sequence_build', 'ab_test', 'gmail_read', 'warm_handoff'],
     systemPrompt: `You are HERALD, the Email & Outreach Strategist for Prymal. You write emails that get opened, read, and acted on.
@@ -118,7 +116,6 @@ NEXUS output format:
     glyph: '◉',
     color: '#C77DFF',
     description: 'The persistent memory layer for your entire organisation.',
-    sintraEquiv: 'Brain AI',
     maxResponseTokens: 5000,
     capabilities: ['rag_search', 'doc_ingest', 'contradiction_detect', 'knowledge_gap', 'cross_agent_inject'],
     systemPrompt: `You are LORE, the Knowledge Base Engine for Prymal. You are the memory of the organisation.
@@ -160,7 +157,6 @@ NEXUS output format:
     maxResponseTokens: 16000,
     color: '#FFD60A',
     description: 'Writes high-quality long-form content, ad copy, and landing pages.',
-    sintraEquiv: 'Penn',
     capabilities: ['long_form', 'ad_copy', 'seo_content', 'tone_switch', 'cms_publish'],
     systemPrompt: `You are FORGE, the Content & Copy Craftsman for Prymal. You write content that performs — not content that merely exists.
 
@@ -210,7 +206,6 @@ NEXUS output format:
     glyph: '⊕',
     color: '#4CC9F0',
     description: 'Turns briefs into structured project plans and coordinates agent tasks.',
-    sintraEquiv: null,
     maxResponseTokens: 12000,
     capabilities: ['project_plan', 'task_assign', 'notion_export', 'trello_export', 'progress_track'],
     systemPrompt: `You are ATLAS, the Project & Operations Manager for Prymal. You make sure things actually get done.
@@ -278,7 +273,6 @@ NEXUS output format:
     glyph: '◎',
     color: '#F72585',
     description: 'Platform-native social content creation, scheduling, and analysis.',
-    sintraEquiv: 'Soshie',
     maxResponseTokens: 5000,
     capabilities: ['social_post', 'schedule', 'repurpose', 'engagement_analysis', 'platform_format'],
     systemPrompt: `You are ECHO, the Social Media & Brand Voice Manager for Prymal. You understand that LinkedIn ≠ Twitter ≠ Instagram, and you write accordingly.
@@ -339,7 +333,6 @@ NEXUS output format:
     glyph: '⬡',
     color: '#FF9EFF',
     description: 'Generates, briefs, and refines visual assets for marketing and product use.',
-    sintraEquiv: null,
     maxResponseTokens: 3000,
     capabilities: ['image_generate', 'image_brief', 'vision_input'],
     systemPrompt: `You are PIXEL, the Visual Content Generator for Prymal. You produce and brief production-ready visual assets.
@@ -386,7 +379,6 @@ NEXUS output format:
     glyph: '⌖',
     color: '#80FFDB',
     description: 'Technical SEO audits, keyword research, and content strategy.',
-    sintraEquiv: null,
     maxResponseTokens: 8000,
     capabilities: ['url_audit', 'keyword_research', 'meta_write', 'content_brief', 'competitor_compare'],
     systemPrompt: `You are ORACLE, the SEO & Search Intelligence agent for Prymal. You understand how search actually works, not just how it's theorised.
@@ -443,7 +435,6 @@ NEXUS output format:
     glyph: '↗',
     color: '#FB5607',
     description: 'Pipeline prospecting, lead scoring, and proposal drafting.',
-    sintraEquiv: 'Buddy',
     maxResponseTokens: 8000,
     capabilities: ['lead_score', 'proposal_write', 'pipeline_track', 'crm_sync', 'objection_handle'],
     systemPrompt: `You are VANCE, the Sales & Lead Generation agent for Prymal. You advance the pipeline. Every interaction should move something forward.
@@ -498,7 +489,6 @@ NEXUS output format:
     glyph: '❋',
     color: '#CAFFBF',
     description: 'Support responses, FAQ generation, and complaint resolution.',
-    sintraEquiv: 'Cassie',
     maxResponseTokens: 3000,
     capabilities: ['ticket_reply', 'faq_build', 'sentiment_detect', 'escalation_trigger', 'csat_followup'],
     systemPrompt: `You are WREN, the Customer Support & Communications agent for Prymal. You handle the messiness of real customer interactions with precision and care.
@@ -550,7 +540,6 @@ NEXUS output format:
     glyph: '⊞',
     color: '#A8DADC',
     description: 'P&L narratives, cash flow summaries, and investor updates.',
-    sintraEquiv: null,
     maxResponseTokens: 10000,
     capabilities: ['pl_analysis', 'cashflow_narrative', 'investor_update', 'variance_explain', 'burn_alert'],
     systemPrompt: `You are LEDGER, the Finance & Business Reporting agent for Prymal. You translate numbers into decisions.
@@ -614,7 +603,6 @@ NEXUS output format:
     glyph: '⬡',
     color: '#BDE0FE',
     description: 'Chains agents into automated multi-step workflows.',
-    sintraEquiv: null,
     maxResponseTokens: 6000,
     capabilities: ['workflow_build', 'trigger_manage', 'conditional_logic', 'run_history', 'template_apply'],
     systemPrompt: `You are NEXUS, the Workflow Automation Orchestrator for Prymal. You are the connective tissue between all other agents.
@@ -676,7 +664,6 @@ NEXUS output format:
     glyph: '⊿',
     color: '#FFADAD',
     description: 'Live web research, competitor snapshots, and industry intelligence.',
-    sintraEquiv: null,
     maxResponseTokens: 8000,
     capabilities: ['web_search', 'competitor_snapshot', 'pricing_intel', 'trend_spot', 'industry_digest'],
     systemPrompt: `You are SCOUT, the Market Research & Competitor Intelligence agent for Prymal. You go ahead of everyone else so they can move with better information.
@@ -737,7 +724,6 @@ NEXUS output format:
     glyph: '✦',
     color: '#D4A373',
     description: 'Synthesises cross-agent intelligence into strategic business guidance.',
-    sintraEquiv: null,
     maxResponseTokens: 12000,
     useExtendedThinking: true,
     thinkingBudgetTokens: 10000,
@@ -797,7 +783,6 @@ NEXUS output format:
     glyph: '⊛',
     color: '#FF3B6B',
     description: 'Reviews, validates, and gates agent outputs before delivery.',
-    sintraEquiv: null,
     maxResponseTokens: 4000,
     useExtendedThinking: false,
     capabilities: ['output_review', 'schema_repair', 'hallucination_check', 'compliance_gate', 'citation_review'],

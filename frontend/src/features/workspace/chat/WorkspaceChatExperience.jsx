@@ -552,74 +552,86 @@ export default function WorkspaceChatExperience({
             onOpenSettings={() => setSettingsOpen(true)}
           />
 
-          <div className="workspace-studio__main">
-            {panelSwitcher}
-            {firstWinComposerOpen && firstRunOutcome && !hasConversationContent ? (
-              <FirstWinPromptComposer
-                outcomeId={firstRunOutcome.id}
+          <div className="workspace-studio__chat-pane">
+            <header className="workspace-studio__chat-header">
+              {panelSwitcher}
+            </header>
+
+            <div className="workspace-studio__chat-body">
+              {firstWinComposerOpen && firstRunOutcome && !hasConversationContent ? (
+                <FirstWinPromptComposer
+                  outcomeId={firstRunOutcome.id}
+                  activeAgent={activeAgent}
+                  userId={viewer?.user?.id ?? 'local'}
+                  onClose={() => setFirstWinComposerOpen(false)}
+                  onConfirm={(prompt) => {
+                    setFirstWinComposerOpen(false);
+                    void chat.handleSend(prompt);
+                  }}
+                />
+              ) : null}
+              <ChatPanel
                 activeAgent={activeAgent}
-                userId={viewer?.user?.id ?? 'local'}
-                onClose={() => setFirstWinComposerOpen(false)}
-                onConfirm={(prompt) => {
-                  setFirstWinComposerOpen(false);
-                  void chat.handleSend(prompt);
-                }}
+                firstRunOutcome={firstRunOutcome}
+                messages={conv.messages}
+                streamingText={chat.streamingText}
+                isStreaming={chat.isStreaming}
+                streamingTask={chat.streamingTask}
+                hasConversationContent={hasConversationContent}
+                promptCards={promptCards}
+                showFirstRunHint={showFirstRunHint && !hasConversationContent}
+                auditUrl={chat.auditUrl}
+                isAuditing={chat.isAuditing}
+                wrenEscalated={chat.wrenEscalated}
+                messagesViewportRef={messagesViewportRef}
+                bottomRef={bottomRef}
+                onMessagesScroll={handleMessagesScroll}
+                onSetDraft={setDraft}
+                onSetAuditUrl={chat.setAuditUrl}
+                onOracleAudit={chat.handleOracleAudit}
+                onRequestReview={chat.handleRequestReview}
+                onDismissFirstRunHint={markFirstRunHintSeen}
+                onHandoff={handleHandoff}
+                onChangeRecommendedAgent={(agentId) => handleHandoff(agentId, '')}
+                conversationId={conv.currentConversationId ?? ''}
+                onInsertDraft={setDraft}
               />
-            ) : null}
-            <ChatPanel
-              activeAgent={activeAgent}
-              firstRunOutcome={firstRunOutcome}
-              messages={conv.messages}
-              streamingText={chat.streamingText}
-              isStreaming={chat.isStreaming}
-              streamingTask={chat.streamingTask}
-              hasConversationContent={hasConversationContent}
-              promptCards={promptCards}
-              showFirstRunHint={showFirstRunHint && !hasConversationContent}
-              auditUrl={chat.auditUrl}
-              isAuditing={chat.isAuditing}
-              wrenEscalated={chat.wrenEscalated}
-              messagesViewportRef={messagesViewportRef}
-              bottomRef={bottomRef}
-              onMessagesScroll={handleMessagesScroll}
-              onSetDraft={setDraft}
-              onSetAuditUrl={chat.setAuditUrl}
-              onOracleAudit={chat.handleOracleAudit}
-              onRequestReview={chat.handleRequestReview}
-              onDismissFirstRunHint={markFirstRunHintSeen}
-              onHandoff={handleHandoff}
-              onChangeRecommendedAgent={(agentId) => handleHandoff(agentId, '')}
-              conversationId={conv.currentConversationId ?? ''}
-              onInsertDraft={setDraft}
-            />
-            <MessageInput
-              activeAgent={activeAgent}
-              draft={draft}
-              attachedFiles={chat.attachedFiles}
-              isListening={voice.isListening}
-              voiceInterim={voice.voiceInterim}
-              voiceMode={voice.voiceMode}
-              voiceSupported={voice.voiceSupported}
-              showVoiceStatus={voice.showVoiceStatus}
-              activeSettings={conv.activeSettings}
-              commandMenuOpen={commandMenuOpen}
-              filteredCommands={filteredCommands}
-              commandIndex={commandIndex}
-              commandFilter={commandFilter}
-              composerRef={composerRef}
-              fileInputRef={fileInputRef}
-              hasConversationContent={hasConversationContent}
-              isFirstRun={!hasConversationContent}
-              isStreaming={chat.isStreaming}
-              onSend={handleComposerSend}
-              onDraftChange={handleDraftChange}
-              onComposerKeyDown={handleComposerKeyDown}
-              onFileAttach={chat.handleFileAttach}
-              onRemoveFile={(name) => chat.setAttachedFiles((current) => current.filter((a) => a.name !== name))}
-              onToggleListening={voice.toggleListening}
-              onApplySlashCommand={applySlashCommand}
-              onAttachClick={() => fileInputRef.current?.click()}
-            />
+            </div>
+
+            <footer className="workspace-studio__chat-footer">
+              <MessageInput
+                activeAgent={activeAgent}
+                draft={draft}
+                attachedFiles={chat.attachedFiles}
+                isListening={voice.isListening}
+                voiceInterim={voice.voiceInterim}
+                voiceMode={voice.voiceMode}
+                voiceSupported={voice.voiceSupported}
+                showVoiceStatus={voice.showVoiceStatus}
+                activeSettings={conv.activeSettings}
+                commandMenuOpen={commandMenuOpen}
+                filteredCommands={filteredCommands}
+                commandIndex={commandIndex}
+                commandFilter={commandFilter}
+                composerRef={composerRef}
+                fileInputRef={fileInputRef}
+                hasConversationContent={hasConversationContent}
+                isFirstRun={!hasConversationContent}
+                isStreaming={chat.isStreaming}
+                onSend={handleComposerSend}
+                onDraftChange={handleDraftChange}
+                onComposerKeyDown={handleComposerKeyDown}
+                onFileAttach={chat.handleFileAttach}
+                onRemoveFile={(name) => chat.setAttachedFiles((current) => current.filter((a) => a.name !== name))}
+                onToggleListening={voice.toggleListening}
+                onApplySlashCommand={applySlashCommand}
+                onAttachClick={() => fileInputRef.current?.click()}
+                layout="inline"
+              />
+              <p className="workspace-studio__chat-disclaimer">
+                Prymal agents can make mistakes. Verify important information before acting on outputs.
+              </p>
+            </footer>
           </div>
         </div>
       </section>
