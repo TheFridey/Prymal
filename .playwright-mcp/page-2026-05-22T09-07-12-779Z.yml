@@ -1,0 +1,439 @@
+- generic [ref=e5]:
+  - banner [ref=e6]:
+    - generic [ref=e7]:
+      - link "PRYMAL" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e12]: PRYMAL
+      - navigation "Primary" [ref=e13]:
+        - link "Features" [ref=e14] [cursor=pointer]:
+          - /url: /features
+        - link "Blog" [ref=e15] [cursor=pointer]:
+          - /url: /blog
+        - link "Compare" [ref=e16] [cursor=pointer]:
+          - /url: /compare
+        - link "Pricing" [ref=e17] [cursor=pointer]:
+          - /url: /pricing
+        - link "Trust" [ref=e18] [cursor=pointer]:
+          - /url: /trust
+        - link "Changelog" [ref=e19] [cursor=pointer]:
+          - /url: /changelog
+        - button "Explore agents" [ref=e21] [cursor=pointer]
+      - button "Switch to light theme" [ref=e23] [cursor=pointer]:
+        - generic [ref=e26]: Dark mode
+  - generic [ref=e29]:
+    - region "How does Prymal pricing work?" [ref=e30]:
+      - generic [ref=e31]: Answer first
+      - heading "How does Prymal pricing work?" [level=2] [ref=e32]
+      - paragraph [ref=e33]: Prymal pricing is structured around workspace plans, execution capacity, shared business memory, workflow depth, and team-level control rather than just more chat volume.
+    - region "Run your entire business with AI agents" [ref=e34]:
+      - generic [ref=e35]: Plans & credits
+      - heading "Run your entire business with AI agents" [level=1] [ref=e37]
+      - paragraph [ref=e38]: "Choose a lane in seconds: Solo is the starter tier, Pro for serious operators, Teams for collaboration, Agency for client-scale orchestration. Usage packs are available when you need extra execution or video renders without changing caps or safety controls."
+    - region "Not all AI platforms are built the same" [ref=e39]:
+      - generic [ref=e40]:
+        - heading "Not all AI platforms are built the same" [level=2] [ref=e41]
+        - paragraph [ref=e42]: Execution, memory, validation, and usage control are built into the system.
+      - region "AI platform comparison table" [ref=e43]:
+        - table [ref=e44]:
+          - rowgroup [ref=e45]:
+            - row "Feature Typical AI Tools Prymal" [ref=e46]:
+              - columnheader "Feature" [ref=e47]
+              - columnheader "Typical AI Tools" [ref=e48]
+              - columnheader "Prymal" [ref=e49]
+          - rowgroup [ref=e50]:
+            - row "AI chat / prompts Included Included" [ref=e51]:
+              - cell "AI chat / prompts" [ref=e52]
+              - cell "Included" [ref=e53]:
+                - generic [ref=e54]:
+                  - img [ref=e55]
+                  - generic [ref=e57]: Included
+              - cell "Included" [ref=e58]:
+                - generic [ref=e59]:
+                  - img [ref=e60]
+                  - generic [ref=e62]: Included
+            - row "Multi-agent system Not included Included" [ref=e63]:
+              - cell "Multi-agent system" [ref=e64]
+              - cell "Not included" [ref=e65]:
+                - generic [ref=e66]:
+                  - img [ref=e67]
+                  - generic [ref=e70]: Not included
+              - cell "Included" [ref=e71]:
+                - generic [ref=e72]:
+                  - img [ref=e73]
+                  - generic [ref=e75]: Included
+            - row "Workflow automation Not included Included" [ref=e76]:
+              - cell "Workflow automation" [ref=e77]
+              - cell "Not included" [ref=e78]:
+                - generic [ref=e79]:
+                  - img [ref=e80]
+                  - generic [ref=e83]: Not included
+              - cell "Included" [ref=e84]:
+                - generic [ref=e85]:
+                  - img [ref=e86]
+                  - generic [ref=e88]: Included
+            - row "Persistent memory Not included Included" [ref=e89]:
+              - cell "Persistent memory" [ref=e90]
+              - cell "Not included" [ref=e91]:
+                - generic [ref=e92]:
+                  - img [ref=e93]
+                  - generic [ref=e96]: Not included
+              - cell "Included" [ref=e97]:
+                - generic [ref=e98]:
+                  - img [ref=e99]
+                  - generic [ref=e101]: Included
+            - row "Output validation (QA layer) Not included Included" [ref=e102]:
+              - cell "Output validation (QA layer)" [ref=e103]
+              - cell "Not included" [ref=e104]:
+                - generic [ref=e105]:
+                  - img [ref=e106]
+                  - generic [ref=e109]: Not included
+              - cell "Included" [ref=e110]:
+                - generic [ref=e111]:
+                  - img [ref=e112]
+                  - generic [ref=e114]: Included
+            - row "Cost control system Not included Included" [ref=e115]:
+              - cell "Cost control system" [ref=e116]
+              - cell "Not included" [ref=e117]:
+                - generic [ref=e118]:
+                  - img [ref=e119]
+                  - generic [ref=e122]: Not included
+              - cell "Included" [ref=e123]:
+                - generic [ref=e124]:
+                  - img [ref=e125]
+                  - generic [ref=e127]: Included
+            - row "Admin usage visibility Not included Included" [ref=e128]:
+              - cell "Admin usage visibility" [ref=e129]
+              - cell "Not included" [ref=e130]:
+                - generic [ref=e131]:
+                  - img [ref=e132]
+                  - generic [ref=e135]: Not included
+              - cell "Included" [ref=e136]:
+                - generic [ref=e137]:
+                  - img [ref=e138]
+                  - generic [ref=e140]: Included
+            - row "Scales with teams Limited Included" [ref=e141]:
+              - cell "Scales with teams" [ref=e142]
+              - cell "Limited" [ref=e143]:
+                - generic [ref=e144]: Limited
+              - cell "Included" [ref=e145]:
+                - generic [ref=e146]:
+                  - img [ref=e147]
+                  - generic [ref=e149]: Included
+            - row "Add-ons instead of hidden overuse cost Not included Included" [ref=e150]:
+              - cell "Add-ons instead of hidden overuse cost" [ref=e151]
+              - cell "Not included" [ref=e152]:
+                - generic [ref=e153]:
+                  - img [ref=e154]
+                  - generic [ref=e157]: Not included
+              - cell "Included" [ref=e158]:
+                - generic [ref=e159]:
+                  - img [ref=e160]
+                  - generic [ref=e162]: Included
+      - paragraph [ref=e163]: Most tools generate content. Prymal runs systems.
+    - tablist "Billing period" [ref=e165]:
+      - tab "Monthly Pay as you go" [selected] [ref=e166] [cursor=pointer]:
+        - generic [ref=e167]: Monthly
+        - generic [ref=e168]: Pay as you go
+      - tab "Quarterly 12% off vs list" [ref=e169] [cursor=pointer]:
+        - generic [ref=e170]: Quarterly
+        - generic [ref=e171]: 12% off vs list
+      - tab "Yearly 24% off vs list" [ref=e172] [cursor=pointer]:
+        - generic [ref=e173]: Yearly
+        - generic [ref=e174]: 24% off vs list
+    - region "Pricing plans — swipe sideways on small screens" [ref=e175]:
+      - article "Solo plan" [ref=e176]:
+        - heading "Solo" [level=2] [ref=e177]
+        - paragraph [ref=e178]: For individuals getting started
+        - paragraph [ref=e179]: Starter workflows, shallow LORE memory, 1 execution lane
+        - generic "Solo price £49.99" [ref=e180]:
+          - text: £49.99
+          - generic [ref=e181]: / billed monthly
+        - paragraph [ref=e182]: Billed monthly
+        - list [ref=e183]:
+          - listitem [ref=e184]: 500 execution credits / month (metered with clear plan caps)
+          - listitem [ref=e185]: 1 seat included
+          - listitem [ref=e186]: 2 AI video credits / month
+          - listitem [ref=e187]: Guided image builder uses execution credits
+          - listitem [ref=e188]: AI system workflows & automations
+          - listitem [ref=e189]: Single-lane execution runs (upgrade for more)
+      - article "Pro plan" [ref=e190]:
+        - generic [ref=e191]: Best value
+        - heading "Pro" [level=2] [ref=e192]
+        - paragraph [ref=e193]: For serious operators
+        - paragraph [ref=e194]: Production workflows, medium LORE memory, 3 concurrent runs
+        - generic "Pro price £99" [ref=e195]:
+          - text: £99
+          - generic [ref=e196]: / billed monthly
+        - paragraph [ref=e197]: Billed monthly
+        - list [ref=e198]:
+          - listitem [ref=e199]: 2,000 execution credits / month (metered with clear plan caps)
+          - listitem [ref=e200]: 1 seat included
+          - listitem [ref=e201]: 5 AI video credits / month
+          - listitem [ref=e202]: Guided image builder uses execution credits
+          - listitem [ref=e203]: AI system workflows & automations
+          - listitem [ref=e204]: Run up to 3 execution runs at once
+      - article "Teams plan" [ref=e205]:
+        - heading "Teams" [level=2] [ref=e206]
+        - paragraph [ref=e207]: For collaborative workflows
+        - paragraph [ref=e208]: Shared workflows, deeper LORE memory, 5 concurrent runs
+        - generic "Teams price £179" [ref=e209]:
+          - text: £179
+          - generic [ref=e210]: / billed monthly
+        - paragraph [ref=e211]: Billed monthly
+        - list [ref=e212]:
+          - listitem [ref=e213]: 6,000 execution credits / month (metered with clear plan caps)
+          - listitem [ref=e214]: 5 seats included; extra seats £25/mo
+          - listitem [ref=e215]: 15 AI video credits / month
+          - listitem [ref=e216]: Guided image builder uses execution credits
+          - listitem [ref=e217]: AI system workflows & automations
+          - listitem [ref=e218]: Run up to 5 execution runs at once
+      - article "Agency plan" [ref=e219]:
+        - generic [ref=e220]: Scale plan
+        - heading "Agency" [level=2] [ref=e221]
+        - paragraph [ref=e222]: From £299/mo
+        - paragraph [ref=e223]: For client-scale execution
+        - paragraph [ref=e224]: Client-scale workflows, deeper LORE memory, 8 concurrent runs
+        - generic "Agency price £299" [ref=e225]:
+          - text: £299
+          - generic [ref=e226]: / billed monthly
+        - paragraph [ref=e227]: Billed monthly
+        - list [ref=e228]:
+          - listitem [ref=e229]: 10,000 execution credits / month (metered with clear plan caps)
+          - listitem [ref=e230]: 25 seats included
+          - listitem [ref=e231]: 25 AI video credits / month
+          - listitem [ref=e232]: Guided image builder uses execution credits
+          - listitem [ref=e233]: AI system workflows & automations
+          - listitem [ref=e234]: Run up to 8 execution runs at once
+    - region "Built for real usage, not hidden limits" [ref=e235]:
+      - generic [ref=e236]:
+        - heading "Built for real usage, not hidden limits" [level=2] [ref=e237]
+        - paragraph [ref=e238]: Execution credits, video credits, and add-on packs are designed for predictable scaling.
+      - generic [ref=e239]:
+        - article [ref=e240]:
+          - img [ref=e242]
+          - heading "Execution credits" [level=3] [ref=e244]
+          - paragraph [ref=e245]: Used for chat, agents, workflow runs, retrieval-heavy work, guided image generation, and other execution activity.
+        - article [ref=e246]:
+          - img [ref=e248]
+          - heading "Guided video builder" [level=3] [ref=e250]
+          - paragraph [ref=e251]: Fast Draft and Cinematic renders use separate video credits, with 4, 6, or 8 second one-shot outputs.
+        - article [ref=e252]:
+          - img [ref=e254]
+          - heading "Add-on packs" [level=3] [ref=e257]
+          - paragraph [ref=e258]: Top up for short bursts of execution or video without turning usage into surprise overage.
+    - region "How credits work" [ref=e259]:
+      - generic [ref=e260]:
+        - heading "How credits work" [level=3] [ref=e261]
+        - paragraph [ref=e262]:
+          - strong [ref=e263]: Credits are used when you run execution work.
+          - text: A quick reply might be one credit; a deep multi-step workflow uses more. Guided image generation also uses execution credits. Most everyday tasks fall in the 1–3 credit range; larger automations scale up from there.
+        - paragraph [ref=e264]:
+          - strong [ref=e265]: AI video credits power video renders only.
+          - text: They are separate from execution credits so you always know what kind of work you are funding.
+      - generic [ref=e266]:
+        - heading "Simple, predictable billing" [level=3] [ref=e267]
+        - paragraph [ref=e268]: Your plan price is fixed. Included execution credits and AI video credits reset each billing cycle. You can see remaining balances in the app, get early warnings as you approach limits, and add top-ups only if you need them.
+    - region "Two balances, one workspace" [ref=e269]:
+      - heading "Two balances, one workspace" [level=2] [ref=e270]
+      - generic [ref=e271]:
+        - generic [ref=e272]:
+          - heading "Execution credits" [level=4] [ref=e273]:
+            - generic [ref=e274]: ⚡
+            - text: Execution credits
+          - paragraph [ref=e275]: Used for chat, agents, workflows, and guided image generation — everything that is not video output.
+        - generic [ref=e276]:
+          - heading "AI video credits" [level=4] [ref=e277]:
+            - generic [ref=e278]: ▶
+            - text: AI video credits
+          - paragraph [ref=e279]: Used only when you create AI-generated video renders. Reference images are currently supported on the Cinematic lane at 8 seconds.
+      - generic [ref=e280]:
+        - heading "You are always in control" [level=4] [ref=e281]
+        - list [ref=e282]:
+          - listitem [ref=e283]: See usage in real time in the dashboard and settings
+          - listitem [ref=e284]: Get alerts before you hit limits
+          - listitem [ref=e285]: Upgrade for sustained volume, or add a pack for a short burst
+    - region "Compare plan limits" [ref=e286]:
+      - heading "Compare plan limits" [level=2] [ref=e287]
+      - region "Plan comparison table" [ref=e288]:
+        - table [ref=e289]:
+          - rowgroup [ref=e290]:
+            - row "Feature Solo Pro ★ Teams Agency" [ref=e291]:
+              - columnheader "Feature" [ref=e292]:
+                - generic [ref=e293]: Feature
+              - columnheader "Solo" [ref=e294]
+              - columnheader "Pro ★" [ref=e295]
+              - columnheader "Teams" [ref=e296]
+              - columnheader "Agency" [ref=e297]
+          - rowgroup [ref=e298]:
+            - row "Monthly execution credits 500 2,000 6,000 10,000" [ref=e299]:
+              - cell "Monthly execution credits" [ref=e300]
+              - cell "500" [ref=e301]
+              - cell "2,000" [ref=e302]
+              - cell "6,000" [ref=e303]
+              - cell "10,000" [ref=e304]
+            - row "Monthly AI video credits 2 5 15 25" [ref=e305]:
+              - cell "Monthly AI video credits" [ref=e306]
+              - cell "2" [ref=e307]
+              - cell "5" [ref=e308]
+              - cell "15" [ref=e309]
+              - cell "25" [ref=e310]
+            - row "Max concurrent execution runs 1 3 5 8" [ref=e311]:
+              - cell "Max concurrent execution runs" [ref=e312]
+              - cell "1" [ref=e313]
+              - cell "3" [ref=e314]
+              - cell "5" [ref=e315]
+              - cell "8" [ref=e316]
+            - row "Max concurrent video renders 1 2 4 5" [ref=e317]:
+              - cell "Max concurrent video renders" [ref=e318]
+              - cell "1" [ref=e319]
+              - cell "2" [ref=e320]
+              - cell "4" [ref=e321]
+              - cell "5" [ref=e322]
+            - row "Active workspaces 1 3 10 50" [ref=e323]:
+              - cell "Active workspaces" [ref=e324]
+              - cell "1" [ref=e325]
+              - cell "3" [ref=e326]
+              - cell "10" [ref=e327]
+              - cell "50" [ref=e328]
+            - row "Included seats 1 1 5 + £25/mo add-ons 25" [ref=e329]:
+              - cell "Included seats" [ref=e330]
+              - cell "1" [ref=e331]
+              - cell "1" [ref=e332]
+              - cell "5 + £25/mo add-ons" [ref=e333]
+              - cell "25" [ref=e334]
+            - row "Usage packs Add execution or video credits (any paid tier) Add execution or video credits (any paid tier) Add execution or video credits (any paid tier) Add execution or video credits (any paid tier)" [ref=e335]:
+              - cell "Usage packs" [ref=e336]
+              - cell "Add execution or video credits (any paid tier)" [ref=e337]
+              - cell "Add execution or video credits (any paid tier)" [ref=e338]
+              - cell "Add execution or video credits (any paid tier)" [ref=e339]
+              - cell "Add execution or video credits (any paid tier)" [ref=e340]
+            - row "Daily video cap 2 5 8 15" [ref=e341]:
+              - cell "Daily video cap" [ref=e342]
+              - cell "2" [ref=e343]
+              - cell "5" [ref=e344]
+              - cell "8" [ref=e345]
+              - cell "15" [ref=e346]
+            - row "Priority speed Standard Elevated High Priority" [ref=e347]:
+              - cell "Priority speed" [ref=e348]
+              - cell "Standard" [ref=e349]
+              - cell "Elevated" [ref=e350]
+              - cell "High" [ref=e351]
+              - cell "Priority" [ref=e352]
+    - region "Usage packs" [ref=e353]:
+      - heading "Usage packs" [level=2] [ref=e354]
+      - generic [ref=e355]:
+        - paragraph [ref=e356]:
+          - strong [ref=e357]: Execution Boost
+          - text: adds chat, agent, and workflow capacity when your monthly pool runs thin.
+          - strong [ref=e358]: AI video packs
+          - text: refill render credits only — video stays visibly metered separately from execution.
+        - paragraph [ref=e359]:
+          - text: Purchase packs anytime from
+          - link "Settings → Billing" [ref=e360] [cursor=pointer]:
+            - /url: /app/settings?tab=Billing
+          - text: . Caps and fair-use safeguards stay in force; packs bridge spikes without weakening enforcement.
+      - generic [ref=e361]:
+        - generic [ref=e362]:
+          - heading "Execution Boost" [level=4] [ref=e363]
+          - paragraph [ref=e364]: +1,000 execution credits for £15.
+        - generic [ref=e365]:
+          - heading "Video Pack Small" [level=4] [ref=e366]
+          - paragraph [ref=e367]: +10 AI video credits for £20.
+        - generic [ref=e368]:
+          - heading "Video Pack Pro" [level=4] [ref=e369]
+          - paragraph [ref=e370]: +30 AI video credits for £50.
+    - region "Start simple. Scale when you need." [ref=e371]:
+      - img [ref=e373]
+      - generic [ref=e377]:
+        - heading "Start simple. Scale when you need." [level=2] [ref=e378]
+        - paragraph [ref=e379]: You do not need to understand the whole system on day one. Start with a single task, then grow into repeatable workflows as your team finds the processes worth automating.
+    - region "Questions" [ref=e380]:
+      - heading "Questions" [level=2] [ref=e381]
+      - generic [ref=e382]:
+        - heading "How do credits work?" [level=3] [ref=e383]
+        - paragraph [ref=e384]: "Credits are used when you run execution work: chat, agents, workflows, retrieval-heavy tasks, and guided image generation draw from your execution balance. Most short runs use about 1-3 credits; larger workflows with more context use more. AI video credits are separate and only power AI-generated video renders."
+      - generic [ref=e385]:
+        - heading "What happens if I run out?" [level=3] [ref=e386]
+        - paragraph [ref=e387]: New runs that need credits pause until your next reset or until you add capacity. We show usage in real time in your workspace so you are never surprised.
+      - generic [ref=e388]:
+        - heading "Can I buy more?" [level=3] [ref=e389]
+        - paragraph [ref=e390]: Yes. Credit packs are available as a top-up if you need a short boost. For steady growth, upgrading your plan is usually better value.
+      - generic [ref=e391]:
+        - heading "Do credits roll over?" [level=3] [ref=e392]
+        - paragraph [ref=e393]: Included monthly credits refresh on your billing cycle and do not roll over. Purchased top-up credits follow the terms shown at checkout and in your billing portal.
+      - generic [ref=e394]:
+        - heading "Is pricing predictable?" [level=3] [ref=e395]
+        - paragraph [ref=e396]: Your subscription price is fixed in GBP. Usage stays within the included execution credits and AI video credits for your tier, with clear limits for concurrent runs and daily video caps on higher plans.
+      - generic [ref=e397]:
+        - heading "Fair usage" [level=3] [ref=e398]
+        - paragraph [ref=e399]: Prymal includes generous monthly usage allowances. Heavy media generation, deep memory retrieval, bulk workflows, and premium model usage are subject to fair-use controls and may require usage packs.
+      - generic [ref=e400]:
+        - heading "Are there usage limits?" [level=3] [ref=e401]
+        - paragraph [ref=e402]: Yes. Every tier has clear execution and AI video allowances, plus fair-use controls for costly workloads. Usage packs refill capacity for short bursts — they do not remove limits.
+      - generic [ref=e403]:
+        - heading "What media can I generate?" [level=3] [ref=e404]
+        - paragraph [ref=e405]: The guided image builder uses execution credits. The guided video builder supports Fast Draft and Cinematic one-shot renders at 4, 6, or 8 seconds; video reference images currently require the Cinematic lane at 8 seconds.
+    - region "Start using Prymal today" [ref=e406]:
+      - heading "Start using Prymal today" [level=2] [ref=e407]
+      - paragraph [ref=e408]: No jargon, no surprise mechanics — just clear plans and live usage in your workspace.
+    - generic [ref=e409]:
+      - generic [ref=e410]: FAQ
+      - heading "Pricing FAQ" [level=2] [ref=e411]
+      - generic [ref=e412]:
+        - article [ref=e413]:
+          - heading "How does Prymal pricing work?" [level=3] [ref=e414]
+          - paragraph [ref=e415]: Prymal pricing is structured around workspace plans, execution capacity, and the depth of business memory, workflows, and collaboration controls your team needs.
+        - article [ref=e416]:
+          - heading "What is Founding Access?" [level=3] [ref=e417]
+          - paragraph [ref=e418]: Founding Access is Prymal’s early-adopter offer for teams joining before wider launch. It is intended for serious operators who want early leverage and direct product feedback loops.
+        - article [ref=e419]:
+          - heading "Can teams use Prymal together?" [level=3] [ref=e420]
+          - paragraph [ref=e421]: Yes. Prymal is built for shared business context, team workflows, operator oversight, and repeatable execution rather than single-user prompt sessions.
+        - article [ref=e422]:
+          - heading "Can Prymal generate images or videos?" [level=3] [ref=e423]
+          - paragraph [ref=e424]: Yes. Prymal supports guided media generation inside the workspace so teams can produce campaign visuals and video outputs without exposing routing internals on the surface.
+    - generic [ref=e425]:
+      - heading "Need the product detail behind the plans?" [level=2] [ref=e426]
+      - paragraph [ref=e427]: Feature pages, comparison pages, and the trust page explain how Prymal approaches business execution, memory, and compliance-ready operations.
+      - generic [ref=e428]:
+        - link "Explore features" [ref=e429] [cursor=pointer]:
+          - /url: /features
+        - link "Review trust" [ref=e430] [cursor=pointer]:
+          - /url: /trust
+  - contentinfo [ref=e431]:
+    - generic [ref=e432]:
+      - generic [ref=e435]:
+        - generic [ref=e436]: PRYMAL
+        - generic [ref=e437]: Instinctive AI operations
+      - paragraph [ref=e438]: Prymal is an AI operating system for business execution, built around specialist agents, shared business memory, workflow automation, and safety controls.
+    - generic [ref=e439]:
+      - generic [ref=e440]:
+        - generic [ref=e441]: Explore
+        - link "Features" [ref=e442] [cursor=pointer]:
+          - /url: /features
+        - link "Blog" [ref=e443] [cursor=pointer]:
+          - /url: /blog
+        - link "Compare" [ref=e444] [cursor=pointer]:
+          - /url: /compare
+      - generic [ref=e445]:
+        - generic [ref=e446]: Product
+        - link "Trust" [ref=e447] [cursor=pointer]:
+          - /url: /trust
+        - link "Pricing" [ref=e448] [cursor=pointer]:
+          - /url: /pricing
+        - link "Changelog" [ref=e449] [cursor=pointer]:
+          - /url: /changelog
+        - link "Get early access" [ref=e450] [cursor=pointer]:
+          - /url: /signup
+      - generic [ref=e451]:
+        - generic [ref=e452]: Legal
+        - link "Privacy Policy" [ref=e453] [cursor=pointer]:
+          - /url: /privacy
+        - link "Terms of Service" [ref=e454] [cursor=pointer]:
+          - /url: /terms
+        - link "Cookie Policy" [ref=e455] [cursor=pointer]:
+          - /url: /cookies
+        - link "For agencies" [ref=e456] [cursor=pointer]:
+          - /url: /for-agencies
+        - link "For small business" [ref=e457] [cursor=pointer]:
+          - /url: /for-small-business

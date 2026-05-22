@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { Button, InlineNotice, TextInput } from '../../components/ui';
@@ -47,6 +48,19 @@ export function FoundingAccessPopup({ offer, surface = 'pricing' }) {
     };
   }, [canShow]);
 
+  useEffect(() => {
+    if (!open || typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
   function showPopup(source) {
     if (!shouldShowFoundingAccessPopup({ offer })) {
       return;
@@ -89,7 +103,11 @@ export function FoundingAccessPopup({ offer, surface = 'pricing' }) {
     return null;
   }
 
-  return (
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  return createPortal(
     <div className="founding-access-modal" role="dialog" aria-modal="true" aria-labelledby={`founding-access-${surface}-title`}>
       <div className="founding-access-modal__backdrop" onClick={dismiss} />
       <div className="founding-access-modal__panel">
@@ -123,6 +141,7 @@ export function FoundingAccessPopup({ offer, surface = 'pricing' }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
