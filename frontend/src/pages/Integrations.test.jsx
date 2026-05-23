@@ -129,6 +129,54 @@ test('LinkedIn connected card shows author selector and reconnect warning when d
   expect(screen.queryByText(/LinkedIn post token/i)).not.toBeInTheDocument();
 });
 
+test('LinkedIn identity-only connection is connected but publishing is not ready', async () => {
+  mockApi.get.mockResolvedValueOnce({
+    available: [
+      {
+        id: 'linkedin',
+        name: 'LinkedIn',
+        category: 'Social',
+        section: 'socials',
+        authMode: 'oauth',
+        configured: true,
+        color: '#0A66C2',
+        supportsPublish: true,
+        targetLabel: 'Author URN',
+        settingsFields: [
+          { key: 'authorUrn', label: 'Author URN', placeholder: 'urn:li:organization:123456' },
+        ],
+      },
+    ],
+    connected: [
+      {
+        id: 'int_identity',
+        service: 'linkedin',
+        name: 'LinkedIn',
+        authMode: 'oauth',
+        accountEmail: 'owner@example.com',
+        scopes: ['openid', 'profile', 'email'],
+        postingNotReady: true,
+        publishDisabled: true,
+        meta: {
+          settings: { authorUrn: 'urn:li:person:abc123' },
+          health: { status: 'healthy', message: 'Connected as Prymal Owner' },
+          profile: { name: 'Prymal Owner' },
+        },
+      },
+    ],
+  });
+
+  renderWithProviders(<Integrations />, { route: '/app/integrations' });
+
+  expect(await screen.findByText(/Connected for identity/i)).toBeInTheDocument();
+  expect(screen.getByText(/Posting requires LinkedIn posting permissions/i)).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: /manage/i }));
+  const publishButton = await screen.findByRole('button', { name: /send live post/i });
+  expect(publishButton).toBeDisabled();
+  expect(screen.queryByText(/LinkedIn post token/i)).not.toBeInTheDocument();
+});
+
 test('manual integrations keep credential input UX', async () => {
   mockApi.get.mockResolvedValueOnce({
     available: [

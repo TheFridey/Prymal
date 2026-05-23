@@ -25,6 +25,8 @@ const router = new Hono();
 const LINKEDIN_AUTHOR_URN_PATTERN = /^urn:li:(person|organization):[A-Za-z0-9_-]+$/;
 const LINKEDIN_ORGANIZATION_URN_PATTERN = /^urn:li:organization:[A-Za-z0-9_-]+$/;
 const LINKEDIN_RECONNECT_MESSAGE = 'LinkedIn now uses OAuth. Please reconnect LinkedIn to continue publishing.';
+const LINKEDIN_POSTING_NOT_READY_MESSAGE =
+  'LinkedIn is connected, but posting permission is not enabled. Update LINKEDIN_SCOPES and reconnect after LinkedIn approves posting access.';
 const integrationAuthRateLimit = createRateLimiter({
   ...RATE_LIMIT_CONFIGS.integrationsConnectAndCallback,
   identifier: (context) => `${context.req.param('service')}:${resolveClientIp(context)}`,
@@ -192,7 +194,10 @@ router.get('/:service/callback', integrationAuthRateLimit, async (context) => {
   }
 
   if (error) {
-    return context.redirect(`${process.env.FRONTEND_URL}/app/integrations?error=${error}`);
+    const safeError = service === 'linkedin' && error === 'unauthorized_scope_error'
+      ? 'linkedin_scope_not_approved'
+      : error;
+    return context.redirect(`${process.env.FRONTEND_URL}/app/integrations?error=${safeError}`);
   }
 
   if (!code || !state) {
@@ -754,6 +759,10 @@ export async function getAccessToken(orgId, service) {
 export function serializeIntegrationConnection(entry) {
   const integration = getIntegrationDefinition(entry.service);
   const safeMeta = sanitizeIntegrationMeta(entry.service, entry.meta ?? {});
+  const linkedInPostingNotReady =
+    entry.service === 'linkedin'
+    && !safeMeta.needsReconnect
+    && !hasAnyLinkedInPostingScope(entry.scopes ?? []);
 
   return {
     id: entry.id,
@@ -767,6 +776,8 @@ export function serializeIntegrationConnection(entry) {
     authMode: integration?.authMode ?? 'oauth',
     capabilities: integration?.capabilities ?? [],
     supportsPublish: Boolean(integration?.supportsPublish),
+    publishDisabled: Boolean(safeMeta.needsReconnect || linkedInPostingNotReady),
+    postingNotReady: linkedInPostingNotReady,
     supportsImagePublish: Boolean(integration?.supportsImagePublish),
     targetLabel: integration?.targetLabel ?? null,
     accountId: entry.accountId ?? null,
@@ -804,6 +815,14 @@ function requiresLinkedInReconnect(service, connection) {
   return service === 'linkedin' && connection?.meta?.authMode === 'manual_token';
 }
 
+function hasLinkedInScope(scopes, requiredScope) {
+  return Array.isArray(scopes) && scopes.includes(requiredScope);
+}
+
+function hasAnyLinkedInPostingScope(scopes) {
+  return hasLinkedInScope(scopes, 'w_member_social') || hasLinkedInScope(scopes, 'w_organization_social');
+}
+
 function createClientSafeError(message, status = 400, code = 'integration_error') {
   const error = new Error(message);
   error.status = status;
@@ -832,7 +851,7 @@ function mapLinkedInProviderError(response, payload = {}, options = {}) {
       );
     }
     return createClientSafeError(
-      'LinkedIn connection is missing posting permission. Reconnect with the required permissions.',
+      LINKEDIN_POSTING_NOT_READY_MESSAGE,
       403,
       'linkedin_scope_missing',
     );
@@ -1551,9 +1570,9 @@ export async function publishIntegrationPayload({ service, accessToken, payload,
     }
 
     const requiredScope = author.startsWith('urn:li:organization:') ? 'w_organization_social' : 'w_member_social';
-    if (Array.isArray(connection?.scopes) && connection.scopes.length > 0 && !connection.scopes.includes(requiredScope)) {
+    if (!hasLinkedInScope(connection?.scopes, requiredScope)) {
       throw createClientSafeError(
-        'LinkedIn connection is missing posting permission. Reconnect with the required permissions.',
+        LINKEDIN_POSTING_NOT_READY_MESSAGE,
         403,
         'linkedin_scope_missing',
       );

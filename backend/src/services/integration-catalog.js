@@ -1,10 +1,18 @@
 import { hasConfiguredEnvValue } from '../env.js';
 
 export const LINKEDIN_VERSION = '202603';
+export const DEFAULT_LINKEDIN_SCOPES = ['openid', 'profile', 'email'];
 const LINKEDIN_AUTH_URL = 'https://www.linkedin.com/oauth/v2/authorization';
 const LINKEDIN_TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken';
 const MICROSOFT_AUTH_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
 const MICROSOFT_TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
+
+export function parseLinkedInScopes() {
+  return String(process.env.LINKEDIN_SCOPES || '')
+    .split(/[,\s]+/)
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+}
 
 /** Shared manual webhook fields (endpoint + optional auth style). */
 const STANDARD_WEBHOOK_FIELDS = [
@@ -339,7 +347,7 @@ export const INTEGRATION_DEFINITIONS = {
     },
     authUrl: LINKEDIN_AUTH_URL,
     tokenUrl: LINKEDIN_TOKEN_URL,
-    scopes: ['openid', 'profile', 'email', 'w_member_social', 'w_organization_social'],
+    scopes: parseLinkedInScopes().length ? parseLinkedInScopes() : DEFAULT_LINKEDIN_SCOPES,
     clientId: () => process.env.LINKEDIN_CLIENT_ID,
     clientSecret: () => process.env.LINKEDIN_CLIENT_SECRET,
     supportsRefresh: true,

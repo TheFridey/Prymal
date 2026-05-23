@@ -45,6 +45,13 @@ test('integration callback rejects state signed for a different service', async 
   assert.match(response.headers.get('location') ?? '', /error=invalid_state/);
 });
 
+test('LinkedIn unauthorized_scope_error redirects to a clear app error', async () => {
+  const response = await integrationsRouter.request('/linkedin/callback?error=unauthorized_scope_error');
+
+  assert.equal(response.status, 302);
+  assert.match(response.headers.get('location') ?? '', /error=linkedin_scope_not_approved/);
+});
+
 test('LinkedIn author URN validation rejects malformed values', () => {
   assert.match(
     validateIntegrationSettings('linkedin', { authorUrn: '115856278' }),
@@ -75,6 +82,29 @@ test('serializeIntegrationConnection never exposes encrypted token fields and fl
   assert.equal(Object.hasOwn(serialized, 'refreshToken'), false);
   assert.equal(serialized.authMode, 'oauth');
   assert.equal(serialized.meta.needsReconnect, true);
+});
+
+test('LinkedIn identity-only connection serializes as connected with publishing disabled', () => {
+  const serialized = serializeIntegrationConnection({
+    id: 'int_identity',
+    service: 'linkedin',
+    accessToken: 'encrypted-access-token',
+    refreshToken: null,
+    accountId: 'linkedin-user',
+    accountEmail: 'owner@example.com',
+    scopes: ['openid', 'profile', 'email'],
+    meta: {
+      authMode: 'oauth',
+      profile: { name: 'Prymal Owner' },
+    },
+    createdAt: new Date('2026-05-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-05-01T00:00:00.000Z'),
+  });
+
+  assert.equal(serialized.accountEmail, 'owner@example.com');
+  assert.equal(serialized.postingNotReady, true);
+  assert.equal(serialized.publishDisabled, true);
+  assert.equal(serialized.meta.needsReconnect, false);
 });
 
 test('LinkedIn test maps invalid token to safe reconnect copy', async () => {
@@ -155,6 +185,6 @@ test('LinkedIn publish maps missing posting scope to safe client copy', async ()
       settings: { authorUrn: 'urn:li:organization:115856278' },
       payload: { text: 'Hello' },
     }),
-    /missing posting permission/i,
+    /posting permission is not enabled/i,
   );
 });

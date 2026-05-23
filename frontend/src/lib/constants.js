@@ -952,9 +952,9 @@ export const INTEGRATION_LIBRARY = {
     capabilities: ['social_posts', 'autopost', 'delivery_feedback'],
     agentIds: ['echo', 'forge', 'vance'],
     setupSteps: [
-      'Start OAuth from Prymal using the LinkedIn member that owns the publishing permission.',
+      'Start OAuth from Prymal. Identity-only scopes connect the account; posting requires LinkedIn-approved posting scopes.',
       'Choose a personal profile or company author when LinkedIn returns available authors.',
-      'Run a health check before scheduling founder or company posts.',
+      'Run a health check before scheduling founder or company posts. If posting is not ready, update LINKEDIN_SCOPES after LinkedIn approves posting access and reconnect.',
     ],
     setupLinks: [
       {

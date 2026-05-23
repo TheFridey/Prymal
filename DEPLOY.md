@@ -73,8 +73,15 @@ Optional OAuth integration credentials:
 - Google Gmail/Drive: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - Notion: `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`
 - Slack: `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`
-- LinkedIn: `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, optional `LINKEDIN_API_VERSION`
+- LinkedIn: `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_SCOPES`, optional `LINKEDIN_API_VERSION`
 - Microsoft Outlook/OneDrive: `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
+
+LinkedIn scope guidance:
+
+- Use `LINKEDIN_SCOPES=openid profile email` for identity-only connection.
+- Add `w_member_social` only after the LinkedIn app has Share on LinkedIn approved.
+- Add organisation posting scopes only after the app has the correct LinkedIn Marketing/Community Management permissions approved.
+- If LinkedIn returns `unauthorized_scope_error`, remove unapproved scopes, restart the backend, and reconnect.
 
 Redirect URIs should point at the backend callback pattern:
 

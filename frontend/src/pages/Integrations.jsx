@@ -242,7 +242,7 @@ export default function Integrations() {
     }
 
     if (error) {
-      notify({ type: 'error', title: 'OAuth failed', message: error.replace(/_/g, ' ') });
+      notify({ type: 'error', title: 'OAuth failed', message: formatIntegrationOauthError(error) });
     }
   }, [notify, searchParams]);
 
@@ -482,6 +482,8 @@ function IntegrationProviderCard({
   const isManual = provider.authMode === 'manual_token';
   const isConnected = Boolean(connection);
   const needsReconnect = Boolean(connection?.meta?.needsReconnect);
+  const linkedInPostingNotReady = provider.id === 'linkedin' && Boolean(connection?.postingNotReady);
+  const publishDisabled = Boolean(needsReconnect || connection?.publishDisabled || linkedInPostingNotReady);
   const logoTheme = getIntegrationLogoPresentation(provider.id, provider.color);
   const needsServerConfig = provider.authMode === 'oauth' && !provider.configured;
   const deliveryCount = Number(connection?.meta?.publishStats?.total ?? 0);
@@ -532,6 +534,7 @@ function IntegrationProviderCard({
             {resolveAuthModeLabel(provider, needsServerConfig)}
           </StatusPill>
           {needsReconnect ? <StatusPill color="#F59E0B">Reconnect required</StatusPill> : null}
+          {linkedInPostingNotReady ? <StatusPill color="#F59E0B">Posting not ready</StatusPill> : null}
           {provider.supportsPublish ? <StatusPill color="#F59E0B">Live delivery</StatusPill> : null}
           {provider.supportsImagePublish ? <StatusPill color="#BDB4FE">Image-ready</StatusPill> : null}
         </div>
@@ -571,6 +574,11 @@ function IntegrationProviderCard({
             {needsReconnect ? (
               <InlineNotice tone="warning">
                 {connection.meta?.reconnectMessage ?? 'This integration needs to be reconnected before Prymal can use it.'}
+              </InlineNotice>
+            ) : null}
+            {linkedInPostingNotReady ? (
+              <InlineNotice tone="warning">
+                Connected for identity. Posting requires LinkedIn posting permissions.
               </InlineNotice>
             ) : null}
           </div>
@@ -733,7 +741,7 @@ function IntegrationProviderCard({
                     },
                   })
                 }
-                disabled={needsReconnect}
+                disabled={publishDisabled}
               />
             ) : null}
 
@@ -1252,6 +1260,14 @@ function getLinkedInAvailableAuthors(connection) {
           type: author.type ?? (author.urn.includes(':organization:') ? 'organization' : 'person'),
         }))
     : [];
+}
+
+function formatIntegrationOauthError(error) {
+  if (error === 'linkedin_scope_not_approved' || error === 'unauthorized_scope_error') {
+    return 'LinkedIn rejected one or more requested scopes. Remove unapproved scopes from LINKEDIN_SCOPES, start with openid profile email, and reconnect after LinkedIn approves posting access.';
+  }
+
+  return String(error).replace(/_/g, ' ');
 }
 
 function resolveAuthModeLabel(provider, needsServerConfig) {

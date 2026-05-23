@@ -6,10 +6,12 @@ setupTestEnv();
 
 const {
   buildDeliveryMeta,
+  DEFAULT_LINKEDIN_SCOPES,
   getAvailableIntegrations,
   getIntegrationDefinition,
   isManualIntegration,
   isOauthIntegration,
+  parseLinkedInScopes,
   sanitizeIntegrationMeta,
   sanitizeIntegrationSettings,
 } = await import('./integration-catalog.js');
@@ -48,10 +50,32 @@ test('LinkedIn uses OAuth and exposes safe author settings', () => {
   assert.equal(isManualIntegration('linkedin'), false);
   assert.equal(linkedin?.authMode, 'oauth');
   assert.equal(linkedin?.secretLabel, undefined);
-  assert.ok(linkedin?.scopes.includes('openid'));
-  assert.ok(linkedin?.scopes.includes('w_member_social'));
-  assert.ok(linkedin?.scopes.includes('w_organization_social'));
+  assert.deepEqual(linkedin?.scopes, DEFAULT_LINKEDIN_SCOPES);
+  assert.deepEqual(linkedin?.scopes, ['openid', 'profile', 'email']);
+  assert.equal(linkedin?.scopes.includes('w_member_social'), false);
+  assert.equal(linkedin?.scopes.includes('w_organization_social'), false);
   assert.equal(linkedin?.settingsFields.find((field) => field.key === 'authorUrn')?.requiredOnConnect, undefined);
+});
+
+test('LINKEDIN_SCOPES env overrides LinkedIn OAuth scopes', async () => {
+  const originalScopes = process.env.LINKEDIN_SCOPES;
+  process.env.LINKEDIN_SCOPES = 'openid profile email w_member_social';
+
+  assert.deepEqual(parseLinkedInScopes(), ['openid', 'profile', 'email', 'w_member_social']);
+
+  const scopedModule = await import(`./integration-catalog.js?linkedin-scopes=${Date.now()}`);
+  assert.deepEqual(scopedModule.getIntegrationDefinition('linkedin')?.scopes, [
+    'openid',
+    'profile',
+    'email',
+    'w_member_social',
+  ]);
+
+  if (originalScopes == null) {
+    delete process.env.LINKEDIN_SCOPES;
+  } else {
+    process.env.LINKEDIN_SCOPES = originalScopes;
+  }
 });
 
 test('settings sanitization keeps only declared integration fields', () => {

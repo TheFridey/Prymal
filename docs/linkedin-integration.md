@@ -6,9 +6,12 @@ Prymal uses LinkedIn OAuth 2.0 for LinkedIn publishing. Do not paste browser coo
 
 Create or update the LinkedIn developer app in the LinkedIn Developer Portal.
 
-Required products and permissions:
+Start with identity-only connection:
 
 - Sign in with LinkedIn using OpenID Connect: `openid`, `profile`, `email`
+
+Add posting permissions only after LinkedIn approves the matching app product:
+
 - Share on LinkedIn: `w_member_social`
 - Company/page publishing: `w_organization_social`
 
@@ -47,7 +50,20 @@ https://api.prymal.io/api/integrations/linkedin/callback
 ```bash
 LINKEDIN_CLIENT_ID=
 LINKEDIN_CLIENT_SECRET=
+LINKEDIN_SCOPES="openid profile email"
 LINKEDIN_API_VERSION=202603
+```
+
+`LINKEDIN_SCOPES` is intentionally identity-only by default. Once LinkedIn approves posting access for the app, update it to include the approved posting scopes, for example:
+
+```bash
+LINKEDIN_SCOPES="openid profile email w_member_social"
+```
+
+For company/page posting, include the approved organisation posting scope as well:
+
+```bash
+LINKEDIN_SCOPES="openid profile email w_member_social w_organization_social"
 ```
 
 `LINKEDIN_API_VERSION` is optional. If omitted, Prymal uses the backend-pinned version.
@@ -67,6 +83,7 @@ When LinkedIn returns organisation access controls, Prymal shows an author selec
 ## Troubleshooting
 
 - Missing posting permission: reconnect LinkedIn after enabling the required product/scope in the LinkedIn developer app.
+- `unauthorized_scope_error`: LinkedIn rejected a scope that is not approved for the app. Start with `LINKEDIN_SCOPES="openid profile email"`, restart the backend, and reconnect. After LinkedIn approves posting, add only the approved posting scopes and reconnect again.
 - Invalid author: use `urn:li:person:<id>` or `urn:li:organization:<id>`.
 - Expired or invalid token: reconnect LinkedIn.
 - Organisation posting denied: confirm the connected LinkedIn member has an approved company page role such as administrator, direct sponsored content poster, or content admin.

@@ -1,5 +1,10 @@
 # Prymal v1.0.0-beta.1
 
+## Latest changes
+- LinkedIn OAuth now starts with identity-only scopes (`openid profile email`) and makes posting opt-in through `LINKEDIN_SCOPES` after LinkedIn approves posting access.
+- LinkedIn connections with identity-only scopes remain connected but show posting as not ready, and publish attempts fail before any provider call until the required posting scope is present.
+- Integration docs now cover LinkedIn scope approval, `unauthorized_scope_error` recovery, Microsoft OAuth credentials, and the integration auth audit.
+
 ## Added
 - Centralized model capability registry with explicit premium, fast, structured, grounded, vision, and low-cost routing lanes.
 - Runtime provider health scoring with weighted fallback ordering and a dedicated Gemini Flash-Lite bulk lane.
