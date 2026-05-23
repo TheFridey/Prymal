@@ -18,8 +18,13 @@ vi.mock('../lib/api', () => ({
       if (path === '/workflows') {
         return { workflows: [] };
       }
-      if (path === '/billing/stats') {
-        return { conversations: 0, workflowRuns: 0, loreDocuments: 0 };
+      if (path === '/org/time-saved-stats') {
+        return {
+          periods: {
+            week: { label: 'Last 7 days', counts: { conversations: 0, workflowRuns: 0 } },
+            month: { label: 'This calendar month', counts: { conversations: 0, workflowRuns: 0 } },
+          },
+        };
       }
       if (path === '/org/learning-signals') {
         return null;

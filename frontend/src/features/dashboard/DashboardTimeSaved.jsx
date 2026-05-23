@@ -1,26 +1,25 @@
 import { useEffect, useRef } from 'react';
 import {
-  buildTimeSavedInputFromViewer,
-  estimateTimeSaved,
+  estimateTimeSavedFromApiStats,
   formatSavedMinutes,
 } from '../../lib/time-saved';
 import { trackDashboardTimeSavedViewed } from '../../lib/analytics';
 
-export default function DashboardTimeSaved({ viewer, billingStats }) {
+export default function DashboardTimeSaved({ timeSavedStats, isLoading = false }) {
   const trackedRef = useRef(false);
-  const estimate = estimateTimeSaved(buildTimeSavedInputFromViewer(viewer, billingStats));
+  const estimate = estimateTimeSavedFromApiStats(timeSavedStats);
 
   useEffect(() => {
-    if (trackedRef.current) {
+    if (trackedRef.current || isLoading) {
       return;
     }
     trackedRef.current = true;
     trackDashboardTimeSavedViewed({
       is_empty: estimate.isEmpty,
-      minutes_month: estimate.minutesMonth,
-      workflows_run: estimate.workflowsRun,
+      minutes_month: estimate.month.minutesTotal,
+      workflows_run: estimate.month.workflowsRun,
     });
-  }, [estimate.isEmpty, estimate.minutesMonth, estimate.workflowsRun]);
+  }, [estimate.isEmpty, estimate.month.minutesTotal, estimate.month.workflowsRun, isLoading]);
 
   return (
     <section className="pm-dash__time-saved" aria-labelledby="dash-time-saved-title">
@@ -28,12 +27,12 @@ export default function DashboardTimeSaved({ viewer, billingStats }) {
         <h2 id="dash-time-saved-title" className="pm-dash__section-label">
           Time saved with Prymal
         </h2>
-        {estimate.isWeekEstimate ? (
-          <span className="pm-dash__time-saved-note">Estimates from completed work</span>
-        ) : null}
+        <span className="pm-dash__time-saved-note">Estimated from completed work in each period</span>
       </div>
 
-      {estimate.isEmpty ? (
+      {isLoading ? (
+        <p className="pm-dash__time-saved-empty">Loading your activity estimates…</p>
+      ) : estimate.isEmpty ? (
         <p className="pm-dash__time-saved-empty">
           Start your first task and Prymal will begin estimating time saved.
         </p>
@@ -41,28 +40,29 @@ export default function DashboardTimeSaved({ viewer, billingStats }) {
         <>
           <div className="pm-dash__time-saved-metrics">
             <article className="pm-dash__time-saved-metric">
-              <span>This month</span>
-              <strong>{formatSavedMinutes(estimate.minutesMonth)}</strong>
+              <span>{estimate.month.label}</span>
+              <strong>{formatSavedMinutes(estimate.month.minutesTotal)}</strong>
             </article>
             <article className="pm-dash__time-saved-metric">
-              <span>This week</span>
-              <strong>{formatSavedMinutes(estimate.minutesWeek)}</strong>
+              <span>{estimate.week.label}</span>
+              <strong>{formatSavedMinutes(estimate.week.minutesTotal)}</strong>
             </article>
             <article className="pm-dash__time-saved-metric">
-              <span>Completed tasks</span>
-              <strong>{estimate.completedTasks}</strong>
+              <span>Completed tasks ({estimate.month.label.toLowerCase()})</span>
+              <strong>{estimate.month.completedTasks}</strong>
             </article>
             <article className="pm-dash__time-saved-metric">
-              <span>Workflows run</span>
-              <strong>{estimate.workflowsRun}</strong>
+              <span>Workflows run ({estimate.month.label.toLowerCase()})</span>
+              <strong>{estimate.month.workflowsRun}</strong>
             </article>
             <article className="pm-dash__time-saved-metric">
-              <span>Est. value</span>
-              <strong>£{estimate.estimatedValueGbp.toLocaleString()}</strong>
+              <span>Est. value ({estimate.month.label.toLowerCase()})</span>
+              <strong>£{estimate.month.estimatedValueGbp.toLocaleString()}</strong>
             </article>
           </div>
           <p className="pm-dash__time-saved-foot">
-            Based on typical time for chats, workflows, and outputs. Not a billing charge.
+            Based on completed chats (2+ messages), finished workflows, delivered outputs, feedback, and media
+            in each period — not lifetime totals. Illustrative only; not a billing charge.
           </p>
         </>
       )}

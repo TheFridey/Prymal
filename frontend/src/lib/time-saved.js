@@ -1,6 +1,6 @@
 /**
  * Configurable time-saved estimates for the dashboard.
- * All weights live here — do not duplicate minutes assumptions in UI components.
+ * Activity counts should come from GET /org/time-saved-stats (period-scoped).
  */
 
 export const TIME_SAVED_WEIGHTS = {
@@ -12,8 +12,6 @@ export const TIME_SAVED_WEIGHTS = {
 };
 
 export const DEFAULT_HOURLY_RATE_GBP = 35;
-
-const WEEK_OF_MONTH_RATIO = 0.35;
 
 function toCount(value) {
   const parsed = Number(value);
@@ -50,19 +48,14 @@ export function estimateTimeSaved(input = {}) {
     media: mediaGenerations * TIME_SAVED_WEIGHTS.imageOrVideoGeneration,
   };
 
-  const minutesMonth = Object.values(breakdown).reduce((sum, value) => sum + value, 0);
-  const minutesWeek = minutesMonth > 0
-    ? Math.min(minutesMonth, Math.round(minutesMonth * WEEK_OF_MONTH_RATIO))
-    : 0;
-
+  const minutesTotal = Object.values(breakdown).reduce((sum, value) => sum + value, 0);
   const completedTasks = conversations + workflowRuns + contentAssets + reportsOrAudits + mediaGenerations;
-  const isEmpty = minutesMonth === 0;
-  const savedHours = minutesMonth / 60;
+  const isEmpty = minutesTotal === 0;
+  const savedHours = minutesTotal / 60;
   const estimatedValueGbp = isEmpty ? 0 : Math.round(savedHours * hourlyRateGbp);
 
   return {
-    minutesWeek,
-    minutesMonth,
+    minutesTotal,
     completedTasks,
     workflowsRun: workflowRuns,
     savedHours,
@@ -70,7 +63,49 @@ export function estimateTimeSaved(input = {}) {
     isEmpty,
     breakdown,
     hourlyRateGbp,
-    isWeekEstimate: true,
+  };
+}
+
+/**
+ * @param {object|null|undefined} apiStats Response from GET /org/time-saved-stats
+ * @param {number} [hourlyRateGbp]
+ */
+export function estimateTimeSavedFromApiStats(apiStats, hourlyRateGbp = DEFAULT_HOURLY_RATE_GBP) {
+  const weekCounts = apiStats?.periods?.week?.counts ?? {};
+  const monthCounts = apiStats?.periods?.month?.counts ?? {};
+
+  const week = estimateTimeSaved({ ...weekCounts, hourlyRateGbp });
+  const month = estimateTimeSaved({ ...monthCounts, hourlyRateGbp });
+
+  return {
+    week: {
+      ...week,
+      label: apiStats?.periods?.week?.label ?? 'Last 7 days',
+      startAt: apiStats?.periods?.week?.startAt ?? null,
+    },
+    month: {
+      ...month,
+      label: apiStats?.periods?.month?.label ?? 'This calendar month',
+      startAt: apiStats?.periods?.month?.startAt ?? null,
+    },
+    isEmpty: week.isEmpty && month.isEmpty,
+    hourlyRateGbp,
+    methodology: apiStats?.methodology ?? null,
+  };
+}
+
+/** @deprecated Use estimateTimeSavedFromApiStats — legacy merge for tests only */
+export function buildTimeSavedInputFromViewer(viewer = {}, billingStats = null) {
+  const stats = viewer?.stats ?? {};
+  const billing = billingStats ?? {};
+
+  return {
+    conversations: billing.conversations ?? stats.conversationCount ?? 0,
+    workflowRuns: billing.workflowRuns ?? 0,
+    loreDocuments: billing.loreDocuments ?? stats.loreDocuments ?? 0,
+    contentAssets: billing.contentAssets ?? stats.contentAssets ?? 0,
+    reportsOrAudits: stats.feedbackEvents ?? 0,
+    mediaGenerations: 0,
   };
 }
 
@@ -84,18 +119,4 @@ export function formatSavedMinutes(minutes) {
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return remainder > 0 ? `${hours}h ${remainder}m` : `${hours}h`;
-}
-
-export function buildTimeSavedInputFromViewer(viewer = {}, billingStats = null) {
-  const stats = viewer?.stats ?? {};
-  const billing = billingStats ?? {};
-
-  return {
-    conversations: billing.conversations ?? stats.conversationCount ?? 0,
-    workflowRuns: billing.workflowRuns ?? 0,
-    loreDocuments: billing.loreDocuments ?? stats.loreDocuments ?? 0,
-    contentAssets: billing.contentAssets ?? stats.contentAssets ?? 0,
-    reportsOrAudits: stats.feedbackEvents ?? 0,
-    mediaGenerations: 0,
-  };
 }

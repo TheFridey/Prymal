@@ -49,9 +49,9 @@ export default function Dashboard() {
     queryFn: () => api.get('/workflows'),
   });
 
-  const billingQuery = useQuery({
-    queryKey: ['billing-stats'],
-    queryFn: () => api.get('/billing/stats'),
+  const timeSavedQuery = useQuery({
+    queryKey: ['time-saved-stats'],
+    queryFn: () => api.get('/org/time-saved-stats'),
   });
 
   const learningSignalsQuery = useQuery({
@@ -62,7 +62,11 @@ export default function Dashboard() {
   const recentConversations = conversationsQuery.data?.conversations ?? [];
   const workflows = workflowsQuery.data?.workflows ?? [];
   const trainedOnRuns = Number(viewer?.stats?.trainedOnRuns ?? 0);
-  const loreDocumentCount = Number(billingQuery.data?.loreDocuments ?? viewer?.stats?.loreDocuments ?? 0);
+  const loreDocumentCount = Number(
+    timeSavedQuery.data?.periods?.month?.counts?.loreDocuments
+    ?? viewer?.stats?.loreDocuments
+    ?? 0,
+  );
 
   const hasMeaningfulProgress =
     conversationCount >= 3
@@ -139,7 +143,10 @@ export default function Dashboard() {
         </MotionSection>
 
         <MotionSection delay={0.03} reveal={{ y: 10, blur: 4 }}>
-          <DashboardTimeSaved viewer={viewer} billingStats={billingQuery.data} />
+          <DashboardTimeSaved
+            timeSavedStats={timeSavedQuery.data}
+            isLoading={timeSavedQuery.isLoading}
+          />
         </MotionSection>
 
         {hasMeaningfulProgress ? (

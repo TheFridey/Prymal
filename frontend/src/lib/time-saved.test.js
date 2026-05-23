@@ -4,6 +4,7 @@ import {
   TIME_SAVED_WEIGHTS,
   buildTimeSavedInputFromViewer,
   estimateTimeSaved,
+  estimateTimeSavedFromApiStats,
   formatSavedMinutes,
 } from './time-saved';
 
@@ -12,8 +13,7 @@ describe('time-saved', () => {
     const result = estimateTimeSaved({});
 
     expect(result.isEmpty).toBe(true);
-    expect(result.minutesMonth).toBe(0);
-    expect(result.minutesWeek).toBe(0);
+    expect(result.minutesTotal).toBe(0);
     expect(result.estimatedValueGbp).toBe(0);
     expect(result.completedTasks).toBe(0);
   });
@@ -32,10 +32,36 @@ describe('time-saved', () => {
       + 1 * TIME_SAVED_WEIGHTS.contentOrCampaignOutput;
 
     expect(result.isEmpty).toBe(false);
-    expect(result.minutesMonth).toBe(expectedMinutes);
-    expect(result.minutesWeek).toBe(Math.min(expectedMinutes, Math.round(expectedMinutes * 0.35)));
+    expect(result.minutesTotal).toBe(expectedMinutes);
     expect(result.workflowsRun).toBe(2);
     expect(result.estimatedValueGbp).toBe(Math.round((expectedMinutes / 60) * 40));
+  });
+
+  test('estimateTimeSavedFromApiStats uses separate week and month counts', () => {
+    const result = estimateTimeSavedFromApiStats({
+      periods: {
+        week: {
+          label: 'Last 7 days',
+          counts: { conversations: 2, workflowRuns: 1 },
+        },
+        month: {
+          label: 'This billing cycle',
+          counts: { conversations: 5, workflowRuns: 2, contentAssets: 1 },
+        },
+      },
+    });
+
+    const weekMinutes = 2 * TIME_SAVED_WEIGHTS.agentChatCompleted + TIME_SAVED_WEIGHTS.workflowRunCompleted;
+    const monthMinutes =
+      5 * TIME_SAVED_WEIGHTS.agentChatCompleted
+      + 2 * TIME_SAVED_WEIGHTS.workflowRunCompleted
+      + TIME_SAVED_WEIGHTS.contentOrCampaignOutput;
+
+    expect(result.week.minutesTotal).toBe(weekMinutes);
+    expect(result.month.minutesTotal).toBe(monthMinutes);
+    expect(result.week.label).toBe('Last 7 days');
+    expect(result.month.label).toBe('This billing cycle');
+    expect(result.isEmpty).toBe(false);
   });
 
   test('buildTimeSavedInputFromViewer merges billing stats when present', () => {

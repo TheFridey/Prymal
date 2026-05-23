@@ -8,6 +8,7 @@ import { requireOrg } from '../middleware/auth.js';
 import { getLearningSignalsForOrg } from '../services/learning-signals.js';
 import { getOrgLearningSnapshot } from '../services/moat-feedback.js';
 import { recordProductEvent } from '../services/telemetry.js';
+import { getTimeSavedStatsForOrgWithBilling } from '../services/time-saved-stats.js';
 
 const router = new Hono();
 
@@ -21,6 +22,12 @@ router.get('/learning-signals', requireOrg, async (context) => {
   const org = context.get('org');
   const learningSignals = await getLearningSignalsForOrg({ orgId: org.orgId });
   return context.json(learningSignals);
+});
+
+router.get('/time-saved-stats', requireOrg, async (context) => {
+  const org = context.get('org');
+  const stats = await getTimeSavedStatsForOrgWithBilling(org.orgId);
+  return context.json(stats);
 });
 
 const clientProductEventSchema = z.object({
