@@ -1,6 +1,8 @@
 # Prymal v1.0.0-beta.1
 
 ## Latest changes
+- Agent chat outputs can now be sent into the action approval flow for direct publishing to connected social and messaging platforms.
+- Social publishing from chat uses `social.publish`, WARDEN/action policy checks, and a human approval card before any provider API call is made.
 - LinkedIn OAuth now starts with identity-only scopes (`openid profile email`) and makes posting opt-in through `LINKEDIN_SCOPES` after LinkedIn approves posting access.
 - LinkedIn connections with identity-only scopes remain connected but show posting as not ready, and publish attempts fail before any provider call until the required posting scope is present.
 - Integration docs now cover LinkedIn scope approval, `unauthorized_scope_error` recovery, Microsoft OAuth credentials, and the integration auth audit.

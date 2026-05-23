@@ -34,6 +34,7 @@ test('isKnownActionType returns true for supported types', () => {
   assert.equal(isKnownActionType('drive.folder'), true);
   assert.equal(isKnownActionType('slack.post'), true);
   assert.equal(isKnownActionType('slack.reply'), true);
+  assert.equal(isKnownActionType('social.publish'), true);
 });
 
 test('isKnownActionType returns false for unknown types', () => {
@@ -48,6 +49,7 @@ test('getSupportedActionTypes returns an array with all known types', () => {
   assert.ok(types.includes('email.send'));
   assert.ok(types.includes('drive.write'));
   assert.ok(types.includes('slack.post'));
+  assert.ok(types.includes('social.publish'));
   assert.ok(types.length >= 6);
 });
 

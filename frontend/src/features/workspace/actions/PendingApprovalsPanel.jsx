@@ -13,6 +13,7 @@ const ACTION_LABELS = {
   'drive.folder': 'Create Drive folder',
   'slack.post': 'Post to Slack',
   'slack.reply': 'Reply in Slack',
+  'social.publish': 'Publish social post',
 };
 
 const RISK_COLOR = {

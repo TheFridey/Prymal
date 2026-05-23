@@ -91,5 +91,6 @@ When LinkedIn returns organisation access controls, Prymal shows an author selec
 ## Current Limits
 
 - Text posts and link posts are supported.
+- Agent chat publishing is supported through Prymal's action approval flow. The user must review and approve the post before Prymal calls LinkedIn.
 - Image publishing is intentionally disabled until LinkedIn media upload is implemented safely.
 - Old manual-token LinkedIn rows are marked degraded and require reconnect.

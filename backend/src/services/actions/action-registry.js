@@ -8,6 +8,7 @@ import * as Sentry from '@sentry/node';
 import { sendEmail } from './email-actions.js';
 import { writeFile, appendToFile, createFolder } from './drive-actions.js';
 import { postMessage, postReply } from './slack-actions.js';
+import { publishSocialPost } from './social-actions.js';
 import { createRequire } from 'node:module';
 import { createApprovalRequest, validateAndConsume } from './action-approval.js';
 
@@ -21,6 +22,7 @@ const HANDLERS = {
   'drive.folder': createFolder,
   'slack.post': postMessage,
   'slack.reply': postReply,
+  'social.publish': publishSocialPost,
 };
 
 export function getSupportedActionTypes() {
@@ -63,6 +65,8 @@ function matchesCondition(condition, payload) {
   const { field, operator, value } = condition;
 
   switch (field) {
+    case 'always':
+      return operator === 'equals' ? Boolean(value) === true : false;
     case 'recipient_count': {
       const recipients = Array.isArray(payload.to) ? payload.to : (payload.to ? [payload.to] : []);
       const cc = Array.isArray(payload.cc) ? payload.cc : (payload.cc ? [payload.cc] : []);
@@ -106,7 +110,7 @@ function matchesCondition(condition, payload) {
  *
  * @param {string} type
  * @param {object} payload
- * @param {{ orgId: string, userId: string, workflowId?: string, nodeId?: string, approvalToken?: string }} context
+ * @param {{ orgId: string, userId: string, workflowId?: string, nodeId?: string, approvalToken?: string, approvalBypass?: boolean }} context
  * @returns {Promise<ActionResult>}
  */
 export async function executeAction(type, payload, context) {
@@ -139,7 +143,9 @@ export async function executeAction(type, payload, context) {
   }
 
   if (policyResult.verdict === 'require_approval') {
-    if (context?.approvalToken) {
+    if (context?.approvalBypass) {
+      // Trusted in-app approval routes consume the approval row before dispatch.
+    } else if (context?.approvalToken) {
       let validation;
       try {
         validation = await validateAndConsume(context.approvalToken, { orgId: context.orgId });

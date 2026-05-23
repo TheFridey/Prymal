@@ -1,6 +1,17 @@
-import { fireEvent, screen } from '@testing-library/react';
-import { StudioMessage } from './renderers';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { vi } from 'vitest';
 import { renderWithProviders } from '../../../test/renderWithProviders';
+
+const mockApi = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+}));
+
+vi.mock('../../../lib/api', () => ({
+  api: mockApi,
+}));
+
+import { StudioMessage } from './renderers';
 
 const HERALD_AGENT = {
   id: 'herald',
@@ -9,6 +20,11 @@ const HERALD_AGENT = {
   color: '#FF6B35',
   glyph: 'H',
 };
+
+beforeEach(() => {
+  mockApi.get.mockReset();
+  mockApi.post.mockReset();
+});
 
 test('StudioMessage renders herald structured output as a sequence card instead of raw JSON', () => {
   const message = {
@@ -129,4 +145,60 @@ test('StudioMessage renders only safe evidence metadata for normal users', () =>
   expect(screen.getByText(/older than the current positioning memo/i)).toBeInTheDocument();
   expect(screen.queryByText(/hidden-provider/i)).not.toBeInTheDocument();
   expect(screen.queryByText(/hidden-route-reason/i)).not.toBeInTheDocument();
+});
+
+test('StudioMessage can request approval to publish an agent reply to a connected social platform', async () => {
+  mockApi.get.mockResolvedValue({
+    available: [],
+    connected: [
+      {
+        id: 'integration_1',
+        service: 'linkedin',
+        name: 'LinkedIn',
+        supportsPublish: true,
+        publishDisabled: false,
+        meta: {
+          settings: {
+            authorUrn: 'urn:li:organization:115856278',
+          },
+        },
+      },
+    ],
+  });
+  mockApi.post.mockResolvedValueOnce({
+    success: false,
+    awaitingApproval: true,
+    approvalId: 'approval_1',
+    approvalToken: 'approval_token',
+    risk: { level: 'medium' },
+  });
+
+  const message = {
+    id: 'message-social',
+    role: 'assistant',
+    content: 'Post copy for LinkedIn from an agent reply.',
+  };
+
+  renderWithProviders(<StudioMessage message={message} agent={HERALD_AGENT} />);
+
+  fireEvent.click(screen.getByRole('button', { name: /publish to social/i }));
+  expect(await screen.findByText('Publish from this reply')).toBeInTheDocument();
+  await waitFor(() => expect(mockApi.get).toHaveBeenCalledWith('/integrations'));
+
+  fireEvent.click(await screen.findByRole('button', { name: /request approval/i }));
+
+  await waitFor(() => {
+    expect(mockApi.post).toHaveBeenCalledWith('/actions/execute', {
+      type: 'social.publish',
+      payload: expect.objectContaining({
+        service: 'linkedin',
+        text: 'Post copy for LinkedIn from an agent reply.',
+        messageId: 'message-social',
+        sourceAgent: 'herald',
+      }),
+    });
+  });
+
+  expect(await screen.findByText('Action pending approval')).toBeInTheDocument();
+  expect(screen.getByText('Publish social post')).toBeInTheDocument();
 });

@@ -194,6 +194,7 @@ router.post('/approvals/:id/approve', requireOrg, async (context) => {
     userId: org.userId,
     approvalToken: token,
     plan: org.orgPlan,
+    approvalBypass: true,
   };
 
   const actionResult = await executeAction(validation.actionType, validation.payload, actionContext);
@@ -262,6 +263,7 @@ router.post('/approvals/:id/approve-inline', requireOrg, async (context) => {
     workflowId: validation.workflowId,
     nodeId: validation.nodeId,
     plan: org.orgPlan,
+    approvalBypass: true,
   };
 
   const actionResult = await executeAction(validation.actionType, validation.payload, actionContext);

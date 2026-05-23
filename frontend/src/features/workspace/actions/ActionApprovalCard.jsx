@@ -12,6 +12,7 @@ const ACTION_LABELS = {
   'drive.folder': 'Create Drive folder',
   'slack.post': 'Post to Slack',
   'slack.reply': 'Reply in Slack',
+  'social.publish': 'Publish social post',
 };
 
 const RISK_META = {
@@ -29,6 +30,7 @@ function getDestination(actionType, payload) {
   }
   if (actionType?.startsWith('drive.')) return payload.name ?? payload.folder ?? null;
   if (actionType?.startsWith('slack.')) return payload.channel ?? null;
+  if (actionType === 'social.publish') return [payload.service, payload.targetId].filter(Boolean).join(': ') || null;
   return null;
 }
 
@@ -37,6 +39,7 @@ function getContentPreview(actionType, payload) {
   if (actionType === 'email.send') return payload.body ?? payload.content ?? null;
   if (actionType?.startsWith('drive.')) return payload.content ?? null;
   if (actionType?.startsWith('slack.')) return payload.text ?? null;
+  if (actionType === 'social.publish') return payload.text ?? null;
   return null;
 }
 

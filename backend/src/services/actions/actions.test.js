@@ -4,7 +4,7 @@ import { setupTestEnv } from '../../../test-helpers.js';
 
 setupTestEnv();
 
-const { executeAction, evaluateActionPolicy, isKnownActionType } = await import('./action-registry.js');
+const { executeAction, evaluateActionPolicy, getSupportedActionTypes, isKnownActionType } = await import('./action-registry.js');
 const { getPendingApprovals } = await import('./action-approval.js');
 const { db } = await import('../../db/index.js');
 
@@ -50,6 +50,15 @@ test('slack public channel triggers require_approval not block', () => {
   assert.equal(result.policyId, 'slack_public_channel_approval');
 });
 
+test('social publish always requires approval before a live post', () => {
+  const result = evaluateActionPolicy('social.publish', {
+    service: 'linkedin',
+    text: 'Launch post for the Prymal page.',
+  });
+  assert.equal(result.verdict, 'require_approval');
+  assert.equal(result.policyId, 'social_publish_approval');
+});
+
 test('unknown action type returns policy allow (no matching policies)', () => {
   const result = evaluateActionPolicy('unknown.thing', { foo: 'bar' });
   assert.equal(result.verdict, 'allow');
@@ -87,6 +96,17 @@ test('executeAction returns awaitingApproval: true when require_approval with no
   }, { orgId: 'org_unit_test', userId: 'user_1' });
 
   // Either awaiting approval (DB worked) or APPROVAL_CREATE_FAILED (DB unavailable)
+  assert.equal(result.success, false);
+  assert.ok(result.awaitingApproval === true || result.code === 'APPROVAL_CREATE_FAILED');
+  assert.ok(typeof result.traceId === 'string');
+});
+
+test('executeAction gates social publishing behind approval', async () => {
+  const result = await executeAction('social.publish', {
+    service: 'linkedin',
+    text: 'A launch post that should not publish without approval.',
+  }, { orgId: 'org_unit_test', userId: 'user_1' });
+
   assert.equal(result.success, false);
   assert.ok(result.awaitingApproval === true || result.code === 'APPROVAL_CREATE_FAILED');
   assert.ok(typeof result.traceId === 'string');
@@ -161,6 +181,11 @@ test('isKnownActionType returns correct booleans', () => {
   assert.equal(isKnownActionType('email.send'), true);
   assert.equal(isKnownActionType('drive.write'), true);
   assert.equal(isKnownActionType('slack.post'), true);
+  assert.equal(isKnownActionType('social.publish'), true);
   assert.equal(isKnownActionType('sql.exec'), false);
   assert.equal(isKnownActionType(''), false);
+});
+
+test('supported action types include social.publish', () => {
+  assert.ok(getSupportedActionTypes().includes('social.publish'));
 });

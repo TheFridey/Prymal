@@ -47,3 +47,4 @@ This audit records the expected auth route, publish/test support, risk, and copy
 - Secrets are not serialized to the frontend.
 - Webhook integrations are saved without probing by default to avoid unintended third-party side effects.
 - Old LinkedIn manual-token rows are not deleted, but are degraded and cannot publish until reconnected through OAuth.
+- Agent chat publishing uses `social.publish` and the action approval flow. Connected platforms are not called until the user approves the proposed post.

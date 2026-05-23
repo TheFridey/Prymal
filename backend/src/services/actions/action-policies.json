@@ -43,5 +43,14 @@
     ],
     "action": "require_approval",
     "risk": { "score": 0.65, "level": "medium" }
+  },
+  {
+    "id": "social_publish_approval",
+    "scope": { "tools": ["social.publish"] },
+    "conditions": [
+      { "field": "always", "operator": "equals", "value": true }
+    ],
+    "action": "require_approval",
+    "risk": { "score": 0.7, "level": "medium" }
   }
 ]

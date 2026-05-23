@@ -4,6 +4,7 @@ This repository currently ships from the `master` branch. CI and branch protecti
 
 ## Recent shipped updates
 
+- Agent chat replies can now be published to connected social and messaging platforms through the action approval system, so live posts require explicit user approval before dispatch.
 - LinkedIn OAuth now defaults to identity-only scopes so unapproved LinkedIn app permissions do not block connection, with posting disabled until approved posting scopes are configured and the account reconnects.
 - Integration hardening added OAuth LinkedIn, Microsoft Outlook/OneDrive OAuth, safer provider error copy, LinkedIn author validation, no-token serialization tests, and integration auth audit docs.
 - Model routing now uses a centralized capability matrix, live provider health scoring, weighted fallback ordering, and an explicit Gemini Flash-Lite low-cost lane.
