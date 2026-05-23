@@ -1,6 +1,10 @@
 import { hasConfiguredEnvValue } from '../env.js';
 
-const LINKEDIN_VERSION = '202604';
+export const LINKEDIN_VERSION = '202603';
+const LINKEDIN_AUTH_URL = 'https://www.linkedin.com/oauth/v2/authorization';
+const LINKEDIN_TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken';
+const MICROSOFT_AUTH_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
+const MICROSOFT_TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
 
 /** Shared manual webhook fields (endpoint + optional auth style). */
 const STANDARD_WEBHOOK_FIELDS = [
@@ -66,10 +70,8 @@ export const INTEGRATION_DEFINITIONS = {
     category: 'Email',
     color: '#0078D4',
     icon: 'OL',
-    description: 'Verify Microsoft 365 mailbox access with a Graph user token and send outbound email from that identity.',
-    authMode: 'manual_token',
-    secretLabel: 'Microsoft Graph user token',
-    secretPlaceholder: 'Microsoft Graph token',
+    description: 'Connect Microsoft 365 via OAuth so Prymal can verify the mailbox and send outbound email from that identity.',
+    authMode: 'oauth',
     capabilities: ['inbox_context', 'send_email', 'delivery_feedback'],
     supportsPublish: true,
     targetLabel: 'Recipient email(s)',
@@ -82,6 +84,12 @@ export const INTEGRATION_DEFINITIONS = {
       },
     ],
     sortOrder: 15,
+    authUrl: MICROSOFT_AUTH_URL,
+    tokenUrl: MICROSOFT_TOKEN_URL,
+    scopes: ['openid', 'profile', 'email', 'offline_access', 'User.Read', 'Mail.Send'],
+    clientId: () => process.env.MICROSOFT_CLIENT_ID,
+    clientSecret: () => process.env.MICROSOFT_CLIENT_SECRET,
+    supportsRefresh: true,
   },
   google_drive: {
     name: 'Google Drive',
@@ -108,14 +116,18 @@ export const INTEGRATION_DEFINITIONS = {
     category: 'Files',
     color: '#0A5BD3',
     icon: 'OD',
-    description: 'Verify OneDrive using a delegated Microsoft Graph token and pin a trusted file account to this org.',
-    authMode: 'manual_token',
-    secretLabel: 'Microsoft Graph user token',
-    secretPlaceholder: 'Microsoft Graph token',
+    description: 'Connect OneDrive via Microsoft OAuth and pin a trusted file account to this organisation.',
+    authMode: 'oauth',
     capabilities: ['file_account_link', 'storage_access'],
     supportsPublish: false,
     settingsFields: [],
     sortOrder: 25,
+    authUrl: MICROSOFT_AUTH_URL,
+    tokenUrl: MICROSOFT_TOKEN_URL,
+    scopes: ['openid', 'profile', 'email', 'offline_access', 'User.Read', 'Files.Read.All'],
+    clientId: () => process.env.MICROSOFT_CLIENT_ID,
+    clientSecret: () => process.env.MICROSOFT_CLIENT_SECRET,
+    supportsRefresh: true,
   },
   dropbox: {
     name: 'Dropbox',
@@ -248,8 +260,8 @@ export const INTEGRATION_DEFINITIONS = {
     icon: 'X',
     description: 'Use an X user access token to publish short posts and threads from the workspace publish panel.',
     authMode: 'manual_token',
-    secretLabel: 'User access token',
-    secretPlaceholder: 'X user token',
+    secretLabel: 'X OAuth 2.0 user access token',
+    secretPlaceholder: 'Bearer token with tweet.write permission',
     capabilities: ['social_posts', 'autopost', 'delivery_feedback'],
     supportsPublish: true,
     settingsFields: [],
@@ -263,8 +275,8 @@ export const INTEGRATION_DEFINITIONS = {
     icon: 'MD',
     description: 'Pair a user token with your instance base URL to post with the visibility level you choose.',
     authMode: 'manual_token',
-    secretLabel: 'User token',
-    secretPlaceholder: 'Mastodon user token',
+    secretLabel: 'Mastodon user access token',
+    secretPlaceholder: 'Mastodon token with write:statuses scope',
     capabilities: ['social_posts', 'autopost', 'delivery_feedback'],
     supportsPublish: true,
     settingsFields: [
@@ -290,10 +302,8 @@ export const INTEGRATION_DEFINITIONS = {
     category: 'Social',
     color: '#0A66C2',
     icon: 'LI',
-    description: 'Use a LinkedIn posting token and author URN to publish founder or company updates to the feed.',
-    authMode: 'manual_token',
-    secretLabel: 'Member or organisation token',
-    secretPlaceholder: 'LinkedIn post token',
+    description: 'Connect LinkedIn with OAuth, choose a member or company author, and publish approved text or link updates.',
+    authMode: 'oauth',
     capabilities: ['social_posts', 'autopost', 'delivery_feedback'],
     supportsPublish: true,
     targetLabel: 'Author URN',
@@ -301,8 +311,20 @@ export const INTEGRATION_DEFINITIONS = {
       {
         key: 'authorUrn',
         label: 'Author URN',
-        placeholder: 'urn:li:person:123',
-        requiredOnConnect: true,
+        placeholder: 'urn:li:organization:123456',
+        helpText: 'Use urn:li:person:<id> for personal posting or urn:li:organization:<id> for company posting. The connected LinkedIn account must have permission to post as this author.',
+      },
+      {
+        key: 'selectedOrganizationUrn',
+        label: 'Selected organisation URN',
+        placeholder: 'urn:li:organization:123456',
+        helpText: 'Optional derived value used when an available LinkedIn organisation author is selected.',
+      },
+      {
+        key: 'selectedOrganizationName',
+        label: 'Selected organisation name',
+        placeholder: 'Company name',
+        helpText: 'Optional display label for the selected LinkedIn organisation author.',
       },
       {
         key: 'defaultVisibility',
@@ -315,6 +337,12 @@ export const INTEGRATION_DEFINITIONS = {
       'X-Restli-Protocol-Version': '2.0.0',
       'Linkedin-Version': LINKEDIN_VERSION,
     },
+    authUrl: LINKEDIN_AUTH_URL,
+    tokenUrl: LINKEDIN_TOKEN_URL,
+    scopes: ['openid', 'profile', 'email', 'w_member_social', 'w_organization_social'],
+    clientId: () => process.env.LINKEDIN_CLIENT_ID,
+    clientSecret: () => process.env.LINKEDIN_CLIENT_SECRET,
+    supportsRefresh: true,
     sortOrder: 80,
   },
   bluesky: {
@@ -349,7 +377,7 @@ export const INTEGRATION_DEFINITIONS = {
     icon: 'GH',
     description: 'Verify a GitHub PAT and publish shareable snippets as private Gists when you run a live post.',
     authMode: 'manual_token',
-    secretLabel: 'Personal access token',
+    secretLabel: 'GitHub personal access token',
     secretPlaceholder: 'GitHub fine-grained or classic PAT',
     capabilities: ['social_posts', 'autopost', 'delivery_feedback'],
     supportsPublish: true,
@@ -1529,6 +1557,7 @@ export function serializeAvailableIntegration(id, definition = getIntegrationDef
 export function sanitizeIntegrationMeta(service, meta = {}) {
   const definition = getIntegrationDefinition(service);
   const settings = sanitizeIntegrationSettings(service, meta.settings ?? {});
+  const linkedInNeedsReconnect = service === 'linkedin' && meta.authMode === 'manual_token';
   const recentDeliveries = Array.isArray(meta.recentDeliveries)
     ? meta.recentDeliveries.slice(0, 8).map((entry) => ({
         service,
@@ -1541,24 +1570,57 @@ export function sanitizeIntegrationMeta(service, meta = {}) {
       }))
     : [];
 
+  const profile = meta.profile
+    ? {
+        name: meta.profile.name ?? null,
+        handle: meta.profile.handle ?? null,
+        workspace: meta.profile.workspace ?? null,
+        avatarUrl: meta.profile.avatarUrl ?? null,
+        availableAuthors: Array.isArray(meta.profile.availableAuthors)
+          ? meta.profile.availableAuthors
+              .slice(0, 30)
+              .map((author) => ({
+                urn: author.urn ?? null,
+                name: author.name ?? author.urn ?? null,
+                type: author.type ?? null,
+                role: author.role ?? null,
+              }))
+              .filter((author) => author.urn)
+          : [],
+        organizations: Array.isArray(meta.profile.organizations)
+          ? meta.profile.organizations
+              .slice(0, 30)
+              .map((organization) => ({
+                urn: organization.urn ?? null,
+                name: organization.name ?? organization.urn ?? null,
+                role: organization.role ?? null,
+              }))
+              .filter((organization) => organization.urn)
+          : [],
+      }
+    : null;
+
   return {
     authMode: definition?.authMode ?? 'oauth',
     settings,
-    health: meta.health
+    needsReconnect: linkedInNeedsReconnect,
+    reconnectMessage: linkedInNeedsReconnect
+      ? 'LinkedIn now uses OAuth. Please reconnect LinkedIn to continue publishing.'
+      : null,
+    health: linkedInNeedsReconnect
+      ? {
+          status: 'degraded',
+          checkedAt: meta.health?.checkedAt ?? null,
+          message: 'LinkedIn now uses OAuth. Please reconnect LinkedIn to continue publishing.',
+        }
+      : meta.health
       ? {
           status: meta.health.status ?? 'unknown',
           checkedAt: meta.health.checkedAt ?? null,
           message: meta.health.message ?? null,
         }
       : null,
-    profile: meta.profile
-      ? {
-          name: meta.profile.name ?? null,
-          handle: meta.profile.handle ?? null,
-          workspace: meta.profile.workspace ?? null,
-          avatarUrl: meta.profile.avatarUrl ?? null,
-        }
-      : null,
+    profile,
     publishStats: {
       total: Number(meta.publishStats?.total ?? 0),
       lastPublishedAt: meta.publishStats?.lastPublishedAt ?? null,

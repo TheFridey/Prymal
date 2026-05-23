@@ -947,13 +947,13 @@ export const INTEGRATION_LIBRARY = {
     category: 'Social',
     color: '#0a66c2',
     icon: 'LI',
-    description: 'Push founder or company posts to LinkedIn using member or organisation access tokens.',
-    authMode: 'manual_token',
+    description: 'Connect LinkedIn with OAuth, choose a personal or company author, and publish approved updates.',
+    authMode: 'oauth',
     capabilities: ['social_posts', 'autopost', 'delivery_feedback'],
     agentIds: ['echo', 'forge', 'vance'],
     setupSteps: [
-      'Create a LinkedIn access token with the right post scopes.',
-      'Save the matching member or organisation author URN.',
+      'Start OAuth from Prymal using the LinkedIn member that owns the publishing permission.',
+      'Choose a personal profile or company author when LinkedIn returns available authors.',
       'Run a health check before scheduling founder or company posts.',
     ],
     setupLinks: [

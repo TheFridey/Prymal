@@ -14,6 +14,7 @@ import {
   buildDeliveryMeta,
   getAvailableIntegrations,
   getIntegrationDefinition,
+  LINKEDIN_VERSION,
   sanitizeIntegrationMeta,
   sanitizeIntegrationSettings,
 } from '../services/integration-catalog.js';
@@ -21,6 +22,9 @@ import { dispatchRuntimePublish, dispatchRuntimeTest } from '../services/integra
 import { redactSensitiveText, sanitizeErrorForClient } from '../services/security/redaction.js';
 
 const router = new Hono();
+const LINKEDIN_AUTHOR_URN_PATTERN = /^urn:li:(person|organization):[A-Za-z0-9_-]+$/;
+const LINKEDIN_ORGANIZATION_URN_PATTERN = /^urn:li:organization:[A-Za-z0-9_-]+$/;
+const LINKEDIN_RECONNECT_MESSAGE = 'LinkedIn now uses OAuth. Please reconnect LinkedIn to continue publishing.';
 const integrationAuthRateLimit = createRateLimiter({
   ...RATE_LIMIT_CONFIGS.integrationsConnectAndCallback,
   identifier: (context) => `${context.req.param('service')}:${resolveClientIp(context)}`,
@@ -61,6 +65,8 @@ const manualSettingsSchema = z
     defaultRecipientEmail: optionalTrimmedString(500),
     defaultFromEmail: optionalTrimmedString(500),
     authorUrn: optionalTrimmedString(255),
+    selectedOrganizationUrn: optionalTrimmedString(255),
+    selectedOrganizationName: optionalTrimmedString(255),
     defaultVisibility: optionalTrimmedString(64),
     instanceUrl: optionalUrl(2000),
     endpointUrl: optionalUrl(2000),
@@ -302,6 +308,11 @@ router.post(
       ...(existing?.meta?.settings ?? {}),
       ...(payload.settings ?? {}),
     });
+    const settingsError = validateIntegrationSettings(service, settings);
+    if (settingsError) {
+      return context.json({ error: settingsError }, 400);
+    }
+
     const missingSettings = getMissingRequiredSettings(integration, settings);
     if (missingSettings.length > 0) {
       return context.json({ error: `Missing required settings: ${missingSettings.join(', ')}.` }, 400);
@@ -432,11 +443,19 @@ router.patch(
     if (!connection) {
       return context.json({ error: `${integration.name} is not connected.` }, 404);
     }
+    if (requiresLinkedInReconnect(service, connection)) {
+      return context.json({ error: LINKEDIN_RECONNECT_MESSAGE }, 400);
+    }
 
     const settings = sanitizeIntegrationSettings(service, {
       ...(connection.meta?.settings ?? {}),
       ...(payload.settings ?? {}),
     });
+    const settingsError = validateIntegrationSettings(service, settings);
+    if (settingsError) {
+      return context.json({ error: settingsError }, 400);
+    }
+
     const missingSettings = getMissingRequiredSettings(integration, settings);
     if (missingSettings.length > 0) {
       return context.json({ error: `Missing required settings: ${missingSettings.join(', ')}.` }, 400);
@@ -485,6 +504,9 @@ router.post('/:service/test', requireOrg, requireRole('owner', 'admin'), integra
 
   if (!connection) {
     return context.json({ error: `${integration.name} is not connected.` }, 404);
+  }
+  if (requiresLinkedInReconnect(service, connection)) {
+    return context.json({ error: LINKEDIN_RECONNECT_MESSAGE }, 400);
   }
 
   const accessToken = await getAccessToken(org.orgId, service);
@@ -577,6 +599,9 @@ router.post(
 
     if (!connection) {
       return context.json({ error: `${integration.name} is not connected.` }, 404);
+    }
+    if (requiresLinkedInReconnect(service, connection)) {
+      return context.json({ error: LINKEDIN_RECONNECT_MESSAGE }, 400);
     }
 
     const accessToken = await getAccessToken(org.orgId, service);
@@ -726,7 +751,7 @@ export async function getAccessToken(orgId, service) {
   return decrypt(connection.accessToken);
 }
 
-function serializeIntegrationConnection(entry) {
+export function serializeIntegrationConnection(entry) {
   const integration = getIntegrationDefinition(entry.service);
   const safeMeta = sanitizeIntegrationMeta(entry.service, entry.meta ?? {});
 
@@ -759,7 +784,72 @@ function getMissingRequiredSettings(integration, settings) {
     .map((field) => field.label);
 }
 
-async function testIntegrationConnection({ service, accessToken, settings = {}, connection = null }) {
+export function validateIntegrationSettings(service, settings = {}) {
+  if (service !== 'linkedin') {
+    return null;
+  }
+
+  if (settings.authorUrn && !LINKEDIN_AUTHOR_URN_PATTERN.test(settings.authorUrn)) {
+    return 'Enter a valid LinkedIn author URN such as urn:li:organization:123456 or choose an available author.';
+  }
+
+  if (settings.selectedOrganizationUrn && !LINKEDIN_ORGANIZATION_URN_PATTERN.test(settings.selectedOrganizationUrn)) {
+    return 'Enter a valid LinkedIn organisation URN such as urn:li:organization:123456.';
+  }
+
+  return null;
+}
+
+function requiresLinkedInReconnect(service, connection) {
+  return service === 'linkedin' && connection?.meta?.authMode === 'manual_token';
+}
+
+function createClientSafeError(message, status = 400, code = 'integration_error') {
+  const error = new Error(message);
+  error.status = status;
+  error.code = code;
+  return error;
+}
+
+function mapLinkedInProviderError(response, payload = {}, options = {}) {
+  const providerMessage = String(payload?.message ?? payload?.error_description ?? payload?.error ?? '').toLowerCase();
+  const status = response?.status ?? 400;
+
+  if (status === 401 || /invalid[_ ]token|expired|unauthorized/.test(providerMessage)) {
+    return createClientSafeError(
+      'LinkedIn connection expired or invalid. Reconnect LinkedIn.',
+      401,
+      'linkedin_token_invalid',
+    );
+  }
+
+  if (status === 403 || /scope|permission|not enough permissions|access denied|forbidden/.test(providerMessage)) {
+    if (options.author?.startsWith('urn:li:organization:')) {
+      return createClientSafeError(
+        'The connected LinkedIn member does not appear to have permission to post as this organisation.',
+        403,
+        'linkedin_organization_denied',
+      );
+    }
+    return createClientSafeError(
+      'LinkedIn connection is missing posting permission. Reconnect with the required permissions.',
+      403,
+      'linkedin_scope_missing',
+    );
+  }
+
+  if (status === 400 && /author|urn|organization|person/.test(providerMessage)) {
+    return createClientSafeError(
+      'Enter a valid LinkedIn author URN such as urn:li:organization:123456 or choose an available author.',
+      400,
+      'linkedin_invalid_author',
+    );
+  }
+
+  return createClientSafeError(options.fallback ?? 'LinkedIn publish failed.', status, 'linkedin_provider_error');
+}
+
+export async function testIntegrationConnection({ service, accessToken, settings = {}, connection = null }) {
   const definition = getIntegrationDefinition(service);
   const runtimeTest = await dispatchRuntimeTest(service, definition, {
     service,
@@ -1062,34 +1152,35 @@ async function testIntegrationConnection({ service, accessToken, settings = {}, 
   }
 
   if (service === 'linkedin') {
-    const authorUrn = settings.authorUrn;
-    if (!authorUrn) {
-      throw new Error('LinkedIn testing requires an author URN.');
+    if (settings.authorUrn && !LINKEDIN_AUTHOR_URN_PATTERN.test(settings.authorUrn)) {
+      throw createClientSafeError(
+        'Enter a valid LinkedIn author URN such as urn:li:organization:123456 or choose an available author.',
+        400,
+        'linkedin_invalid_author',
+      );
     }
 
-    const response = await fetch(
-      `https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List(${encodeURIComponent(authorUrn)})&count=1`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'X-Restli-Protocol-Version': '2.0.0',
-        },
-      },
-    );
-    const payload = await readProviderJson(response);
+    const identity = await fetchLinkedInIdentity(accessToken);
+    const availableAuthors = identity.profile?.availableAuthors ?? [];
+    const selectedAuthor = settings.authorUrn ?? availableAuthors[0]?.urn ?? null;
 
-    if (!response.ok) {
-      throw new Error(payload?.message || payload?.error_description || 'LinkedIn author lookup failed.');
+    if (
+      selectedAuthor?.startsWith('urn:li:organization:')
+      && availableAuthors.some((author) => author.type === 'organization')
+      && !availableAuthors.some((author) => author.urn === selectedAuthor)
+    ) {
+      throw createClientSafeError(
+        'The connected LinkedIn member does not appear to have permission to post as this organisation.',
+        403,
+        'linkedin_organization_denied',
+      );
     }
 
     return {
-      message: `LinkedIn token verified for ${authorUrn}.`,
-      accountId: authorUrn,
-      accountEmail: null,
-      profile: {
-        name: authorUrn,
-        handle: authorUrn,
-      },
+      ...identity,
+      message: selectedAuthor
+        ? `Connected as ${identity.profile?.name ?? identity.accountEmail ?? 'LinkedIn member'}; author set to ${selectedAuthor}.`
+        : `Connected as ${identity.profile?.name ?? identity.accountEmail ?? 'LinkedIn member'}. Choose an author before publishing.`,
     };
   }
 
@@ -1117,12 +1208,90 @@ async function testIntegrationConnection({ service, accessToken, settings = {}, 
   };
 }
 
-async function publishIntegrationPayload({ service, accessToken, payload, settings = {} }) {
+async function fetchLinkedInIdentity(accessToken) {
+  const response = await fetch('https://api.linkedin.com/v2/userinfo', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const profilePayload = await readProviderJson(response);
+
+  if (!response.ok) {
+    throw mapLinkedInProviderError(response, profilePayload, {
+      fallback: 'LinkedIn connection expired or invalid. Reconnect LinkedIn.',
+      identityLookup: true,
+    });
+  }
+
+  const name =
+    profilePayload.name
+    ?? [profilePayload.given_name, profilePayload.family_name].filter(Boolean).join(' ')
+    ?? null;
+  const memberUrn = profilePayload.sub ? `urn:li:person:${profilePayload.sub}` : null;
+  const organizations = await fetchLinkedInOrganizations(accessToken);
+  const availableAuthors = [
+    memberUrn
+      ? {
+          urn: memberUrn,
+          name: name ?? 'Personal profile',
+          type: 'person',
+          role: 'member',
+        }
+      : null,
+    ...organizations.map((organization) => ({
+      urn: organization.urn,
+      name: organization.name,
+      type: 'organization',
+      role: organization.role,
+    })),
+  ].filter(Boolean);
+
+  return {
+    accountId: profilePayload.sub ?? memberUrn ?? null,
+    accountEmail: profilePayload.email ?? null,
+    profile: {
+      name,
+      handle: profilePayload.email ?? memberUrn ?? null,
+      avatarUrl: profilePayload.picture ?? null,
+      availableAuthors,
+      organizations,
+    },
+  };
+}
+
+async function fetchLinkedInOrganizations(accessToken) {
+  const version = process.env.LINKEDIN_API_VERSION?.trim() || LINKEDIN_VERSION;
+  const response = await fetch(
+    'https://api.linkedin.com/rest/organizationAcls?q=roleAssignee&state=APPROVED&count=100&projection=(elements*(*,organization~(localizedName)))',
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Linkedin-Version': version,
+        'X-Restli-Protocol-Version': '2.0.0',
+        'Content-Type': 'application/json',
+      },
+    },
+  );
+  const payload = await readProviderJson(response);
+
+  if (!response.ok) {
+    return [];
+  }
+
+  return (Array.isArray(payload.elements) ? payload.elements : [])
+    .map((entry) => ({
+      urn: entry.organization ?? null,
+      name: entry['organization~']?.localizedName ?? entry.organization ?? null,
+      role: entry.role ?? null,
+    }))
+    .filter((entry) => entry.urn && LINKEDIN_ORGANIZATION_URN_PATTERN.test(entry.urn));
+}
+
+export async function publishIntegrationPayload({ service, accessToken, payload, settings = {}, connection = null }) {
   const definition = getIntegrationDefinition(service);
   const runtimePublish = await dispatchRuntimePublish(service, definition, {
     accessToken,
     payload,
     settings,
+    connection,
   });
   if (runtimePublish) {
     return runtimePublish;
@@ -1366,8 +1535,39 @@ async function publishIntegrationPayload({ service, accessToken, payload, settin
     if (!author) {
       throw new Error('LinkedIn publishing requires an author URN.');
     }
+    if (!LINKEDIN_AUTHOR_URN_PATTERN.test(author)) {
+      throw createClientSafeError(
+        'Enter a valid LinkedIn author URN such as urn:li:organization:123456 or choose an available author.',
+        400,
+        'linkedin_invalid_author',
+      );
+    }
+    if (payload.imageUrl) {
+      throw createClientSafeError(
+        'LinkedIn image publishing is not enabled yet. Publish text or a link only.',
+        400,
+        'linkedin_images_disabled',
+      );
+    }
 
-    const commentary = buildPublishText(payload, { maxLength: 3000 });
+    const requiredScope = author.startsWith('urn:li:organization:') ? 'w_organization_social' : 'w_member_social';
+    if (Array.isArray(connection?.scopes) && connection.scopes.length > 0 && !connection.scopes.includes(requiredScope)) {
+      throw createClientSafeError(
+        'LinkedIn connection is missing posting permission. Reconnect with the required permissions.',
+        403,
+        'linkedin_scope_missing',
+      );
+    }
+
+    const commentary = [payload.title, payload.text]
+      .filter(Boolean)
+      .map((value) => String(value).trim())
+      .filter(Boolean)
+      .join('\n\n');
+    if (commentary.length > 3000) {
+      throw new Error('This post is too long for LinkedIn. Keep it under 3000 characters.');
+    }
+    const linkedInVersion = process.env.LINKEDIN_API_VERSION?.trim() || LINKEDIN_VERSION;
     const body = {
       author,
       commentary,
@@ -1397,14 +1597,14 @@ async function publishIntegrationPayload({ service, accessToken, payload, settin
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
         'X-Restli-Protocol-Version': '2.0.0',
-        'Linkedin-Version': '202604',
+        'Linkedin-Version': linkedInVersion,
       },
       body: JSON.stringify(body),
     });
     const result = await readProviderJson(response);
 
     if (!response.ok) {
-      throw new Error(result?.message || result?.error_description || 'LinkedIn publish failed.');
+      throw mapLinkedInProviderError(response, result, { author, fallback: 'LinkedIn publish failed.' });
     }
 
     return {
@@ -1560,6 +1760,18 @@ async function fetchAccountIdentity(service, tokenData) {
     };
   }
 
+  if (service === 'outlook' || service === 'onedrive') {
+    const testResult = await testIntegrationConnection({
+      service,
+      accessToken: tokenData.accessToken,
+    });
+    return {
+      accountId: testResult.accountId ?? null,
+      accountEmail: testResult.accountEmail ?? null,
+      meta: { profile: testResult.profile ?? null },
+    };
+  }
+
   if (service === 'notion') {
     return {
       accountId: tokenData.raw.workspace_id ?? null,
@@ -1570,6 +1782,21 @@ async function fetchAccountIdentity(service, tokenData) {
           handle: tokenData.raw.owner?.user?.person?.email ?? null,
           workspace: tokenData.raw.workspace_name ?? null,
         },
+      },
+    };
+  }
+
+  if (service === 'linkedin') {
+    const identity = await fetchLinkedInIdentity(tokenData.accessToken);
+    const defaultAuthor = identity.profile?.availableAuthors?.[0]?.urn ?? null;
+    return {
+      accountId: identity.accountId ?? null,
+      accountEmail: identity.accountEmail ?? null,
+      meta: {
+        profile: identity.profile ?? null,
+        settings: defaultAuthor
+          ? { authorUrn: defaultAuthor, defaultVisibility: 'PUBLIC' }
+          : { defaultVisibility: 'PUBLIC' },
       },
     };
   }

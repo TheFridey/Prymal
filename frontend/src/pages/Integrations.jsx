@@ -481,6 +481,7 @@ function IntegrationProviderCard({
 }) {
   const isManual = provider.authMode === 'manual_token';
   const isConnected = Boolean(connection);
+  const needsReconnect = Boolean(connection?.meta?.needsReconnect);
   const logoTheme = getIntegrationLogoPresentation(provider.id, provider.color);
   const needsServerConfig = provider.authMode === 'oauth' && !provider.configured;
   const deliveryCount = Number(connection?.meta?.publishStats?.total ?? 0);
@@ -528,8 +529,9 @@ function IntegrationProviderCard({
 
         <div className="integrations-chip-row">
           <StatusPill color={needsServerConfig ? '#98A2B3' : '#4CC9F0'}>
-            {provider.authMode === 'oauth' ? (needsServerConfig ? 'Server config needed' : 'OAuth') : 'Manual token'}
+            {resolveAuthModeLabel(provider, needsServerConfig)}
           </StatusPill>
+          {needsReconnect ? <StatusPill color="#F59E0B">Reconnect required</StatusPill> : null}
           {provider.supportsPublish ? <StatusPill color="#F59E0B">Live delivery</StatusPill> : null}
           {provider.supportsImagePublish ? <StatusPill color="#BDB4FE">Image-ready</StatusPill> : null}
         </div>
@@ -566,6 +568,11 @@ function IntegrationProviderCard({
               label="Deliveries"
               value={`${deliveryCount} receipt${deliveryCount === 1 ? '' : 's'} stored`}
             />
+            {needsReconnect ? (
+              <InlineNotice tone="warning">
+                {connection.meta?.reconnectMessage ?? 'This integration needs to be reconnected before Prymal can use it.'}
+              </InlineNotice>
+            ) : null}
           </div>
         ) : (
           <div style={{ display: 'grid', gap: '10px' }}>
@@ -616,7 +623,7 @@ function IntegrationProviderCard({
               <Button
                 tone="ghost"
                 onClick={() => testMutation.mutate(provider.id)}
-                disabled={pendingTest}
+                disabled={pendingTest || needsReconnect}
                 className="integrations-action-button"
               >
                 {pendingTest ? 'Testing...' : 'Test'}
@@ -681,6 +688,7 @@ function IntegrationProviderCard({
                 {provider.settingsFields?.length ? (
                   <OauthSettingsPanel
                     provider={provider}
+                    connection={connection}
                     draft={draft}
                     pending={pendingSettingsSave}
                     onDraftChange={(nextDraft) => setConnectionDraft(provider.id, nextDraft, setConnectionDrafts)}
@@ -700,7 +708,7 @@ function IntegrationProviderCard({
                     disabled={needsServerConfig}
                     className="integrations-action-button"
                   >
-                    Reconnect OAuth
+                    {provider.id === 'linkedin' ? 'Reconnect LinkedIn' : 'Reconnect OAuth'}
                   </Button>
                 </div>
               </div>
@@ -725,6 +733,7 @@ function IntegrationProviderCard({
                     },
                   })
                 }
+                disabled={needsReconnect}
               />
             ) : null}
 
@@ -752,7 +761,11 @@ function FlowStep({ number, title, text }) {
 
 function ConnectGuidePanel({ provider, onContinue, onClose }) {
   const hasPortalLinks = provider.setupLinks?.length > 0;
-  const continueLabel = provider.authMode === 'oauth' ? 'Continue to provider' : 'Open credential form';
+  const continueLabel = provider.id === 'linkedin'
+    ? 'Connect LinkedIn'
+    : provider.authMode === 'oauth'
+      ? 'Continue to provider'
+      : 'Open credential form';
 
   return (
     <div className="integrations-connect-guide">
@@ -878,7 +891,9 @@ function ManualConnectionPanel({ provider, connection, draft, pending, onDraftCh
   );
 }
 
-function OauthSettingsPanel({ provider, draft, pending, onDraftChange, onSave }) {
+function OauthSettingsPanel({ provider, connection, draft, pending, onDraftChange, onSave }) {
+  const visibleFields = (provider.settingsFields ?? []).filter((field) => !field.key.startsWith('selectedOrganization'));
+
   return (
     <div style={{ display: 'grid', gap: '12px' }}>
       <div>
@@ -888,10 +903,11 @@ function OauthSettingsPanel({ provider, draft, pending, onDraftChange, onSave })
         </div>
       </div>
 
-      {provider.settingsFields.map((field) => (
+      {visibleFields.map((field) => (
         <IntegrationSettingField
           key={field.key}
           provider={provider}
+          connection={connection}
           field={field}
           value={draft.settings?.[field.key] ?? ''}
           onChange={(value) =>
@@ -913,12 +929,13 @@ function OauthSettingsPanel({ provider, draft, pending, onDraftChange, onSave })
   );
 }
 
-function PublishPanel({ provider, draft, connection, pending, onDraftChange, onPublish }) {
+function PublishPanel({ provider, draft, connection, pending, onDraftChange, onPublish, disabled = false }) {
   const deliverySummary = connection?.meta?.publishStats?.lastPublishedAt
     ? `Last delivery: ${new Date(connection.meta.publishStats.lastPublishedAt).toLocaleString()}`
     : 'No outbound deliveries logged yet.';
 
   const targetPlaceholder = resolveTargetPlaceholder(provider);
+  const linkedInAuthors = provider.id === 'linkedin' ? getLinkedInAvailableAuthors(connection) : [];
 
   return (
     <div style={{ display: 'grid', gap: '12px' }}>
@@ -932,18 +949,43 @@ function PublishPanel({ provider, draft, connection, pending, onDraftChange, onP
       {provider.targetLabel ? (
         <label style={fieldStackStyle}>
           <span style={fieldLabelStyle}>{provider.targetLabel}</span>
-          <TextInput
-            value={draft.targetId ?? ''}
-            placeholder={targetPlaceholder}
-            title={targetPlaceholder}
-            className="integrations-page__field"
-            onChange={(event) =>
-              onDraftChange({
-                ...draft,
-                targetId: event.target.value,
-              })
-            }
-          />
+          {linkedInAuthors.length > 0 ? (
+            <select
+              className="field integrations-page__field"
+              value={draft.targetId ?? ''}
+              onChange={(event) =>
+                onDraftChange({
+                  ...draft,
+                  targetId: event.target.value,
+                })
+              }
+            >
+              <option value="">Use saved default author</option>
+              {linkedInAuthors.map((author) => (
+                <option key={author.urn} value={author.urn}>
+                  {author.name} ({author.type})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <TextInput
+              value={draft.targetId ?? ''}
+              placeholder={targetPlaceholder}
+              title={targetPlaceholder}
+              className="integrations-page__field"
+              onChange={(event) =>
+                onDraftChange({
+                  ...draft,
+                  targetId: event.target.value,
+                })
+              }
+            />
+          )}
+          {provider.id === 'linkedin' ? (
+            <span style={helperTextStyle}>
+              Connected account must have permission to post as the selected author.
+            </span>
+          ) : null}
         </label>
       ) : null}
 
@@ -1015,7 +1057,7 @@ function PublishPanel({ provider, draft, connection, pending, onDraftChange, onP
 
       <div style={{ color: 'var(--muted)', fontSize: '13px' }}>{deliverySummary}</div>
 
-      <Button tone="accent" onClick={onPublish} disabled={pending || !draft.text?.trim()} className="integrations-action-button">
+      <Button tone="accent" onClick={onPublish} disabled={disabled || pending || !draft.text?.trim()} className="integrations-action-button">
         {pending ? 'Publishing...' : provider.section === 'emails' ? 'Send live email' : 'Send live post'}
       </Button>
     </div>
@@ -1054,13 +1096,25 @@ function DeliveryHistory({ deliveries }) {
   );
 }
 
-function IntegrationSettingField({ provider, field, value, onChange }) {
+function IntegrationSettingField({ provider, connection, field, value, onChange }) {
   const placeholder = resolveSettingPlaceholder(provider, field);
+  const linkedInAuthors = provider.id === 'linkedin' && field.key === 'authorUrn'
+    ? getLinkedInAvailableAuthors(connection)
+    : [];
 
   return (
     <label style={fieldStackStyle}>
       <span style={fieldLabelStyle}>{field.label}</span>
-      {field.input === 'select' ? (
+      {linkedInAuthors.length > 0 ? (
+        <select className="field integrations-page__field" value={value || ''} onChange={(event) => onChange(event.target.value)}>
+          <option value="">Choose where Prymal should publish</option>
+          {linkedInAuthors.map((author) => (
+            <option key={author.urn} value={author.urn}>
+              {author.name} ({author.type})
+            </option>
+          ))}
+        </select>
+      ) : field.input === 'select' ? (
         <select className="field integrations-page__field" value={value || ''} onChange={(event) => onChange(event.target.value)}>
           <option value="">Select...</option>
           {field.options?.map((option) => (
@@ -1155,7 +1209,7 @@ function resolveTargetPlaceholder(provider) {
   if (provider.id === 'slack') return 'C0123456789';
   if (provider.id === 'discord') return '123456789012345678';
   if (provider.id === 'telegram') return '@prymal_updates';
-  if (provider.id === 'linkedin') return 'urn:li:person:123';
+  if (provider.id === 'linkedin') return 'urn:li:organization:123456';
   if (provider.id === 'custom_webhook') return 'https://example.com/hook';
   if (provider.id === 'outlook') return 'founder@example.com';
   return 'Saved default target';
@@ -1166,12 +1220,10 @@ function resolveSecretPlaceholder(provider, connection) {
     return 'Keep existing token';
   }
 
-  if (provider.id === 'linkedin') return 'LinkedIn post token';
-  if (provider.id === 'outlook' || provider.id === 'onedrive') return 'Microsoft Graph token';
   if (provider.id === 'discord') return 'Discord bot token';
   if (provider.id === 'telegram') return 'Telegram bot token';
-  if (provider.id === 'x') return 'X user token';
-  if (provider.id === 'mastodon') return 'Mastodon user token';
+  if (provider.id === 'x') return 'X OAuth 2.0 user access token';
+  if (provider.id === 'mastodon') return 'Mastodon access token';
   if (provider.id === 'dropbox') return 'Dropbox access token';
   if (provider.id === 'box') return 'Box access token';
   if (provider.id === 'custom_webhook') return 'Bearer token (optional)';
@@ -1179,7 +1231,7 @@ function resolveSecretPlaceholder(provider, connection) {
 }
 
 function resolveSettingPlaceholder(provider, field) {
-  if (field.key === 'authorUrn') return 'urn:li:person:123';
+  if (field.key === 'authorUrn') return provider.id === 'linkedin' ? 'urn:li:organization:123456' : 'urn:li:person:123';
   if (field.key === 'defaultRecipientEmail') return 'founder@example.com';
   if (field.key === 'endpointUrl') return 'https://example.com/hook';
   if (field.key === 'instanceUrl') return 'https://mastodon.social';
@@ -1187,6 +1239,26 @@ function resolveSettingPlaceholder(provider, field) {
   if (field.key === 'defaultChannelId' && provider.id === 'discord') return '123456789012345678';
   if (field.key === 'defaultChatId') return '@prymal_updates';
   return field.placeholder ?? '';
+}
+
+function getLinkedInAvailableAuthors(connection) {
+  const authors = connection?.meta?.profile?.availableAuthors;
+  return Array.isArray(authors)
+    ? authors
+        .filter((author) => author?.urn && author?.name)
+        .map((author) => ({
+          urn: author.urn,
+          name: author.name,
+          type: author.type ?? (author.urn.includes(':organization:') ? 'organization' : 'person'),
+        }))
+    : [];
+}
+
+function resolveAuthModeLabel(provider, needsServerConfig) {
+  if (needsServerConfig) return 'Server config needed';
+  if (provider.authMode === 'oauth') return 'OAuth';
+  if (provider.integrationRuntime === 'webhook_alias' || provider.id.includes('webhook')) return 'Webhook bridge';
+  return 'Manual credential';
 }
 
 function resolveHealthColor(status) {

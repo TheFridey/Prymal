@@ -96,8 +96,8 @@ Prymal exposes 14 user-facing agents and runs SENTINEL internally as the QA gate
 - WARDEN audit events, deterministic prompt-injection checks, model-assisted classification for ambiguous high-risk inputs, URL/upload/pasted-content sanitisation, media prompt blocking, and tool execution authorization.
 - Manual, webhook, and scheduled workflow support. Trigger.dev is optional; inline scheduling is the local/default fallback.
 - Outbound workflow webhook delivery with HMAC-SHA256 signing.
-- OAuth account linking for Gmail, Google Drive, Notion, and Slack.
-- Manual-token lanes for Outlook, OneDrive, Dropbox, Box, Discord, Telegram, X, Mastodon, LinkedIn, and custom webhooks.
+- OAuth account linking for Gmail, Google Drive, Microsoft Outlook, OneDrive, Notion, Slack, and LinkedIn.
+- Manual-token and webhook lanes for Dropbox, Box, Discord, Telegram, X, Mastodon, GitHub social, automation webhooks, and custom endpoints.
 - Live outbound publish routes where implemented, with delivery receipts stored back to the integration record.
 - Stripe checkout, portal, subscription sync, usage stats, seats, execution credits, video credits, and top-up packs.
 - Transactional email templates, Herald signature, Resend delivery, and email event tracking.
@@ -285,7 +285,7 @@ npm run verify-build -- --clean
 
 - Stripe: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, standard plan price IDs, Founding Access price IDs, execution/video top-up price IDs, `STRIPE_PRICE_SEAT_ADDON`
 - Trigger.dev: `TRIGGER_API_KEY`, optional `TRIGGER_API_URL`
-- Integrations: Google, Notion, Slack OAuth credentials; manual-token providers use encrypted stored secrets
+- Integrations: Google, Microsoft, Notion, Slack, and LinkedIn OAuth credentials; manual-token providers use encrypted stored secrets
 - OAuth state: `INTEGRATION_STATE_SECRET`
 - Gemini/Veo: `GEMINI_API_KEY`, `GEMINI_MODEL_FLASH`, `GEMINI_MODEL_LITE`, `GEMINI_MODEL_PRO`, Veo model override env vars, and `GEMINI_GROUNDING_ENABLED=true` when you want live grounded research to prefer Gemini
 - Media storage: `MEDIA_STORAGE_DRIVER`, Cloudinary credentials, retention and timeout controls

@@ -68,6 +68,20 @@ Minimum required production backend settings:
 - `CLOUDINARY_API_SECRET`
 - at least one of `STAFF_SUPERADMIN_EMAILS` or `STAFF_SUPERADMIN_USER_IDS`
 
+Optional OAuth integration credentials:
+
+- Google Gmail/Drive: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- Notion: `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`
+- Slack: `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`
+- LinkedIn: `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, optional `LINKEDIN_API_VERSION`
+- Microsoft Outlook/OneDrive: `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
+
+Redirect URIs should point at the backend callback pattern:
+
+```text
+${API_URL}/api/integrations/<service>/callback
+```
+
 Important production rules enforced by the backend:
 
 - localhost URLs are rejected for `FRONTEND_URL` and `API_URL`

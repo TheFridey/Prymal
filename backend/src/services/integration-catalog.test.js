@@ -41,6 +41,19 @@ test('oauth integrations reflect missing server config', () => {
   process.env.GOOGLE_CLIENT_SECRET = originalGoogleClientSecret;
 });
 
+test('LinkedIn uses OAuth and exposes safe author settings', () => {
+  const linkedin = getIntegrationDefinition('linkedin');
+
+  assert.equal(isOauthIntegration('linkedin'), true);
+  assert.equal(isManualIntegration('linkedin'), false);
+  assert.equal(linkedin?.authMode, 'oauth');
+  assert.equal(linkedin?.secretLabel, undefined);
+  assert.ok(linkedin?.scopes.includes('openid'));
+  assert.ok(linkedin?.scopes.includes('w_member_social'));
+  assert.ok(linkedin?.scopes.includes('w_organization_social'));
+  assert.equal(linkedin?.settingsFields.find((field) => field.key === 'authorUrn')?.requiredOnConnect, undefined);
+});
+
 test('settings sanitization keeps only declared integration fields', () => {
   const settings = sanitizeIntegrationSettings('linkedin', {
     authorUrn: ' urn:li:organization:123 ',
@@ -74,6 +87,19 @@ test('meta sanitization trims delivery history and exposes safe health/profile d
   assert.equal(meta.profile?.handle, 'prymal-bot');
   assert.equal(meta.publishStats.total, 3);
   assert.equal(meta.recentDeliveries.length, 8);
+});
+
+test('old LinkedIn manual-token metadata is degraded and asks for reconnect', () => {
+  const meta = sanitizeIntegrationMeta('linkedin', {
+    authMode: 'manual_token',
+    health: { status: 'healthy', checkedAt: '2026-04-24T20:00:00.000Z', message: 'Old token worked' },
+    settings: { authorUrn: 'urn:li:organization:123456' },
+  });
+
+  assert.equal(meta.authMode, 'oauth');
+  assert.equal(meta.needsReconnect, true);
+  assert.match(meta.reconnectMessage, /uses OAuth/i);
+  assert.equal(meta.health.status, 'degraded');
 });
 
 test('buildDeliveryMeta appends a new delivery receipt and increments publish stats', () => {
@@ -114,6 +140,8 @@ test('integration definitions expose sections, auth modes, and publish support f
   const onedrive = available.find((entry) => entry.id === 'onedrive');
 
   assert.equal(isOauthIntegration('slack'), true);
+  assert.equal(isOauthIntegration('outlook'), true);
+  assert.equal(isOauthIntegration('onedrive'), true);
   assert.equal(isManualIntegration('discord'), true);
   assert.equal(getIntegrationDefinition('x')?.supportsPublish, true);
   assert.equal(getIntegrationDefinition('linkedin')?.settingsFields[0]?.key, 'authorUrn');
