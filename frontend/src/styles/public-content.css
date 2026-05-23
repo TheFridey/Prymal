@@ -1145,7 +1145,202 @@
   margin-top: 4px;
 }
 
+.public-blog-hub-hero {
+  display: grid;
+  gap: 14px;
+  padding: 8px 0 28px;
+  max-width: 760px;
+}
+
+.public-blog-hub-hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.08;
+  color: var(--text-strong);
+}
+
+.public-blog-hub-hero > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
+  font-size: 1.05rem;
+}
+
+.public-blog-hub-hero__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.public-blog-hub-hero__stats span {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.public-blog-hub-toolbar {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.public-blog-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.public-blog-topics__pill {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.public-blog-topics__pill[aria-pressed='true'] {
+  border-color: rgba(124, 255, 203, 0.45);
+  background: rgba(124, 255, 203, 0.1);
+  color: var(--text-strong);
+}
+
+.public-blog-hub-toolbar .public-filter-bar {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.public-blog-featured--hub {
+  margin-bottom: 36px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.public-blog-hub-grid-section {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 40px;
+}
+
+.public-blog-hub-grid-section__head h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text-strong);
+}
+
+.public-blog-hub-grid-section__head p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.public-blog-card--hub {
+  border-color: rgba(255, 255, 255, 0.09);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.public-blog-card--hub:hover {
+  border-color: rgba(124, 255, 203, 0.28);
+  transform: translateY(-2px);
+}
+
+.public-blog-commercial {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 36px;
+  padding: 28px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.public-blog-commercial__head h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  color: var(--text-strong);
+}
+
+.public-blog-commercial__head p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.public-blog-commercial__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.public-blog-commercial__card {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.public-blog-commercial__card:hover {
+  border-color: rgba(124, 255, 203, 0.3);
+}
+
+.public-blog-commercial__category {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.public-blog-commercial__card strong {
+  color: var(--text-strong);
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+
+.public-blog-commercial__card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.public-blog-commercial__meta {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.public-blog-hub .public-blog-visual__glow {
+  opacity: 0.12;
+  filter: blur(18px);
+}
+
 @media (max-width: 720px) {
+  .public-blog-featured,
+  .public-blog-featured--hub {
+    grid-template-columns: 1fr;
+  }
+
+  .public-blog-topics {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .public-blog-topics__pill {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
   .public-blog-cta-strip {
     flex-direction: column;
     align-items: stretch;

@@ -12,6 +12,10 @@ export const ANALYTICS_EVENTS = {
   WORKFLOW_TEMPLATE_OPENED: 'workflow_template_opened',
   UPGRADE_INTENT: 'upgrade_intent',
   CHECKOUT_STARTED: 'checkout_started',
+  DASHBOARD_QUICK_ACTION_CLICKED: 'dashboard_quick_action_clicked',
+  DASHBOARD_TIME_SAVED_VIEWED: 'dashboard_time_saved_viewed',
+  DASHBOARD_CONTINUE_CLICKED: 'dashboard_continue_clicked',
+  DASHBOARD_RECOMMENDED_NEXT_STEP_CLICKED: 'dashboard_recommended_next_step_clicked',
 };
 
 const PRODUCT_PERSIST_EVENTS = new Set([
@@ -191,6 +195,55 @@ export function trackCheckoutStarted({
     surface,
     ...extra,
   });
+}
+
+export function trackDashboardQuickActionClicked({ action_id, surface = 'dashboard', route, ...extra } = {}) {
+  trackAnalyticsEvent(
+    ANALYTICS_EVENTS.DASHBOARD_QUICK_ACTION_CLICKED,
+    { action_id, surface, route, ...extra },
+    { persist: false },
+  );
+}
+
+export function trackDashboardTimeSavedViewed({
+  surface = 'dashboard',
+  is_empty,
+  minutes_month,
+  workflows_run,
+  ...extra
+} = {}) {
+  trackAnalyticsEvent(
+    ANALYTICS_EVENTS.DASHBOARD_TIME_SAVED_VIEWED,
+    { surface, is_empty, minutes_month, workflows_run, ...extra },
+    { persist: false },
+  );
+}
+
+export function trackDashboardContinueClicked({
+  surface = 'dashboard',
+  item_type,
+  route,
+  ...extra
+} = {}) {
+  trackAnalyticsEvent(
+    ANALYTICS_EVENTS.DASHBOARD_CONTINUE_CLICKED,
+    { surface, item_type, route, ...extra },
+    { persist: false },
+  );
+}
+
+export function trackDashboardRecommendedNextStepClicked({
+  surface = 'dashboard',
+  recommendation_id,
+  route,
+  plan_id,
+  ...extra
+} = {}) {
+  trackAnalyticsEvent(
+    ANALYTICS_EVENTS.DASHBOARD_RECOMMENDED_NEXT_STEP_CLICKED,
+    { surface, recommendation_id, route, plan_id, ...extra },
+    { persist: false },
+  );
 }
 
 export function resolvePublicPageName(pathname) {

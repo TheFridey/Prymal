@@ -114,6 +114,48 @@ Fired when a user clicks an upgrade-oriented CTA or billing upgrade control (bef
 | `intent` | string | Usually `upgrade` |
 | `cta` | string | Optional CTA id |
 
+### `dashboard_quick_action_clicked`
+
+Fired when a user selects a dashboard quick action card.
+
+| Property | Type | Notes |
+| --- | --- | --- |
+| `action_id` | string | Stable action id (`ask_agent`, `run_workflow`, …) |
+| `surface` | string | Defaults to `dashboard` |
+| `route` | string | Target path (no query values with PII) |
+
+### `dashboard_time_saved_viewed`
+
+Fired once when the time-saved module mounts on the dashboard.
+
+| Property | Type | Notes |
+| --- | --- | --- |
+| `surface` | string | Defaults to `dashboard` |
+| `is_empty` | boolean | Whether the user has no estimated activity yet |
+| `minutes_month` | number | Estimated minutes saved this month |
+| `workflows_run` | number | Workflow run count used in the estimate |
+
+### `dashboard_continue_clicked`
+
+Fired when a user continues a recent conversation, workflow, or template from the dashboard.
+
+| Property | Type | Notes |
+| --- | --- | --- |
+| `surface` | string | Defaults to `dashboard` |
+| `item_type` | string | `conversation`, `workflow`, or `template` |
+| `route` | string | Continue destination path |
+
+### `dashboard_recommended_next_step_clicked`
+
+Fired when a user follows the single recommended next-step card.
+
+| Property | Type | Notes |
+| --- | --- | --- |
+| `surface` | string | Defaults to `dashboard` |
+| `recommendation_id` | string | Rule id (`first_win`, `add_lore`, `upgrade_pro`, …) |
+| `route` | string | Destination path |
+| `plan_id` | string | Optional plan slug when recommendation is upgrade-oriented |
+
 ### `checkout_started`
 
 Fired immediately before a Stripe checkout request is sent.
@@ -151,6 +193,10 @@ If you add a new property, confirm it cannot carry user-generated or tenant-priv
 | `workflow_template_opened` | `Workflows.jsx`, `WorkflowBuilder.jsx`, `Dashboard.jsx` |
 | `upgrade_intent` | `public-analytics.js`, `SettingsTabPanels.jsx` |
 | `checkout_started` | `Settings.jsx` billing mutations |
+| `dashboard_quick_action_clicked` | `DashboardQuickActions.jsx` |
+| `dashboard_time_saved_viewed` | `DashboardTimeSaved.jsx` |
+| `dashboard_continue_clicked` | `DashboardContinueWork.jsx` |
+| `dashboard_recommended_next_step_clicked` | `DashboardRecommendedNext.jsx` |
 
 ## Tests
 

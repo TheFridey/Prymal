@@ -1,5 +1,5 @@
 import { screen } from '@testing-library/react';
-import { LearningSignalsSection, isLearningSignalsEmpty } from './Dashboard';
+import { LearningSignalsSection, isLearningSignalsEmpty } from '../features/dashboard/LearningSignalsSection';
 import { renderWithProviders } from '../test/renderWithProviders';
 
 const COMPLETE_SIGNALS = {
@@ -41,7 +41,7 @@ const COMPLETE_SIGNALS = {
 test('LearningSignalsSection renders real metric values and recent signals', () => {
   renderWithProviders(<LearningSignalsSection signals={COMPLETE_SIGNALS} />);
 
-  expect(screen.getByRole('heading', { name: 'Prymal is learning your business' })).toBeInTheDocument();
+  expect(screen.getByText('Learning signals')).toBeInTheDocument();
   expect(screen.getByText('42')).toBeInTheDocument();
   expect(screen.getByText('3')).toBeInTheDocument();
   expect(screen.getByText('short LinkedIn post')).toBeInTheDocument();
@@ -53,8 +53,7 @@ test('LearningSignalsSection renders real metric values and recent signals', () 
 test('LearningSignalsSection renders the safe empty state without fake metrics', () => {
   renderWithProviders(<LearningSignalsSection signals={null} />);
 
-  expect(screen.getByText('Your learning layer is just getting started')).toBeInTheDocument();
-  expect(screen.getByText(/Generate content, run workflows, publish outputs, or give feedback/i)).toBeInTheDocument();
+  expect(screen.getByText(/Run workflows or give feedback to help Prymal learn/i)).toBeInTheDocument();
   expect(screen.getAllByRole('link', { name: 'Start a workflow' }).length).toBeGreaterThan(0);
   expect(screen.queryByText('Recent learning events')).not.toBeInTheDocument();
 });

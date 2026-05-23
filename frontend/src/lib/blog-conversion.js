@@ -81,6 +81,54 @@ export const BLOG_CONVERSION_BY_SLUG = {
       primary: 'beta',
     },
   },
+  'best-ai-for-agencies': {
+    workflowTemplateSlug: 'weekly-client-report',
+    nextAction: {
+      title: 'Run one client delivery chain end-to-end',
+      description: 'Start with reporting and shared client context, then expand into content and outreach workflows.',
+      primary: 'workflow',
+    },
+  },
+  'ai-for-service-businesses': {
+    workflowTemplateSlug: 'lead-intake-to-proposal',
+    nextAction: {
+      title: 'Automate one recurring service-business lane',
+      description: 'Pick intake, follow-up, or proposal prep — then ground specialists in how your business actually operates.',
+      primary: 'feature',
+    },
+  },
+  'replace-va-tasks-with-ai': {
+    workflowTemplateSlug: 'support-triage-and-response',
+    nextAction: {
+      title: 'Move admin triage into a governed workflow',
+      description: 'Replace scattered VA handoffs with review-aware support routing and specialist drafting.',
+      primary: 'workflow',
+    },
+  },
+  'ai-workflow-examples-for-real-companies': {
+    workflowTemplateSlug: 'launch-campaign-war-room',
+    nextAction: {
+      title: 'Promote a real process into a workflow template',
+      description: 'Use the catalogue as a starting graph, then tune approvals and agent handoffs for your team rhythm.',
+      primary: 'workflow',
+    },
+  },
+  'sintra-alternative': {
+    workflowTemplateSlug: 'launch-campaign-war-room',
+    nextAction: {
+      title: 'Compare category fit before you buy',
+      description: 'Use the comparison hub to decide whether you need conversation, execution, automation, or a configurable agent platform.',
+      primary: 'compare',
+    },
+  },
+  'chatgpt-team-alternative': {
+    workflowTemplateSlug: 'content-signal-to-campaign',
+    nextAction: {
+      title: 'See how Prymal differs from team chat alone',
+      description: 'Move from shared prompts to specialist agents, Business Memory, and repeatable workflows.',
+      primary: 'feature',
+    },
+  },
 };
 
 export function getBlogConversionConfig(post) {

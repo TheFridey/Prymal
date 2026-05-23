@@ -7,8 +7,9 @@ const APP_MOBILE_ROUTES = [
   {
     name: 'dashboard',
     path: '/app/dashboard',
-    readySelector: '.pm-dash',
-    contentSelector: '.pm-dash',
+    readySelector: '.pm-dash__command',
+    contentSelector: '.pm-dash__quick-grid',
+    heading: /What do you want Prymal to help with today/i,
   },
   {
     name: 'settings',

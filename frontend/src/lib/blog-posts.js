@@ -6,6 +6,7 @@ import workflowAutomationHero from '../assets/blog/ai-workflow-automation-a-prac
 import chatbotsVsAgentsHero from '../assets/blog/the-difference-between-ai-chatbots-and-ai-agents.jpg';
 import agenciesHero from '../assets/blog/how-agencies-can-use-ai-agents-to-scale-client-delivery.jpg';
 import automationTrustHero from '../assets/blog/building-trust-in-ai-automation.jpg';
+import { buildCommercialBlogPosts } from './blog-posts-commercial.js';
 
 const BLOG_WORD_FLOOR = 2500;
 
@@ -68,7 +69,7 @@ export function countBlogPostWords(post) {
   });
 }
 
-function finalizeBlogPost(post) {
+export function finalizeBlogPost(post) {
   const sections = post.sections.map((section) => buildSection(section));
   const wordCount = countBlogPostWords({ ...post, sections });
 
@@ -189,7 +190,7 @@ const EXTERNAL_LINKS = {
   },
 };
 
-export const BLOG_POSTS = [
+const CORE_BLOG_POSTS = [
   finalizeBlogPost({
     slug: 'what-is-an-ai-operating-system-for-business',
     title: 'What Is an AI Operating System for Business?',
@@ -1218,6 +1219,11 @@ export const BLOG_POSTS = [
   }),
 ];
 
+export const BLOG_POSTS = [
+  ...CORE_BLOG_POSTS,
+  ...buildCommercialBlogPosts({ finalizeBlogPost, INTERNAL_LINKS, EXTERNAL_LINKS }),
+];
+
 const BLOG_READING_PATHS = [
   {
     slug: 'start-here',
@@ -1253,9 +1259,31 @@ const BLOG_READING_PATHS = [
   },
 ];
 
+const BLOG_TOPICS_BY_SLUG = {
+  'what-is-an-ai-operating-system-for-business': ['ai-strategy', 'guides'],
+  'ai-agents-for-small-businesses-what-they-can-actually-do': ['service-businesses', 'guides'],
+  'why-business-ai-needs-memory-not-just-prompts': ['ai-strategy', 'guides'],
+  'how-to-use-ai-safely-in-a-business': ['trust-safety', 'guides'],
+  'ai-workflow-automation-a-practical-guide-for-growing-teams': ['workflows', 'guides'],
+  'the-difference-between-ai-chatbots-and-ai-agents': ['ai-strategy', 'guides'],
+  'how-agencies-can-use-ai-agents-to-scale-client-delivery': ['agencies', 'guides'],
+  'building-trust-in-ai-automation': ['trust-safety', 'guides'],
+};
+
+export const BLOG_TOPIC_FILTERS = [
+  { id: 'all', label: 'All guides' },
+  { id: 'agencies', label: 'Agencies' },
+  { id: 'service-businesses', label: 'Service businesses' },
+  { id: 'workflows', label: 'Workflows' },
+  { id: 'comparisons', label: 'Comparisons' },
+  { id: 'ai-strategy', label: 'AI strategy' },
+  { id: 'trust-safety', label: 'Trust & safety' },
+  { id: 'guides', label: 'Guides' },
+];
+
 const BLOG_ENHANCEMENTS = {
   'what-is-an-ai-operating-system-for-business': {
-    featured: true,
+    featured: false,
     keyTakeaway: 'The category matters once AI needs continuity, memory, workflows, and governance.',
     prymalLens: 'Prymal treats the operating-system layer as the coordination surface between specialist agents, shared business memory, workflow execution, and trust boundaries.',
   },
@@ -1287,11 +1315,18 @@ const BLOG_ENHANCEMENTS = {
     keyTakeaway: 'Trust becomes durable when automation is legible, reviewable, and bounded by real controls.',
     prymalLens: 'Prymal keeps normal-user surfaces simple while preserving richer operator visibility where investigation and governance matter.',
   },
+  'best-ai-for-agencies': {
+    featured: true,
+    keyTakeaway: 'Agencies win when AI strengthens delivery systems with shared client context and governed workflows.',
+    prymalLens: 'Prymal helps agencies keep quality high while reducing repeated setup across reporting, content, and client lanes.',
+  },
 };
 
 BLOG_POSTS.forEach((post) => {
   const enhancement = BLOG_ENHANCEMENTS[post.slug] ?? {};
+  const topics = post.topics ?? BLOG_TOPICS_BY_SLUG[post.slug] ?? [];
   Object.assign(post, enhancement, {
+    topics,
     ogImage: enhancement.ogImage ?? post.heroImage ?? null,
     ogImageAlt: enhancement.ogImageAlt ?? `Editorial cover for ${post.title}`,
   });
@@ -1311,4 +1346,27 @@ export function getBlogReadingPaths() {
 
 export function getBlogPostBySlug(slug) {
   return BLOG_POSTS.find((entry) => entry.slug === slug) ?? null;
+}
+
+export function getBlogTopicFilters() {
+  return BLOG_TOPIC_FILTERS;
+}
+
+export function getBlogPostsByTopic(topicId) {
+  if (!topicId || topicId === 'all') {
+    return BLOG_POSTS;
+  }
+  return BLOG_POSTS.filter((post) => (post.topics ?? []).includes(topicId));
+}
+
+export function getFeaturedBlogPost() {
+  return BLOG_POSTS.find((post) => post.featured) ?? BLOG_POSTS[0];
+}
+
+export function getPopularCommercialGuides(limit = 6) {
+  const commercialTopics = new Set(['agencies', 'service-businesses', 'workflows', 'comparisons']);
+  return BLOG_POSTS.filter((post) => (post.topics ?? []).some((topic) => commercialTopics.has(topic))).slice(
+    0,
+    limit,
+  );
 }

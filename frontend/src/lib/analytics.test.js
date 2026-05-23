@@ -6,6 +6,10 @@ import {
   sanitizeAnalyticsPayload,
   trackAnalyticsEvent,
   trackCtaClicked,
+  trackDashboardContinueClicked,
+  trackDashboardQuickActionClicked,
+  trackDashboardRecommendedNextStepClicked,
+  trackDashboardTimeSavedViewed,
   trackFirstWinSelected,
 } from './analytics';
 
@@ -113,5 +117,55 @@ describe('analytics', () => {
   test('isPublicMarketingRoute identifies public surfaces only', () => {
     expect(isPublicMarketingRoute('/pricing')).toBe(true);
     expect(isPublicMarketingRoute('/app/dashboard')).toBe(false);
+  });
+
+  test('dashboard analytics events strip sensitive keys and do not persist', () => {
+    trackDashboardQuickActionClicked({
+      action_id: 'ask_agent',
+      route: '/app/agents/nexus?new=1',
+      prompt: 'hidden',
+    });
+
+    expect(window.prymalTrack).toHaveBeenCalledWith(ANALYTICS_EVENTS.DASHBOARD_QUICK_ACTION_CLICKED, {
+      action_id: 'ask_agent',
+      surface: 'dashboard',
+      route: '/app/agents/nexus?new=1',
+    });
+    expect(trackProductEvent).not.toHaveBeenCalled();
+  });
+
+  test('trackDashboardTimeSavedViewed forwards safe counts', () => {
+    trackDashboardTimeSavedViewed({
+      is_empty: false,
+      minutes_month: 120,
+      workflows_run: 2,
+      message_content: 'strip me',
+    });
+
+    expect(window.prymalTrack).toHaveBeenCalledWith(ANALYTICS_EVENTS.DASHBOARD_TIME_SAVED_VIEWED, {
+      surface: 'dashboard',
+      is_empty: false,
+      minutes_month: 120,
+      workflows_run: 2,
+    });
+  });
+
+  test('trackDashboardContinueClicked and recommended next step do not persist', () => {
+    trackDashboardContinueClicked({ item_type: 'conversation', route: '/app/agents/cipher' });
+    trackDashboardRecommendedNextStepClicked({
+      recommendation_id: 'first_win',
+      route: '/app/agents/nexus?new=1',
+      plan_id: 'pro',
+    });
+
+    expect(trackProductEvent).not.toHaveBeenCalled();
+    expect(window.prymalTrack).toHaveBeenCalledWith(
+      ANALYTICS_EVENTS.DASHBOARD_CONTINUE_CLICKED,
+      expect.objectContaining({ item_type: 'conversation' }),
+    );
+    expect(window.prymalTrack).toHaveBeenCalledWith(
+      ANALYTICS_EVENTS.DASHBOARD_RECOMMENDED_NEXT_STEP_CLICKED,
+      expect.objectContaining({ recommendation_id: 'first_win', plan_id: 'pro' }),
+    );
   });
 });

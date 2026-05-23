@@ -19,12 +19,28 @@ function extractSlugs(source, startMarker, endMarker) {
   return [...block.matchAll(/slug:\s*'([^']+)'/g)].map((match) => match[1]);
 }
 
-function extractBlogPosts(source) {
-  const start = source.indexOf('export const BLOG_POSTS = [');
-  const end = source.indexOf('const BLOG_READING_PATHS = [', start);
-  const block = end > start ? source.slice(start, end) : source.slice(start);
-  const slugs = [...block.matchAll(/slug:\s*'([^']+)'/g)].map((match) => match[1]);
-  const dates = [...block.matchAll(/updatedAt:\s*'([^']+)'/g)].map((match) => match[1]);
+function extractBlogPosts(blogSource, commercialSource = '') {
+  const blocks = [];
+  const coreStart = blogSource.indexOf('const CORE_BLOG_POSTS = [');
+  const coreEnd = blogSource.indexOf('export const BLOG_POSTS', coreStart);
+  if (coreStart >= 0 && coreEnd > coreStart) {
+    blocks.push(blogSource.slice(coreStart, coreEnd));
+  }
+  if (commercialSource) {
+    blocks.push(commercialSource);
+  }
+
+  const slugs = [];
+  const dates = [];
+  for (const block of blocks) {
+    for (const match of block.matchAll(/slug:\s*'([^']+)'/g)) {
+      slugs.push(match[1]);
+    }
+    for (const match of block.matchAll(/updatedAt:\s*'([^']+)'/g)) {
+      dates.push(match[1]);
+    }
+  }
+
   return slugs.map((slug, index) => ({
     slug,
     lastmod: dates[index] ?? today,
@@ -33,10 +49,11 @@ function extractBlogPosts(source) {
 
 const siteContent = readSource('src/lib/site-content.js');
 const blogSource = readSource('src/lib/blog-posts.js');
+const commercialBlogSource = readSource('src/lib/blog-posts-commercial.js');
 
 const featureSlugs = extractSlugs(siteContent, 'export const FEATURE_PAGES = [', 'export const COMPARISON_PAGES = [');
 const compareSlugs = extractSlugs(siteContent, 'export const COMPARISON_PAGES = [', 'export function getFeaturePageBySlug');
-const blogPosts = extractBlogPosts(blogSource);
+const blogPosts = extractBlogPosts(blogSource, commercialBlogSource);
 
 const staticRoutes = [
   { path: '/', changefreq: 'weekly', priority: '1.0', lastmod: today },

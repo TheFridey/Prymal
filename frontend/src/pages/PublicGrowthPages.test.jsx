@@ -135,26 +135,28 @@ test('blog posts meet the long-form floor and include internal and external read
   });
 });
 
-test('blog hub renders featured editorial metadata without exposing provider internals', () => {
+test('blog hub renders editorial hero, topic pills, featured guide, and commercial section', () => {
   const { container } = renderWithProviders(<Blog />);
   const text = container.textContent ?? '';
 
+  expect(text).toContain('Guides for teams turning AI into repeatable business work');
   expect(text).toContain('Featured guide');
-  expect(text).toContain('min read');
-  expect(text).toContain('words');
+  expect(text).toContain('Best AI for Agencies');
+  expect(text).toContain('Popular guides for growing teams');
+  expect(container.querySelectorAll('.public-blog-topics__pill').length).toBeGreaterThan(3);
   expect(container.querySelectorAll('img[alt^="Editorial illustration for"]').length).toBeGreaterThan(0);
   expect(text).not.toMatch(/OpenAI|Anthropic|Gemini|Veo|Sora|provider cost|token cost|routeReason/i);
 });
 
-test('blog hub filter and search narrow the article set', async () => {
+test('blog hub topic pills and search narrow the article set', () => {
   const { container } = renderWithProviders(<Blog />);
 
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'memory' } });
   expect(container.textContent ?? '').toContain('Why Business AI Needs Memory, Not Just Prompts');
   expect(container.textContent ?? '').not.toContain('AI Agents for Small Businesses: What They Can Actually Do');
 
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Trust' } });
-  expect(container.textContent ?? '').toContain('Building Trust in AI Automation');
+  fireEvent.click(screen.getByRole('button', { name: 'Comparisons' }));
+  expect(container.textContent ?? '').toMatch(/Sintra Alternative|ChatGPT Team Alternative/i);
 });
 
 test('comparison pages avoid hostile competitor language and provider leakage', () => {

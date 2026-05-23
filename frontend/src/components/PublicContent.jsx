@@ -311,7 +311,10 @@ export function SearchFilterBar({
   onFilterChange,
   filterLabel = 'Filter',
   options = [],
+  searchPlaceholder = 'Search guides, topics, or themes',
 }) {
+  const showFilter = options.length > 0 && typeof onFilterChange === 'function';
+
   return (
     <div className="public-filter-bar">
       <label className="public-filter-bar__search">
@@ -320,19 +323,21 @@ export function SearchFilterBar({
           type="search"
           value={searchValue}
           onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search guides, topics, or themes"
+          placeholder={searchPlaceholder}
         />
       </label>
-      <label className="public-filter-bar__select">
-        <span>{filterLabel}</span>
-        <select value={filterValue} onChange={(event) => onFilterChange(event.target.value)}>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      {showFilter ? (
+        <label className="public-filter-bar__select">
+          <span>{filterLabel}</span>
+          <select value={filterValue} onChange={(event) => onFilterChange(event.target.value)}>
+            {options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
     </div>
   );
 }
