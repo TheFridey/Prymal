@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getSeoGrowthRoutes } from '../src/lib/seo-growth-content.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendRoot = path.resolve(__dirname, '..');
@@ -19,7 +20,7 @@ function extractSlugs(source, startMarker, endMarker) {
   return [...block.matchAll(/slug:\s*'([^']+)'/g)].map((match) => match[1]);
 }
 
-function extractBlogPosts(blogSource, commercialSource = '') {
+function extractBlogPosts(blogSource, commercialSource = '', seoGrowthSource = '') {
   const blocks = [];
   const coreStart = blogSource.indexOf('const CORE_BLOG_POSTS = [');
   const coreEnd = blogSource.indexOf('export const BLOG_POSTS', coreStart);
@@ -28,6 +29,9 @@ function extractBlogPosts(blogSource, commercialSource = '') {
   }
   if (commercialSource) {
     blocks.push(commercialSource);
+  }
+  if (seoGrowthSource) {
+    blocks.push(seoGrowthSource);
   }
 
   const slugs = [];
@@ -50,10 +54,11 @@ function extractBlogPosts(blogSource, commercialSource = '') {
 const siteContent = readSource('src/lib/site-content.js');
 const blogSource = readSource('src/lib/blog-posts.js');
 const commercialBlogSource = readSource('src/lib/blog-posts-commercial.js');
+const seoGrowthBlogSource = readSource('src/lib/seo-growth-articles.js');
 
 const featureSlugs = extractSlugs(siteContent, 'export const FEATURE_PAGES = [', 'export const COMPARISON_PAGES = [');
 const compareSlugs = extractSlugs(siteContent, 'export const COMPARISON_PAGES = [', 'export function getFeaturePageBySlug');
-const blogPosts = extractBlogPosts(blogSource, commercialBlogSource);
+const blogPosts = extractBlogPosts(blogSource, commercialBlogSource, seoGrowthBlogSource);
 
 const staticRoutes = [
   { path: '/', changefreq: 'weekly', priority: '1.0', lastmod: today },
@@ -71,6 +76,7 @@ const staticRoutes = [
 ];
 
 const dynamicRoutes = [
+  ...getSeoGrowthRoutes(),
   ...featureSlugs.map((slug) => ({
     path: `/features/${slug}`,
     changefreq: 'weekly',

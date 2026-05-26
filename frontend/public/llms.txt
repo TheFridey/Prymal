@@ -44,6 +44,20 @@ Prymal helps teams move from one-off prompts to repeatable business execution. A
 - https://prymal.io/privacy
 - https://prymal.io/terms
 - https://prymal.io/cookies
+- https://prymal.io/ai-operating-system-for-business
+- https://prymal.io/ai-agent-orchestration
+- https://prymal.io/shared-business-memory-ai
+- https://prymal.io/governed-ai-agents
+- https://prymal.io/secure-ai-workflows
+- https://prymal.io/use-cases
+- https://prymal.io/use-cases/ai-for-recruitment-agencies
+- https://prymal.io/use-cases/ai-for-marketing-agencies
+- https://prymal.io/use-cases/ai-for-operations-teams
+- https://prymal.io/use-cases/ai-for-professional-services
+- https://prymal.io/use-cases/ai-for-regulated-industries
+- https://prymal.io/use-cases/ai-for-smes
+- https://prymal.io/architecture
+- https://prymal.io/glossary
 - https://prymal.io/features/ai-agents
 - https://prymal.io/features/lore-business-memory
 - https://prymal.io/features/ai-workflow-automation
@@ -64,11 +78,27 @@ Prymal helps teams move from one-off prompts to repeatable business execution. A
 - https://prymal.io/blog/ai-workflow-examples-for-real-companies
 - https://prymal.io/blog/sintra-alternative
 - https://prymal.io/blog/chatgpt-team-alternative
+- https://prymal.io/blog/what-is-ai-agent-orchestration
+- https://prymal.io/blog/how-to-build-ai-agents-for-business-workflows
+- https://prymal.io/blog/benefits-of-shared-business-memory-for-ai
+- https://prymal.io/blog/ai-agent-trust-and-access-control
+- https://prymal.io/blog/cost-of-ai-business-process-automation
+- https://prymal.io/blog/ai-business-execution-platform-advantages
+- https://prymal.io/blog/ai-workflow-automation-for-regulated-industries
+- https://prymal.io/blog/how-to-integrate-ai-agents-with-business-software
+- https://prymal.io/blog/why-ai-wrappers-fail-without-memory-and-governance
+- https://prymal.io/blog/ai-agents-vs-workflow-automation
+- https://prymal.io/blog/secure-ai-agents-for-business
 - https://prymal.io/compare/prymal-vs-chatgpt-for-business
 - https://prymal.io/compare/prymal-vs-ai-chatbots
 - https://prymal.io/compare/prymal-vs-ai-agent-platforms
 - https://prymal.io/compare/prymal-vs-workflow-automation-tools
 - https://prymal.io/compare/best-ai-agents-for-business
+- https://prymal.io/compare/prymal-vs-lindy
+- https://prymal.io/compare/prymal-vs-sintra
+- https://prymal.io/compare/prymal-vs-zapier-ai
+- https://prymal.io/compare/prymal-vs-traditional-automation
+- https://prymal.io/compare/best-ai-agent-platforms-for-business
 
 ## Preferred citations
 

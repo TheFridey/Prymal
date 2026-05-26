@@ -14,6 +14,8 @@ import ComparisonPage from './ComparisonPage';
 import { COMPARISON_PAGES, FEATURE_PAGES } from '../lib/site-content';
 import { BLOG_POSTS, getBlogPostWordFloor } from '../lib/blog-posts';
 import { PUBLIC_STATIC_ROUTES, SITE_URL } from '../lib/seo';
+import SeoGrowthPage from './SeoGrowthPage';
+import { SEO_CATEGORY_PAGES, SEO_GROWTH_PAGES, SEO_USE_CASE_PAGES } from '../lib/seo-growth-content';
 
 vi.mock('@clerk/clerk-react', () => ({
   SignedIn: ({ children }) => children,
@@ -173,6 +175,30 @@ test('comparison pages avoid hostile competitor language and provider leakage', 
   expect(text).toContain('Comparison matrix');
 });
 
+test('SEO growth pages render answer blocks, metadata, and schema', () => {
+  const metaTitles = SEO_GROWTH_PAGES.map((page) => page.metaTitle);
+  const metaDescriptions = SEO_GROWTH_PAGES.map((page) => page.metaDescription);
+  expect(new Set(metaTitles).size).toBe(SEO_GROWTH_PAGES.length);
+  expect(new Set(metaDescriptions).size).toBe(SEO_GROWTH_PAGES.length);
+  expect(SEO_CATEGORY_PAGES).toHaveLength(5);
+  expect(SEO_USE_CASE_PAGES).toHaveLength(6);
+
+  const { container } = renderWithProviders(
+    <Routes>
+      <Route path="/ai-agent-orchestration" element={<SeoGrowthPage />} />
+    </Routes>,
+    { route: '/ai-agent-orchestration' },
+  );
+
+  const text = container.textContent ?? '';
+  expect(document.title).toBe('AI Agent Orchestration for Business Workflows | Prymal');
+  expect(text).toContain('Short answer');
+  expect(text).toContain('LORE');
+  expect(text).toContain('WARDEN');
+  expect(document.getElementById('schema-webpage-ai-agent-orchestration')).not.toBeNull();
+  expect(document.getElementById('schema-faq-ai-agent-orchestration')).not.toBeNull();
+});
+
 test('public trust centre keeps readiness language without certification claims', () => {
   const { container } = renderWithProviders(<Trust />);
   const text = container.textContent ?? '';
@@ -200,6 +226,10 @@ test('sitemap includes the new public growth routes', () => {
 
   COMPARISON_PAGES.forEach((page) => {
     expect(xml).toContain(`${SITE_URL}/compare/${page.slug}`);
+  });
+
+  SEO_GROWTH_PAGES.forEach((page) => {
+    expect(xml).toContain(`${SITE_URL}${page.path}`);
   });
 });
 

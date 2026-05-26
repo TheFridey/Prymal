@@ -7,6 +7,7 @@ import chatbotsVsAgentsHero from '../assets/blog/the-difference-between-ai-chatb
 import agenciesHero from '../assets/blog/how-agencies-can-use-ai-agents-to-scale-client-delivery.jpg';
 import automationTrustHero from '../assets/blog/building-trust-in-ai-automation.jpg';
 import { buildCommercialBlogPosts } from './blog-posts-commercial.js';
+import { buildSeoGrowthArticles } from './seo-growth-articles.js';
 
 const BLOG_WORD_FLOOR = 2500;
 
@@ -1222,6 +1223,7 @@ const CORE_BLOG_POSTS = [
 export const BLOG_POSTS = [
   ...CORE_BLOG_POSTS,
   ...buildCommercialBlogPosts({ finalizeBlogPost, INTERNAL_LINKS, EXTERNAL_LINKS }),
+  ...buildSeoGrowthArticles({ finalizeBlogPost, EXTERNAL_LINKS }),
 ];
 
 const BLOG_READING_PATHS = [

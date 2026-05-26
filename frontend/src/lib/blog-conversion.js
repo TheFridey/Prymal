@@ -129,6 +129,94 @@ export const BLOG_CONVERSION_BY_SLUG = {
       primary: 'feature',
     },
   },
+  'what-is-ai-agent-orchestration': {
+    workflowTemplateSlug: 'launch-campaign-war-room',
+    nextAction: {
+      title: 'Orchestrate one business workflow',
+      description: 'Start with a narrow process where specialist agents, LORE context, WARDEN checks, and approvals can work together.',
+      primary: 'workflow',
+    },
+  },
+  'how-to-build-ai-agents-for-business-workflows': {
+    workflowTemplateSlug: 'lead-intake-to-proposal',
+    nextAction: {
+      title: 'Design your first governed agent lane',
+      description: 'Turn one recurring process into a scoped workflow with context, approvals, and a human owner.',
+      primary: 'workflow',
+    },
+  },
+  'benefits-of-shared-business-memory-for-ai': {
+    workflowTemplateSlug: 'content-signal-to-campaign',
+    nextAction: {
+      title: 'Give your agents shared business memory',
+      description: 'Use LORE-style context to reduce re-briefing and keep recurring work grounded in current business facts.',
+      primary: 'feature',
+    },
+  },
+  'ai-agent-trust-and-access-control': {
+    workflowTemplateSlug: 'support-triage-and-response',
+    nextAction: {
+      title: 'Pilot an approval-aware trust workflow',
+      description: 'Scope context, hold sensitive actions, and keep audit history visible before expanding automation.',
+      primary: 'beta',
+    },
+  },
+  'cost-of-ai-business-process-automation': {
+    workflowTemplateSlug: 'monthly-exec-operating-review',
+    nextAction: {
+      title: 'Price one recurring workflow honestly',
+      description: 'Estimate value from repeated setup time removed, review load reduced, and controlled execution capacity.',
+      primary: 'pricing',
+    },
+  },
+  'ai-business-execution-platform-advantages': {
+    workflowTemplateSlug: 'launch-campaign-war-room',
+    nextAction: {
+      title: 'Move from chat to execution',
+      description: 'Compare the operating-system category, then test one governed workflow inside Prymal.',
+      primary: 'feature',
+    },
+  },
+  'ai-workflow-automation-for-regulated-industries': {
+    workflowTemplateSlug: 'support-triage-and-response',
+    nextAction: {
+      title: 'Start with a controlled regulated workflow',
+      description: 'Use source grounding, approval gates, and reviewable run history before sensitive production use.',
+      primary: 'beta',
+    },
+  },
+  'how-to-integrate-ai-agents-with-business-software': {
+    workflowTemplateSlug: 'lead-intake-to-proposal',
+    nextAction: {
+      title: 'Connect one system through a scoped workflow',
+      description: 'Begin with draft or read-only assistance, then add write actions only behind clear approvals.',
+      primary: 'workflow',
+    },
+  },
+  'why-ai-wrappers-fail-without-memory-and-governance': {
+    workflowTemplateSlug: 'content-signal-to-campaign',
+    nextAction: {
+      title: 'Evaluate the operating layer, not the wrapper',
+      description: 'Look for shared memory, workflow orchestration, approvals, and auditability before trusting a demo.',
+      primary: 'compare',
+    },
+  },
+  'ai-agents-vs-workflow-automation': {
+    workflowTemplateSlug: 'launch-campaign-war-room',
+    nextAction: {
+      title: 'Map deterministic steps and agent steps',
+      description: 'Use automation for fixed logic and governed agents where context, drafting, or synthesis matters.',
+      primary: 'compare',
+    },
+  },
+  'secure-ai-agents-for-business': {
+    workflowTemplateSlug: 'support-triage-and-response',
+    nextAction: {
+      title: 'Secure the whole agent path',
+      description: 'Scope access, defend inputs, review outputs, and preserve audit history around sensitive work.',
+      primary: 'beta',
+    },
+  },
 };
 
 export function getBlogConversionConfig(post) {

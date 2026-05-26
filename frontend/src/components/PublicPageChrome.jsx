@@ -115,6 +115,8 @@ export function JsonLd({ id, schema }) {
   return null;
 }
 
+export const SchemaJsonLd = JsonLd;
+
 function buildSignupSource(prefix, slot) {
   return prefix ? `${prefix}-${slot}` : slot;
 }
@@ -388,12 +390,17 @@ export function PublicPageFooter({ sourcePrefix = '', onSignupClick = () => {} }
         <div className="prymal-footer__column">
           <span className="prymal-footer__label">Explore</span>
           <Link to="/features">Features</Link>
+          <Link to="/ai-operating-system-for-business">AI operating system</Link>
+          <Link to="/ai-agent-orchestration">Agent orchestration</Link>
+          <Link to="/use-cases">Use cases</Link>
           <Link to="/blog">Blog</Link>
           <Link to="/compare">Compare</Link>
         </div>
         <div className="prymal-footer__column">
           <span className="prymal-footer__label">Product</span>
           <Link to="/trust">Trust Centre</Link>
+          <Link to="/architecture">Architecture</Link>
+          <Link to="/glossary">Glossary</Link>
           <Link to="/pricing">Pricing</Link>
           <Link to="/changelog">Changelog</Link>
           <PublicCtaLink

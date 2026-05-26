@@ -34,6 +34,42 @@ export function buildSoftwareApplicationSchema({
   };
 }
 
+export function buildOrganizationSchema({
+  name = SITE_NAME,
+  url = SITE_URL,
+  logo = DEFAULT_OG_IMAGE,
+  description = 'Prymal is an AI operating system for business execution.',
+} = {}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name,
+    url,
+    logo,
+    description,
+    sameAs: [],
+  };
+}
+
+export function buildWebSiteSchema({
+  name = SITE_NAME,
+  url = SITE_URL,
+  description = 'Prymal explains governed business AI execution, specialist agents, shared business memory, workflow orchestration, and trust controls.',
+} = {}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name,
+    url,
+    description,
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+  };
+}
+
 export function buildWebPageSchema({
   name,
   description,

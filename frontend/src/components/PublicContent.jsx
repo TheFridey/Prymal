@@ -91,6 +91,10 @@ export function LinkCardGrid({ items = [], surface = 'content-hub' }) {
   );
 }
 
+export function RelatedPages(props) {
+  return <LinkCardGrid {...props} />;
+}
+
 export function FAQSection({ title = 'Frequently asked questions', items = [], schemaId }) {
   if (!items.length) return null;
 
@@ -123,6 +127,8 @@ export function ResourceCta({ title, description, primary, secondary }) {
     </section>
   );
 }
+
+export const ContentCTA = ResourceCta;
 
 export function PremiumHero({
   eyebrow,
@@ -175,6 +181,10 @@ export function PremiumHero({
       </div>
     </section>
   );
+}
+
+export function SEOHero(props) {
+  return <PremiumHero {...props} />;
 }
 
 export function SystemDiagram({ title = 'Operating map', nodes = [], links = [], className = '' }) {

@@ -45,6 +45,7 @@ const Memory = lazyPage(() => import('./pages/Memory'), 'memory');
 const Onboarding = lazyPage(() => import('./pages/Onboarding'), 'onboarding');
 const Privacy = lazyPage(() => import('./pages/Privacy'), 'privacy');
 const Pricing = lazyPage(() => import('./pages/Pricing'), 'pricing');
+const SeoGrowthPage = lazyPage(() => import('./pages/SeoGrowthPage'), 'seo-growth-page');
 const Settings = lazyPage(() => import('./pages/Settings'), 'settings');
 const Terms = lazyPage(() => import('./pages/Terms'), 'terms');
 const Trust = lazyPage(() => import('./pages/Trust'), 'trust');
@@ -191,6 +192,15 @@ function AppRoutes() {
           <Route path="/blog/:slug" element={<LazyPage label="Loading article..."><BlogPost /></LazyPage>} />
           <Route path="/compare" element={<LazyPage label="Loading comparisons..."><Compare /></LazyPage>} />
           <Route path="/compare/:slug" element={<LazyPage label="Loading comparison..."><ComparisonPage /></LazyPage>} />
+          <Route path="/ai-operating-system-for-business" element={<LazyPage label="Loading guide..."><SeoGrowthPage /></LazyPage>} />
+          <Route path="/ai-agent-orchestration" element={<LazyPage label="Loading guide..."><SeoGrowthPage /></LazyPage>} />
+          <Route path="/shared-business-memory-ai" element={<LazyPage label="Loading guide..."><SeoGrowthPage /></LazyPage>} />
+          <Route path="/governed-ai-agents" element={<LazyPage label="Loading guide..."><SeoGrowthPage /></LazyPage>} />
+          <Route path="/secure-ai-workflows" element={<LazyPage label="Loading guide..."><SeoGrowthPage /></LazyPage>} />
+          <Route path="/use-cases" element={<LazyPage label="Loading use cases..."><SeoGrowthPage /></LazyPage>} />
+          <Route path="/use-cases/:slug" element={<LazyPage label="Loading use case..."><SeoGrowthPage /></LazyPage>} />
+          <Route path="/architecture" element={<LazyPage label="Loading architecture..."><SeoGrowthPage /></LazyPage>} />
+          <Route path="/glossary" element={<LazyPage label="Loading glossary..."><SeoGrowthPage /></LazyPage>} />
           <Route path="/for-agencies" element={<LazyPage label="Loading agency story..."><ForAgencies /></LazyPage>} />
           <Route path="/for-small-business" element={<LazyPage label="Loading small-business story..."><ForSmallBusiness /></LazyPage>} />
           <Route path="/privacy" element={<LazyPage label="Loading privacy policy..."><Privacy /></LazyPage>} />
