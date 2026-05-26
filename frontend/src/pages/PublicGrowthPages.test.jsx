@@ -137,6 +137,29 @@ test('blog posts meet the long-form floor and include internal and external read
   });
 });
 
+test('new SEO growth articles have wired editorial images', () => {
+  const seoArticleSlugs = [
+    'what-is-ai-agent-orchestration',
+    'how-to-build-ai-agents-for-business-workflows',
+    'benefits-of-shared-business-memory-for-ai',
+    'ai-agent-trust-and-access-control',
+    'cost-of-ai-business-process-automation',
+    'ai-business-execution-platform-advantages',
+    'ai-workflow-automation-for-regulated-industries',
+    'how-to-integrate-ai-agents-with-business-software',
+    'why-ai-wrappers-fail-without-memory-and-governance',
+    'ai-agents-vs-workflow-automation',
+    'secure-ai-agents-for-business',
+  ];
+
+  seoArticleSlugs.forEach((slug) => {
+    const post = BLOG_POSTS.find((entry) => entry.slug === slug);
+    expect(post?.heroImage).toBeTruthy();
+    expect(post?.ogImage).toBe(post?.heroImage);
+    expect(post?.ogImageAlt).toContain(post?.title);
+  });
+});
+
 test('blog hub renders editorial hero, topic pills, featured guide, and commercial section', () => {
   const { container } = renderWithProviders(<Blog />);
   const text = container.textContent ?? '';

@@ -1,3 +1,13 @@
+import aiOperatingSystemHero from '../assets/blog/what-is-an-ai-operating-system-for-business.jpg';
+import businessMemoryHero from '../assets/blog/why-business-ai-needs-memory-not-just-prompts.jpg';
+import safeBusinessAiHero from '../assets/blog/how-to-use-ai-safely-in-a-business.jpg';
+import workflowAutomationHero from '../assets/blog/ai-workflow-automation-a-practical-guide-for-growing-teams.jpg';
+import chatbotsVsAgentsHero from '../assets/blog/the-difference-between-ai-chatbots-and-ai-agents.jpg';
+import automationTrustHero from '../assets/blog/building-trust-in-ai-automation.jpg';
+import workflowExamplesHero from '../assets/blog/ai-workflow-examples-for-real-companies.jpg';
+import sintraAlternativeHero from '../assets/blog/sintra-alternative.jpg';
+import chatgptTeamAlternativeHero from '../assets/blog/chatgpt-team-alternative.jpg';
+
 const publishedAt = '2026-05-26';
 
 const internal = {
@@ -134,7 +144,7 @@ function article(config, finalizeBlogPost, EXTERNAL_LINKS) {
     publishedAt,
     updatedAt: publishedAt,
     hero: makeHero(config.hero),
-    heroImage: null,
+    heroImage: config.heroImage,
     takeaways: config.takeaways,
     sections: buildSections({
       topic: config.topic,
@@ -158,6 +168,7 @@ export function buildSeoGrowthArticles({ finalizeBlogPost, EXTERNAL_LINKS }) {
       title: 'What Is AI Agent Orchestration?',
       metaTitle: 'What Is AI Agent Orchestration? | Prymal Blog',
       metaDescription: 'A practical guide to AI agent orchestration for business workflows, specialist routing, shared memory, model routing, approvals, LORE, and WARDEN.',
+      heroImage: workflowExamplesHero,
       topic: 'AI agent orchestration',
       tags: ['AI agent orchestration', 'agent routing', 'business workflows'],
       answer: 'AI agent orchestration is the coordination of specialist agents, shared context, workflow stages, approvals, and routing so business work can move through a controlled process instead of one generic chatbot.',
@@ -184,6 +195,7 @@ export function buildSeoGrowthArticles({ finalizeBlogPost, EXTERNAL_LINKS }) {
       title: 'How to Build AI Agents for Business Workflows',
       metaTitle: 'How to Build AI Agents for Business Workflows | Prymal Blog',
       metaDescription: 'Learn how to design AI agents for business workflows with roles, context, access controls, approvals, workflow steps, and measurable pilots.',
+      heroImage: workflowAutomationHero,
       topic: 'building AI agents for business workflows',
       tags: ['build AI agents', 'business workflows', 'AI workflow automation'],
       answer: 'To build AI agents for business workflows, define the business job, scope the context, set access controls, design the workflow path, add approval gates, and measure one recurring process before expanding.',
@@ -210,6 +222,7 @@ export function buildSeoGrowthArticles({ finalizeBlogPost, EXTERNAL_LINKS }) {
       title: 'Benefits of Shared Business Memory for AI',
       metaTitle: 'Benefits of Shared Business Memory for AI | Prymal Blog',
       metaDescription: 'Understand the benefits of shared business memory for AI agents: continuity, source grounding, freshness, auditability, and better workflow execution.',
+      heroImage: businessMemoryHero,
       topic: 'shared business memory for AI',
       tags: ['shared business memory', 'AI memory', 'LORE'],
       answer: 'Shared business memory helps AI agents work from durable, reviewable, source-grounded context so teams get more continuity, less re-briefing, and stronger auditability across recurring workflows.',
@@ -236,6 +249,7 @@ export function buildSeoGrowthArticles({ finalizeBlogPost, EXTERNAL_LINKS }) {
       title: 'AI Agent Trust and Access Control',
       metaTitle: 'AI Agent Trust and Access Control | Prymal Blog',
       metaDescription: 'A business guide to AI agent trust and access control: permissions, scoped context, approvals, audit trails, WARDEN safety, and governance.',
+      heroImage: automationTrustHero,
       topic: 'AI agent trust and access control',
       category: 'Trust',
       topics: ['trust-safety', 'guides'],
@@ -264,6 +278,7 @@ export function buildSeoGrowthArticles({ finalizeBlogPost, EXTERNAL_LINKS }) {
       title: 'Cost of AI Business Process Automation',
       metaTitle: 'Cost of AI Business Process Automation | Prymal Blog',
       metaDescription: 'Learn what drives the cost of AI business process automation: workflow volume, memory, integrations, review, governance, and operational value.',
+      heroImage: workflowAutomationHero,
       topic: 'the cost of AI business process automation',
       category: 'Buying guide',
       topics: ['workflows', 'guides'],
@@ -292,6 +307,7 @@ export function buildSeoGrowthArticles({ finalizeBlogPost, EXTERNAL_LINKS }) {
       title: 'AI Business Execution Platform Advantages',
       metaTitle: 'AI Business Execution Platform Advantages | Prymal Blog',
       metaDescription: 'Explore the advantages of an AI business execution platform: specialist agents, shared memory, workflows, trust controls, auditability, and governed automation.',
+      heroImage: aiOperatingSystemHero,
       topic: 'an AI business execution platform',
       tags: ['AI business execution platform', 'governed AI execution', 'business AI operating system'],
       answer: 'An AI business execution platform gives teams more than chat: specialist agents, shared memory, workflow orchestration, trust controls, approvals, and auditability for repeatable business work.',
@@ -318,6 +334,7 @@ export function buildSeoGrowthArticles({ finalizeBlogPost, EXTERNAL_LINKS }) {
       title: 'AI Workflow Automation for Regulated Industries',
       metaTitle: 'AI Workflow Automation for Regulated Industries | Prymal Blog',
       metaDescription: 'A practical guide to AI workflow automation for regulated industries: approvals, audit trails, source grounding, access controls, and safety checks.',
+      heroImage: safeBusinessAiHero,
       topic: 'AI workflow automation for regulated industries',
       category: 'Trust',
       topics: ['trust-safety', 'workflows', 'guides'],
@@ -346,6 +363,7 @@ export function buildSeoGrowthArticles({ finalizeBlogPost, EXTERNAL_LINKS }) {
       title: 'How to Integrate AI Agents with Business Software',
       metaTitle: 'How to Integrate AI Agents with Business Software | Prymal Blog',
       metaDescription: 'Learn how to integrate AI agents with business software through scoped access, workflow triggers, approvals, audit logs, and secure automation patterns.',
+      heroImage: chatgptTeamAlternativeHero,
       topic: 'integrating AI agents with business software',
       category: 'Implementation',
       topics: ['workflows', 'guides'],
@@ -374,6 +392,7 @@ export function buildSeoGrowthArticles({ finalizeBlogPost, EXTERNAL_LINKS }) {
       title: 'Why AI Wrappers Fail Without Memory and Governance',
       metaTitle: 'Why AI Wrappers Fail Without Memory and Governance | Prymal Blog',
       metaDescription: 'Why AI wrappers fail when they lack shared business memory, workflow orchestration, access controls, approvals, auditability, and trust controls.',
+      heroImage: sintraAlternativeHero,
       topic: 'why AI wrappers fail without memory and governance',
       category: 'Strategy',
       topics: ['ai-strategy', 'trust-safety', 'guides'],
@@ -402,6 +421,7 @@ export function buildSeoGrowthArticles({ finalizeBlogPost, EXTERNAL_LINKS }) {
       title: 'AI Agents vs Workflow Automation',
       metaTitle: 'AI Agents vs Workflow Automation | Prymal Blog',
       metaDescription: 'Compare AI agents and workflow automation: deterministic workflows, adaptive execution, shared memory, approvals, integrations, governance, and business fit.',
+      heroImage: chatbotsVsAgentsHero,
       topic: 'AI agents vs workflow automation',
       category: 'Comparison',
       topics: ['comparisons', 'workflows', 'guides'],
@@ -430,6 +450,7 @@ export function buildSeoGrowthArticles({ finalizeBlogPost, EXTERNAL_LINKS }) {
       title: 'Secure AI Agents for Business',
       metaTitle: 'Secure AI Agents for Business | Prymal Blog',
       metaDescription: 'A guide to secure AI agents for business: prompt injection defenses, access controls, data boundaries, WARDEN safety, output review, and auditability.',
+      heroImage: safeBusinessAiHero,
       topic: 'secure AI agents for business',
       category: 'Trust',
       topics: ['trust-safety', 'guides'],
