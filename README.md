@@ -9,10 +9,12 @@ Prymal is built for businesses that need AI to move beyond chat. It gives teams 
 | Product category | Multi-agent AI workspace and automation platform |
 | Frontend | Vite, React, React Router, Clerk, TanStack Query, Zustand |
 | Backend | Hono API, Drizzle, PostgreSQL, pgvector |
-| AI lanes | Anthropic, OpenAI, Google Gemini, OpenAI Realtime, Google Veo |
+| AI lanes | Anthropic, OpenAI, Google Gemini (with live grounding for research agents), OpenAI Realtime, Google Veo |
 | Revenue layer | Stripe plans, seats, execution credits, video credits, top-up packs |
-| Governance | WARDEN input firewall, SENTINEL PASS / REPAIR / HOLD gate, traces, immutable admin logs |
-| Deployment posture | Cloudinary-ready media storage; local storage only as development fallback |
+| Governance | WARDEN input firewall, SENTINEL PASS / REPAIR / HOLD gate, traces, immutable admin logs, Content-Security-Policy |
+| Observability | Pino structured JSON logging, Sentry error tracking |
+| Deployment | Docker Compose production stack, Nginx SSL reverse proxy, systemd-managed VPS |
+| API surface | OpenAPI 3.1 spec, Scalar API reference UI, TypeScript SDK stub (Agency tier) |
 
 ## Why Prymal Exists
 
@@ -34,7 +36,7 @@ Prymal packages those jobs into a business-ready system:
 | Area | What It Does |
 |---|---|
 | Dashboard | Mission-control view of conversations, workflows, credits, recommended agents, and first-win actions |
-| Agent chat | SSE streaming, LORE grounding, memory, media artifacts, voice input, and structured output rendering |
+| Agent chat | SSE streaming, LORE grounding, live web grounding (SCOUT/ORACLE/SAGE), memory, media artifacts, voice input, and structured output rendering |
 | LORE | Text, URL, file upload, search, inventory, contradiction warnings, and reindex/delete flows |
 | Workflows | Template library, visual builder, run monitor, replay, webhook subscriptions, and execution logs |
 | Workflow Catalogue | Curated workflow library for installing official workflows, drafting community submissions, and staff-reviewed publishing |
@@ -56,14 +58,14 @@ Prymal exposes 14 user-facing agents and runs SENTINEL internally as the QA gate
 | FORGE | Copy, content, and commercial narrative |
 | ATLAS | Project and operations planning |
 | ECHO | Social media and brand voice |
-| ORACLE | SEO and search intelligence |
+| ORACLE | SEO and search intelligence — live Gemini web grounding active |
 | VANCE | Sales and lead progression |
 | WREN | Support and customer care |
 | LEDGER | Finance, reports, and investor updates |
 | NEXUS | Workflow orchestration |
-| SCOUT | Market and competitor research |
-| SAGE | Strategy and decision support |
-| PIXEL | Image/video briefs and media generation |
+| SCOUT | Market and competitor research — live Gemini web grounding active |
+| SAGE | Strategy and decision support — live Gemini web grounding active |
+| PIXEL | Image and video generation |
 | SENTINEL | Internal QA, repair, and hold enforcement |
 
 ## What Is Implemented
@@ -82,6 +84,8 @@ Prymal exposes 14 user-facing agents and runs SENTINEL internally as the QA gate
 - WARDEN-aware LORE and media flows with untrusted-evidence boundaries and clean refusal copy for blocked input.
 - Integration account linking UI with sections for socials, messaging, email, files, knowledge, and custom endpoints.
 - Settings surfaces for seats, invites, billing, API keys, referrals, and model-routing controls.
+- Gemini live grounding sources panel — collapsible web source links displayed beneath SCOUT/ORACLE/SAGE responses when live grounding fires.
+- Trust grammar panel — grounding chips, SENTINEL verdict chips, retrieval metadata, and schema repair signals shown per-message.
 - Playwright smoke coverage and Vitest unit coverage for core frontend modules.
 
 ### Backend
@@ -103,6 +107,15 @@ Prymal exposes 14 user-facing agents and runs SENTINEL internally as the QA gate
 - Transactional email templates, Herald signature, Resend delivery, and email event tracking.
 - Veo video queue with Lite and Standard lanes, 4/6/8 second renders, Standard reference images for 8 second jobs, and asset serving.
 - Staff admin control plane with RBAC, audit logs, feature flags, credit adjustments, traces, scorecards, failed-run explorer, and waitlist/referral tooling.
+- **Content-Security-Policy** headers on all non-SSE responses — Clerk, Cloudinary, OpenAI Realtime WebSocket, and same-origin SSE in `connect-src`; `script-src` restricted; `eval()` blocked; SSE streaming endpoint exempted.
+- **Gemini live web grounding** — `google_search_retrieval` with `MODE_DYNAMIC` (threshold 0.7) active for SCOUT, ORACLE, and SAGE on the `grounded_research` policy lane. Grounding web sources emitted as a dedicated `grounding_sources` SSE event and surfaced in the frontend Trust Grammar panel.
+- **Pino structured JSON logging** — all `console.log/warn/error/info` calls replaced with child loggers per component. Key events (LLM schema validation, SENTINEL verdicts, webhook delivery, rate-limit fallback, auth failures) emit structured fields. Dev uses pino-pretty; production emits raw JSON to stdout, compatible with Loki, Papertrail, and Datadog.
+- **OpenAPI 3.1 spec** served at `GET /api/openapi.json`. Interactive Scalar API reference at `GET /api/docs`. Covers Agents, Workflows, LORE, Memory, and Usage endpoints with full schema components.
+- **Production Docker Compose stack** (`docker-compose.prod.yml`) — four services (`prymal-db`, `prymal-api`, `prymal-frontend`, `prymal-proxy`) on an isolated bridge network with healthchecks. Nginx reverse proxy handles SSL termination, HTTP→HTTPS redirect, and SSE-safe proxy config (`proxy_buffering off`).
+
+### SDK
+
+- `packages/sdk/` — `@prymal/sdk` TypeScript client stub. `PrymalClient` with typed method groups for `agents`, `workflows`, `lore`, `memory`, and `usage`. `PrymalError` with `status`, `code`, and `requestId`. Not yet published to npm.
 
 ## Product Honesty
 
@@ -119,15 +132,20 @@ Prymal deliberately separates real product surface from future ambition.
 | Video reference images | Supported only on Veo 3.1 Standard for 8 second renders |
 | Media storage | Cloudinary-ready; local backend storage is only a development/single-instance fallback |
 | Billing estimates | Frontend estimates are guidance; backend billing and credit burn are authoritative |
+| Gemini live grounding | Active for SCOUT, ORACLE, and SAGE on the `grounded_research` lane when `GEMINI_GROUNDING_ENABLED=true`. Threshold 0.7 dynamic mode. Other agents do not receive Gemini grounding. |
+| CSP | Applied to all non-SSE responses. The SSE streaming endpoint (`/api/agents/chat`) is intentionally exempted. |
+| @prymal/sdk | Source-complete TypeScript stub in `packages/sdk/`. Not published to npm; Agency customers use it by cloning or copying the source. |
 
 ## Architecture
 
 ```text
 Prymal/
-  frontend/     Vite React app, public pages, protected app, tests
-  backend/      Hono API, routes, services, Drizzle schema, workers
-  database/     PostgreSQL + pgvector bootstrap schema and migrations
-  landing/      Standalone marketing experiment
+  frontend/      Vite React app, public pages, protected app, tests
+  backend/       Hono API, routes, services, Drizzle schema, workers
+  database/      PostgreSQL + pgvector bootstrap schema and migrations
+  landing/       Standalone marketing experiment
+  packages/sdk/  @prymal/sdk TypeScript client (Agency tier)
+  nginx/         Production Nginx reverse-proxy config (nginx.prod.conf)
 ```
 
 ### Runtime Flow
@@ -136,12 +154,14 @@ Prymal/
 User request
   -> Clerk-authenticated API route
   -> org/user resolution and entitlement checks
+  -> WARDEN input scan
   -> model policy selection and provider fallback chain
-  -> optional LORE retrieval and memory context
+  -> optional LORE retrieval, memory context, and Gemini live grounding (SCOUT/ORACLE/SAGE)
   -> specialist agent execution
   -> structured output validation
   -> SENTINEL PASS / REPAIR / HOLD
   -> persisted messages, traces, usage events, and audit/product events
+  -> SSE stream with text chunks, grounding_sources, and done event
 ```
 
 ### Workflow Flow
@@ -157,36 +177,6 @@ Workflow trigger
   -> optional signed outbound webhook delivery
 ```
 
-## Plans And Entitlements
-
-Public pricing is defined in `frontend/src/lib/constants.js`; backend enforcement is defined in `backend/src/services/billing-catalog.js`. Keep those two files aligned whenever pricing changes.
-The internal checklist for this alignment lives in [docs/billing-pricing-audit.md](./docs/billing-pricing-audit.md).
-
-| Plan | List Price | Founding Access | Execution Credits / Month | AI Video Credits / Month | Seats | Concurrent AI Runs | Notes |
-|---|---:|---:|---:|---:|---:|---:|---|
-| Offer Access | £0 | n/a | 50 | 0 | 1 | 1 | Offer-gated fallback access, foundational agents only |
-| Solo | £49.99/mo | Time-windowed Stripe intro only | 500 | 2 | 1 | 1 | Curated starter tier, shallow LORE, light video |
-| Pro | £99/mo | Time-windowed Stripe intro only | 2,000 | 5 | 1 | 3 | Full user-facing roster, medium LORE, production-friendly concurrency |
-| Teams | £179/mo | Time-windowed Stripe intro only | 6,000 | 15 | 5 | 5 | Shared workspace, pooled usage, £25/mo extra seat add-on |
-| Agency | From £299/mo | Time-windowed Stripe intro only | 10,000 | 25 | 25 | 8 | API keys, client-scale orchestration, priority execution |
-
-Quarterly plans are priced at 12% off the monthly list total. Yearly plans are priced at 24% off the monthly list total. Founding Access uses explicitly configured Stripe price IDs during the founding window and then renews at standard catalog pricing after that window.
-
-Execution credits and AI video credits are enforced separately before expensive agent, workflow, and media paths. Included monthly credits reset each billing cycle and do not roll over. Top-up packs add short-burst capacity but do not remove plan caps, fair-use controls, or concurrency limits.
-
-### Stripe Price Mapping
-
-Stripe uses recurring Prices for plan subscriptions and one-time Prices for credit packs. Current public checkout requires:
-
-- Standard subscription prices: `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_TEAMS`, `STRIPE_PRICE_AGENCY`, plus `_QUARTERLY` and `_YEARLY` variants.
-- Founding Access subscription prices: `STRIPE_PRICE_FOUNDING_SOLO`, `STRIPE_PRICE_FOUNDING_PRO`, `STRIPE_PRICE_FOUNDING_TEAMS`, `STRIPE_PRICE_FOUNDING_AGENCY`, plus `_QUARTERLY` and `_YEARLY` variants.
-- Preferred credit packs for new checkout: `STRIPE_PRICE_EXEC_BOOST_1000`, `STRIPE_PRICE_VIDEO_PACK_SMALL`, and `STRIPE_PRICE_VIDEO_PACK_PRO`.
-- Legacy credit-pack Price IDs (`STRIPE_PRICE_EXEC_100`, `STRIPE_PRICE_EXEC_300`, `STRIPE_PRICE_EXEC_700`, `STRIPE_PRICE_VIDEO_15`, `STRIPE_PRICE_VIDEO_30`, `STRIPE_PRICE_VIDEO_100`) may remain configured for historical webhook compatibility, but should not be promoted to new users.
-- Seat add-on: `STRIPE_PRICE_SEAT_ADDON` for Teams extra seats.
-- Legacy Agency prices may be mapped through `STRIPE_PRICE_AGENCY_LEGACY*` for webhook grandfathering only; they must not be used for new checkout.
-
-Live Stripe Prices for Founding Access and preferred usage packs were provisioned during the launch-readiness pass. Keep actual Price IDs in environment variables only, not in public docs or customer-facing changelog copy.
-
 ## API & SDK (Agency plan)
 
 Agency-plan organisations can access the full Prymal platform programmatically.
@@ -195,7 +185,7 @@ Agency-plan organisations can access the full Prymal platform programmatically.
 
 Start the backend and visit `http://localhost:3001/api/docs` (dev) or `https://prymal.io/api/docs` (production) for the live Scalar API reference.
 
-The raw OpenAPI 3.1 spec is also served at `/api/openapi.json`.
+The raw OpenAPI 3.1 spec is served at `/api/openapi.json`.
 
 ### TypeScript SDK
 
@@ -230,7 +220,37 @@ await prymal.memory.write({
 })
 ```
 
-The SDK source is in [`packages/sdk/src/index.ts`](packages/sdk/src/index.ts). Build it with `npm run build` inside that directory. It is not yet published to npm.
+The SDK source is in [`packages/sdk/src/index.ts`](packages/sdk/src/index.ts). Build with `npm run build` inside that directory.
+
+## Plans And Entitlements
+
+Public pricing is defined in `frontend/src/lib/constants.js`; backend enforcement is defined in `backend/src/services/billing-catalog.js`. Keep those two files aligned whenever pricing changes.
+The internal checklist for this alignment lives in [docs/billing-pricing-audit.md](./docs/billing-pricing-audit.md).
+
+| Plan | List Price | Founding Access | Execution Credits / Month | AI Video Credits / Month | Seats | Concurrent AI Runs | Notes |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Offer Access | £0 | n/a | 50 | 0 | 1 | 1 | Offer-gated fallback access, foundational agents only |
+| Solo | £49.99/mo | Time-windowed Stripe intro only | 500 | 2 | 1 | 1 | Curated starter tier, shallow LORE, light video |
+| Pro | £99/mo | Time-windowed Stripe intro only | 2,000 | 5 | 1 | 3 | Full user-facing roster, medium LORE, production-friendly concurrency |
+| Teams | £179/mo | Time-windowed Stripe intro only | 6,000 | 15 | 5 | 5 | Shared workspace, pooled usage, £25/mo extra seat add-on |
+| Agency | From £299/mo | Time-windowed Stripe intro only | 10,000 | 25 | 25 | 8 | API keys, client-scale orchestration, priority execution |
+
+Quarterly plans are priced at 12% off the monthly list total. Yearly plans are priced at 24% off the monthly list total. Founding Access uses explicitly configured Stripe price IDs during the founding window and then renews at standard catalog pricing after that window.
+
+Execution credits and AI video credits are enforced separately before expensive agent, workflow, and media paths. Included monthly credits reset each billing cycle and do not roll over. Top-up packs add short-burst capacity but do not remove plan caps, fair-use controls, or concurrency limits.
+
+### Stripe Price Mapping
+
+Stripe uses recurring Prices for plan subscriptions and one-time Prices for credit packs. Current public checkout requires:
+
+- Standard subscription prices: `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_TEAMS`, `STRIPE_PRICE_AGENCY`, plus `_QUARTERLY` and `_YEARLY` variants.
+- Founding Access subscription prices: `STRIPE_PRICE_FOUNDING_SOLO`, `STRIPE_PRICE_FOUNDING_PRO`, `STRIPE_PRICE_FOUNDING_TEAMS`, `STRIPE_PRICE_FOUNDING_AGENCY`, plus `_QUARTERLY` and `_YEARLY` variants.
+- Preferred credit packs for new checkout: `STRIPE_PRICE_EXEC_BOOST_1000`, `STRIPE_PRICE_VIDEO_PACK_SMALL`, and `STRIPE_PRICE_VIDEO_PACK_PRO`.
+- Legacy credit-pack Price IDs (`STRIPE_PRICE_EXEC_100`, `STRIPE_PRICE_EXEC_300`, `STRIPE_PRICE_EXEC_700`, `STRIPE_PRICE_VIDEO_15`, `STRIPE_PRICE_VIDEO_30`, `STRIPE_PRICE_VIDEO_100`) may remain configured for historical webhook compatibility, but should not be promoted to new users.
+- Seat add-on: `STRIPE_PRICE_SEAT_ADDON` for Teams extra seats.
+- Legacy Agency prices may be mapped through `STRIPE_PRICE_AGENCY_LEGACY*` for webhook grandfathering only; they must not be used for new checkout.
+
+Live Stripe Prices for Founding Access and preferred usage packs were provisioned during the launch-readiness pass. Keep actual Price IDs in environment variables only, not in public docs or customer-facing changelog copy.
 
 ## Local Development
 
@@ -304,6 +324,25 @@ npm run build
 npm run verify-build -- --clean
 ```
 
+## Production Deployment
+
+Production runs as a Docker Compose stack defined in `docker-compose.prod.yml`. See [DEPLOY.md](./DEPLOY.md) for the full runbook.
+
+```bash
+# From repo root on the VPS:
+docker compose -f docker-compose.prod.yml build --no-cache
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml ps
+
+# Run migrations after deploy:
+docker exec prymal-api npm run migrate
+
+# View logs:
+docker compose -f docker-compose.prod.yml logs -f prymal-api
+```
+
+Prerequisites: Docker, Docker Compose v2, certbot SSL certificate issued for your domain, and a `.env` at repo root with `DB_USER`, `DB_PASSWORD`, and `VITE_*` build args. Backend secrets go in `backend/.env.prod`.
+
 ## Environment Variables
 
 ### Backend Essentials
@@ -320,9 +359,7 @@ npm run verify-build -- --clean
 - `RESEND_FROM_EMAIL` or `EMAIL_FROM`
 - `REPLY_TO_EMAIL`
 - `APP_URL`
-- `EMAIL_LOGO_URL`, defaults to the inline CID `prymal-logo`
-- `EMAIL_HERALD_AVATAR_URL`, defaults to the inline CID `herald-avatar`
-- `EMAIL_EMBED_INLINE_ASSETS`, defaults to enabled for repo-hosted Prymal and Herald assets
+- `LOG_LEVEL` — pino log level (`info` in production, `debug` in development, `trace` for deep debugging). Defaults to `debug` in dev, `info` in prod.
 - WARDEN: `WARDEN_ENABLED`, `WARDEN_STRICT_MODE`, `WARDEN_MAX_CONTENT_CHARS`, `WARDEN_MAX_URL_TEXT_CHARS`, `WARDEN_AUDIT_EXCERPT_CHARS`, `WARDEN_MEDIA_SAFETY_STRICTNESS`, `WARDEN_MODEL_CLASSIFIER_ENABLED`, `WARDEN_MODEL_CLASSIFIER_MODE`, `WARDEN_MODEL_CLASSIFIER_MODEL`, `WARDEN_MODEL_CLASSIFIER_TIMEOUT_MS`, `WARDEN_MODEL_CLASSIFIER_MAX_CHARS`, `WARDEN_MODEL_CLASSIFIER_CACHE_TTL_SECONDS`, `WARDEN_MODEL_CLASSIFIER_CACHE_MAX`, classifier daily call/cost caps, and OCR adapter flags. See `docs/warden-safety.md`.
 - Staff access lists for internal admin users
 
@@ -332,15 +369,17 @@ npm run verify-build -- --clean
 - Trigger.dev: `TRIGGER_API_KEY`, optional `TRIGGER_API_URL`
 - Integrations: Google, Microsoft, Notion, Slack, and LinkedIn OAuth credentials; manual-token providers use encrypted stored secrets
 - OAuth state: `INTEGRATION_STATE_SECRET`
-- Gemini/Veo: `GEMINI_API_KEY`, `GEMINI_MODEL_FLASH`, `GEMINI_MODEL_LITE`, `GEMINI_MODEL_PRO`, Veo model override env vars, and `GEMINI_GROUNDING_ENABLED=true` when you want live grounded research to prefer Gemini
+- Gemini/Veo: `GEMINI_API_KEY`, `GEMINI_MODEL_FLASH`, `GEMINI_MODEL_LITE`, `GEMINI_MODEL_PRO`, Veo model override env vars, and `GEMINI_GROUNDING_ENABLED=true` to activate live web grounding for SCOUT, ORACLE, and SAGE
 - Media storage: `MEDIA_STORAGE_DRIVER`, Cloudinary credentials, retention and timeout controls
-- Rate limiting: optional Upstash Redis REST URL/token
+- Rate limiting: optional Upstash Redis REST URL/token for shared counters in multi-process deployments
 - Workflow Catalogue: `WORKFLOW_CATALOGUE_ENABLED`, `WORKFLOW_CATALOGUE_USER_SUBMISSIONS_ENABLED`, `WORKFLOW_CATALOGUE_PREMIUM_ENABLED=true`, `WORKFLOW_CATALOGUE_PLATFORM_FEE_BPS`
+- Sentry: `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`
 
 ### Frontend Essentials
 
 - `VITE_CLERK_PUBLISHABLE_KEY`
 - `VITE_API_URL`
+- `VITE_SENTRY_DSN` (optional — Sentry error tracking in the browser)
 
 `VITE_API_URL` can be the backend origin, such as `http://localhost:3001`, or the full API base ending in `/api`.
 
@@ -384,9 +423,9 @@ Full end-to-end authenticated testing still requires:
 - A real Clerk test account/session
 - Provider keys for live model, voice, media, and integration paths
 - Stripe keys for live billing flows
-
-GitHub Actions now keeps deployment optional: `Deploy preflight` always runs, while `Deploy to VPS` only runs on `push`/`workflow_dispatch` for `master` when `VPS_DEPLOY_ENABLED=true` and the VPS secrets are present.
 - Optional Trigger.dev credentials for external workflow orchestration
+
+GitHub Actions keeps deployment optional: `Deploy preflight` always runs, while `Deploy to VPS` only runs on `push`/`workflow_dispatch` for `master` when `VPS_DEPLOY_ENABLED=true` and the VPS secrets are present.
 
 ## Release Notes
 
@@ -394,11 +433,11 @@ Release hardening, CI gates, branch protection recommendations, and operational 
 
 Deployment guidance lives in [DEPLOY.md](./DEPLOY.md).
 
-## Next High-Leverage Sprint
+## Next Steps
 
-1. Replace the placeholder Clerk webhook signing secret and Resend API key in the target environment.
+1. Replace placeholder Clerk webhook signing secret and Resend API key in the target environment if not already done.
 2. Configure Stripe webhook endpoints and complete the real checkout/webhook lifecycle proof.
 3. Run authenticated Playwright against staging with dedicated user and staff accounts.
 4. Record Clerk `/api/auth/me` proof and Stripe lifecycle evidence in `PRELAUNCH_QA.md`.
-5. Start the first 10-25 user controlled beta using `docs/controlled-beta-runbook.md`.
-6. Evaluate Gemini live grounding separately and keep it disabled until cleared for production.
+5. Start the first 10–25 user controlled beta using `docs/controlled-beta-runbook.md`.
+6. Publish `@prymal/sdk` to npm once the Agency API key authentication middleware is confirmed working in production.
