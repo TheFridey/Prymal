@@ -1,5 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'llm' });
 import { getAgent } from '../agents/config.js';
 import { getGeminiLlmProvider } from './providers/gemini-llm-provider.js';
 import {
@@ -386,6 +389,7 @@ export async function* streamAgentResponse({
           ? streamGeminiResponse({
               plan,
               contract,
+              agentId,
               systemPrompt,
               messages: trimmedMessages,
               userMessage,
@@ -415,17 +419,23 @@ export async function* streamAgentResponse({
           continue;
         }
 
+        if (event.type === 'grounding_sources') {
+          yield event;
+          continue;
+        }
+
         if (event.type === 'done') {
           let schemaValidation = null;
           if (needsValidation && accumulatedText) {
             schemaValidation = validateAgentOutput(agentId, accumulatedText);
             if (schemaValidation.verdict === 'failed') {
-              console.warn(
-                `[LLM] Schema validation failed for agent ${agentId} (${contract?.outputSchemaId ?? contract?.outputSchema ?? 'unknown'}):`,
-                schemaValidation.errors.slice(0, 3).join('; '),
-              );
+              log.warn({
+                agent_id: agentId,
+                schema: contract?.outputSchemaId ?? contract?.outputSchema ?? 'unknown',
+                errors: schemaValidation.errors.slice(0, 3),
+              }, 'llm.schema.validation_failed');
             } else if (schemaValidation.verdict === 'repaired') {
-              console.info(`[LLM] Schema auto-repaired for agent ${agentId}: ${schemaValidation.repairNotes}`);
+              log.info({ agent_id: agentId, notes: schemaValidation.repairNotes }, 'llm.schema.repaired');
             }
           }
 
@@ -729,6 +739,7 @@ function buildAnthropicUserContent(userMessage, attachments = []) {
 async function runProviderResponse({
   plan,
   agent,
+  agentId,
   contract,
   systemPrompt,
   messages,
@@ -751,6 +762,7 @@ async function runProviderResponse({
     return sanitizeProviderResponse(await runGeminiResponse({
       plan,
       contract,
+      agentId,
       systemPrompt,
       messages,
       userMessage,
@@ -786,6 +798,7 @@ async function runStructuredResponseWithRepair({
   const initialResponse = await runProviderResponse({
     plan,
     agent,
+    agentId,
     contract,
     systemPrompt,
     messages,
@@ -811,6 +824,7 @@ async function runStructuredResponseWithRepair({
   const retryResponse = await runProviderResponse({
     plan,
     agent,
+    agentId,
     contract,
     systemPrompt: {
       ...systemPrompt,
@@ -839,6 +853,7 @@ async function runStructuredResponseWithRepair({
   const repairResponse = await runProviderResponse({
     plan,
     agent,
+    agentId,
     contract,
     systemPrompt,
     messages: [],
@@ -976,14 +991,19 @@ async function* streamOpenAIResponse({ plan, systemPrompt, messages, userMessage
  * Decide whether to attach Gemini's google_search_retrieval tool.
  * Enabled when the agent contract allows live_web_research or runs on the
  * grounded_research policy, AND the routed model supports search grounding.
+ * Restricted to SCOUT, ORACLE, and SAGE — the three agents specifically
+ * intended for live web research synthesis.
  */
-function shouldUseGeminiGrounding(plan, contract) {
+const GROUNDING_ELIGIBLE_AGENTS = new Set(['scout', 'oracle', 'sage']);
+
+function shouldUseGeminiGrounding(plan, contract, agentId) {
   if (process.env.GEMINI_GROUNDING_ENABLED !== 'true') return false;
   if (!plan?.model || !plan.model.startsWith('gemini-')) return false;
   // Search-grounded responses are only supported on Gemini 2.x text models.
   // (Lite variants do not support grounding in current SDK.)
   if (plan.model.includes('-lite')) return false;
   if (!contract) return false;
+  if (agentId && !GROUNDING_ELIGIBLE_AGENTS.has(agentId)) return false;
   const policy = contract?.modelPolicy?.defaultPolicy ?? null;
   const allowsLiveWeb = Array.isArray(contract.allowedTools)
     && contract.allowedTools.includes('live_web_research');
@@ -992,12 +1012,14 @@ function shouldUseGeminiGrounding(plan, contract) {
 }
 
 function buildGeminiGroundingTools(plan) {
-  // Gemini 2.x exposes the tool under googleSearchRetrieval; older keys remain
-  // accepted for backwards-compat. We pass both shapes guarded by version.
-  if (plan.model.startsWith('gemini-2.5')) {
+  // Gemini 2.x uses the googleSearch tool (no config options).
+  // Older models use googleSearchRetrieval with dynamic retrieval config
+  // (threshold 0.7 means grounding only fires when the model is confident
+  // the query benefits from live data).
+  if (plan.model.startsWith('gemini-2')) {
     return [{ googleSearch: {} }];
   }
-  return [{ googleSearchRetrieval: {} }];
+  return [{ googleSearchRetrieval: { dynamicRetrievalConfig: { mode: 'MODE_DYNAMIC', dynamicThreshold: 0.7 } } }];
 }
 
 function extractGeminiGroundingMetadata(response) {
@@ -1032,9 +1054,9 @@ function extractGeminiGroundingMetadata(response) {
   };
 }
 
-async function* streamGeminiResponse({ plan, contract, systemPrompt, messages, userMessage, maxTokens }) {
+async function* streamGeminiResponse({ plan, contract, agentId, systemPrompt, messages, userMessage, maxTokens }) {
   const client = getGeminiClient();
-  const useGrounding = shouldUseGeminiGrounding(plan, contract);
+  const useGrounding = shouldUseGeminiGrounding(plan, contract, agentId);
   let response = null;
   let streamedText = '';
 
@@ -1068,6 +1090,10 @@ async function* streamGeminiResponse({ plan, contract, systemPrompt, messages, u
     ? [...systemPrompt.sources, ...grounding.webSources]
     : systemPrompt.sources;
 
+  if (grounding?.webSources?.length) {
+    yield { type: 'grounding_sources', sources: grounding.webSources };
+  }
+
   yield {
     type: 'done',
     totalTokens: (response?.usageMetadata?.promptTokenCount ?? 0) + (response?.usageMetadata?.candidatesTokenCount ?? 0),
@@ -1091,9 +1117,9 @@ async function* streamGeminiResponse({ plan, contract, systemPrompt, messages, u
   };
 }
 
-async function runGeminiResponse({ plan, contract, systemPrompt, messages, userMessage, maxTokens }) {
+async function runGeminiResponse({ plan, contract, agentId, systemPrompt, messages, userMessage, maxTokens }) {
   const client = getGeminiClient();
-  const useGrounding = shouldUseGeminiGrounding(plan, contract);
+  const useGrounding = shouldUseGeminiGrounding(plan, contract, agentId);
   const result = await client.generateText({
     model: plan.model,
     systemInstruction: systemPrompt.text,
@@ -1297,7 +1323,7 @@ async function buildSystemPrompt({
         );
       }
     } catch (error) {
-      console.warn('[LLM] Skipping live web context:', error.message);
+      log.warn({ err: error }, 'llm.context.web_skipped');
     }
   }
 
@@ -1366,7 +1392,7 @@ async function buildSystemPrompt({
         );
       }
     } catch (error) {
-      console.warn('[LLM] Skipping LORE context:', error.message);
+      log.warn({ err: error }, 'llm.context.lore_skipped');
     }
   }
 
@@ -1479,7 +1505,7 @@ async function buildSystemPrompt({
         sections.push(successPrompt);
       }
     } catch (error) {
-      console.warn('[LLM] Skipping LORE feedback patterns:', error.message);
+      log.warn({ err: error }, 'llm.context.lore_patterns_skipped');
     }
   }
 

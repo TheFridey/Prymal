@@ -302,6 +302,65 @@ If you want a VPS staging environment, keep it isolated:
 - separate systemd unit such as `prymal-backend-staging`
 - separate Cloudinary folder such as `prymal-staging`
 
+## Docker Compose Production Stack
+
+`docker-compose.prod.yml` runs four services — `prymal-db`, `prymal-api`, `prymal-frontend`, and `prymal-proxy` — all on an isolated `prymal-net` bridge network. The proxy is the only container with exposed ports (80 and 443).
+
+### Prerequisites
+
+- Docker and Docker Compose v2 installed on the VPS
+- Domain pointed at the VPS IP
+- certbot SSL certificate already issued: `sudo certbot certonly --standalone -d prymal.io -d www.prymal.io`
+- `backend/.env.prod` created from `backend/.env.example` with all real production values and `DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@prymal-db:5432/prymal`
+
+### Required env vars at the compose level
+
+Create a `.env` file at the repo root (or export these in the shell) before running compose:
+
+```bash
+DB_USER=prymal
+DB_PASSWORD=<strong-password>
+VITE_CLERK_PUBLISHABLE_KEY=pk_live_...
+VITE_API_URL=https://prymal.io
+VITE_SENTRY_DSN=https://...@sentry.io/...
+```
+
+### Deploy
+
+```bash
+# From repo root on the VPS:
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml build --no-cache
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml ps
+# All 4 services should show healthy/running
+```
+
+### Run migrations
+
+```bash
+docker exec prymal-api npm run migrate
+```
+
+### View logs
+
+```bash
+docker compose -f docker-compose.prod.yml logs -f prymal-api
+docker compose -f docker-compose.prod.yml logs -f prymal-proxy
+```
+
+### Restart a service
+
+```bash
+docker compose -f docker-compose.prod.yml restart prymal-api
+```
+
+### Stop the stack
+
+```bash
+docker compose -f docker-compose.prod.yml down
+```
+
 ## Related Docs
 
 - `docs/vps-security-hardening.md`

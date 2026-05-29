@@ -8,6 +8,9 @@
 import { getAgent } from '../agents/config.js';
 import { getAgentEnforcement, getAgentTraceFields } from '../agents/contracts.js';
 import { buildRuntimeContractSummary, getRuntimeAgentContract } from '../agents/runtime.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'agent-runner' });
 import { evaluateAgentOutput } from './evals.js';
 import { streamAgentResponse } from './llm.js';
 import { classifyLLMFailure, recordLLMExecutionTrace } from './llm-observability.js';
@@ -158,7 +161,7 @@ export async function* runAgentChat({
           userMessage,
         });
       } catch (memErr) {
-        console.warn('[AGENT-RUNNER] Memory extraction failed:', memErr.message);
+        log.warn({ err: memErr }, 'agent_runner.memory_extraction_failed');
       }
     }
 
@@ -182,7 +185,7 @@ export async function* runAgentChat({
           memoryFeedback: write.memoryFeedback ?? [],
         }))];
       } catch (memErr) {
-        console.warn('[AGENT-RUNNER] Context memory persistence failed:', memErr.message);
+        log.warn({ err: memErr }, 'agent_runner.memory_persistence_failed');
       }
     }
 
@@ -435,9 +438,7 @@ function gateExtendedThinking(agent, orgPlan) {
   const allowed = EXTENDED_THINKING_PLANS.has(orgPlan);
 
   if (!allowed) {
-    console.info(
-      `[AGENT-RUNNER] Extended thinking disabled for ${agent.id} on plan '${orgPlan}'.`,
-    );
+    log.info({ agent_id: agent.id, org_plan: orgPlan }, 'agent_runner.extended_thinking_disabled');
   }
 
   return allowed;

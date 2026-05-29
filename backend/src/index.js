@@ -1,12 +1,15 @@
 import { initSentry, captureException } from './lib/sentry.js';
+import { logger } from './lib/logger.js';
 initSentry();
 
 import { serve } from '@hono/node-server';
 import { clerkMiddleware, getAuth } from '@hono/clerk-auth';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { logger } from 'hono/logger';
+import { logger as honoRequestLogger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
+import { apiReference } from '@scalar/hono-api-reference';
+import { openApiSpec } from './lib/openapi.js';
 import { timing } from 'hono/timing';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
@@ -92,7 +95,7 @@ function isEarlyUser(userId, org) {
 
 app.use('*', timing());
 app.use('*', requestContext());
-app.use('*', logger());
+app.use('*', honoRequestLogger());
 app.use('*', prettyJSON());
 app.use('*', securityHeaders());
 app.use(
@@ -114,6 +117,17 @@ app.get('/health', (context) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// Public docs endpoints — no auth required
+app.get('/api/openapi.json', (context) => context.json(openApiSpec));
+app.get(
+  '/api/docs',
+  apiReference({
+    spec: { url: '/api/openapi.json' },
+    theme: 'purple',
+    pageTitle: 'Prymal API Reference',
+  }),
+);
 
 app.use(
   '/api/*',
@@ -249,22 +263,21 @@ app.onError((error, context) => {
     ? 'Something went wrong — try again.'
     : error.message || 'Something went wrong — try again.';
 
-  console.error(JSON.stringify({
+  logger.error({
     event: 'request_failed',
-    requestId,
-    userId,
-    orgId,
+    request_id: requestId,
+    user_id: userId,
+    org_id: orgId,
     provider,
-    errorType,
-    earlyUser: isEarlyUser(userId, org),
+    error_type: errorType,
+    early_user: isEarlyUser(userId, org),
     method: context.req.method,
     path: context.req.path,
     status,
     code,
     message: safeErrorMessage,
     stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
-    timestamp: new Date().toISOString(),
-  }));
+  }, 'request.failed');
 
   captureException(error, {
     path: context.req.path,
@@ -302,18 +315,18 @@ if (isMainModule) {
       port,
     },
     async (info) => {
-      console.log(`Prymal API listening on http://localhost:${info.port}`);
+      logger.info({ port: info.port }, 'server.started');
 
       if (!hasTriggerDevConfig()) {
         if (!isInlineSchedulerEnabled(process.env)) {
-          console.log('[SCHEDULER] Inline scheduler is disabled for this process.');
+          logger.info('scheduler.disabled');
           return;
         }
 
         try {
           await startInlineScheduler(db);
         } catch (error) {
-          console.error('[SCHEDULER] Failed to start inline scheduler:', error.message);
+          logger.error({ err: error }, 'scheduler.start_failed');
         }
       }
     },

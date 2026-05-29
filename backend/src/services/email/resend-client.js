@@ -1,6 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { logger } from '../../lib/logger.js';
+
+const log = logger.child({ component: 'resend-client' });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
@@ -96,7 +99,7 @@ export async function buildInlineAssetAttachments(html = '', env = process.env) 
         content_id: asset.cid,
       });
     } catch (error) {
-      console.warn(`[EMAIL] Inline asset missing: ${asset.filename} (${error.message})`);
+      log.warn({ err: error, filename: asset.filename }, 'email.inline_asset_missing');
     }
   }
 

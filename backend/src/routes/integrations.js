@@ -1,6 +1,9 @@
 import { and, eq } from 'drizzle-orm';
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'integrations' });
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { integrations } from '../db/schema.js';
@@ -276,7 +279,7 @@ router.get('/:service/callback', integrationAuthRateLimit, async (context) => {
 
     return context.redirect(`${process.env.FRONTEND_URL}/app/integrations?connected=${service}`);
   } catch (exchangeError) {
-    console.error('[INTEGRATIONS] OAuth callback failed:', redactSensitiveText(exchangeError?.message || 'OAuth callback failed.'));
+    log.error({ message: redactSensitiveText(exchangeError?.message || 'OAuth callback failed.') }, 'integrations.oauth_callback_failed');
     return context.redirect(`${process.env.FRONTEND_URL}/app/integrations?error=oauth_failed`);
   }
 });

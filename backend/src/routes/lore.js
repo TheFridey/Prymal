@@ -1,6 +1,9 @@
 import { zValidator } from '@hono/zod-validator';
 import { and, count, desc, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'lore' });
 import { z } from 'zod';
 import { AGENT_IDS } from '../agents/config.js';
 import { db } from '../db/index.js';
@@ -191,7 +194,7 @@ router.post('/text', requireOrg, loreIngestRateLimit, zValidator('json', uploadT
     content: safeContent,
     metadata: document.metadata,
   }).catch((error) => {
-    console.error('[LORE] Text ingest failed:', error.message);
+    log.error({ err: error }, 'lore.text_ingest_failed');
   });
 
   await maybeRecordFirstLoreDocument({
@@ -279,7 +282,7 @@ router.post('/upload', requireOrg, loreIngestRateLimit, async (context) => {
     content: uploadSafety.sanitizedText,
     metadata: document.metadata,
   }).catch((error) => {
-    console.error('[LORE] Upload ingest failed:', error.message);
+    log.error({ err: error }, 'lore.upload_ingest_failed');
   });
 
   await maybeRecordFirstLoreDocument({
@@ -377,7 +380,7 @@ router.post('/crawl', requireOrg, loreIngestRateLimit, zValidator('json', crawlS
     content: preparedUrl.sanitizedText,
     metadata: document.metadata,
   }).catch((error) => {
-    console.error('[LORE] URL ingest failed:', error.message);
+    log.error({ err: error }, 'lore.url_ingest_failed');
   });
 
   await maybeRecordFirstLoreDocument({
@@ -472,7 +475,7 @@ router.post('/:id/reindex', requireOrg, loreReindexRateLimit, async (context) =>
     content: document.rawContent,
     metadata: document.metadata,
   }).catch((error) => {
-    console.error('[LORE] Reindex failed:', error.message);
+    log.error({ err: error }, 'lore.reindex_failed');
   });
 
   return context.json({ message: 'Re-indexing started.' });
@@ -546,7 +549,7 @@ async function runContradictionCheckSafely({ orgId, newContent, documentId, sour
       throw error;
     }
 
-    console.warn(`[LORE] ${sourceLabel} contradiction pre-check skipped:`, error.message);
+    log.warn({ err: error, source: sourceLabel }, 'lore.contradiction_check_skipped');
     return [];
   }
 }

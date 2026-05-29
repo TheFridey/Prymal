@@ -3,6 +3,9 @@ import {
   claimAndProcessNextVideoJobs,
   isVideoWorkerEnabled,
 } from '../services/video-generation.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'video-worker' });
 
 const DEFAULT_POLL_MS = 5_000;
 const DEFAULT_BATCH_SIZE = 3;
@@ -34,9 +37,7 @@ export async function runVideoWorkerLoop(options = {}) {
   const sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const shouldStop = options.shouldStop ?? (() => false);
 
-  console.log(
-    `[VIDEO WORKER] Starting loop (poll=${pollMs}ms, batchSize=${readBatchSize(env)}, enabled=${isVideoWorkerEnabled(env)})`,
-  );
+  log.info({ poll_ms: pollMs, batch_size: readBatchSize(env), enabled: isVideoWorkerEnabled(env) }, 'video_worker.loop_started');
 
   while (!shouldStop()) {
     const startedAt = Date.now();
@@ -44,10 +45,10 @@ export async function runVideoWorkerLoop(options = {}) {
     try {
       const result = await runVideoWorkerTick(options);
       if (result?.claimed > 0) {
-        console.log(`[VIDEO WORKER] Tick claimed ${result.claimed}/${result.candidates} jobs.`);
+        log.info({ claimed: result.claimed, candidates: result.candidates }, 'video_worker.tick_claimed');
       }
     } catch (error) {
-      console.error('[VIDEO WORKER] Tick failed:', error?.message ?? error);
+      log.error({ err: error }, 'video_worker.tick_failed');
     }
 
     const elapsed = Date.now() - startedAt;
@@ -60,7 +61,7 @@ async function main() {
   try {
     await runVideoWorkerLoop();
   } catch (error) {
-    console.error('[VIDEO WORKER] Fatal error:', error?.message ?? error);
+    log.error({ err: error }, 'video_worker.fatal_error');
     process.exitCode = 1;
   }
 }

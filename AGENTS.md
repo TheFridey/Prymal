@@ -64,6 +64,7 @@ node --check src/routes/workflows.js
 
 ## Product honesty
 
+- Gemini live grounding via `google_search_retrieval` is active for SCOUT, ORACLE, and SAGE on the `grounded_research` policy lane when `GEMINI_GROUNDING_ENABLED=true`. Other agents (including LORE) do not receive Gemini grounding. Older Gemini models use dynamic mode with threshold 0.7; Gemini 2.x uses `googleSearch` which always grounds.
 - LORE currently supports pasted text, crawled URLs, `.txt`, `.md`, `.markdown`, `.csv`, `.pdf`, and `.docx`.
 - Trigger.dev is optional. Scheduled workflows must not be presented as active unless Trigger.dev is configured.
 - API keys are real and Agency-only.

@@ -1,4 +1,7 @@
 import { auditLogs, emailQueue } from '../db/schema.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'wren-escalation' });
 
 const LEGAL_PATTERN =
   /\b(?:solicitor|attorney|legal action|sue|lawsuit|trading standards|financial ombudsman|small claims|court)\b/i;
@@ -75,7 +78,7 @@ export async function dispatchWrenEscalation({
   const escalationEmail = process.env.WREN_ESCALATION_EMAIL?.trim();
 
   if (!escalationEmail) {
-    console.warn('[WREN] WREN_ESCALATION_EMAIL is not configured - escalation will not be dispatched.');
+    log.warn('wren.escalation_email_not_configured');
     return { dispatched: false };
   }
 
@@ -126,7 +129,7 @@ export async function dispatchWrenEscalation({
 
     return { dispatched: true };
   } catch (error) {
-    console.error('[WREN] Failed to dispatch escalation:', error.message);
+    log.error({ err: error }, 'wren.escalation_dispatch_failed');
     return { dispatched: false };
   }
 }

@@ -1,6 +1,9 @@
 import { zValidator } from '@hono/zod-validator';
 import { and, desc, eq, ilike, or } from 'drizzle-orm';
 import { Hono } from 'hono';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'memory-routes' });
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { agentMemory, memoryContradictionGroups } from '../db/schema.js';
@@ -97,7 +100,7 @@ router.get('/', requireOrg, async (context) => {
 
     return context.json({ memory: filtered.map((row) => enrichMemoryRow(row)) });
   } catch (error) {
-    console.error('[memory] GET / failed:', error?.message ?? error);
+    log.error({ err: error }, 'memory.list_failed');
     return context.json(
       {
         error: 'Memory inventory is unavailable. Ensure PostgreSQL is running and database migrations are applied.',
@@ -148,7 +151,7 @@ router.get('/caps-stats', requireOrg, async (context) => {
 
     return context.json({ caps: MEMORY_CAPS_BY_TYPE, counts });
   } catch (error) {
-    console.error('[memory] GET /caps-stats failed:', error?.message ?? error);
+    log.error({ err: error }, 'memory.caps_stats_failed');
     return context.json(
       {
         error: 'Memory caps are unavailable. Ensure PostgreSQL is running and database migrations are applied.',

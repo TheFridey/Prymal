@@ -490,6 +490,7 @@ export function useChatSend({
 
     try {
       let fullText = '';
+      let groundingSourcesBuffer = [];
       const response = await api.stream('/agents/chat', {
         method: 'POST',
         body: {
@@ -517,6 +518,9 @@ export function useChatSend({
         onChunk: (text) => {
           fullText += text;
           setStreamingText((current) => current + text);
+        },
+        onGroundingSources: (event) => {
+          groundingSourcesBuffer = event.sources ?? [];
         },
         onHold: (event) => {
           void trackProductEvent('sentinel_hold_seen', {
@@ -572,6 +576,7 @@ export function useChatSend({
               sentinelReview: event.sentinelReview ?? null,
               enforcementSummary: event.enforcementSummary ?? null,
               geminiGrounding: event.geminiGrounding ?? null,
+              groundingSources: groundingSourcesBuffer.length > 0 ? groundingSourcesBuffer : null,
               metadata: {
                 sources: event.sources ?? [],
                 schemaValidation: event.schemaValidation ?? null,

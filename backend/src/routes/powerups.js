@@ -2,6 +2,9 @@ import { zValidator } from '@hono/zod-validator';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'powerups' });
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { powerups as powerupsTable } from '../db/schema.js';
@@ -158,7 +161,7 @@ router.post('/run', requireOrg, zValidator('json', runSchema), async (context) =
             slug,
             route: '/powerups/run',
           },
-        }).catch((releaseError) => console.error('[POWERUPS] Failed to release execution reservation:', releaseError.message));
+        }).catch((releaseError) => log.error({ err: releaseError }, 'billing.release_powerup_failed'));
       }
 
       await stream.writeSSE({

@@ -187,6 +187,51 @@ Stripe uses recurring Prices for plan subscriptions and one-time Prices for cred
 
 Live Stripe Prices for Founding Access and preferred usage packs were provisioned during the launch-readiness pass. Keep actual Price IDs in environment variables only, not in public docs or customer-facing changelog copy.
 
+## API & SDK (Agency plan)
+
+Agency-plan organisations can access the full Prymal platform programmatically.
+
+### Interactive API Reference
+
+Start the backend and visit `http://localhost:3001/api/docs` (dev) or `https://prymal.io/api/docs` (production) for the live Scalar API reference.
+
+The raw OpenAPI 3.1 spec is also served at `/api/openapi.json`.
+
+### TypeScript SDK
+
+The `@prymal/sdk` package (at `packages/sdk/`) is a typed client for the Prymal API.
+It requires an **Agency-plan API key** — generate one at `Settings → API Keys`.
+
+```ts
+import { PrymalClient } from '@prymal/sdk'
+
+const prymal = new PrymalClient({ apiKey: 'prym_live_your_key_here' })
+
+// Chat with an agent
+const response = await prymal.agents.chat({
+  agent_id: 'SCOUT',
+  message: 'Research the latest developments in agentic AI this week',
+})
+console.log(response.content)
+
+// Run a workflow
+const run = await prymal.workflows.run('workflow-uuid-here')
+console.log(run.status) // 'queued'
+
+// Search LORE
+const results = await prymal.lore.search('competitive positioning', { limit: 5 })
+results.forEach(r => console.log(r.document_title, r.similarity))
+
+// Write to memory
+await prymal.memory.write({
+  key: 'target_market',
+  value: 'B2B SaaS companies with 10-200 employees',
+  scope: 'org',
+})
+```
+
+The SDK source is in [`packages/sdk/src/index.ts`](packages/sdk/src/index.ts). Build it with `npm run build` inside that directory. It is not yet published to npm.
+
 ## Local Development
 
 ### 1. Database

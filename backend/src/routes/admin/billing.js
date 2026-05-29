@@ -2,6 +2,9 @@
 import Stripe from 'stripe';
 import { desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
+import { logger } from '../../lib/logger.js';
+
+const log = logger.child({ component: 'admin-billing' });
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../../db/index.js';
@@ -146,7 +149,7 @@ router.get('/revenue', requireStaff, requireStaffPermission('admin.billing.read'
       monthlyRevenueSeries = Array.from(buckets.values());
     } catch (error) {
       stripeConfigured = false;
-      console.error('[ADMIN REVENUE] Stripe fetch failed:', error.message);
+      log.error({ err: error }, 'admin.stripe_fetch_failed');
     }
   }
 

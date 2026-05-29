@@ -1,4 +1,7 @@
 import { getEnvironmentMode } from '../env/parse.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'rate-limit' });
 
 const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_MAX = 10;
@@ -67,7 +70,7 @@ class UpstashRateLimitStore {
     } catch (error) {
       if (!warnedAboutUpstash) {
         warnedAboutUpstash = true;
-        console.warn(`${UPSTASH_WARNING_PREFIX} Redis-backed limiting failed, falling back to memory:`, error.message);
+        log.warn({ err: error }, 'rate_limit.redis_failed');
       }
 
       return this.fallbackStore.increment(key, windowMs);
@@ -115,7 +118,7 @@ function createDefaultStore() {
   const mode = getEnvironmentMode(process.env.NODE_ENV);
   if ((mode === 'staging' || mode === 'production') && !warnedAboutProductionMemoryStore) {
     warnedAboutProductionMemoryStore = true;
-    console.warn(`${UPSTASH_WARNING_PREFIX} Redis-backed limiting is not configured in ${mode}; falling back to process-local memory counters.`);
+    log.warn({ mode }, 'rate_limit.redis_not_configured');
   }
 
   lastResolvedStoreKind = 'memory';

@@ -6,6 +6,9 @@
 import Stripe from 'stripe';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/index.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'founder-stripe-enforcement' });
 import { foundingAccessClaims, organisations, subscriptions } from '../db/schema.js';
 import { hasConfiguredStripe } from '../env.js';
 import { FOUNDING_ACCESS_OFFER_KEY } from './founding-access.js';
@@ -147,15 +150,7 @@ export async function enforceFounderStandardStripePricing({ orgId }) {
     },
   });
 
-  console.warn(
-    JSON.stringify({
-      level: 'warn',
-      event: 'founding.stripe_standard_price_applied',
-      orgId,
-      targetPrice,
-      priorPrice: currentPriceId,
-    }),
-  );
+  log.warn({ org_id: orgId, target_price: targetPrice, prior_price: currentPriceId }, 'founding.stripe_standard_price_applied');
 
   return { applied: true, subscriptionId: stripeSub.id, targetPrice };
 }

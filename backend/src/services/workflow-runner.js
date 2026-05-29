@@ -6,6 +6,9 @@
 // ─────────────────────────────────────────────────────────────────
 
 import { getAgentContract } from '../agents/contracts.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'workflow-runner' });
 import { evaluateStructuredOutput } from './evals.js';
 import { executeWorkflowRun } from './workflow-engine.js';
 import { dispatchWorkflowRun } from '../queue/trigger.js';
@@ -105,7 +108,7 @@ export async function executeWorkflowRunWithValidation({ runId, workflow, orgCon
         message: `Node '${nodeId}' (${workflowNode.agentId}) output did not match the expected structured output schema '${contract.structuredOutput}'.`,
       };
       validationWarnings.push(warning);
-      console.warn('[WORKFLOW-RUNNER]', warning.message);
+      log.warn({ message: warning.message }, 'workflow_runner.validation_warning');
     }
   }
 

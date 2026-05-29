@@ -3,13 +3,14 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 import { fileURLToPath } from 'node:url';
+import { logger } from '../lib/logger.js';
 
 bootstrapRuntimeEnv();
 
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  console.error('DATABASE_URL is required to run migrations.');
+  logger.error('db.migrate.missing_url');
   process.exit(1);
 }
 
@@ -20,7 +21,7 @@ try {
   await migrate(db, {
     migrationsFolder: fileURLToPath(new URL('../../drizzle', import.meta.url)),
   });
-  console.log('Drizzle migrations applied.');
+  logger.info('db.migrate.applied');
 } finally {
   await client.end({ timeout: 5 });
 }

@@ -1,0 +1,35 @@
+{
+  "name": "@prymal/sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript SDK for the Prymal multi-agent AI API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "peerDependencies": {
+    "typescript": ">=5.0"
+  },
+  "keywords": ["prymal", "ai", "agents", "multi-agent", "api-client"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheFridey/Prymal"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

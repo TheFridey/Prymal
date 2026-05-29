@@ -1,6 +1,9 @@
 import { zValidator } from '@hono/zod-validator';
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'waitlist' });
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { waitlistEntries } from '../db/schema.js';
@@ -46,7 +49,7 @@ router.post('/', zValidator('json', waitlistSchema), async (context) => {
 
   // Fire-and-forget confirmation email — never block the 201 response
   sendWaitlistConfirmationEmail(entry.email).catch((error) => {
-    console.error('[EMAIL] Waitlist confirmation failed:', error.message);
+    log.error({ err: error }, 'email.waitlist_confirmation_failed');
   });
 
   return context.json({

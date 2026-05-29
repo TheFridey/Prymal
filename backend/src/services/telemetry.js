@@ -1,6 +1,9 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { adminActionLogs, auditLogs, productEvents } from '../db/schema.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'telemetry' });
 
 export async function recordAuditLog({
   orgId = null,
@@ -24,7 +27,7 @@ export async function recordAuditLog({
       metadata,
     });
   } catch (error) {
-    console.error('[AUDIT] Failed to persist audit log:', error.message);
+    log.error({ err: error }, 'telemetry.audit_log_failed');
   }
 }
 
@@ -46,7 +49,7 @@ export async function recordProductEvent({
       metadata,
     });
   } catch (error) {
-    console.error('[EVENTS] Failed to persist product event:', error.message);
+    log.error({ err: error }, 'telemetry.product_event_failed');
   }
 }
 
@@ -70,7 +73,7 @@ export async function recordProductEventOnce({
     if (existing.length > 0) return;
     await recordProductEvent({ orgId, userId, eventName, metadata });
   } catch (error) {
-    console.error('[EVENTS] Failed to persist one-time product event:', error.message);
+    log.error({ err: error }, 'telemetry.one_time_event_failed');
   }
 }
 
@@ -98,7 +101,7 @@ export async function maybeRecordFirstWinAggregate({ orgId, userId, pathKey, met
       metadata: { pathKey, ...metadata },
     });
   } catch (error) {
-    console.error('[EVENTS] first_win.completed failed:', error.message);
+    log.error({ err: error }, 'telemetry.first_win_failed');
   }
 }
 
@@ -140,7 +143,7 @@ export async function recordAdminActionLog({
     }).returning();
     return row ?? null;
   } catch (error) {
-    console.error('[ADMIN ACTION] Failed to persist admin action log:', error.message);
+    log.error({ err: error }, 'telemetry.admin_action_log_failed');
     return null;
   }
 }

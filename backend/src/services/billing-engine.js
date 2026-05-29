@@ -1,5 +1,8 @@
 import { and, eq, gte, lt, notInArray, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'billing-engine' });
 import {
   creditLedgerExecution,
   creditLedgerVideo,
@@ -930,16 +933,7 @@ export async function commitVideoJob({
           thresholdUsd: SOLO_VIDEO_SPIKE_WARN_USD,
         },
       });
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'solo_video.cost_spike_flagged',
-          orgId: job.orgId,
-          userId: job.userId,
-          videoJobId: job.id,
-          estimatedCostUsd,
-        }),
-      );
+      log.warn({ org_id: job.orgId, user_id: job.userId, video_job_id: job.id, estimated_cost_usd: estimatedCostUsd }, 'billing.solo_video_cost_spike');
     }
 
     return { job: updatedJob, threshold, subscription: nextSubscription };

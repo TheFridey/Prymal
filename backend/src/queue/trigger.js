@@ -1,5 +1,8 @@
 import { executeWorkflowRunWithValidation } from '../services/workflow-runner.js';
 import { registerSchedule, deregisterSchedule } from '../services/inline-scheduler.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'trigger' });
 
 const DEFAULT_TRIGGER_API_URL = 'https://api.trigger.dev';
 
@@ -63,7 +66,7 @@ export async function dispatchWorkflowRun({ runId, workflow, orgContext }) {
       try {
         await executeWorkflowRunWithValidation({ runId, workflow, orgContext });
       } catch (error) {
-        console.error('[WORKFLOW] Inline execution failed:', error.message);
+        log.error({ err: error, run_id: runId }, 'workflow.inline_execution_failed');
       }
     });
 
@@ -92,7 +95,7 @@ export async function registerCron(workflowId, cronExpression, handler) {
     return;
   }
 
-  console.log(`[TRIGGER] Schedule registration is managed by Trigger.dev for workflow ${workflowId}: ${cronExpression}`);
+  log.info({ workflow_id: workflowId, cron: cronExpression }, 'trigger.schedule_managed_by_trigger_dev');
 }
 
 export async function unregisterCron(workflowId) {
@@ -101,7 +104,7 @@ export async function unregisterCron(workflowId) {
     return;
   }
 
-  console.log(`[TRIGGER] Schedule cleanup requested for workflow ${workflowId}.`);
+  log.info({ workflow_id: workflowId }, 'trigger.schedule_cleanup_managed_by_trigger_dev');
 }
 
 export const trigger = {

@@ -8,6 +8,9 @@
 import cron from 'node-cron';
 import { and, eq } from 'drizzle-orm';
 import { getEnvironmentMode } from '../env/parse.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'scheduler' });
 import { organisations, workflowRuns, workflows } from '../db/schema.js';
 import { getBillingSnapshotForOrg } from './billing-engine.js';
 
@@ -58,7 +61,7 @@ export function registerSchedule(workflowId, cronExpression, handler) {
   }
 
   if (!cron.validate(cronExpression)) {
-    console.warn(`[SCHEDULER] Invalid cron expression "${cronExpression}" for workflow ${workflowId} — skipping.`);
+    log.warn({ workflow_id: workflowId, cron: cronExpression }, 'scheduler.invalid_cron');
     return;
   }
 
@@ -66,7 +69,7 @@ export function registerSchedule(workflowId, cronExpression, handler) {
     try {
       await handler();
     } catch (error) {
-      console.error(`[SCHEDULER] Cron handler failed for workflow ${workflowId}:`, error.message);
+      log.error({ err: error, workflow_id: workflowId }, 'scheduler.cron_handler_failed');
     }
   });
 
@@ -76,7 +79,7 @@ export function registerSchedule(workflowId, cronExpression, handler) {
     registeredAt: new Date(),
   });
 
-  console.log(`[SCHEDULER] Registered schedule for workflow ${workflowId}: ${cronExpression}`);
+  log.info({ workflow_id: workflowId, cron: cronExpression }, 'scheduler.registered');
 }
 
 /**
@@ -88,7 +91,7 @@ export function deregisterSchedule(workflowId) {
   if (entry) {
     entry.task.stop();
     registry.delete(workflowId);
-    console.log(`[SCHEDULER] Deregistered schedule for workflow ${workflowId}.`);
+    log.info({ workflow_id: workflowId }, 'scheduler.deregistered');
   }
 }
 
@@ -115,7 +118,7 @@ export async function buildScheduledWorkflowOrgContext(workflow, runtimeDb, opti
 
   const loadBillingSnapshot = options.getBillingSnapshotForOrg ?? getBillingSnapshotForOrg;
   const billingSnapshot = await loadBillingSnapshot(organisation.id).catch((error) => {
-    console.error('[SCHEDULER] Failed to load billing snapshot for scheduled workflow:', error.message);
+    log.error({ err: error, workflow_id: workflow.id, org_id: workflow.orgId }, 'scheduler.billing_snapshot_failed');
     return null;
   });
 
@@ -185,7 +188,7 @@ export function createScheduledWorkflowRunHandler(workflow, options = {}) {
  * @returns {{ stop: () => void }}
  */
 export async function startInlineScheduler(db) {
-  console.log('[SCHEDULER] Starting inline cron scheduler...');
+  log.info('scheduler.starting');
 
   let scheduledWorkflows = [];
 
@@ -197,7 +200,7 @@ export async function startInlineScheduler(db) {
       ),
     });
   } catch (error) {
-    console.error('[SCHEDULER] Failed to load scheduled workflows from DB:', error.message);
+    log.error({ err: error }, 'scheduler.db_load_failed');
   }
 
   let registered = 0;
@@ -205,7 +208,7 @@ export async function startInlineScheduler(db) {
   for (const workflow of scheduledWorkflows) {
     const cronExpression = workflow.triggerConfig?.cron;
     if (!cronExpression) {
-      console.warn(`[SCHEDULER] Workflow ${workflow.id} has no cron expression — skipping.`);
+      log.warn({ workflow_id: workflow.id }, 'scheduler.missing_cron');
       continue;
     }
 
@@ -214,14 +217,14 @@ export async function startInlineScheduler(db) {
     registered += 1;
   }
 
-  console.log(`[SCHEDULER] Inline scheduler ready. ${registered} schedule(s) registered.`);
+  log.info({ registered }, 'scheduler.ready');
 
   return {
     stop() {
       for (const [workflowId] of registry.entries()) {
         deregisterSchedule(workflowId);
       }
-      console.log('[SCHEDULER] Inline scheduler stopped.');
+      log.info('scheduler.stopped');
     },
   };
 }

@@ -1,6 +1,9 @@
 // routes/admin/support.js
 import { and, asc, desc, eq, isNull, lte } from 'drizzle-orm';
 import { Hono } from 'hono';
+import { logger } from '../../lib/logger.js';
+
+const log = logger.child({ component: 'admin-support' });
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../../db/index.js';
@@ -158,7 +161,7 @@ router.post('/process-email-queue', requireStaff, requireStaffPermission('admin.
       await db.update(emailQueue).set({ sentAt: new Date() }).where(eq(emailQueue.id, entry.id));
       sent += 1;
     } catch (error) {
-      console.error(`[EMAIL QUEUE] Failed to send ${entry.id}:`, error.message);
+      log.error({ err: error, entry_id: entry.id }, 'email_queue.send_failed');
       failed += 1;
     }
   }

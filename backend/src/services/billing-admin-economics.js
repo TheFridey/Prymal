@@ -4,6 +4,9 @@
 
 import { sql } from 'drizzle-orm';
 import { getMonthlyInternalBurnCapGbp } from './billing-catalog.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'billing-economics' });
 import { getBillingPeriodWindow } from './billing-periods.js';
 
 const PLAN_ORDER = ['free', 'solo', 'pro', 'teams', 'agency'];
@@ -241,13 +244,7 @@ export async function enrichAdminEconomicsDashboard(db, params) {
       estimatedBurnGbp: Number(r.burn ?? 0) || 0,
     }));
   } catch (e) {
-    console.warn(
-      JSON.stringify({
-        level: 'warn',
-        event: 'admin.economics.ledger_query_failed',
-        message: e?.message ?? String(e),
-      }),
-    );
+    log.warn({ err: e }, 'admin.economics.ledger_query_failed');
   }
 
   const grossContributionGbp = estimatedMrrTotalGbp - rollUpEstimatedProviderCostGbp;

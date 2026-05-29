@@ -5,6 +5,7 @@
 
 import { bootstrapRuntimeEnv } from '../env.js';
 import { drizzle }  from 'drizzle-orm/postgres-js';
+import { logger } from '../lib/logger.js';
 import postgres     from 'postgres';
 import * as schema  from './schema.js';
 
@@ -35,7 +36,7 @@ export async function checkDbConnection() {
     await client`SELECT 1`;
     return true;
   } catch (err) {
-    console.error('[DB] Connection failed:', err.message);
+    logger.error({ err }, 'db.connection_failed');
     return false;
   }
 }

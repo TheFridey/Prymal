@@ -1,6 +1,9 @@
 import * as Sentry from '@sentry/node';
 import { db } from '../db/index.js';
 import { llmExecutionTraces } from '../db/schema.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'llm-observability' });
 import { recordProviderRoutingOutcome } from './model-capabilities.js';
 
 const DEFAULT_MODEL_COSTS = {
@@ -113,7 +116,7 @@ export async function recordLLMExecutionTrace({
       });
     }
   } catch (error) {
-    console.error('[LLM TRACE] Failed to persist trace:', error.message);
+    log.error({ err: error }, 'llm_observability.trace_persist_failed');
   }
 }
 
@@ -174,7 +177,7 @@ function getOverrideCosts() {
   try {
     return JSON.parse(raw);
   } catch (error) {
-    console.error('[LLM TRACE] MODEL_COST_OVERRIDES is invalid JSON:', error.message);
+    log.error({ err: error }, 'llm_observability.cost_overrides_invalid_json');
     return {};
   }
 }

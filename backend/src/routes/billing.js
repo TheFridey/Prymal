@@ -1,5 +1,8 @@
 import { count, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'billing' });
 import Stripe from 'stripe';
 import { z } from 'zod';
 import { db } from '../db/index.js';
@@ -145,13 +148,7 @@ router.post('/checkout', requireOrg, requireRole('owner', 'admin'), billingMutat
   }
 
   if (isForbiddenNewSubscriptionAgencyPriceId(priceId)) {
-    console.warn(
-      JSON.stringify({
-        event: 'billing.checkout_blocked_legacy_agency_price',
-        orgId: org.orgId,
-        priceId,
-      }),
-    );
+    log.warn({ org_id: org.orgId, price_id: priceId }, 'billing.checkout_blocked_legacy_agency_price');
     return context.json(
       { error: 'This subscription price is not available for new signups.', code: 'LEGACY_AGENCY_PRICE_FORBIDDEN' },
       403,
@@ -910,14 +907,7 @@ async function runFoundingStandardPriceEnforcement(orgId) {
   try {
     await enforceFounderStandardStripePricing({ orgId });
   } catch (e) {
-    console.warn(
-      JSON.stringify({
-        level: 'warn',
-        event: 'founding.standard_enforcement_failed',
-        orgId,
-        message: e?.message ?? String(e),
-      }),
-    );
+    log.warn({ err: e, org_id: orgId }, 'founding.standard_enforcement_failed');
   }
 }
 

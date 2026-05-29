@@ -1,4 +1,7 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'workflow-engine' });
 import { z } from 'zod';
 import { AGENT_IDS } from '../agents/config.js';
 import { db } from '../db/index.js';
@@ -342,7 +345,7 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
             workflowId: workflow.id,
             nodeId: node.id,
           },
-        }).catch((releaseError) => console.error('[WORKFLOW] Failed to release execution reservation:', releaseError.message));
+        }).catch((releaseError) => log.error({ err: releaseError, workflow_id: workflow.id, run_id: runId }, 'workflow.release_failed'));
         throw nodeError;
       }
 
@@ -503,7 +506,7 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
             sentinelVerdict: 'HOLD',
             repairAttempted: sentinelGate.repairAttempted,
           },
-        }).catch((err) => console.error('[WEBHOOK] Delivery error:', err.message));
+        }).catch((err) => log.error({ err, workflow_id: workflow.id, run_id: runId }, 'webhook.delivery_failed'));
 
         await emitWorkflowTimelineEvent({
           orgId: workflow.orgId,
@@ -633,7 +636,7 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
           outputVar: node.outputVar,
           nodeOutput: nodeOutputs[node.id],
         },
-      }).catch((err) => console.error('[WEBHOOK] Delivery error:', err.message));
+      }).catch((err) => log.error({ err, workflow_id: workflow.id, run_id: runId }, 'webhook.delivery_failed'));
 
       activeNode = null;
     }
@@ -662,7 +665,7 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
         creditsUsed: totalCredits,
         nodeOutputs,
       },
-    }).catch((err) => console.error('[WEBHOOK] Delivery error:', err.message));
+    }).catch((err) => log.error({ err, workflow_id: workflow.id, run_id: runId }, 'webhook.delivery_failed'));
 
     await emitWorkflowTimelineEvent({
       orgId: workflow.orgId,
@@ -738,7 +741,7 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
             error: error.message,
             failureClass,
           },
-        }).catch((err) => console.error('[WEBHOOK] Delivery error:', err.message));
+        }).catch((err) => log.error({ err, workflow_id: workflow.id, run_id: runId }, 'webhook.delivery_failed'));
       }
 
       await db
@@ -792,7 +795,7 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
           error: error.message,
           failureClass,
         },
-      }).catch((err) => console.error('[WEBHOOK] Delivery error:', err.message));
+      }).catch((err) => log.error({ err, workflow_id: workflow.id, run_id: runId }, 'webhook.delivery_failed'));
     }
 
     await deliverWorkflowWebhook({
@@ -807,7 +810,7 @@ export async function executeWorkflowRun({ runId, workflow, orgContext }) {
         error: error.message,
         failureClass,
       },
-    }).catch((err) => console.error('[WEBHOOK] Delivery error:', err.message));
+    }).catch((err) => log.error({ err, workflow_id: workflow.id, run_id: runId }, 'webhook.delivery_failed'));
 
     await emitWorkflowTimelineEvent({
       orgId: orgContext.orgId,
@@ -1034,7 +1037,7 @@ function queueWorkflowRetry({ runId, workflow, orgContext }) {
       const { dispatchWorkflowRun } = await import('../queue/trigger.js');
       await dispatchWorkflowRun({ runId, workflow, orgContext });
     } catch (error) {
-      console.error('[WORKFLOW] Retry dispatch failed:', error.message);
+      log.error({ err: error, run_id: runId }, 'workflow.retry_dispatch_failed');
     }
   });
 }

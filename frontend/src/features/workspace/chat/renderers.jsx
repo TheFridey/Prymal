@@ -8,8 +8,10 @@ import {
   EvidenceDrawer,
   GeneratedImageCard,
   GeneratedVideoCard,
+  GroundingSourcesPanel,
   SchemaValidationBadge,
   SentinelReviewBadge,
+  TrustGrammarPanel,
 } from './MessageArtifacts';
 import AgentMessageFeedback from './AgentMessageFeedback';
 import { buildMessagePresentation, tokenizeMarkdownWithTables } from './messagePresentation';
@@ -749,6 +751,9 @@ export function StudioMessage({
   const schemaValidation = message.schemaValidation ?? message.metadata?.schemaValidation ?? null;
   const sentinelReview = message.sentinelReview ?? message.metadata?.sentinelReview ?? null;
   const evidenceSummary = message.evidenceSummary ?? message.metadata?.evidenceSummary ?? null;
+  const enforcementSummary = message.enforcementSummary ?? message.metadata?.enforcementSummary ?? null;
+  const geminiGrounding = message.geminiGrounding ?? message.metadata?.geminiGrounding ?? null;
+  const groundingSources = message.groundingSources ?? null;
   const showThinkingState = streaming && !message.content.trim();
 
   // Normalize mixed markdown, embedded payloads, and tool traces once the response is complete.
@@ -826,6 +831,12 @@ export function StudioMessage({
             </MotionSection>
           ) : null}
         </MotionPresence>
+        {!isUser && !streaming ? (
+          <TrustGrammarPanel enforcementSummary={enforcementSummary} geminiGrounding={geminiGrounding} />
+        ) : null}
+        {!isUser && !streaming && groundingSources ? (
+          <GroundingSourcesPanel sources={groundingSources} />
+        ) : null}
         {generatedImages.length > 0 ? (
           <div className="workspace-studio__generated-row">
             {generatedImages.map((image, index) => (

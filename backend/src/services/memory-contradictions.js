@@ -1,5 +1,8 @@
 import { and, desc, eq, inArray, ne, notInArray, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'memory-contradictions' });
 import { agentMemory, memoryContradictionGroups } from '../db/schema.js';
 import { embedTextsForMemoryContrast } from './rag.js';
 import { relationOverlapRisk } from './memory-promotion.js';
@@ -286,7 +289,7 @@ export async function processContradictionsAfterUpsert({ orgId, memoryRow, agent
 
     return { conflicts: enriched, feedback, timelineInserted: true };
   } catch (error) {
-    console.warn('[MEMORY_CONTRADICTIONS]', error.message);
+    log.warn({ err: error }, 'memory.contradictions_failed');
     return { conflicts: [], feedback, timelineInserted: false };
   }
 }

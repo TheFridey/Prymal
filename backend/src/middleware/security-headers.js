@@ -1,3 +1,5 @@
+import { buildCSP } from './csp.js';
+
 export const DEFAULT_SECURITY_HEADERS = {
   'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
   'Cross-Origin-Resource-Policy': 'same-site',
@@ -33,6 +35,11 @@ export function securityHeaders(headers = DEFAULT_SECURITY_HEADERS) {
 
     if (isHttpsLikeRequest(context) && !context.res.headers.has('Strict-Transport-Security')) {
       context.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+
+    const ct = context.res.headers.get('Content-Type') ?? '';
+    if (!ct.includes('text/event-stream') && !context.res.headers.has('Content-Security-Policy')) {
+      context.header('Content-Security-Policy', buildCSP(process.env.NODE_ENV));
     }
   };
 }

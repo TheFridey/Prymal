@@ -3,6 +3,9 @@ import { zValidator } from '@hono/zod-validator';
 import { and, asc, count, desc, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { Webhook } from 'svix';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'auth-routes' });
 import { z } from 'zod';
 import { db } from '../db/index.js';
 import { apiKeys, conversations, emailQueue, organisationInvitations, organisations, referralCodes, referrals, users } from '../db/schema.js';
@@ -245,7 +248,7 @@ router.post('/onboard', zValidator('json', onboardSchema), async (context) => {
       orgId: organisation.id,
       userId: auth.userId,
     }).catch((error) => {
-      console.error('[EMAIL] Welcome email failed:', error.message);
+      log.error({ err: error }, 'email.welcome_failed');
     });
 
     // Day 3 and Day 7 — queue for later delivery
@@ -268,7 +271,7 @@ router.post('/onboard', zValidator('json', onboardSchema), async (context) => {
         },
       ])
       .catch((error) => {
-        console.error('[EMAIL] Queue insert failed:', error.message);
+        log.error({ err: error }, 'email.queue_insert_failed');
       });
   }
 
@@ -279,7 +282,7 @@ router.post('/onboard', zValidator('json', onboardSchema), async (context) => {
       refereeEmail: userEmail,
       refereeOrgId: organisation.id,
     }).catch((error) => {
-      console.error('[REFERRAL] Apply failed:', error.message);
+      log.error({ err: error }, 'referral.apply_failed');
     });
   }
 
@@ -313,7 +316,7 @@ router.get('/me', requireOrg, async (context) => {
     workflowTemplates: 0,
   };
   const learningPromise = getOrgLearningSnapshot({ orgId: org.orgId }).catch((error) => {
-    console.warn('[AUTH] Skipping learning metrics for /me:', error.message);
+    log.warn({ err: error }, 'auth.learning_metrics_skipped');
     return learningFallback;
   });
 

@@ -1,6 +1,9 @@
 import { renderTemplate } from './email-copy.js';
 import { findEmailEventByIdempotencyKey, recordEmailEvent } from './email-events.js';
 import { sendViaResend } from './resend-client.js';
+import { logger } from '../../lib/logger.js';
+
+const log = logger.child({ component: 'email-service' });
 
 export function buildEmailIdempotencyKey(type, parts = []) {
   return [type, ...parts.filter(Boolean)].join(':');
@@ -40,7 +43,7 @@ export async function sendEmail({
   try {
     if (idempotencyKey) {
       const existing = await findEmailEventByIdempotencyKey(idempotencyKey, { dbClient }).catch((error) => {
-        console.warn('[EMAIL] Failed to check email idempotency:', error.message);
+        log.warn({ err: error }, 'email.idempotency_check_failed');
         return null;
       });
       if (existing?.status === 'sent' || existing?.status === 'skipped') {
@@ -62,7 +65,7 @@ export async function sendEmail({
       metadata,
       dbClient,
     }).catch((error) => {
-      console.warn('[EMAIL] Failed to record email event:', error.message);
+      log.warn({ err: error }, 'email.record_event_failed');
       return null;
     });
 
@@ -80,11 +83,11 @@ export async function sendEmail({
       error: error.message,
       dbClient,
     }).catch((recordError) => {
-      console.warn('[EMAIL] Failed to record failed email event:', recordError.message);
+      log.warn({ err: recordError }, 'email.record_failure_event_failed');
       return null;
     });
 
-    console.warn('[EMAIL] Send failed:', error.message);
+    log.warn({ err: error }, 'email.send_failed');
     return { ok: false, skipped: false, error: error.message, event };
   }
 }

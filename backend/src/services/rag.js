@@ -1,6 +1,9 @@
 import { eq, sql } from 'drizzle-orm';
 import OpenAI from 'openai';
 import { db } from '../db/index.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'rag' });
 import { loreChunks, loreDocuments } from '../db/schema.js';
 import { formatUntrustedEvidenceBlock } from './warden/index.js';
 
@@ -580,7 +583,7 @@ export async function embedTextsForMemoryContrast(texts) {
   try {
     return await embedBatch(trimmed);
   } catch (error) {
-    console.warn('[RAG] Memory contrast embeddings skipped:', error.message);
+    log.warn({ err: error }, 'rag.memory_contrast_skipped');
     return null;
   }
 }

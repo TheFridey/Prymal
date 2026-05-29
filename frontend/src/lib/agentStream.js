@@ -43,6 +43,10 @@ export async function consumeAgentStream(response, handlers) {
       handlers.onHold?.(event);
       return;
     }
+    if (event.type === 'grounding_sources') {
+      handlers.onGroundingSources?.(event);
+      return;
+    }
     if (event.type === 'error') {
       terminalReceived = true;
       const error = new Error(event.message || 'Streaming failed.');

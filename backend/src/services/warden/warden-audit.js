@@ -1,6 +1,9 @@
 import { db } from '../../db/index.js';
 import { wardenAuditEvents } from '../../db/schema.js';
 import { hashContent } from './prompt-injection-detector.js';
+import { logger } from '../../lib/logger.js';
+
+const log = logger.child({ component: 'warden-audit' });
 
 export async function recordWardenAuditEvent({
   orgId = null,
@@ -49,7 +52,7 @@ export async function recordWardenAuditEvent({
 
     return event;
   } catch (error) {
-    console.warn('[WARDEN] Audit event could not be recorded:', error.message);
+    log.warn({ err: error }, 'warden.audit_record_failed');
     return {
       id: `warden-local-${Date.now()}`,
       fallback: true,

@@ -1,5 +1,8 @@
 import { getAuth } from '@hono/clerk-auth';
 import { and, eq } from 'drizzle-orm';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'auth' });
 import { db } from '../db/index.js';
 import { apiKeys, organisations, users } from '../db/schema.js';
 import { applyCreditAdjustment, getBillingSnapshotForOrg } from '../services/billing-engine.js';
@@ -20,14 +23,17 @@ function logDevSessionMissing(context, { label } = {}) {
   const bearer = authorization.startsWith('Bearer ');
   const pkPreview = process.env.CLERK_PUBLISHABLE_KEY?.trim().slice(0, 14) ?? '(unset)';
   const hasSecretKey = Boolean(process.env.CLERK_SECRET_KEY?.trim());
-  console.warn('[AUTH]', label ?? 'Clerk session', '—', context.req.method, context.req.path, {
-    authorizationHeader: bearer ? 'Bearer …' : 'missing',
-    clerkPublishableKeyPrefix: pkPreview,
-    clerkSecretKeySet: hasSecretKey,
+  log.warn({
+    label: label ?? 'Clerk session',
+    method: context.req.method,
+    path: context.req.path,
+    authorization_header: bearer ? 'Bearer …' : 'missing',
+    clerk_pk_prefix: pkPreview,
+    clerk_sk_set: hasSecretKey,
     hint: bearer
-      ? 'JWT was sent but Clerk did not accept it — use the same Clerk app keys on backend (.env CLERK_* pairs) as the frontend VITE_CLERK_PUBLISHABLE_KEY. For regional instances set CLERK_API_URL / CLERK_API_VERSION from Clerk Dashboard → API keys. System env overrides backend/.env for CLERK_SECRET_KEY.'
+      ? 'JWT was sent but Clerk did not accept it — check CLERK_* key pairs match frontend VITE_CLERK_PUBLISHABLE_KEY.'
       : 'No Bearer token — sign in again or confirm the SPA is sending Authorization from Clerk.',
-  });
+  }, 'auth.session_missing');
 }
 
 export async function requireOrg(context, next) {
@@ -44,7 +50,7 @@ export async function requireOrg(context, next) {
       where: eq(users.id, auth.userId),
     });
   } catch (error) {
-    console.error('[AUTH] Database lookup failed in requireOrg:', formatDbQueryError(error), summarizeDbConnectivityError(error));
+    log.error({ err: error, db_error: formatDbQueryError(error), connectivity: summarizeDbConnectivityError(error) }, 'auth.db_user_lookup_failed');
     return context.json({ error: 'Database unavailable. Please retry shortly.', code: 'DATABASE_UNAVAILABLE' }, 503);
   }
 
@@ -62,7 +68,7 @@ export async function requireOrg(context, next) {
       where: eq(organisations.id, user.orgId),
     });
   } catch (error) {
-    console.error('[AUTH] Organisation lookup failed in requireOrg:', formatDbQueryError(error), summarizeDbConnectivityError(error));
+    log.error({ err: error, db_error: formatDbQueryError(error), connectivity: summarizeDbConnectivityError(error) }, 'auth.db_org_lookup_failed');
     return context.json({ error: 'Database unavailable. Please retry shortly.', code: 'DATABASE_UNAVAILABLE' }, 503);
   }
 
@@ -71,7 +77,7 @@ export async function requireOrg(context, next) {
   }
 
   const billingSnapshot = await getBillingSnapshotForOrg(organisation.id).catch((error) => {
-    console.error('[AUTH] Billing snapshot lookup failed in requireOrg:', error?.message ?? error);
+    log.error({ err: error, org_id: organisation.id }, 'auth.billing_snapshot_failed');
     return null;
   });
 
@@ -186,7 +192,7 @@ export async function requireStaff(context, next) {
       where: eq(users.id, auth.userId),
     });
   } catch (error) {
-    console.error('[AUTH] Database lookup failed in requireStaff:', formatDbQueryError(error), summarizeDbConnectivityError(error));
+    log.error({ err: error, db_error: formatDbQueryError(error), connectivity: summarizeDbConnectivityError(error) }, 'auth.db_staff_lookup_failed');
     return context.json({ error: 'Database unavailable. Please retry shortly.', code: 'DATABASE_UNAVAILABLE' }, 503);
   }
 
@@ -327,7 +333,7 @@ export async function deductCredits(orgId, credits) {
       },
     });
   } catch (error) {
-    console.error('[AUTH] Credit deduction failed:', error.message);
+    log.error({ err: error, org_id: orgId }, 'auth.credit_deduction_failed');
   }
 }
 

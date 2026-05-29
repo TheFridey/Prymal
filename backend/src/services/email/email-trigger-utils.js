@@ -1,5 +1,8 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '../../db/index.js';
+import { logger } from '../../lib/logger.js';
+
+const log = logger.child({ component: 'email-trigger-utils' });
 import { organisations, users, workflows } from '../../db/schema.js';
 import {
   sendCreditsLowEmail,
@@ -33,7 +36,7 @@ export async function getOrgPrimaryRecipient(orgId, preferredUserId = null) {
 
 export function fireAndForgetEmail(promise, label) {
   promise.catch((error) => {
-    console.warn(`[EMAIL] ${label} failed:`, error.message);
+    log.warn({ err: error, label }, 'email.fire_and_forget_failed');
   });
 }
 

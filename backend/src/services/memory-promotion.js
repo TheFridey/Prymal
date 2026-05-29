@@ -1,4 +1,7 @@
 import { getMemoryWorkflowTtlHours } from '../env.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'memory-promotion' });
 
 function tokenize(text) {
   return String(text ?? '')
@@ -112,9 +115,14 @@ export function evaluateMemoryPromotion(candidate = {}, context = {}) {
     reviewRequired,
   };
 
-  console.info(
-    `[MEMORY_PROMOTION] shouldPromote=${result.shouldPromote} target=${result.targetScope}:${result.targetType} conf=${result.confidenceScore} review=${result.reviewRequired} detail=${result.reason}`,
-  );
+  log.info({
+    should_promote: result.shouldPromote,
+    target_scope: result.targetScope,
+    target_type: result.targetType,
+    confidence: result.confidenceScore,
+    review_required: result.reviewRequired,
+    reason: result.reason,
+  }, 'memory.promotion_decision');
 
   return result;
 }

@@ -5,6 +5,9 @@
 // ─────────────────────────────────────────────────────────────────
 
 import { enforceAgentToolPolicy, isSideEffectTool } from '../agents/runtime.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'tool-dispatcher' });
 import { retrieveRankedMemories } from './memory-retrieval.js';
 import { formatLoreChunkForPrompt, ragSearch } from './rag.js';
 import { fetchLiveWebContext } from './web-research.js';
@@ -54,7 +57,7 @@ export async function dispatchTool({
   const manifestEntry = getToolManifest(tool);
   if (!manifestEntry) {
     const error = `Tool '${tool}' has no manifest entry. Tools must be registered before dispatch.`;
-    console.warn(`[TOOL-DISPATCH] ${error}`);
+    log.warn({ tool, message: error }, 'tool_dispatcher.policy_violation');
     recordToolPolicyEvent({
       agentId,
       orgId,
@@ -67,7 +70,7 @@ export async function dispatchTool({
 
   if (!isDispatchableTool(tool)) {
     const error = `Tool '${tool}' is registered but does not have an executable dispatcher handler.`;
-    console.warn(`[TOOL-DISPATCH] ${error}`);
+    log.warn({ tool, message: error }, 'tool_dispatcher.policy_violation');
     recordToolPolicyEvent({
       agentId,
       orgId,
@@ -81,7 +84,7 @@ export async function dispatchTool({
   const policy = enforceAgentToolPolicy(agentId, tool);
 
   if (!policy.allowed) {
-    console.warn(`[TOOL-DISPATCH] ${policy.reason}`);
+    log.warn({ tool, reason: policy.reason }, 'tool_dispatcher.policy_violation');
     recordToolPolicyEvent({
       agentId,
       orgId,
@@ -179,7 +182,7 @@ export async function dispatchTool({
 
     return { tool, success: true, result, error: null, metadata: { warden: buildWardenTrace(wardenDecision) } };
   } catch (err) {
-    console.error(`[TOOL-DISPATCH] Tool '${tool}' failed for agent ${agentId}:`, err.message);
+    log.error({ err, tool, agent_id: agentId }, 'tool_dispatcher.execution_failed');
     if (policy.requiresAudit) {
       recordToolPolicyEvent({
         agentId,
@@ -225,7 +228,7 @@ function recordToolPolicyEvent({
     sideEffect: isSideEffectTool(tool),
     timestamp: new Date().toISOString(),
   };
-  console.info(`[TOOL-AUDIT] ${JSON.stringify(payload)}`);
+  log.info({ ...payload }, 'tool_dispatcher.audit');
 }
 
 /**

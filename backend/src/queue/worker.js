@@ -1,15 +1,18 @@
 import { hasTriggerDevConfig } from './trigger.js';
 import { runVideoWorkerLoop } from '../workers/video-worker.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'worker' });
 
 async function main() {
   if (hasTriggerDevConfig()) {
-    console.log('Trigger.dev is configured. The local worker will still process queued Veo video jobs.');
+    log.info('worker.trigger_dev_configured');
   }
 
   await runVideoWorkerLoop();
 }
 
 main().catch((error) => {
-  console.error('[VIDEO WORKER] Fatal error:', error?.message ?? error);
+  log.error({ err: error }, 'worker.fatal_error');
   process.exitCode = 1;
 });

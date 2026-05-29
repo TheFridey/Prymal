@@ -3,6 +3,9 @@ import {
   listModelCapabilities,
   scoreCandidateSet,
 } from './model-capabilities.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'model-policy' });
 
 const LEGACY_MODEL_REPLACEMENTS = {
   // Anthropic — map all pre-4.x Claude identifiers to current live models
@@ -294,7 +297,7 @@ export function getOrgModelPolicyOverrides(orgId = null) {
     }
     return parsed[orgId] ?? null;
   } catch (error) {
-    console.error('[MODEL POLICY] ORG_MODEL_POLICY_OVERRIDES is invalid JSON:', error.message);
+    log.error({ err: error }, 'model_policy.overrides_invalid_json');
     return null;
   }
 }
@@ -352,9 +355,7 @@ export function applyOrgBudgetCap(plan, budgetCap, anthropicModels) {
 
   // Policy allowlist enforcement — downgrade to fast_chat if policy not permitted
   if (budgetCap.allowedPolicies && !budgetCap.allowedPolicies.includes(plan.policyKey)) {
-    console.info(
-      `[MODEL POLICY] Org budget cap: policy "${plan.policyKey}" not in allowedPolicies — downgrading to fast_chat.`,
-    );
+    log.info({ policy: plan.policyKey }, 'model_policy.budget_cap_downgrade');
     effectivePlan = {
       ...plan,
       policyKey: MODEL_POLICIES.fast_chat.key,

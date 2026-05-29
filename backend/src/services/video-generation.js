@@ -2,6 +2,9 @@ import { mkdir, unlink } from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { and, eq, lt, or } from 'drizzle-orm';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'video-generation' });
 import { getAgent } from '../agents/config.js';
 import { db } from '../db/index.js';
 import { conversations, messages, videoGenerationEvents } from '../db/schema.js';
@@ -63,9 +66,9 @@ export function logVideoJobEvent(event, job = {}, extras = {}) {
   const line = JSON.stringify(payload);
 
   if (isFailure) {
-    console.error('[VIDEO_JOB]', line);
+    log.error({ payload }, 'video_job.event');
   } else {
-    console.log('[VIDEO_JOB]', line);
+    log.info({ payload }, 'video_job.event');
   }
 }
 
@@ -178,7 +181,7 @@ export async function enqueueVideoGenerationJob(jobId, options = {}) {
 
   queueMicrotask(() => {
     processQueuedVideoJob(jobId, options).catch((error) => {
-      console.error('[VIDEO] Job processing failed:', error.message);
+      log.error({ err: error, job_id: jobId }, 'video_job.processing_failed');
     });
   });
 
@@ -223,7 +226,7 @@ export async function claimAndProcessNextVideoJobs(options = {}) {
     try {
       await processQueuedVideoJob(reserved.id, options);
     } catch (error) {
-      console.error('[VIDEO_WORKER] processQueuedVideoJob failed for', reserved.id, error?.message ?? error);
+      log.error({ err: error, job_id: reserved.id }, 'video_worker.job_failed');
     }
   }
 
@@ -500,16 +503,16 @@ async function sweepTimedOutVideoJobs(deps) {
 }
 
 async function recordFailedVideoJob(job, { userId, failure, deps }) {
-  console.error('[VIDEO JOB FAILED]', {
-    jobId: job.id,
-    orgId: job.orgId,
-    userId,
+  log.error({
+    job_id: job.id,
+    org_id: job.orgId,
+    user_id: userId,
     provider: job.provider,
     model: job.model,
-    failureCode: failure?.code ?? job.failureCode,
-    failureCategory: failure?.category ?? job.providerMetadata?.providerErrorCategory ?? null,
-    failureMessage: failure?.message ?? job.failureMessage,
-  });
+    failure_code: failure?.code ?? job.failureCode,
+    failure_category: failure?.category ?? job.providerMetadata?.providerErrorCategory ?? null,
+    failure_message: failure?.message ?? job.failureMessage,
+  }, 'video_job.failed');
 
   await Promise.all([
     deps.recordProductEvent({

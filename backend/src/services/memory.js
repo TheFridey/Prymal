@@ -1,5 +1,8 @@
 import { and, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import { getRuntimeAgentContract } from '../agents/runtime.js';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'memory' });
 import { getMemorySessionTtlHours, getMemoryWorkflowTtlHours } from '../env.js';
 import { db } from '../db/index.js';
 import { agentMemory } from '../db/schema.js';
@@ -102,7 +105,7 @@ export async function getAgentMemory({
       limit: Math.max(limit * 3, limit),
     });
   } catch (error) {
-    console.warn('[MEMORY] Failed to load agent memory, continuing without memory:', error.message);
+    log.warn({ err: error }, 'memory.load_failed');
     return [];
   }
 
@@ -255,7 +258,7 @@ async function runMemoryPostWriteHooks({ orgId, agentId, memoryId, normalizedSco
     memoryFeedback.push(...feedback);
     return { memoryFeedback };
   } catch (error) {
-    console.warn('[MEMORY] Post-write hooks failed:', error.message);
+    log.warn({ err: error }, 'memory.post_write_hooks_failed');
     return { memoryFeedback };
   }
 }
@@ -303,7 +306,7 @@ export async function upsertMemory({
   });
 
   if (safety.status === 'rejected') {
-    console.warn('[MEMORY] Candidate rejected', safety.reasons);
+    log.warn({ reasons: safety.reasons }, 'memory.candidate_rejected');
     return {
       id: null,
       key,
@@ -627,7 +630,7 @@ export async function upsertMemory({
       }
     }
   } catch (dupErr) {
-    console.warn('[MEMORY] Duplicate merge skipped:', dupErr.message);
+    log.warn({ err: dupErr }, 'memory.duplicate_merge_skipped');
   }
 
   const [created] = await db
@@ -670,7 +673,7 @@ export async function upsertMemory({
     scopeKey: scopeIdentity.scopeKey,
     memoryType,
     userId,
-  }).catch((err) => console.warn('[MEMORY] Cap enforcement skipped:', err.message));
+  }).catch((err) => log.warn({ err }, 'memory.cap_enforcement_skipped'));
 
   recordSensitiveMemoryWrite({
     orgId,
@@ -1454,7 +1457,5 @@ function recordSensitiveMemoryWrite({ orgId, agentId, scope, key, scopeKey, cont
     return;
   }
 
-  console.info(
-    `[MEMORY AUDIT] org=${orgId} agent=${agentId} action=${action} scope=${scope} key=${key} scopeKey=${scopeKey}`,
-  );
+  log.info({ org_id: orgId, agent_id: agentId, action, scope, key, scope_key: scopeKey }, 'memory.sensitive_write_audit');
 }

@@ -1,4 +1,5 @@
 import { getEnvironmentMode, isRecognizedNodeEnv, loadBackendEnv, VALID_NODE_ENV_VALUES } from './parse.js';
+import { logger } from '../lib/logger.js';
 import { validateMediaStorageConfiguration } from '../services/media-storage/index.js';
 
 const REQUIRED_IN_ALL_ENVIRONMENTS = ['DATABASE_URL'];
@@ -421,7 +422,7 @@ export function bootstrapRuntimeEnv({
 
   if (strict) {
     for (const warning of validationResult.warnings) {
-      console.warn(`[ENV] ${warning}`);
+      logger.warn({ warning }, 'env.validation_warning');
     }
   }
 

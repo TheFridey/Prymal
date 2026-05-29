@@ -583,6 +583,60 @@ export function TrustGrammarPanel({ enforcementSummary, geminiGrounding }) {
   );
 }
 
+export function GroundingSourcesPanel({ sources }) {
+  const [expanded, setExpanded] = useState(false);
+  const webSources = (sources ?? []).filter((s) => s.sourceUrl);
+
+  if (webSources.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: '8px' }}>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        style={{
+          fontSize: '11px',
+          color: 'var(--muted)',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          padding: '2px 0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+        }}
+      >
+        <span style={{ opacity: 0.6 }}>{expanded ? '▾' : '▸'}</span>
+        {webSources.length} live {webSources.length === 1 ? 'source' : 'sources'}
+      </button>
+      {expanded ? (
+        <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {webSources.map((source, index) => (
+            <a
+              key={`gs-${index}`}
+              href={source.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                fontSize: '11px',
+                color: 'var(--muted)',
+                textDecoration: 'none',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                display: 'block',
+              }}
+              title={source.sourceUrl}
+            >
+              {source.documentTitle ?? source.sourceUrl}
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function GeneratedImageCard({ image }) {
   const origin = API_BASE_URL.replace(/\/api$/, '');
   const baseImageUrl = image.url ? new URL(image.url, origin).toString() : null;

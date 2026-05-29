@@ -2,6 +2,9 @@ import { zValidator } from '@hono/zod-validator';
 import { and, asc, desc, eq, ilike, or, count } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
+import { logger } from '../lib/logger.js';
+
+const log = logger.child({ component: 'agents' });
 import { z } from 'zod';
 import { AGENT_IDS, getAgent } from '../agents/config.js';
 import { db } from '../db/index.js';
@@ -744,7 +747,7 @@ router.post('/chat', requireOrg, chatRateLimit, zValidator('json', chatSchema), 
             code: error?.code || 'CHAT_STREAM_FAILED',
           },
         }).catch((releaseError) => {
-          console.error('[BILLING] Failed to release execution reservation:', releaseError.message);
+          log.error({ err: releaseError }, 'billing.release_execution_failed');
         });
       }
 
@@ -1018,7 +1021,7 @@ router.post('/generate-image', requireOrg, mediaGenerationRateLimit, zValidator(
           agentId: payload.agentId,
         },
       }).catch((releaseError) => {
-        console.error('[BILLING] Failed to release image reservation:', releaseError.message);
+        log.error({ err: releaseError }, 'billing.release_image_failed');
       });
     }
 
@@ -1166,7 +1169,7 @@ router.post('/generate-video', requireOrg, mediaGenerationRateLimit, zValidator(
         referenceImageCount: 0,
       },
     }).catch((releaseError) => {
-      console.error('[BILLING] Failed to release video reservation after reference-image error:', releaseError.message);
+      log.error({ err: releaseError }, 'billing.release_video_ref_image_failed');
       return null;
     });
 
@@ -1696,7 +1699,7 @@ End your response with a structured JSON summary block:
             url,
           },
         }).catch((releaseError) => {
-          console.error('[BILLING] Failed to release oracle audit reservation:', releaseError.message);
+          log.error({ err: releaseError }, 'billing.release_oracle_audit_failed');
         });
       }
 
