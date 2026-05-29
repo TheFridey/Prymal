@@ -46,7 +46,7 @@
     "@sentry/profiling-node": "^10.55.0",
     "@trigger.dev/sdk": "4.4.6",
     "cloudinary": "^2.10.0",
-    "dotenv": "^16.4.7",
+    "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.18",
     "mammoth": "^1.8.0",
