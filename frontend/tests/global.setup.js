@@ -20,7 +20,7 @@ export default async function globalSetup(config) {
   const strictValidation = validatePlaywrightAuthConfig({
     env: resolvedEnv,
     requireAllRoles: process.env.PLAYWRIGHT_AUTH_REQUIRED === 'true',
-    requireApprovedDevUrls: true,
+    requireApprovedDevUrls: process.env.PLAYWRIGHT_ALLOW_REMOTE_AUTH_URLS !== 'true',
   });
 
   await ensureAuthStateDir();

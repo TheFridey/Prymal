@@ -49,6 +49,7 @@ backend/.tmp-pg/
 # Testing artifacts
 playwright-report/
 test-results/
+frontend/.auth/
 frontend/tests/.auth/
 coverage-final.json
 

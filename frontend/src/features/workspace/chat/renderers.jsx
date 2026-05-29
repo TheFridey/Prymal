@@ -762,6 +762,7 @@ export function StudioMessage({
   return (
     <motion.div
       className={`workspace-studio__message${isUser ? ' is-user' : ''}`}
+      data-testid={isUser ? undefined : 'agent-response'}
       layout
       initial={{
         opacity: 0,
