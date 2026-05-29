@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import * as Sentry from '@sentry/react';
 import App from './App.jsx';
 import { MotionProvider } from './components/motion.jsx';
+import { initSentry } from './lib/sentry.js';
 import './styles/tokens.css';
 import './styles/agents.css';
 import './index.css';
@@ -12,6 +12,8 @@ import './styles/app-rebuild.css';
 import './styles/rebuild/core-system.css';
 import './styles/rebuild/marketing-usecase.css';
 import './styles/rebuild/premium-motion.css';
+
+initSentry();
 
 function trackPlausible(eventName, props = {}) {
   if (typeof window === 'undefined') {
@@ -40,20 +42,6 @@ if (import.meta.env.PROD) {
   s.src = 'https://plausible.io/js/script.js';
   s.onerror = () => {};
   document.head.appendChild(s);
-}
-
-if (import.meta.env.VITE_SENTRY_DSN) {
-  Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN,
-    environment: import.meta.env.MODE,
-    release: import.meta.env.VITE_APP_VERSION ?? 'unknown',
-    tracesSampleRate: import.meta.env.MODE === 'production' ? 0.05 : 0,
-    replaysOnErrorSampleRate: import.meta.env.MODE === 'production' ? 0.1 : 0,
-    integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }),
-    ],
-  });
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(

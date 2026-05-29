@@ -36,6 +36,7 @@ import { formatUntrustedEvidenceBlock } from './warden/index.js';
 import { fetchLiveWebContext } from './web-research.js';
 import { buildSuccessfulPatternsPrompt, getSuccessfulPatterns } from './moat-feedback.js';
 import { constrainLoreRetrievalBudgetForPlan } from './billing-catalog.js';
+import { captureProviderError, captureProviderFallback } from '../lib/sentry.js';
 
 const ANTHROPIC_MODELS = getAnthropicModels();
 const OPENAI_MODELS = getOpenAIModels();
@@ -467,8 +468,37 @@ export async function* streamAgentResponse({
     } catch (error) {
       const normalizedError = normalizeLLMError(error, plan.provider);
       const nextPlan = getPolicyFallbackPlan(plan);
+      const fallbackActivated = Boolean(
+        nextPlan && shouldFallbackToSecondaryModel(normalizedError) && isPlanUsable(nextPlan),
+      );
 
-      if (nextPlan && shouldFallbackToSecondaryModel(normalizedError) && isPlanUsable(nextPlan)) {
+      captureProviderError(normalizedError, {
+        provider: plan.provider,
+        policyClass: plan.policyKey,
+        orgId,
+        userId,
+        agentId,
+        model: plan.model,
+        route: plan.route,
+        fallbackActivated,
+        fallbackTargetProvider: nextPlan?.provider ?? null,
+        errorCode: normalizedError.code,
+        failureClass: classifyProviderFailure(normalizedError),
+      });
+
+      if (fallbackActivated) {
+        captureProviderFallback({
+          provider: plan.provider,
+          fallbackProvider: nextPlan.provider,
+          policyClass: plan.policyKey,
+          orgId,
+          userId,
+          agentId,
+          model: plan.model,
+          fallbackModel: nextPlan.model,
+          errorCode: normalizedError.code,
+          failureClass: classifyProviderFailure(normalizedError),
+        });
         fallbackUsed = true;
         plan = nextPlan;
         continue;
@@ -620,8 +650,37 @@ export async function runAgentNode({ agentId, orgId, orgPlan = 'free', prompt, c
     } catch (error) {
       const normalizedError = normalizeLLMError(error, plan.provider);
       const nextPlan = getPolicyFallbackPlan(plan);
+      const fallbackActivated = Boolean(
+        nextPlan && shouldFallbackToSecondaryModel(normalizedError) && isPlanUsable(nextPlan),
+      );
 
-      if (nextPlan && shouldFallbackToSecondaryModel(normalizedError) && isPlanUsable(nextPlan)) {
+      captureProviderError(normalizedError, {
+        provider: plan.provider,
+        policyClass: plan.policyKey,
+        orgId,
+        userId: null,
+        agentId,
+        model: plan.model,
+        route: plan.route,
+        fallbackActivated,
+        fallbackTargetProvider: nextPlan?.provider ?? null,
+        errorCode: normalizedError.code,
+        failureClass: classifyProviderFailure(normalizedError),
+      });
+
+      if (fallbackActivated) {
+        captureProviderFallback({
+          provider: plan.provider,
+          fallbackProvider: nextPlan.provider,
+          policyClass: plan.policyKey,
+          orgId,
+          userId: null,
+          agentId,
+          model: plan.model,
+          fallbackModel: nextPlan.model,
+          errorCode: normalizedError.code,
+          failureClass: classifyProviderFailure(normalizedError),
+        });
         fallbackUsed = true;
         plan = nextPlan;
         continue;
@@ -1803,6 +1862,32 @@ function normalizeLLMError(error, provider = 'anthropic') {
   }
 
   return normalized;
+}
+
+function classifyProviderFailure(error) {
+  const code = String(error?.code ?? '').toUpperCase();
+
+  if (/RATE_LIMIT|QUOTA|THROTTLE/.test(code)) {
+    return 'rate_limit';
+  }
+
+  if (/AUTH|UNAUTHORIZED|FORBIDDEN/.test(code)) {
+    return 'auth';
+  }
+
+  if (/TIMEOUT/.test(code)) {
+    return 'timeout';
+  }
+
+  if (/MODEL_INVALID|MODEL_NOT_FOUND|NOT_CONFIGURED|CONFIG/.test(code)) {
+    return 'configuration';
+  }
+
+  if (/UNAVAILABLE|OVERLOADED|PROVIDER/.test(code)) {
+    return 'provider_unavailable';
+  }
+
+  return 'provider_error';
 }
 
 function getAnthropicClient() {

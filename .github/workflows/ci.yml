@@ -400,6 +400,26 @@ jobs:
       needs.sdk-lint.result == 'success'
     environment: production
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Tag Sentry release
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT || 'prymal' }}
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ] || [ -z "$SENTRY_ORG" ]; then
+            echo "Skipping Sentry release tagging because SENTRY_AUTH_TOKEN or SENTRY_ORG is not configured."
+            exit 0
+          fi
+
+          npx @sentry/cli releases new ${{ github.sha }}
+          npx @sentry/cli releases set-commits ${{ github.sha }} --auto
+          npx @sentry/cli releases finalize ${{ github.sha }}
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:

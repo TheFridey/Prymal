@@ -1,4 +1,6 @@
-import * as Sentry from '@sentry/node';
+import { initSentry, captureException } from './lib/sentry.js';
+initSentry();
+
 import { serve } from '@hono/node-server';
 import { clerkMiddleware, getAuth } from '@hono/clerk-auth';
 import { Hono } from 'hono';
@@ -35,36 +37,9 @@ import {
 } from './services/media-storage/index.js';
 import { readWebAsset } from './services/web-research.js';
 import { bootstrapRuntimeEnv, getEnvironmentMode, parseEnvList } from './env.js';
-import {
-  redactSensitiveText,
-  sanitizeStructuredData,
-} from './services/security/redaction.js';
+import { redactSensitiveText } from './services/security/redaction.js';
 
 bootstrapRuntimeEnv();
-
-if (process.env.SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.SENTRY_ENVIRONMENT?.trim() || process.env.NODE_ENV || 'development',
-    release: process.env.npm_package_version,
-    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0,
-    beforeSend(event) {
-      if (event.request?.data) {
-        event.request.data = sanitizeStructuredData(event.request.data);
-      }
-
-      if (event.request?.headers) {
-        event.request.headers = sanitizeStructuredData(event.request.headers, { stripContent: false });
-      }
-
-      if (event.extra) {
-        event.extra = sanitizeStructuredData(event.extra);
-      }
-
-      return event;
-    },
-  });
-}
 
 const app = new Hono();
 const DEFAULT_FRONTEND_ORIGINS = 'http://localhost:5173,http://127.0.0.1:5173';
@@ -291,20 +266,16 @@ app.onError((error, context) => {
     timestamp: new Date().toISOString(),
   }));
 
-  if (process.env.SENTRY_DSN) {
-    Sentry.captureException(error, {
-      extra: {
-        path: context.req.path,
-        method: context.req.method,
-        orgId: context.get('org')?.orgId ?? null,
-        userId,
-        provider,
-        errorType,
-        requestId,
-        errorMessage: safeErrorMessage,
-      },
-    });
-  }
+  captureException(error, {
+    path: context.req.path,
+    method: context.req.method,
+    orgId: context.get('org')?.orgId ?? null,
+    userId,
+    provider,
+    errorType,
+    requestId,
+    errorMessage: safeErrorMessage,
+  });
 
   if (requestId) {
     context.header('X-Request-Id', requestId);
