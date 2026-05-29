@@ -52,7 +52,6 @@ export async function transcribeVoiceBlob({ blob, fileName, agentName, voiceInpu
 export async function startRealtimeSession({
   agentId,
   agentName,
-  voiceInputLanguage = 'en',
   onTranscript,
   onError,
   onStateChange,

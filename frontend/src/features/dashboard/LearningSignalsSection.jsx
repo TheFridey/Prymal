@@ -87,14 +87,6 @@ function LearningMetricCard({ metric, value, suffix = '', isFormat = false }) {
   );
 }
 
-function signalTypeLabel(type) {
-  if (type === 'brand_voice') return 'Brand voice';
-  if (type === 'workflow') return 'Workflow';
-  if (type === 'feedback') return 'Feedback';
-  if (type === 'delivery') return 'Delivery';
-  return 'Content';
-}
-
 export function LearningSignalsSection({ signals, isLoading = false }) {
   const safe = normaliseLearningSignals(signals);
   const empty = !isLoading && isLearningSignalsEmpty(safe);

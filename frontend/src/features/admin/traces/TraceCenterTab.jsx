@@ -18,10 +18,6 @@ export function TraceCenterTab({
   onSelectTrace,
   onSelectWorkflowRun,
 }) {
-  if (query.isLoading && !query.data) {
-    return <LoadingPanel label="Loading runtime traces..." />;
-  }
-
   const traces = query.data?.traces ?? [];
   const failureBreakdown = query.data?.failureBreakdown ?? [];
   const policySummary = query.data?.policySummary ?? [];
@@ -47,6 +43,10 @@ export function TraceCenterTab({
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(needle)));
   }, [searchValue, traces]);
+
+  if (query.isLoading && !query.data) {
+    return <LoadingPanel label="Loading runtime traces..." />;
+  }
 
   return (
     <div className="staff-admin__ops-grid">
@@ -259,10 +259,6 @@ export function TraceCenterTab({
 }
 
 export function EvalSummariesTab({ summaryQuery, traceQuery, onSelectTrace }) {
-  if (summaryQuery.isLoading && !summaryQuery.data) {
-    return <LoadingPanel label="Loading evaluation signals..." />;
-  }
-
   const summary = summaryQuery.data?.summary ?? {};
   const total = summary.total ?? 0;
   const breakdown = traceQuery.data?.failureBreakdown ?? [];
@@ -287,6 +283,10 @@ export function EvalSummariesTab({ summaryQuery, traceQuery, onSelectTrace }) {
       ),
     [traces],
   );
+
+  if (summaryQuery.isLoading && !summaryQuery.data) {
+    return <LoadingPanel label="Loading evaluation signals..." />;
+  }
 
   return (
     <div className="staff-admin__ops-grid">

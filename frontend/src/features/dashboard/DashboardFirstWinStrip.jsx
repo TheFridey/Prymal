@@ -10,7 +10,7 @@ import { trackProductEvent } from '../../lib/product-events';
 
 const STRIP_OUTCOMES = FIRST_RUN_OUTCOMES.slice(0, 4);
 
-export default function DashboardFirstWinStrip({ userId, firstWinState, onStateChange, firstWinNudge }) {
+export default function DashboardFirstWinStrip({ userId, onStateChange, firstWinNudge }) {
   const navigate = useNavigate();
 
   function handleSelect(outcome) {

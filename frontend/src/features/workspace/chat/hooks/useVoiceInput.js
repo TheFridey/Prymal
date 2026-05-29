@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { api } from '../../../../lib/api';
 import { getErrorMessage } from '../../../../lib/utils';
 import {
   clearRecordingSnapshotInterval,
@@ -7,13 +6,11 @@ import {
   clearSpeechWatchdog,
   composeVoiceDraft,
   getMediaAccessErrorMessage,
-  getSpeechErrorMessage,
   getVoiceMaxRecordingMs,
   getVoiceSilenceGraceMs,
   getVoiceTranscriptionErrorMessage,
   joinVoiceSegments,
   resolveRecordingMimeType,
-  scheduleSpeechWatchdog,
   startRecordingSilenceMonitor,
   stopMediaStream,
 } from '../../composer/voice';
@@ -69,9 +66,6 @@ export function useVoiceInput({
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef = useRef(null);
   const mediaChunksRef = useRef([]);
-  const speechFallbackRecorderRef = useRef(null);
-  const speechFallbackStreamRef = useRef(null);
-  const speechFallbackChunksRef = useRef([]);
   const speechFallbackRollingTranscriptRef = useRef('');
   const speechFallbackRollingBusyRef = useRef(false);
   const speechFallbackRollingSequenceRef = useRef(0);
@@ -82,7 +76,6 @@ export function useVoiceInput({
   const voiceDraftBaseRef = useRef('');
   const voiceCommittedRef = useRef('');
   const voiceInterimRef = useRef('');
-  const speechHadResultRef = useRef(false);
   const speechManualStopRef = useRef(false);
   const isListeningRef = useRef(false);
   const voiceModeRef = useRef(null);
@@ -106,8 +99,6 @@ export function useVoiceInput({
     recognitionRef.current?.stop?.();
     mediaRecorderRef.current?.stop?.();
     stopMediaStream(mediaStreamRef);
-    speechFallbackRecorderRef.current?.stop?.();
-    stopMediaStream(speechFallbackStreamRef);
   }, []);
 
   // ── helpers ───────────────────────────────────────────────────────────────
@@ -135,123 +126,6 @@ export function useVoiceInput({
       agentName: activeAgent?.name,
       voiceInputLanguage: activeSettingsRef.current.voiceInputLanguage,
     });
-  }
-
-  async function beginSpeechFallbackCapture() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = resolveRecordingMimeType();
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-
-      speechFallbackStreamRef.current = stream;
-      speechFallbackRecorderRef.current = recorder;
-      speechFallbackChunksRef.current = [];
-      speechFallbackRollingTranscriptRef.current = '';
-      speechFallbackRollingBusyRef.current = false;
-      speechFallbackRollingSequenceRef.current = 0;
-
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          speechFallbackChunksRef.current.push(event.data);
-          void updateSpeechFallbackLiveTranscript();
-        }
-      };
-
-      clearRecordingSnapshotInterval(recordingSnapshotIntervalRef);
-      recordingSnapshotIntervalRef.current = setInterval(() => {
-        if (speechFallbackRecorderRef.current?.state === 'recording') {
-          try {
-            speechFallbackRecorderRef.current.requestData();
-          } catch {
-            // MediaRecorder snapshots are opportunistic during live speech fallback.
-          }
-        }
-      }, 1200);
-
-      recorder.start(1200);
-    } catch {
-      stopMediaStream(speechFallbackStreamRef);
-      speechFallbackRecorderRef.current = null;
-      speechFallbackChunksRef.current = [];
-    }
-  }
-
-  async function updateSpeechFallbackLiveTranscript() {
-    if (speechFallbackRollingBusyRef.current) return;
-
-    const recorder = speechFallbackRecorderRef.current;
-    const parts = [...speechFallbackChunksRef.current];
-    if (!recorder || parts.length === 0) return;
-
-    const blob = new Blob(parts, { type: recorder.mimeType || resolveRecordingMimeType() || 'audio/webm' });
-    if (!blob.size || blob.size < 12 * 1024) return;
-
-    const sequence = speechFallbackRollingSequenceRef.current + 1;
-    speechFallbackRollingSequenceRef.current = sequence;
-    speechFallbackRollingBusyRef.current = true;
-
-    try {
-      const transcript = await transcribeAudioBlob(blob, `prymal-speech-live-${sequence}.webm`);
-      if (!transcript || sequence !== speechFallbackRollingSequenceRef.current) return;
-      speechFallbackRollingTranscriptRef.current = transcript;
-      setDraft(composeVoiceDraft(voiceDraftBaseRef.current, transcript, ''));
-      setVoiceInterim('Listening live...');
-    } catch (error) {
-      setVoiceDebug((current) => ({
-        ...current,
-        state: 'live-transcribe-error',
-        lastEvent: 'fallback.live-transcribe.error',
-        detail: getVoiceTranscriptionErrorMessage(error),
-      }));
-    } finally {
-      speechFallbackRollingBusyRef.current = false;
-    }
-  }
-
-  async function finishSpeechFallbackCapture({ transcribe, autoSend = false }) {
-    const recorder = speechFallbackRecorderRef.current;
-    if (!recorder) return;
-
-    const blob = await new Promise((resolve) => {
-      recorder.onstop = () => {
-        const recorded = new Blob(speechFallbackChunksRef.current, {
-          type: recorder.mimeType || resolveRecordingMimeType() || 'audio/webm',
-        });
-        resolve(recorded);
-      };
-      if (recorder.state === 'inactive') recorder.onstop();
-      else recorder.stop();
-    });
-
-    speechFallbackRecorderRef.current = null;
-    speechFallbackChunksRef.current = [];
-    speechFallbackRollingBusyRef.current = false;
-    clearRecordingSnapshotInterval(recordingSnapshotIntervalRef);
-    stopMediaStream(speechFallbackStreamRef);
-
-    if (!transcribe || !blob?.size) return;
-
-    setVoiceInterim('Transcribing audio...');
-    try {
-      const transcript =
-        (await transcribeAudioBlob(blob, 'prymal-speech-fallback-final.webm')) ||
-        speechFallbackRollingTranscriptRef.current.trim();
-
-      if (!transcript) throw new Error('No transcript text was returned.');
-
-      const nextDraft = composeVoiceDraft(voiceDraftBaseRef.current, transcript, '').trim();
-      setDraft(nextDraft);
-      setVoiceInterim('');
-      speechFallbackRollingTranscriptRef.current = transcript;
-
-      if (autoSend && nextDraft) {
-        setVoiceInterim('Sending voice prompt...');
-        await onAutoSendRef.current?.(nextDraft);
-      }
-    } catch (error) {
-      setVoiceInterim('');
-      notify({ type: 'error', title: 'Transcription failed', message: getVoiceTranscriptionErrorMessage(error) });
-    }
   }
 
   async function startRealtimeTranscription() {
@@ -376,125 +250,6 @@ export function useVoiceInput({
         });
         await startRecordedTranscription();
       }
-    }
-  }
-
-  async function startBrowserSpeechRecognition() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = activeSettingsRef.current.voiceInputLanguage || 'en-GB';
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-    recognition.continuous = true;
-    voiceDraftBaseRef.current = draftRef.current.trim();
-    voiceCommittedRef.current = '';
-    voiceInterimRef.current = '';
-    speechHadResultRef.current = false;
-    speechManualStopRef.current = false;
-    setVoiceMode('speech');
-    setIsListening(true);
-    setVoiceInterim('Starting live dictation...');
-    composerRef.current?.focus();
-    recognitionRef.current = recognition;
-
-    if (recordingAvailable) await beginSpeechFallbackCapture();
-
-    recognition.onstart = () => {
-      setVoiceMode('speech');
-      setIsListening(true);
-      setVoiceInterim('Listening live...');
-      scheduleSpeechWatchdog({
-        speechWatchdogRef,
-        getIsListening: () => isListeningRef.current,
-        getVoiceMode: () => voiceModeRef.current,
-        mediaRecordingSupported: recordingAvailable,
-        onFallback: () => {
-          setVoiceInterim('No live transcript yet. Finishing voice note...');
-          recognitionRef.current?.stop?.();
-        },
-      });
-    };
-
-    recognition.onend = async () => {
-      clearSpeechWatchdog(speechWatchdogRef);
-      const hadResult = speechHadResultRef.current;
-      const latestInterim = voiceInterimRef.current;
-      speechHadResultRef.current = false;
-      speechManualStopRef.current = false;
-      setIsListening(false);
-      setVoiceInterim('');
-      voiceInterimRef.current = '';
-      setVoiceMode(null);
-
-      if (hadResult) {
-        await finishSpeechFallbackCapture({ transcribe: false });
-        const liveTranscript = composeVoiceDraft(voiceDraftBaseRef.current, voiceCommittedRef.current, latestInterim).trim();
-        if (liveTranscript) {
-          setDraft(liveTranscript);
-          if (activeSettingsRef.current.voiceAutoSend) {
-            setVoiceInterim('Sending voice prompt...');
-            void onAutoSendRef.current?.(liveTranscript);
-          } else {
-            setVoiceInterim('');
-          }
-        }
-        return;
-      }
-
-      if (recordingAvailable) {
-        notify({ type: 'info', title: 'Switching capture mode', message: 'Live dictation ended without transcript, so Prymal is transcribing the captured audio instead.' });
-        await finishSpeechFallbackCapture({ transcribe: true, autoSend: activeSettingsRef.current.voiceAutoSend });
-      }
-    };
-
-    recognition.onerror = (event) => {
-      clearSpeechWatchdog(speechWatchdogRef);
-      speechHadResultRef.current = false;
-      speechManualStopRef.current = false;
-      setIsListening(false);
-      setVoiceInterim('');
-      voiceInterimRef.current = '';
-      setVoiceMode(null);
-      void finishSpeechFallbackCapture({ transcribe: false });
-      notify({ type: 'error', title: 'Voice command failed', message: getSpeechErrorMessage(event?.error) });
-    };
-
-    recognition.onresult = (event) => {
-      clearSpeechWatchdog(speechWatchdogRef);
-      speechHadResultRef.current = true;
-      let committed = voiceCommittedRef.current;
-      let interim = '';
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        const transcript = result?.[0]?.transcript?.trim();
-        if (!transcript) continue;
-        if (result.isFinal) committed = joinVoiceSegments(committed, transcript);
-        else interim = joinVoiceSegments(interim, transcript);
-      }
-
-      voiceCommittedRef.current = committed;
-      voiceInterimRef.current = interim;
-      setVoiceInterim(interim);
-      setDraft(composeVoiceDraft(voiceDraftBaseRef.current, committed, interim));
-    };
-
-    try {
-      recognition.start();
-    } catch (error) {
-      recognitionRef.current = null;
-      clearSpeechWatchdog(speechWatchdogRef);
-      setIsListening(false);
-      setVoiceInterim('');
-      voiceInterimRef.current = '';
-      setVoiceMode(null);
-      await finishSpeechFallbackCapture({ transcribe: false });
-      if (recordingAvailable) {
-        notify({ type: 'info', title: 'Switching capture mode', message: 'Live dictation was unavailable, so Prymal is falling back to voice recording + transcription.' });
-        await startRecordedTranscription();
-        return;
-      }
-      notify({ type: 'error', title: 'Voice command failed', message: 'Prymal could not start live dictation in this browser.' });
     }
   }
 

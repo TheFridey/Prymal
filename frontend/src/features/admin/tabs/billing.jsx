@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { formatDate, formatNumber, formatUserHandle } from '../../../lib/utils';
 import { InlineNotice, LoadingPanel } from '../../../components/ui';
-import { formatCurrency, humanize, getPlanTone } from '../utils';
+import { formatCurrency, humanize } from '../utils';
 import { MotionList, MotionListItem } from '../../../components/motion';
 
 export function BillingTab({ data, billingTotals, videoJobsQuery }) {
@@ -266,10 +266,6 @@ export function RevenueTab({ query }) {
   const [planSort, setPlanSort] = useState({ key: 'planKey', asc: true });
   const [userCostSort, setUserCostSort] = useState({ key: 'estimatedBurnGbp', asc: false });
 
-  if (query.isLoading) {
-    return <LoadingPanel />;
-  }
-
   const planDistribution = d?.planDistribution ?? [];
   const monthlyRevenueSeries = d?.monthlyRevenueSeries ?? [];
   const recentInvoices = d?.recentInvoices ?? [];
@@ -311,6 +307,10 @@ export function RevenueTab({ query }) {
     });
     return rows;
   }, [ec?.topUsers, userCostSort]);
+
+  if (query.isLoading) {
+    return <LoadingPanel />;
+  }
 
   const togglePlanSort = (key) => {
     setPlanSort((prev) => (prev.key === key ? { key, asc: !prev.asc } : { key, asc: key === 'planKey' }));

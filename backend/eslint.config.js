@@ -1,53 +1,22 @@
-import js from '@eslint/js';
-
-const nodeGlobals = {
-  AbortController: 'readonly',
-  AbortSignal: 'readonly',
-  Buffer: 'readonly',
-  File: 'readonly',
-  FormData: 'readonly',
-  Headers: 'readonly',
-  Request: 'readonly',
-  Response: 'readonly',
-  TextDecoder: 'readonly',
-  TextEncoder: 'readonly',
-  URL: 'readonly',
-  URLSearchParams: 'readonly',
-  clearInterval: 'readonly',
-  clearTimeout: 'readonly',
-  console: 'readonly',
-  crypto: 'readonly',
-  fetch: 'readonly',
-  process: 'readonly',
-  queueMicrotask: 'readonly',
-  setInterval: 'readonly',
-  setTimeout: 'readonly',
-};
+import js from '@eslint/js'
+import globals from 'globals'
+import prettierConfig from 'eslint-config-prettier'
 
 export default [
+  { ignores: ['node_modules', 'drizzle'] },
   {
-    ignores: [
-      'node_modules/**',
-      'coverage/**',
-      'storage/**',
-      'drizzle/**',
-    ],
-  },
-  js.configs.recommended,
-  {
-    files: ['**/*.js', '**/*.mjs'],
+    files: ['**/*.js'],
     languageOptions: {
-      ecmaVersion: 'latest',
+      ecmaVersion: 2024,
+      globals: { ...globals.node, ...globals.es2024 },
       sourceType: 'module',
-      globals: nodeGlobals,
     },
     rules: {
+      ...js.configs.recommended.rules,
       'no-control-regex': 'off',
-      'no-unused-vars': ['warn', {
-        argsIgnorePattern: '^_',
-        caughtErrorsIgnorePattern: '^_',
-        varsIgnorePattern: '^_',
-      }],
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      'no-console': 'off',
     },
   },
-];
+  prettierConfig,
+]

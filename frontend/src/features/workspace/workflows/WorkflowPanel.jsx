@@ -5,7 +5,7 @@ import { api } from '../../../lib/api';
 import ActionApprovalCard from '../actions/ActionApprovalCard';
 import WorkflowTemplateCard from './WorkflowTemplateCard';
 import { WORKFLOW_TEMPLATES, createWorkflowTemplatePayload } from '../../../lib/workflow-templates';
-import { formatDateTime, formatNumber, getErrorMessage, truncate } from '../../../lib/utils';
+import { formatDateTime, formatNumber, getErrorMessage } from '../../../lib/utils';
 import {
   Button,
   EmptyState,

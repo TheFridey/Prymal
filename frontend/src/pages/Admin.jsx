@@ -5,7 +5,6 @@ import { api, createIdempotentRequestInit } from '../lib/api';
 import { isInternalDiagnosticsVisible } from '../lib/diagnostics';
 import { formatDate, formatDateTime, formatNumber, getErrorMessage, truncate } from '../lib/utils';
 import {
-  Button,
   InlineNotice,
   LoadingPanel,
   PageShell,
@@ -14,14 +13,11 @@ import { useAppStore } from '../stores/useAppStore';
 import {
   EMPTY_DASHBOARD,
   ADMIN_NAV_GROUPS,
-  PLAN_OPTIONS,
   PRIMARY_ADMIN_TABS,
-  ROLE_OPTIONS,
   TABS,
 } from '../features/admin/constants';
 import {
   flattenMeta,
-  formatCurrency,
   displayEmail,
   displayName,
   getOrganisationAttentionScore,
@@ -84,7 +80,7 @@ export default function Admin() {
   const [workflowFailureClass, setWorkflowFailureClass] = useState('');
   const [workflowSearch, setWorkflowSearch] = useState('');
   const [workflowOffset, setWorkflowOffset] = useState(0);
-  const [evalDays, setEvalDays] = useState('30');
+  const evalDays = '30';
   const [modelCompDays, setModelCompDays] = useState('30');
   const [modelCompPolicy, setModelCompPolicy] = useState('all');
   const deferredQuery = useDeferredValue(commandQuery);

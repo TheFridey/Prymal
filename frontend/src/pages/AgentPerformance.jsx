@@ -158,7 +158,7 @@ export default function AgentPerformance() {
                     </tr>
                   ) : (
                     <MotionList as="tbody">
-                      {filtered.map((row, i) => {
+                      {filtered.map((row) => {
                         const w = row.avgWeight;
                         const hp = holdPercent(row);
                         return (

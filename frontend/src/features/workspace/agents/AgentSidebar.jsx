@@ -33,7 +33,6 @@ export default function AgentSidebar({
   activeAgent,
   unlockedAgents,
   recentAgentIds,
-  routeMode,
   powerCards,
 
   // Conversation history

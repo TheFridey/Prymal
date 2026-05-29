@@ -3,7 +3,7 @@ import { renderWithProviders } from '../test/renderWithProviders';
 import Trust from './Trust';
 
 vi.mock('@clerk/clerk-react', () => ({
-  SignedIn: ({ children }) => null,
+  SignedIn: () => null,
   SignedOut: ({ children }) => children,
 }));
 

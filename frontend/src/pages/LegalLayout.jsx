@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Button, PageShell, Reveal } from '../components/ui';
+import { PageShell, Reveal } from '../components/ui';
 import { usePrymalReducedMotion } from '../components/motion';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';

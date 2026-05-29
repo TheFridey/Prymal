@@ -118,7 +118,6 @@ export function useChatSend({
   navigate,
   routeMode,
   setDraft,
-  fileInputRef,
   onVideoCreditsBlocked,
   userId = 'local',
   firstRunOutcomeId = '',

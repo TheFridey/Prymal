@@ -7,7 +7,7 @@ import { FIRST_RUN_OUTCOMES } from '../lib/first-run-outcomes';
 import { trackFirstWinSelected, trackOnboardingStarted } from '../lib/analytics';
 import { getRecommendedWorkflowTemplateForProfile } from '../lib/workflow-templates';
 import { getErrorMessage } from '../lib/utils';
-import { BrandMark, Button, InlineNotice, TextInput, ThemeToggle } from '../components/ui';
+import { BrandMark, InlineNotice, TextInput, ThemeToggle } from '../components/ui';
 import { usePrymalReducedMotion } from '../components/motion';
 import { useAppStore } from '../stores/useAppStore';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';

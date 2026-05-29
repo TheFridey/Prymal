@@ -39,6 +39,7 @@ The GitHub Actions workflow at `.github/workflows/ci.yml` is the release gate fo
 - dependency install
 - Backend lint
 - backend test execution
+- Lint
 - Frontend lint
 - frontend clean-checkout reproducibility via `npm run verify-build`
 - frontend production build
@@ -65,12 +66,13 @@ This is not treated as a regression waiver: the budget still sits close to the c
 Configure these exact quality-gate status checks as required on `master`:
 
 1. `Backend lint`
-2. `Frontend lint`
-3. `Backend tests`
-4. `Frontend verify-build`
-5. `Frontend performance budget`
-6. `E2E marketing smoke`
-7. `E2E authenticated regression`
+2. `Lint`
+3. `Frontend lint`
+4. `Backend tests`
+5. `Frontend verify-build`
+6. `Frontend performance budget`
+7. `E2E marketing smoke`
+8. `E2E authenticated regression`
 
 Recommended additional diagnostics:
 
@@ -85,7 +87,7 @@ In GitHub repository settings for `master`:
 2. Require at least one approval.
 3. Dismiss stale pull request approvals when new commits are pushed.
 4. Require branches to be up to date before merging.
-5. Require the seven quality-gate status checks listed above to pass.
+5. Require the eight quality-gate status checks listed above to pass.
 6. Restrict direct pushes to `master`.
 7. Include administrators so emergency changes do not bypass CI by default.
 

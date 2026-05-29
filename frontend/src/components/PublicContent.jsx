@@ -7,7 +7,7 @@ import {
   buildCollectionSchema,
   buildFaqPageSchema,
 } from '../lib/seo';
-import { MotionCard, MotionList, MotionListItem, MotionPanel, MotionSection } from './motion';
+import { MotionCard, MotionList, MotionListItem, MotionPanel } from './motion';
 
 export {
   buildArticleSchema,

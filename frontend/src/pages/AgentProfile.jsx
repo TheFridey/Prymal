@@ -14,6 +14,7 @@ const CinematicHeroScene = lazy(() => import('../features/marketing/CinematicHer
 export default function AgentProfile() {
   const { agentId } = useParams();
   const navigate = useNavigate();
+  const reducedMotion = usePrymalReducedMotion();
   const agent = getAgentMeta(agentId);
 
   if (!agent) {
@@ -26,8 +27,6 @@ export default function AgentProfile() {
   const companionAgents = AGENT_LIBRARY.filter((entry) => entry.id !== agent.id).slice(0, 4);
   const agentPowerUps = POWERUP_LIBRARY.filter((entry) => entry.agentId === agent.id);
   const { notIdealFor, capabilities } = getAgentCapabilities(agent.id);
-
-  const reducedMotion = usePrymalReducedMotion();
 
   return (
     <div className="agent-profile-shell pm-page">

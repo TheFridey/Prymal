@@ -33,7 +33,7 @@ function RequestProbe() {
 beforeEach(() => {
   mockGetToken.mockReset();
   mockGetToken.mockResolvedValue('token-from-clerk');
-  global.fetch = vi.fn(async (_url, init = {}) =>
+  global.fetch = vi.fn(async (_url, _init = {}) =>
     new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

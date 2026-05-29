@@ -3,7 +3,6 @@ import {
   TbMessageCircle,
   TbPlugConnected,
   TbRoute,
-  TbSettings,
   TbChartBar,
   TbSparkles,
 } from 'react-icons/tb';

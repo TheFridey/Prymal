@@ -46,7 +46,7 @@ export default async function globalSetup(config) {
   }
 
   const authConfig = describeAuthConfiguration();
-  console.log(
+  console.warn(
     [
       '[playwright-auth]',
       `authRequired=${authConfig.authRequired}`,

@@ -8,7 +8,7 @@ import {
   buildArticleSchema,
   buildBreadcrumbSchema,
 } from '../components/PublicContent';
-import { BLOG_POSTS, getBlogPostBySlug } from '../lib/blog-posts';
+import { getBlogPostBySlug } from '../lib/blog-posts';
 import { BLOG_AUTHOR, getBlogConversionConfig } from '../lib/blog-conversion';
 import { BlogConversionStrip } from '../features/marketing/blog/BlogCta';
 import { BlogFounderNote } from '../features/marketing/blog/BlogFounderNote';

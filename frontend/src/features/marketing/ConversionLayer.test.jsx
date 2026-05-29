@@ -4,7 +4,7 @@ import { PricingPageContent } from './PricingPageContent';
 import { PLAN_DECISION_HELPERS, PRICING_OBJECTION_CARDS } from '../../lib/pricing-conversion';
 
 vi.mock('@clerk/clerk-react', () => ({
-  SignedIn: ({ children }) => null,
+  SignedIn: () => null,
   SignedOut: ({ children }) => children,
   useAuth: () => ({ isSignedIn: false }),
 }));

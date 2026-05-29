@@ -21,7 +21,7 @@ import MediaGenerationModal from './MediaGenerationModal';
 import { VideoPackPaywallModal } from '../billing/VideoPackPaywallModal';
 import FirstWinPromptComposer from '../first-win/FirstWinPromptComposer';
 import { useAgentStripDrag } from './hooks/useAgentStripDrag';
-import { useConversationManager, DEFAULT_CHAT_SETTINGS } from './hooks/useConversationManager';
+import { useConversationManager } from './hooks/useConversationManager';
 import { useChatSend } from './hooks/useChatSend';
 import { useVoiceInput } from './hooks/useVoiceInput';
 import {
