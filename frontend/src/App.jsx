@@ -15,6 +15,7 @@ import { BrandMark, Button, InlineNotice, LoadingPanel, ThemeToggle } from './co
 import { MotionPage, MotionPresence } from './components/motion';
 import { ThemeProvider, getClerkAppearance, useTheme } from './components/theme';
 import { AnalyticsPageView } from './components/AnalyticsPageView';
+import { PageMeta } from './components/PublicPageChrome';
 import { api, configureApi } from './lib/api';
 import { trackSignupStarted } from './lib/analytics';
 import { lazyWithRetry } from './lib/lazyWithRetry';
@@ -244,10 +245,43 @@ function AppRoutes() {
             <Route path="integrations" element={<LazyPage label="Loading integrations..."><Integrations /></LazyPage>} />
             <Route path="settings" element={<LazyPage label="Loading settings..."><Settings /></LazyPage>} />
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </MotionPresence>
     </ErrorBoundary>
+  );
+}
+
+function NotFoundPage() {
+  return (
+    <main
+      className="pm-page"
+      style={{
+        minHeight: '100vh',
+        display: 'grid',
+        placeItems: 'center',
+        padding: '32px',
+      }}
+    >
+      <PageMeta
+        title="Page not found | Prymal"
+        description="The Prymal page you requested could not be found."
+        canonicalPath="/"
+        robots="noindex,follow"
+      />
+      <section style={{ width: 'min(620px, 100%)' }}>
+        <div className="eyebrow" style={{ '--eyebrow-accent': 'var(--accent)' }}>404</div>
+        <h1 style={{ margin: '12px 0', fontSize: 'clamp(2.5rem, 8vw, 5rem)', lineHeight: 0.95 }}>
+          Page not found.
+        </h1>
+        <p style={{ color: 'var(--muted)', lineHeight: 1.7, marginBottom: '20px' }}>
+          This URL is not part of the public Prymal site.
+        </p>
+        <Link to="/">
+          <Button tone="accent">Open Prymal home</Button>
+        </Link>
+      </section>
+    </main>
   );
 }
 

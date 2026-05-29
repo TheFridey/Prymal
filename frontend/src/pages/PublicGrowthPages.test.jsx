@@ -13,6 +13,7 @@ import BlogPost from './BlogPost';
 import ComparisonPage from './ComparisonPage';
 import { COMPARISON_PAGES, FEATURE_PAGES } from '../lib/site-content';
 import { BLOG_POSTS, getBlogPostWordFloor } from '../lib/blog-posts';
+import { AGENT_LIBRARY } from '../lib/constants';
 import { PUBLIC_STATIC_ROUTES, SITE_URL } from '../lib/seo';
 import SeoGrowthPage from './SeoGrowthPage';
 import { SEO_CATEGORY_PAGES, SEO_GROWTH_PAGES, SEO_USE_CASE_PAGES } from '../lib/seo-growth-content';
@@ -262,6 +263,30 @@ test('robots.txt references the sitemap and keeps app routes private', () => {
   expect(robots).toContain('Sitemap: https://prymal.io/sitemap.xml');
   expect(robots).toContain('Disallow: /app/');
   expect(robots).toContain('llms.txt');
+});
+
+test('_redirects canonicalizes the public site and does not index unknown routes as the SPA shell', () => {
+  const redirects = fs.readFileSync('./public/_redirects', 'utf8');
+  const redirectLines = redirects.split(/\r?\n/);
+
+  expect(redirects).toContain('https://www.prymal.io/* https://prymal.io/:splat 301');
+  expect(redirects).toContain('/404.html /404.html 404');
+  expect(redirects).toContain('/* /404.html 404');
+  expect(redirectLines).not.toContain('/* /index.html 200');
+
+  PUBLIC_STATIC_ROUTES.forEach((route) => {
+    expect(redirects).toContain(`${route.path} /index.html 200`);
+  });
+
+  [
+    ...FEATURE_PAGES.map((page) => `/features/${page.slug}`),
+    ...BLOG_POSTS.map((post) => `/blog/${post.slug}`),
+    ...COMPARISON_PAGES.map((page) => `/compare/${page.slug}`),
+    ...SEO_GROWTH_PAGES.map((page) => page.path),
+    ...AGENT_LIBRARY.map((agent) => `/agents/${agent.id}`),
+  ].forEach((path) => {
+    expect(redirects).toContain(`${path} /index.html 200`);
+  });
 });
 
 test('llms.txt explains Prymal for answer engines without certification claims', () => {
