@@ -11,7 +11,7 @@ import FeaturePage from './FeaturePage';
 import Blog from './Blog';
 import BlogPost from './BlogPost';
 import ComparisonPage from './ComparisonPage';
-import { COMPARISON_PAGES, FEATURE_PAGES } from '../lib/site-content';
+import { COMPARISON_PAGES, FEATURE_PAGES, HOME_FAQ_ITEMS } from '../lib/site-content';
 import { BLOG_POSTS, getBlogPostWordFloor } from '../lib/blog-posts';
 import { AGENT_LIBRARY } from '../lib/constants';
 import { PUBLIC_STATIC_ROUTES, SITE_URL } from '../lib/seo';
@@ -306,4 +306,15 @@ test('homepage sets canonical, OG, and Twitter metadata', () => {
   expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://prymal.io/');
   expect(document.querySelector('meta[property="og:image"]')?.getAttribute('content')).toContain('https://');
   expect(document.querySelector('meta[name="twitter:site"]')?.getAttribute('content')).toBe('@prymalio');
+});
+
+test('homepage emits a single FAQPage schema block', () => {
+  renderWithProviders(<Landing />);
+
+  const faqSchemas = [...document.querySelectorAll('script[type="application/ld+json"]')]
+    .map((script) => JSON.parse(script.textContent))
+    .filter((schema) => schema['@type'] === 'FAQPage');
+
+  expect(faqSchemas).toHaveLength(1);
+  expect(faqSchemas[0].mainEntity).toHaveLength(HOME_FAQ_ITEMS.length);
 });

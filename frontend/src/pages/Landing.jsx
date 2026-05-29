@@ -28,7 +28,7 @@ import { getErrorMessage } from '../lib/utils';
 import { Button, InlineNotice, PageShell, TextInput } from '../components/ui';
 import { MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
-import { AnswerBlock, FAQSection, LinkCardGrid, buildFaqPageSchema } from '../components/PublicContent';
+import { AnswerBlock, FAQSection, LinkCardGrid } from '../components/PublicContent';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
 import { FoundingAccessPopup } from '../features/marketing/FoundingAccessPopup';
@@ -382,8 +382,6 @@ export default function Landing() {
           path: '/',
         })}
       />
-      <JsonLd id="schema-home-faq" schema={buildFaqPageSchema(HOME_FAQ_ITEMS)} />
-
       <MagicalCanvas reducedMotion={reducedMotion} startDelayMs={2500} />
 
       <div className="marketing-shell prymal-marketing__shell">
