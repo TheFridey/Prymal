@@ -23,6 +23,10 @@ const router = new Hono();
 
 const workspaceFocusEnum = z.enum(['agency', 'owner_led', 'service_business', 'other']);
 
+const VALID_STARTER_OUTCOME_IDS = new Set([
+  'lead_audit', 'seo_aeo_brief', 'client_proposal', 'support_knowledge_base', 'weekly_business_report',
+]);
+
 const onboardSchema = z.object({
   orgName: z.string().trim().min(2).max(80).optional(),
   businessType: z.string().trim().max(80).optional(),
@@ -30,6 +34,14 @@ const onboardSchema = z.object({
   workspaceFocus: workspaceFocusEnum.optional(),
   inviteToken: z.string().trim().min(10).max(240).optional(),
   referralCode: z.string().trim().min(4).max(20).optional(),
+  starterOutcomeId: z.string().trim().max(60).optional().refine(
+    (value) => !value || VALID_STARTER_OUTCOME_IDS.has(value),
+    { message: 'Invalid starter outcome ID.' },
+  ),
+  sourceOfTruth: z.object({
+    type: z.enum(['text', 'url']),
+    value: z.string().trim().max(1000),
+  }).optional(),
 });
 
 const invitationCreateSchema = z.object({
@@ -965,6 +977,10 @@ function buildOrganisationMetadata(payload) {
     businessType: payload.businessType?.trim() || null,
     primaryGoal: payload.primaryGoal?.trim() || null,
     workspaceFocus: payload.workspaceFocus ?? null,
+    starterOutcomeId: payload.starterOutcomeId?.trim() || null,
+    onboardingSourceOfTruth: payload.sourceOfTruth?.value?.trim()
+      ? { type: payload.sourceOfTruth.type, preview: payload.sourceOfTruth.value.trim().slice(0, 120) }
+      : null,
   };
 }
 

@@ -5,7 +5,6 @@ const log = logger.child({ component: 'rate-limit' });
 
 const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_MAX = 10;
-const UPSTASH_WARNING_PREFIX = '[RATE LIMIT]';
 
 let warnedAboutUpstash = false;
 let warnedAboutProductionMemoryStore = false;

@@ -10,6 +10,30 @@ import '../styles/changelog-premium.css';
 
 const CHANGELOG = [
   {
+    version: '1.1.6',
+    date: '2026-05-29',
+    tag: 'Launch',
+    badge: 'Readiness',
+    milestone: true,
+    title: 'First Win Onboarding, Trust Proofs + Operational Launch Checks',
+    impact: 'Onboarding now routes new users to a recommended first outcome with an optional source-of-truth input. The Trust Centre gains live WARDEN proof demos. Pricing shows honest per-plan usage examples with a hard credit rollover warning. The Compare hub adds an honest "not best for" guide. Deployment runbooks, backup checklists, and provider-degraded tests harden the operational baseline.',
+    entries: [
+      'Added five structured starter outcomes to onboarding — Lead Audit, SEO/AEO Brief, Client Proposal, Support Knowledge Base, and Weekly Business Report — with auto-recommendation based on business type and primary goal.',
+      'Added an optional source-of-truth field to onboarding step 2 (paste text or URL, 1,000-char cap) so users can give the first agent a head start without committing context to LORE.',
+      'Backend onboard schema now validates starterOutcomeId against an allowlist and stores it alongside sourceOfTruth in organisation metadata.',
+      'Dashboard first-win strip shows a single clear CTA when an outcome is already selected, with an optional "Add to LORE" prompt if a source-of-truth was provided at signup.',
+      'Added 16 onboarding unit tests covering route rendering, auto-recommendation logic, outcome selection, API payload safety, and sourceOfTruth truncation.',
+      'Added five WARDEN proof-demo sections to the Trust Centre: prompt injection, malicious URL with hidden instruction, unsafe media prompt, retrieved-content tool/billing override, and workflow destructive-action confirmation hold — all safe, redacted, and non-operational.',
+      'Pricing page now includes a per-plan usage table showing realistic task volumes (chat turns, LORE sessions, workflow runs, image generation) and a prominent warning that credits do not roll over and backend metering is authoritative.',
+      'Compare hub gains an honest "Prymal is not best for…" section covering six clear disqualifying fit cases with links to Trust Centre and pricing.',
+      'Sitemap generation verified: 67 routes, llms.txt, and _redirects generated cleanly.',
+      'DEPLOY.md extended with Postgres backup and restore procedures, a pre/post migration checklist, post-deploy smoke test instructions, and a Sentry release verification walkthrough.',
+      'New healthcheck-smoke.sh script checks health endpoint, security headers, frontend load, and auth-gated routes after every production deploy.',
+      'Added 20 provider-degraded tests covering LLM key detection, placeholder and encryption key validation, DSN format checks, auth and billing key classification, and email delivery degraded-mode detection.',
+      'Fixed two pre-existing backend lint warnings (unused UPSTASH_WARNING_PREFIX constant and unused line variable in video-generation).',
+    ],
+  },
+  {
     version: '1.1.5',
     date: '2026-05-23',
     tag: 'Integrations',

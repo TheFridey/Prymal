@@ -686,6 +686,86 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         </div>
       </section>
 
+      <section className="pricing-plan-examples" aria-labelledby="plan-examples-heading">
+        <h2 id="plan-examples-heading" className="pricing-section-title" style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+          What each plan can realistically do per month
+        </h2>
+        <p style={{ textAlign: 'center', color: 'var(--muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+          Based on typical task sizes. Actual credits used vary by workflow complexity, LORE retrieval depth, and model choice.
+          The backend metering is always authoritative — these are illustrative estimates only.
+        </p>
+        <div className="pricing-compare-scroll" role="region" aria-label="Plan usage examples table" tabIndex={0}>
+          <table className="pricing-compare">
+            <thead>
+              <tr>
+                <th scope="col">Task type</th>
+                {PLAN_LIBRARY.map((plan) => (
+                  <th key={plan.id} scope="col" className={plan.id === 'pro' ? 'pricing-compare__highlight' : undefined}>
+                    {plan.name} ({plan.credits.toLocaleString('en-GB')} credits)
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Short agent chat / replies</td>
+                <td>~150–350 turns</td>
+                <td className="pricing-compare__highlight">~600–1,400 turns</td>
+                <td>~1,800–4,200 turns</td>
+                <td>~3,000–7,000 turns</td>
+              </tr>
+              <tr>
+                <td>LORE-backed conversations</td>
+                <td>~40–80 sessions</td>
+                <td className="pricing-compare__highlight">~160–320 sessions</td>
+                <td>~480–960 sessions</td>
+                <td>~800–1,600 sessions</td>
+              </tr>
+              <tr>
+                <td>Multi-step workflow runs</td>
+                <td>~10–20 runs</td>
+                <td className="pricing-compare__highlight">~40–80 runs</td>
+                <td>~120–240 runs</td>
+                <td>~200–400 runs</td>
+              </tr>
+              <tr>
+                <td>Guided image generation</td>
+                <td>~25–50 images</td>
+                <td className="pricing-compare__highlight">~100–200 images</td>
+                <td>~300–600 images</td>
+                <td>~500–1,000 images</td>
+              </tr>
+              <tr>
+                <td>AI video credits (separate balance)</td>
+                <td>2 renders</td>
+                <td className="pricing-compare__highlight">5 renders</td>
+                <td>15 renders</td>
+                <td>25 renders</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style={{ textAlign: 'center', fontSize: '0.82rem', color: 'var(--muted)', marginTop: '0.75rem' }}>
+          Typical range = simple tasks use fewer credits; deep retrieval, multi-agent chains, and premium model calls use more.
+        </p>
+      </section>
+
+      <section className="pricing-rollover-warning" aria-labelledby="rollover-warning-heading" role="note">
+        <h2 id="rollover-warning-heading">
+          ⚠ Credits do not roll over — and backend metering is authoritative
+        </h2>
+        <div className="pricing-rollover-warning__body">
+          <p>
+            <strong>Included monthly credits refresh on your billing cycle and do not carry over to the next month.</strong>{' '}
+            Unused execution credits and AI video credits expire at the end of each period. Purchased top-up credit packs follow the terms shown at checkout and in your billing portal.
+          </p>
+          <p>
+            <strong>The backend metering system is the authoritative record of your usage and remaining balance.</strong>{' '}
+            Credit figures shown in the app interface are updated in real time, but the backend enforces limits — not the frontend display. If a task is blocked because your balance is depleted, the backend decision stands regardless of what the UI showed moments before. Add a pack or wait for your next billing reset to resume metered work.
+          </p>
+        </div>
+      </section>
+
       <section className="pricing-faq" aria-labelledby="faq-heading">
         <h2 id="faq-heading">Questions</h2>
         {FAQ_ITEMS.map((item) => (

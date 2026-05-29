@@ -258,3 +258,153 @@ export function writeFirstWinState(userId = 'local', patch = {}) {
 
   return next;
 }
+
+// ─── Structured starter outcomes (shown in onboarding + recommended by profile) ──
+
+export const STARTER_OUTCOMES = [
+  {
+    id: 'lead_audit',
+    title: 'Lead Audit',
+    plainOutcome: 'Score your current leads, surface the highest-priority actions, and get a follow-up plan.',
+    timeToResult: '3-5 min',
+    recommendedAgentId: 'vance',
+    alternateAgentIds: ['cipher', 'atlas'],
+    loreHelps: 'Add CRM notes, ICP definition, or lead-list context for sharper scoring.',
+    creditIntensity: 'Low / Medium',
+    cta: 'Run lead audit with VANCE',
+    route: '/app/agents/vance?new=1&outcome=lead_audit&composer=1',
+    recommendationReason: 'VANCE is built for lead qualification, scoring, and commercial next-step generation.',
+    starterPrompts: [
+      'Score these leads and rank by priority: [paste lead notes].',
+      'Identify which leads to contact this week and draft a short follow-up for each.',
+      'Summarise the pipeline state and recommend the three best next actions.',
+    ],
+    sourceOfTruthHint: 'Paste lead notes, a CRM export snippet, or a description of your ideal customer.',
+    fitFor: {
+      businessTypes: ['Marketing agency', 'Recruitment', 'Consultancy'],
+      primaryGoals: ['Win and progress more leads'],
+    },
+  },
+  {
+    id: 'seo_aeo_brief',
+    title: 'SEO / AEO Brief',
+    plainOutcome: 'Build a research-backed content brief targeting search and AI-answer visibility.',
+    timeToResult: '3-5 min',
+    recommendedAgentId: 'forge',
+    alternateAgentIds: ['echo', 'herald'],
+    loreHelps: 'Add brand voice, existing content URLs, or audience notes for a tighter brief.',
+    creditIntensity: 'Low',
+    cta: 'Build brief with FORGE',
+    route: '/app/agents/forge?new=1&outcome=seo_aeo_brief&composer=1',
+    recommendationReason: 'FORGE turns topic and audience context into structured, conversion-aware content briefs.',
+    starterPrompts: [
+      'Write an SEO/AEO content brief for this topic: [topic]. Include angle, key questions, H2 structure, and proof points.',
+      'Create a brief for a pillar page targeting [term] with cluster topics and answer-engine hooks.',
+      'Turn this existing post into an updated SEO brief with fresh angles and AEO formatting.',
+    ],
+    sourceOfTruthHint: 'Paste a target keyword, an existing post URL, or a short topic summary.',
+    fitFor: {
+      businessTypes: ['Marketing agency', 'Creative studio', 'SaaS'],
+      primaryGoals: ['Ship content faster'],
+    },
+  },
+  {
+    id: 'client_proposal',
+    title: 'Client Proposal',
+    plainOutcome: 'Turn a brief, notes, or a call summary into a structured proposal with scope and next steps.',
+    timeToResult: '3-5 min',
+    recommendedAgentId: 'herald',
+    alternateAgentIds: ['vance', 'forge'],
+    loreHelps: 'Add service description, pricing notes, or past proposal language to improve fit.',
+    creditIntensity: 'Low',
+    cta: 'Draft proposal with HERALD',
+    route: '/app/agents/herald?new=1&outcome=client_proposal&composer=1',
+    recommendationReason: 'HERALD is best at turning client context into polished, action-ready deliverables.',
+    starterPrompts: [
+      'Turn these client notes into a structured proposal outline with scope, deliverables, and next steps.',
+      'Draft an introduction and scope section for a proposal based on this brief.',
+      'Create a proposal summary and pricing framework from this client call transcript.',
+    ],
+    sourceOfTruthHint: 'Paste a client brief, call notes, or a short description of the project scope.',
+    fitFor: {
+      businessTypes: ['Marketing agency', 'Creative studio', 'Consultancy', 'Legal / professional services'],
+      primaryGoals: ['Win and progress more leads', 'Handle support and client comms'],
+    },
+  },
+  {
+    id: 'support_knowledge_base',
+    title: 'Support Knowledge Base',
+    plainOutcome: 'Create structured KB articles, FAQs, or SOP docs from questions, calls, or existing materials.',
+    timeToResult: '3-5 min',
+    recommendedAgentId: 'atlas',
+    alternateAgentIds: ['lore', 'cipher'],
+    loreHelps: 'Required for the best result — add your existing docs, policies, or product notes.',
+    creditIntensity: 'Low',
+    cta: 'Build KB article with ATLAS',
+    route: '/app/agents/atlas?new=1&outcome=support_knowledge_base&composer=1',
+    recommendationReason: 'ATLAS is best at turning scattered knowledge into structured, searchable business docs.',
+    starterPrompts: [
+      'Write a clear KB article answering this support question: [question].',
+      'Turn these product notes into a structured FAQ for customer support.',
+      'Create a short SOP from this process description.',
+    ],
+    sourceOfTruthHint: 'Paste a support question, a product note, or a short policy description.',
+    fitFor: {
+      businessTypes: ['SaaS', 'Operational services'],
+      primaryGoals: ['Handle support and client comms', 'Centralise knowledge and SOPs'],
+    },
+  },
+  {
+    id: 'weekly_business_report',
+    title: 'Weekly Business Report',
+    plainOutcome: 'Compile a structured weekly summary with trends, wins, risks, and actions from your data.',
+    timeToResult: '3-5 min',
+    recommendedAgentId: 'cipher',
+    alternateAgentIds: ['ledger', 'atlas'],
+    loreHelps: 'Helpful if you add targets, prior-week summaries, or team notes.',
+    creditIntensity: 'Low / Medium',
+    cta: 'Build report with CIPHER',
+    route: '/app/agents/cipher?new=1&outcome=weekly_business_report&composer=1',
+    recommendationReason: 'CIPHER turns numbers and notes into a clear, structured weekly operating review.',
+    starterPrompts: [
+      "Compile a weekly business report from this data: [paste metrics or notes].",
+      "Summarise this week's performance, key risks, and recommended actions.",
+      'Turn these weekly numbers into an exec-ready summary with highlights and actions.',
+    ],
+    sourceOfTruthHint: "Paste this week's metrics, notes, or a short description of your key KPIs.",
+    fitFor: {
+      businessTypes: ['Marketing agency', 'SaaS', 'Consultancy', 'Operational services'],
+      primaryGoals: ['Run weekly reporting'],
+    },
+  },
+];
+
+const STARTER_OUTCOME_BY_ID = new Map(STARTER_OUTCOMES.map((o) => [o.id, o]));
+
+export function getStarterOutcome(outcomeId) {
+  return STARTER_OUTCOME_BY_ID.get(String(outcomeId ?? '').trim()) ?? null;
+}
+
+export function recommendStarterOutcome(businessType = '', primaryGoal = '') {
+  const bt = (businessType ?? '').toLowerCase();
+  const pg = (primaryGoal ?? '').toLowerCase();
+
+  // Full match — business type AND goal both present
+  for (const outcome of STARTER_OUTCOMES) {
+    const bMatch = outcome.fitFor.businessTypes.some((b) => b.toLowerCase() === bt);
+    const gMatch = outcome.fitFor.primaryGoals.some((g) => g.toLowerCase() === pg);
+    if (bMatch && gMatch) return outcome;
+  }
+
+  // Goal match alone
+  for (const outcome of STARTER_OUTCOMES) {
+    if (outcome.fitFor.primaryGoals.some((g) => g.toLowerCase() === pg)) return outcome;
+  }
+
+  // Business-type match alone
+  for (const outcome of STARTER_OUTCOMES) {
+    if (outcome.fitFor.businessTypes.some((b) => b.toLowerCase() === bt)) return outcome;
+  }
+
+  return STARTER_OUTCOMES[0];
+}

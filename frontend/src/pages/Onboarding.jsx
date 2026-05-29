@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { getRecommendedAgentsForWorkspaceProfile } from '../lib/constants';
-import { FIRST_RUN_OUTCOMES } from '../lib/first-run-outcomes';
+import { FIRST_RUN_OUTCOMES, STARTER_OUTCOMES, recommendStarterOutcome } from '../lib/first-run-outcomes';
 import { trackFirstWinSelected, trackOnboardingStarted } from '../lib/analytics';
 import { getRecommendedWorkflowTemplateForProfile } from '../lib/workflow-templates';
 import { getErrorMessage } from '../lib/utils';
@@ -95,7 +95,9 @@ export default function Onboarding() {
   const [primaryGoal, setPrimaryGoal] = useState(PRIMARY_GOALS[0]);
   const [workspaceFocus, setWorkspaceFocus] = useState('agency');
   const [startMode, setStartMode] = useState(initialStart.startMode);
-  const [firstRunOutcomeId, setFirstRunOutcomeId] = useState('create_content');
+  const firstRunOutcomeId = 'create_content';
+  const [starterOutcomeId, setStarterOutcomeId] = useState(() => recommendStarterOutcome(BUSINESS_TYPE_OPTIONS[0], PRIMARY_GOALS[0]).id);
+  const [sourceOfTruth, setSourceOfTruth] = useState({ type: 'text', value: '' });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const notify = useAppStore((state) => state.addNotification);
@@ -126,6 +128,11 @@ export default function Onboarding() {
     trackOnboardingStarted({ surface: 'onboarding', step: inviteToken ? 2 : 1 });
   }, [inviteToken]);
 
+  useEffect(() => {
+    const recommended = recommendStarterOutcome(businessType, primaryGoal);
+    setStarterOutcomeId(recommended.id);
+  }, [businessType, primaryGoal]);
+
   const onboardMutation = useMutation({
     mutationFn: (payload) => api.post('/auth/onboard', payload),
     onSuccess: async (result) => {
@@ -134,9 +141,11 @@ export default function Onboarding() {
       sessionStorage.removeItem('prymal_start_redirect');
       await queryClient.invalidateQueries({ queryKey: ['viewer'] });
       const selectedOutcome = FIRST_RUN_OUTCOMES.find((outcome) => outcome.id === firstRunOutcomeId) ?? FIRST_RUN_OUTCOMES[0];
+      const selectedStarterOutcome = STARTER_OUTCOMES.find((o) => o.id === starterOutcomeId) ?? STARTER_OUTCOMES[0];
       trackFirstWinSelected({
         outcome_id: selectedOutcome.id,
         recommended_agent_id: selectedOutcome.recommendedAgentId,
+        starter_outcome_id: selectedStarterOutcome.id,
         surface: 'onboarding_complete',
       });
       notify({
@@ -165,6 +174,9 @@ export default function Onboarding() {
           recommendedFirstAgentId,
           recommendedWorkflowName: recommendedWorkflow?.name ?? 'Weekly Client Report',
           firstRunOutcomeId: selectedOutcome.id,
+          starterOutcomeId: selectedStarterOutcome.id,
+          starterOutcomeRoute: selectedStarterOutcome.route,
+          hasSourceOfTruth: sourceOfTruth.value.trim().length > 0,
         },
       });
     },
@@ -291,33 +303,89 @@ export default function Onboarding() {
 
               <div className="pm-onboarding__summary">
                 <div>
-                  <div className="pm-onboarding__summary-title">What do you want to do first?</div>
+                  <div className="pm-onboarding__summary-title">Your first outcome</div>
                   <div className="pm-onboarding__summary-body">
-                    Pick the outcome. Prymal will choose the specialist and guided prompt after setup.
+                    Based on your selections, we recommend one starter outcome below. Pick a different one if it does not fit — Prymal will open the right specialist after setup.
                   </div>
                 </div>
                 <div style={{ display: 'grid', gap: '10px' }}>
-                  {FIRST_RUN_OUTCOMES.map((outcome) => (
+                  {STARTER_OUTCOMES.map((outcome) => (
                     <button
                       key={outcome.id}
                       type="button"
+                      data-testid={`starter-outcome-${outcome.id}`}
                       onClick={() => {
-                        setFirstRunOutcomeId(outcome.id);
+                        setStarterOutcomeId(outcome.id);
                         trackFirstWinSelected({
                           outcome_id: outcome.id,
                           recommended_agent_id: outcome.recommendedAgentId,
-                          surface: 'onboarding_picker',
+                          surface: 'onboarding_starter_picker',
                         });
                       }}
-                      className={`pm-onboarding__option${firstRunOutcomeId === outcome.id ? ' pm-onboarding__option--selected' : ''}`}
+                      className={`pm-onboarding__option${starterOutcomeId === outcome.id ? ' pm-onboarding__option--selected' : ''}`}
                     >
-                      <div className="pm-onboarding__option-label">{outcome.title}</div>
+                      <div className="pm-onboarding__option-label">
+                        {outcome.title}
+                        {starterOutcomeId === outcome.id && starterOutcomeId === recommendStarterOutcome(businessType, primaryGoal).id
+                          ? ' · Recommended'
+                          : ''}
+                      </div>
                       <div className="pm-onboarding__option-desc">
-                        {outcome.plainOutcome} Recommended: {outcome.recommendedAgentId.toUpperCase()} | {outcome.creditIntensity} cost | {outcome.timeToResult}
+                        {outcome.plainOutcome} Agent: {outcome.recommendedAgentId.toUpperCase()} · {outcome.creditIntensity} cost · {outcome.timeToResult}
                       </div>
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="pm-onboarding__summary">
+                <div>
+                  <div className="pm-onboarding__summary-title">Source of truth (optional)</div>
+                  <div className="pm-onboarding__summary-body">
+                    Paste one piece of business context — a brief, a data snippet, a URL, or a policy — to give the agent a head start. You can skip this and add more later via LORE.
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <button
+                    type="button"
+                    className={`pm-btn pm-btn--ghost${sourceOfTruth.type === 'text' ? ' pm-btn--active' : ''}`}
+                    style={{ fontSize: '13px', padding: '6px 12px' }}
+                    onClick={() => setSourceOfTruth((s) => ({ ...s, type: 'text' }))}
+                  >
+                    Paste text
+                  </button>
+                  <button
+                    type="button"
+                    className={`pm-btn pm-btn--ghost${sourceOfTruth.type === 'url' ? ' pm-btn--active' : ''}`}
+                    style={{ fontSize: '13px', padding: '6px 12px' }}
+                    onClick={() => setSourceOfTruth((s) => ({ ...s, type: 'url' }))}
+                  >
+                    URL
+                  </button>
+                </div>
+                {sourceOfTruth.type === 'text' ? (
+                  <textarea
+                    value={sourceOfTruth.value}
+                    onChange={(event) => setSourceOfTruth((s) => ({ ...s, value: event.target.value }))}
+                    placeholder={STARTER_OUTCOMES.find((o) => o.id === starterOutcomeId)?.sourceOfTruthHint ?? 'Paste any relevant business context here…'}
+                    maxLength={1000}
+                    rows={4}
+                    data-testid="onboarding-source-of-truth-text"
+                    className="pm-onboarding__select"
+                    style={{ resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6 }}
+                  />
+                ) : (
+                  <TextInput
+                    value={sourceOfTruth.value}
+                    onChange={(event) => setSourceOfTruth((s) => ({ ...s, value: event.target.value }))}
+                    placeholder="https://your-site.com/about"
+                    maxLength={500}
+                    data-testid="onboarding-source-of-truth-url"
+                  />
+                )}
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginTop: '6px' }}>
+                  This is optional and safe to skip. It will be attached to the first conversation — not stored as permanent LORE without your approval.
+                </p>
               </div>
 
               <InlineNotice tone="default">
@@ -376,6 +444,10 @@ export default function Onboarding() {
                       workspaceFocus,
                       inviteToken: inviteToken || undefined,
                       referralCode: referralCode || undefined,
+                      starterOutcomeId: starterOutcomeId || undefined,
+                      sourceOfTruth: sourceOfTruth.value.trim()
+                        ? { type: sourceOfTruth.type, value: sourceOfTruth.value.trim().slice(0, 1000) }
+                        : undefined,
                     })
                   }
                 >

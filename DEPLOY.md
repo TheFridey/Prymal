@@ -361,6 +361,133 @@ docker compose -f docker-compose.prod.yml restart prymal-api
 docker compose -f docker-compose.prod.yml down
 ```
 
+## Postgres Backup and Restore Checklist
+
+Run a full backup **before every production schema change** and **on a regular schedule** (daily recommended).
+
+### Manual backup
+
+```bash
+pg_dump "$DATABASE_URL" --format=custom --compress=9 \
+  --file="prymal-backup-$(date +%Y%m%d-%H%M%S).dump"
+```
+
+Store the dump in an off-server location (object storage such as Backblaze B2, Cloudflare R2, or a dedicated backup server).
+
+### Restore from backup
+
+```bash
+# Stop the backend before restoring to avoid mid-restore writes:
+sudo systemctl stop prymal-backend
+
+# Restore to a fresh database:
+pg_restore --dbname="$DATABASE_URL" --format=custom --clean --single-transaction prymal-backup.dump
+
+# Re-enable pgvector extension if dropped during restore:
+psql "$DATABASE_URL" -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+# Run any missing migrations (safe to re-run; migration runner tracks applied files):
+cd /home/deploy/prymal/backend
+npm run migrate
+
+# Restart the backend:
+sudo systemctl start prymal-backend
+
+# Verify:
+curl -fsS http://127.0.0.1:3001/health
+```
+
+### Backup verification test (run at least monthly)
+
+1. Create a throwaway database locally or on a staging server.
+2. Restore the latest production dump into it.
+3. Run `npm run schema:check` against the restored database.
+4. Confirm the backend starts cleanly against the restored DB.
+5. Record the test result as compliance evidence.
+
+### Automated backup schedule (recommended)
+
+Set up a cron job on the VPS or a Postgres provider backup feature:
+
+```cron
+# Daily backup at 02:00 UTC — runs as the deploy user
+0 2 * * * pg_dump "$DATABASE_URL" --format=custom --compress=9 \
+  --file="/backups/prymal-$(date +\%Y\%m\%d).dump" \
+  && find /backups -name "prymal-*.dump" -mtime +14 -delete
+```
+
+Retain at least 7 daily backups. Retain 4 weekly backups for disaster recovery.
+
+---
+
+## Production Migration Checklist
+
+Follow these steps every time a database migration is included in a production deploy.
+
+1. **Take a pre-migration backup** (see Backup section above). Do not skip this step.
+2. Confirm the backup file exists and is non-empty before proceeding.
+3. On the VPS:
+   ```bash
+   cd /home/deploy/prymal/backend
+   # Verify the new migration files are present in the repo
+   ls database/migrations/
+   # Run migrations
+   npm run migrate
+   # Confirm no errors in the output
+   # Run schema drift check
+   npm run schema:check
+   ```
+4. Restart the backend and verify health:
+   ```bash
+   sudo systemctl restart prymal-backend
+   curl -fsS http://127.0.0.1:3001/health
+   ```
+5. If migration fails:
+   - Stop the backend immediately: `sudo systemctl stop prymal-backend`
+   - Restore from the pre-migration backup (see Restore section above)
+   - Investigate the migration file for the error
+   - Do not attempt to re-run a partial migration without understanding what was applied
+6. Record the migration event in the compliance evidence log with timestamp and migration filenames.
+
+---
+
+## Post-Deploy Smoke Tests
+
+After every production deploy, run the automated healthcheck script:
+
+```bash
+# From the repo root on any machine with curl:
+chmod +x scripts/healthcheck-smoke.sh
+./scripts/healthcheck-smoke.sh https://api.prymal.io https://prymal.io
+```
+
+The script checks:
+- Backend `/health` returns 200
+- Frontend root loads
+- API security headers are present
+- Auth-gated app routes return non-500 responses
+
+If any checks fail, treat the deploy as unhealthy until the issue is resolved.
+
+### Sentry release verification
+
+After a successful deploy:
+
+1. Open your Sentry project → Releases.
+2. Confirm a new release entry exists matching the deploy commit or tag.
+3. If `SENTRY_DSN` is configured on the backend, trigger a test event:
+   ```bash
+   # Staff-only endpoint — requires X-Prymal-Admin: true header and a valid session:
+   curl -X POST https://api.prymal.io/admin/ops/sentry-test \
+     -H "Authorization: Bearer <admin-session-token>" \
+     -H "X-Prymal-Admin: true"
+   ```
+4. Confirm the test event appears in Sentry → Issues within 60 seconds.
+5. Check that the event is assigned to the correct release and environment.
+6. If no events appear after 120 seconds, verify `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, and Sentry project DSN settings.
+
+---
+
 ## Related Docs
 
 - `docs/vps-security-hardening.md`

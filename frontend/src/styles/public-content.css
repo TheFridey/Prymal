@@ -1322,6 +1322,143 @@
   filter: blur(18px);
 }
 
+/* ─── Honest comparison grid ────────────────────────────────────────────── */
+
+.public-comparison-honest-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 1rem;
+}
+
+.public-comparison-honest-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.public-comparison-honest-card strong {
+  display: block;
+  color: var(--text-strong, #fff);
+  font-size: 0.92rem;
+  margin: 4px 0 6px;
+}
+
+.public-comparison-honest-card p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.public-comparison-honest-card a {
+  color: var(--accent, #7cffe0);
+}
+
+@media (max-width: 720px) {
+  .public-comparison-honest-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── WARDEN proof demos ────────────────────────────────────────────────── */
+
+.public-warden-demos {
+  display: grid;
+  gap: 20px;
+  margin-top: 1rem;
+}
+
+.public-warden-demo-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.public-warden-demo-card__header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.public-warden-demo-card__header strong {
+  color: var(--text-strong, #fff);
+  font-size: 0.95rem;
+}
+
+.public-warden-demo-card__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.public-warden-demo-card__columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.public-warden-demo-card__code {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 12px;
+  white-space: pre-wrap;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 8px 0 0;
+  overflow-x: auto;
+}
+
+.public-warden-demo-card p {
+  font-size: 0.87rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 8px 0 0;
+}
+
+.public-warden-demo-card__verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-radius: 6px;
+  padding: 4px 10px;
+  margin-top: 10px;
+}
+
+.public-warden-demo-card__verdict--blocked {
+  background: rgba(251, 113, 133, 0.12);
+  color: #fb7185;
+  border: 1px solid rgba(251, 113, 133, 0.25);
+}
+
+.public-warden-demo-card__verdict--flagged {
+  background: rgba(255, 209, 102, 0.1);
+  color: #ffd166;
+  border: 1px solid rgba(255, 209, 102, 0.22);
+}
+
+.public-warden-demo-card__verdict--held {
+  background: rgba(76, 201, 240, 0.1);
+  color: #4cc9f0;
+  border: 1px solid rgba(76, 201, 240, 0.22);
+}
+
 @media (max-width: 720px) {
   .public-blog-featured,
   .public-blog-featured--hub {
@@ -1344,6 +1481,10 @@
   .public-blog-cta-strip {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .public-warden-demo-card__columns {
+    grid-template-columns: 1fr;
   }
 
   .public-blog-founder-note__author {

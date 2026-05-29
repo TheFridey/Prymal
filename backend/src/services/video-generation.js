@@ -63,7 +63,6 @@ export function logVideoJobEvent(event, job = {}, extras = {}) {
   };
 
   const isFailure = Boolean(extras.failureCode || extras.failure || extras.level === 'error');
-  const line = JSON.stringify(payload);
 
   if (isFailure) {
     log.error({ payload }, 'video_job.event');
