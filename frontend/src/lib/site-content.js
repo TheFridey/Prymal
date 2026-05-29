@@ -161,6 +161,18 @@ const commonFaqs = {
     question: 'Can teams use Prymal together?',
     answer: 'Yes. Prymal is built for teams that need shared memory, governed workflows, reusable context, and operator oversight around business-critical AI work.',
   },
+  integrations: {
+    question: 'Does Prymal connect to external tools?',
+    answer: 'Yes. Prymal supports integrations with tools like Google Workspace, Notion, Slack, LinkedIn, and others so agents can pull context and push outputs through connected systems.',
+  },
+  governance: {
+    question: 'How does Prymal handle AI governance?',
+    answer: 'Prymal includes WARDEN for input safety screening, SENTINEL for output validation, approval gates for sensitive workflow actions, and audit logs operators can review.',
+  },
+  cost: {
+    question: 'How is Prymal priced?',
+    answer: 'Prymal is priced by plan tier with included monthly execution credits and AI video credits. Usage is metered in real time and credits do not roll over between billing periods.',
+  },
 };
 
 export const FEATURE_PAGES = [
