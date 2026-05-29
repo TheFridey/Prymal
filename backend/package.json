@@ -52,7 +52,7 @@
     "mammoth": "^1.8.0",
     "node-cron": "^4.2.1",
     "openai": "^4.57.0",
-    "pdf-parse": "^1.1.1",
+    "pdf-parse": "^2.4.5",
     "pino": "^10.3.1",
     "playwright": "^1.59.0",
     "postgres": "^3.4.9",
