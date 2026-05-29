@@ -256,7 +256,7 @@ jobs:
           PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_STAGING_URL }}
           PLAYWRIGHT_ALLOW_REMOTE_AUTH_URLS: 'true'
         run: cd frontend && npx playwright test --project=authenticated
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-authenticated-artifacts
