@@ -1192,10 +1192,26 @@ function extractSocialPostText(raw) {
 }
 
 function getPublishableChatText(message, presentation) {
-  // Structured data is agent metadata — never stringify it as a post.
-  // Use markdown prose if the agent produced it, otherwise fall back to raw content.
-  const source = String(presentation?.markdown || message?.content || '').trim();
-  return extractSocialPostText(source);
+  const data = presentation?.structuredData;
+
+  // Herald sequences: the actual post lives in emails[0].body
+  if (data?.agent === 'herald' && Array.isArray(data.emails) && data.emails.length > 0) {
+    const body = String(data.emails[0].body ?? '').trim();
+    if (body.length >= 20) return body;
+  }
+
+  // Other structured agents: look for a direct text/post/content field
+  if (data && typeof data === 'object') {
+    const direct = data.post ?? data.content ?? data.body ?? data.text ?? data.copy;
+    if (typeof direct === 'string' && direct.trim().length >= 20) return direct.trim();
+  }
+
+  // Prose agents: markdown has the JSON fence stripped already
+  const markdown = String(presentation?.markdown ?? '').trim();
+  if (markdown) return extractSocialPostText(markdown);
+
+  // Last resort: strip JSON fences from the raw content
+  return extractSocialPostText(String(message?.content ?? '').trim());
 }
 
 function getSocialTargetLabel(connection) {
