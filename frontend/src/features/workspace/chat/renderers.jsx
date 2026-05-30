@@ -1245,7 +1245,7 @@ function ChatSocialPublish({ message, agent, presentation }) {
   const [integrations, setIntegrations] = useState(null);
   const [isLoadingIntegrations, setIsLoadingIntegrations] = useState(false);
   const [service, setService] = useState('');
-  const [linkUrl, setLinkUrl] = useState('');
+  const [linkUrl] = useState('');
   const [text, setText] = useState(() => getPublishableChatText(message, presentation).slice(0, 3000));
   const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
@@ -1366,13 +1366,6 @@ function ChatSocialPublish({ message, agent, presentation }) {
             maxLength={3000}
             rows={6}
             style={{ padding: '10px 12px', borderRadius: '12px', border: '1px solid var(--line)', background: 'rgba(255,255,255,0.06)', color: 'var(--text-strong)', fontSize: '13px', outline: 'none', width: '100%', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5 }}
-          />
-          <input
-            type="url"
-            placeholder="Optional link URL"
-            value={linkUrl}
-            onChange={(event) => setLinkUrl(event.target.value)}
-            style={{ padding: '8px 12px', borderRadius: '999px', border: '1px solid var(--line)', background: 'rgba(255,255,255,0.06)', color: 'var(--text-strong)', fontSize: '13px', outline: 'none', width: '100%', boxSizing: 'border-box' }}
           />
           {errorMsg ? <div style={{ fontSize: '12px', color: '#ef4444' }}>{errorMsg}</div> : null}
           <button
