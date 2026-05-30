@@ -339,8 +339,8 @@ export default function Integrations() {
                         </span>
                       </div>
                     </div>
-                    <StatusPill color={resolveHealthColor(connection.meta?.health?.status)}>
-                      {connection.meta?.health?.status ?? 'linked'}
+                    <StatusPill color={resolveConnectionStatusColor(connection)}>
+                      {resolveConnectionStatusLabel(connection)}
                     </StatusPill>
                   </div>
                 );
@@ -483,7 +483,10 @@ function IntegrationProviderCard({
   const isConnected = Boolean(connection);
   const needsReconnect = Boolean(connection?.meta?.needsReconnect);
   const linkedInPostingNotReady = provider.id === 'linkedin' && Boolean(connection?.postingNotReady);
-  const publishDisabled = Boolean(needsReconnect || connection?.publishDisabled || linkedInPostingNotReady);
+  const tokenExpired = Boolean(connection?.tokenExpired);
+  const tokenExpiringSoon = connection?.tokenStatus?.status === 'expiring_soon';
+  const tokenDaysRemaining = connection?.tokenStatus?.daysRemaining ?? null;
+  const publishDisabled = Boolean(needsReconnect || connection?.publishDisabled || linkedInPostingNotReady || tokenExpired);
   const logoTheme = getIntegrationLogoPresentation(provider.id, provider.color);
   const needsServerConfig = provider.authMode === 'oauth' && !provider.configured;
   const deliveryCount = Number(connection?.meta?.publishStats?.total ?? 0);
@@ -534,6 +537,8 @@ function IntegrationProviderCard({
             {resolveAuthModeLabel(provider, needsServerConfig)}
           </StatusPill>
           {needsReconnect ? <StatusPill color="#F59E0B">Reconnect required</StatusPill> : null}
+          {tokenExpired ? <StatusPill color="#EF4444">Token expired</StatusPill> : null}
+          {tokenExpiringSoon && !tokenExpired ? <StatusPill color="#F59E0B">Expires in {tokenDaysRemaining}d</StatusPill> : null}
           {linkedInPostingNotReady ? <StatusPill color="#F59E0B">Posting not ready</StatusPill> : null}
           {provider.supportsPublish ? <StatusPill color="#F59E0B">Live delivery</StatusPill> : null}
           {provider.supportsImagePublish ? <StatusPill color="#BDB4FE">Image-ready</StatusPill> : null}
@@ -574,6 +579,15 @@ function IntegrationProviderCard({
             {needsReconnect ? (
               <InlineNotice tone="warning">
                 {connection.meta?.reconnectMessage ?? 'This integration needs to be reconnected before Prymal can use it.'}
+              </InlineNotice>
+            ) : null}
+            {tokenExpired ? (
+              <InlineNotice tone="danger">
+                This connection has expired. Reconnect to resume publishing.
+              </InlineNotice>
+            ) : tokenExpiringSoon ? (
+              <InlineNotice tone="warning">
+                This connection expires in {tokenDaysRemaining} day{tokenDaysRemaining === 1 ? '' : 's'}. Reconnect soon to avoid interruption.
               </InlineNotice>
             ) : null}
             {linkedInPostingNotReady ? (
@@ -1281,6 +1295,20 @@ function resolveHealthColor(status) {
   if (status === 'healthy') return '#00FFD1';
   if (status === 'degraded') return '#F59E0B';
   return '#98A2B3';
+}
+
+function resolveConnectionStatusColor(connection) {
+  const tokenStatus = connection?.tokenStatus?.status;
+  if (tokenStatus === 'expired') return '#EF4444';
+  if (tokenStatus === 'expiring_soon') return '#F59E0B';
+  return resolveHealthColor(connection?.meta?.health?.status);
+}
+
+function resolveConnectionStatusLabel(connection) {
+  const tokenStatus = connection?.tokenStatus?.status;
+  if (tokenStatus === 'expired') return 'expired';
+  if (tokenStatus === 'expiring_soon') return `expires in ${connection.tokenStatus.daysRemaining}d`;
+  return connection?.meta?.health?.status ?? 'linked';
 }
 
 function toggleCardPanel(service, nextPanel, setCardPanels) {

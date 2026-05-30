@@ -1,7 +1,7 @@
 import { hasConfiguredEnvValue } from '../env.js';
 
 export const LINKEDIN_VERSION = '202603';
-export const DEFAULT_LINKEDIN_SCOPES = ['openid', 'profile', 'email'];
+export const DEFAULT_LINKEDIN_SCOPES = ['openid', 'profile', 'email', 'w_member_social'];
 const LINKEDIN_AUTH_URL = 'https://www.linkedin.com/oauth/v2/authorization';
 const LINKEDIN_TOKEN_URL = 'https://www.linkedin.com/oauth/v2/accessToken';
 const MICROSOFT_AUTH_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize';
@@ -1512,6 +1512,14 @@ export const INTEGRATION_DEFINITIONS = {
 
 export function getIntegrationDefinition(service) {
   return INTEGRATION_DEFINITIONS[service] ?? null;
+}
+
+export function getTokenStatus(tokenExpiresAt) {
+  if (!tokenExpiresAt) return { status: 'unknown', daysRemaining: null };
+  const daysRemaining = Math.floor((new Date(tokenExpiresAt) - Date.now()) / (1000 * 60 * 60 * 24));
+  if (daysRemaining < 0) return { status: 'expired', daysRemaining: 0 };
+  if (daysRemaining <= 7) return { status: 'expiring_soon', daysRemaining };
+  return { status: 'valid', daysRemaining };
 }
 
 export function isOauthIntegration(service) {

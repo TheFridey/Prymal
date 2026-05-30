@@ -9,6 +9,7 @@ const {
   DEFAULT_LINKEDIN_SCOPES,
   getAvailableIntegrations,
   getIntegrationDefinition,
+  getTokenStatus,
   isManualIntegration,
   isOauthIntegration,
   parseLinkedInScopes,
@@ -51,8 +52,8 @@ test('LinkedIn uses OAuth and exposes safe author settings', () => {
   assert.equal(linkedin?.authMode, 'oauth');
   assert.equal(linkedin?.secretLabel, undefined);
   assert.deepEqual(linkedin?.scopes, DEFAULT_LINKEDIN_SCOPES);
-  assert.deepEqual(linkedin?.scopes, ['openid', 'profile', 'email']);
-  assert.equal(linkedin?.scopes.includes('w_member_social'), false);
+  assert.deepEqual(linkedin?.scopes, ['openid', 'profile', 'email', 'w_member_social']);
+  assert.equal(linkedin?.scopes.includes('w_member_social'), true);
   assert.equal(linkedin?.scopes.includes('w_organization_social'), false);
   assert.equal(linkedin?.settingsFields.find((field) => field.key === 'authorUrn')?.requiredOnConnect, undefined);
 });
@@ -155,6 +156,35 @@ test('buildDeliveryMeta appends a new delivery receipt and increments publish st
   assert.equal(nextMeta.publishStats.lastTarget, 'C999');
   assert.equal(nextMeta.recentDeliveries[0].providerMessageId, 'new-1');
   assert.equal(nextMeta.recentDeliveries[1].providerMessageId, 'old-1');
+});
+
+test('getTokenStatus returns expired for a timestamp in the past', () => {
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const result = getTokenStatus(yesterday);
+  assert.equal(result.status, 'expired');
+  assert.equal(result.daysRemaining, 0);
+});
+
+test('getTokenStatus returns expiring_soon within the 7-day window', () => {
+  // Add a 60-second buffer so Math.floor always gives the expected integer
+  // regardless of test execution lag between Date.now() calls.
+  const inThreeDays = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 60000);
+  const result = getTokenStatus(inThreeDays);
+  assert.equal(result.status, 'expiring_soon');
+  assert.equal(result.daysRemaining, 3);
+});
+
+test('getTokenStatus returns valid for a token more than 7 days out', () => {
+  const inThirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000 + 60000);
+  const result = getTokenStatus(inThirtyDays);
+  assert.equal(result.status, 'valid');
+  assert.equal(result.daysRemaining, 30);
+});
+
+test('getTokenStatus returns unknown when no expiry is stored', () => {
+  const result = getTokenStatus(null);
+  assert.equal(result.status, 'unknown');
+  assert.equal(result.daysRemaining, null);
 });
 
 test('integration definitions expose sections, auth modes, and publish support for the expanded catalog', () => {

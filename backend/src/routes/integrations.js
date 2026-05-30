@@ -17,6 +17,7 @@ import {
   buildDeliveryMeta,
   getAvailableIntegrations,
   getIntegrationDefinition,
+  getTokenStatus,
   LINKEDIN_VERSION,
   sanitizeIntegrationMeta,
   sanitizeIntegrationSettings,
@@ -136,6 +137,7 @@ router.get('/', requireOrg, async (context) => {
       accountEmail: true,
       scopes: true,
       meta: true,
+      tokenExpiresAt: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -223,6 +225,10 @@ router.get('/:service/callback', integrationAuthRateLimit, async (context) => {
     const tokenData = await exchangeCodeForTokens(service, code);
     const account = await fetchAccountIdentity(service, tokenData);
 
+    const resolvedTokenExpiresAt = service === 'linkedin'
+      ? resolveLinkedInTokenExpiry(tokenData.expiresIn)
+      : tokenData.expiresIn ? new Date(Date.now() + tokenData.expiresIn * 1000) : null;
+
     await db
       .insert(integrations)
       .values({
@@ -230,7 +236,7 @@ router.get('/:service/callback', integrationAuthRateLimit, async (context) => {
         service,
         accessToken: await encrypt(tokenData.accessToken),
         refreshToken: tokenData.refreshToken ? await encrypt(tokenData.refreshToken) : null,
-        tokenExpiresAt: tokenData.expiresIn ? new Date(Date.now() + tokenData.expiresIn * 1000) : null,
+        tokenExpiresAt: resolvedTokenExpiresAt,
         scopes: tokenData.scopes.length > 0 ? tokenData.scopes : integration.scopes,
         accountId: account.accountId ?? null,
         accountEmail: account.accountEmail ?? null,
@@ -246,7 +252,7 @@ router.get('/:service/callback', integrationAuthRateLimit, async (context) => {
         set: {
           accessToken: await encrypt(tokenData.accessToken),
           refreshToken: tokenData.refreshToken ? await encrypt(tokenData.refreshToken) : null,
-          tokenExpiresAt: tokenData.expiresIn ? new Date(Date.now() + tokenData.expiresIn * 1000) : null,
+          tokenExpiresAt: resolvedTokenExpiresAt,
           scopes: tokenData.scopes.length > 0 ? tokenData.scopes : integration.scopes,
           accountId: account.accountId ?? null,
           accountEmail: account.accountEmail ?? null,
@@ -611,6 +617,12 @@ router.post(
     if (requiresLinkedInReconnect(service, connection)) {
       return context.json({ error: LINKEDIN_RECONNECT_MESSAGE }, 400);
     }
+    if (isTokenExpiredWithoutRefresh(connection)) {
+      return context.json({
+        error: `Your ${integration.name} connection has expired. Reconnect in Settings → Integrations to continue publishing.`,
+        code: 'integration_token_expired',
+      }, 401);
+    }
 
     const accessToken = await getAccessToken(org.orgId, service);
     const settings = sanitizeIntegrationSettings(service, connection.meta?.settings ?? {});
@@ -767,6 +779,9 @@ export function serializeIntegrationConnection(entry) {
     && !safeMeta.needsReconnect
     && !hasAnyLinkedInPostingScope(entry.scopes ?? []);
 
+  const tokenStatus = getTokenStatus(entry.tokenExpiresAt ?? null);
+  const tokenExpired = tokenStatus.status === 'expired';
+
   return {
     id: entry.id,
     service: entry.service,
@@ -779,8 +794,10 @@ export function serializeIntegrationConnection(entry) {
     authMode: integration?.authMode ?? 'oauth',
     capabilities: integration?.capabilities ?? [],
     supportsPublish: Boolean(integration?.supportsPublish),
-    publishDisabled: Boolean(safeMeta.needsReconnect || linkedInPostingNotReady),
+    publishDisabled: Boolean(safeMeta.needsReconnect || linkedInPostingNotReady || tokenExpired),
     postingNotReady: linkedInPostingNotReady,
+    tokenExpired,
+    tokenStatus,
     supportsImagePublish: Boolean(integration?.supportsImagePublish),
     targetLabel: integration?.targetLabel ?? null,
     accountId: entry.accountId ?? null,
@@ -816,6 +833,19 @@ export function validateIntegrationSettings(service, settings = {}) {
 
 function requiresLinkedInReconnect(service, connection) {
   return service === 'linkedin' && connection?.meta?.authMode === 'manual_token';
+}
+
+function isTokenExpiredWithoutRefresh(connection) {
+  return Boolean(
+    connection.tokenExpiresAt
+    && new Date(connection.tokenExpiresAt) < new Date()
+    && !connection.refreshToken,
+  );
+}
+
+function resolveLinkedInTokenExpiry(expiresIn) {
+  if (expiresIn) return new Date(Date.now() + expiresIn * 1000);
+  return new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
 }
 
 function hasLinkedInScope(scopes, requiredScope) {
