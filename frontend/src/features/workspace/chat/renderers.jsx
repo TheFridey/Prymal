@@ -20,7 +20,6 @@ import { getAgentMeta } from '../../../lib/constants';
 import { trackProductEvent } from '../../../lib/product-events';
 import { FIRST_WIN_STATES, writeFirstWinState } from '../../../lib/first-run-outcomes';
 import { createWorkflowDraftFromChat, isWorkflowCandidate } from '../../../lib/chat-to-workflow';
-import ActionApprovalCard from '../actions/ActionApprovalCard';
 
 const SOCIAL_CHAT_SERVICES = new Set(['linkedin', 'slack', 'x', 'mastodon', 'bluesky', 'discord', 'telegram', 'line']);
 
@@ -1133,26 +1132,88 @@ function AtlasNotionExport({ content }) {
   );
 }
 
-function getPublishableChatText(message, presentation) {
-  const markdown = String(presentation?.markdown ?? '').trim();
-  if (markdown) return markdown;
+const SOCIAL_PREAMBLE_RE = [
+  /^hi[,\s!]/i,
+  /^hello[,\s!]/i,
+  /^here('s| is)\s+(a|an|your|the|this)\s+/i,
+  /^below\s+(is|you'?ll find)\s+/i,
+  /^(i'?ve?|we'?ve?)\s+(written|drafted|created|prepared|put together)/i,
+  /^as requested[,!]/i,
+  /^sure[,!]/i,
+  /^of course[,!]/i,
+  /^absolutely[,!]/i,
+  /^great[,!]/i,
+];
 
-  if (presentation?.structuredData) {
-    return JSON.stringify(presentation.structuredData, null, 2);
+const SOCIAL_SUFFIX_RE = [
+  /^optional (first )?comment/i,
+  /^if you (want|would like|need|'d like|need me)/i,
+  /^let me know if/i,
+  /^feel free to/i,
+  /^want me to/i,
+  /^should i /i,
+  /^note:/i,
+  /^p\.?s\.?\s/i,
+  /^---+\s*$/,
+];
+
+function extractSocialPostText(raw) {
+  if (!raw) return '';
+
+  // Strip markdown code fences and trailing raw JSON blobs
+  let text = raw
+    .replace(/```(?:json)?\s*[\s\S]*?```/g, '')
+    .replace(/\n\{[\s\S]{20,}\}\s*$/m, '')
+    .trim();
+
+  const lines = text.split('\n');
+
+  // Skip preamble lines at the top
+  let start = 0;
+  while (start < lines.length) {
+    const line = lines[start].trim();
+    if (!line) { start++; continue; }
+    if (SOCIAL_PREAMBLE_RE.some((re) => re.test(line))) { start++; continue; }
+    break;
   }
 
-  return String(message?.content ?? '').trim();
+  // Cut off at the first suffix marker
+  let end = lines.length;
+  for (let i = start; i < lines.length; i++) {
+    if (SOCIAL_SUFFIX_RE.some((re) => re.test(lines[i].trim()))) {
+      end = i;
+      break;
+    }
+  }
+
+  const extracted = lines.slice(start, end).join('\n').trim();
+  // Fall back to the cleaned-but-unstripped text if extraction yields nothing useful
+  return extracted.length >= 20 ? extracted : text;
+}
+
+function getPublishableChatText(message, presentation) {
+  // Structured data is agent metadata — never stringify it as a post.
+  // Use markdown prose if the agent produced it, otherwise fall back to raw content.
+  const source = String(presentation?.markdown || message?.content || '').trim();
+  return extractSocialPostText(source);
 }
 
 function getSocialTargetLabel(connection) {
   if (connection?.service === 'linkedin') {
     const settings = connection?.meta?.settings ?? {};
-    const author = settings.selectedOrganizationName || settings.authorUrn || settings.selectedOrganizationUrn;
-    return author ? `${connection.name}: ${author}` : `${connection.name}: author required`;
+    const availableAuthors = connection?.meta?.profile?.availableAuthors ?? [];
+    const matchedAuthor = availableAuthors.find((a) => a.urn === settings.authorUrn);
+    const displayName =
+      settings.selectedOrganizationName
+      || matchedAuthor?.name
+      || connection?.meta?.profile?.name
+      || connection?.accountEmail
+      || null;
+    return displayName ? `LinkedIn: ${displayName}` : 'LinkedIn: set an author in Integrations';
   }
 
-  if (connection?.targetLabel) {
-    return `${connection.name}: ${connection.targetLabel}`;
+  if (connection?.accountEmail) {
+    return `${connection.name}: ${connection.accountEmail}`;
   }
 
   return connection?.name ?? connection?.service ?? 'Connected platform';
@@ -1168,12 +1229,10 @@ function ChatSocialPublish({ message, agent, presentation }) {
   const [integrations, setIntegrations] = useState(null);
   const [isLoadingIntegrations, setIsLoadingIntegrations] = useState(false);
   const [service, setService] = useState('');
-  const [targetId, setTargetId] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [text, setText] = useState(() => getPublishableChatText(message, presentation).slice(0, 3000));
   const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
-  const [approval, setApproval] = useState(null);
   const [publishedTarget, setPublishedTarget] = useState('');
 
   const publishText = getPublishableChatText(message, presentation);
@@ -1217,70 +1276,25 @@ function ChatSocialPublish({ message, agent, presentation }) {
     return null;
   }
 
-  async function handlePublishRequest() {
+  async function handlePublish() {
     if (!service || !text.trim()) return;
     setStatus('publishing');
     setErrorMsg('');
-    setApproval(null);
     setPublishedTarget('');
 
-    const payload = {
-      service,
-      text: text.trim(),
-      targetId: targetId.trim() || undefined,
-      linkUrl: linkUrl.trim() || undefined,
-      messageId: message.id,
-      sourceAgent: agent?.id ?? 'agent',
-    };
-
     try {
-      const result = await api.post('/actions/execute', {
-        type: 'social.publish',
-        payload,
+      const result = await api.post(`/integrations/${service}/publish`, {
+        text: text.trim(),
+        linkUrl: linkUrl.trim() || undefined,
+        messageId: message.id,
       });
 
-      if (result.awaitingApproval) {
-        setApproval({
-          id: result.approvalId,
-          actionType: 'social.publish',
-          payload,
-          risk: result.risk,
-          expiresAt: result.expiresAt,
-          approvalToken: result.approvalToken,
-        });
-        setStatus('approval');
-        return;
-      }
-
-      if (result.success) {
-        setPublishedTarget(getSocialDeliveryLabel(result, service));
-        setStatus('published');
-        return;
-      }
-
-      setStatus('error');
-      setErrorMsg(result.error || 'Publish request failed.');
+      setPublishedTarget(getSocialDeliveryLabel(result, service));
+      setStatus('published');
     } catch (error) {
       setStatus('error');
-      setErrorMsg(getErrorMessage(error, 'Publish request failed.'));
+      setErrorMsg(getErrorMessage(error, 'Publish failed.'));
     }
-  }
-
-  function handleApprovalDone(outcome, result) {
-    if (outcome === 'approved' && result?.success) {
-      setPublishedTarget(getSocialDeliveryLabel(result.result, service));
-      setStatus('published');
-      setApproval(null);
-      return;
-    }
-    if (outcome === 'approved') {
-      setStatus('error');
-      setErrorMsg(result?.error || 'Approved, but publish failed.');
-      setApproval(null);
-      return;
-    }
-    setStatus('idle');
-    setApproval(null);
   }
 
   if (!open) {
@@ -1333,7 +1347,7 @@ function ChatSocialPublish({ message, agent, presentation }) {
             value={text}
             onChange={(event) => setText(event.target.value)}
             maxLength={3000}
-            rows={5}
+            rows={6}
             style={{ padding: '10px 12px', borderRadius: '12px', border: '1px solid var(--line)', background: 'rgba(255,255,255,0.06)', color: 'var(--text-strong)', fontSize: '13px', outline: 'none', width: '100%', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5 }}
           />
           <input
@@ -1343,30 +1357,15 @@ function ChatSocialPublish({ message, agent, presentation }) {
             onChange={(event) => setLinkUrl(event.target.value)}
             style={{ padding: '8px 12px', borderRadius: '999px', border: '1px solid var(--line)', background: 'rgba(255,255,255,0.06)', color: 'var(--text-strong)', fontSize: '13px', outline: 'none', width: '100%', boxSizing: 'border-box' }}
           />
-          <input
-            type="text"
-            placeholder="Optional channel, handle, or target override"
-            value={targetId}
-            onChange={(event) => setTargetId(event.target.value)}
-            style={{ padding: '8px 12px', borderRadius: '999px', border: '1px solid var(--line)', background: 'rgba(255,255,255,0.06)', color: 'var(--text-strong)', fontSize: '13px', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-          />
           {errorMsg ? <div style={{ fontSize: '12px', color: '#ef4444' }}>{errorMsg}</div> : null}
-          {approval ? (
-            <ActionApprovalCard
-              approval={approval}
-              approvalToken={approval.approvalToken}
-              onDone={handleApprovalDone}
-            />
-          ) : (
-            <button
-              type="button"
-              disabled={status === 'publishing' || !service || !text.trim()}
-              onClick={handlePublishRequest}
-              style={{ justifySelf: 'start', fontSize: '13px', padding: '8px 16px', borderRadius: '999px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', opacity: status === 'publishing' ? 0.6 : 1 }}
-            >
-              {status === 'publishing' ? 'Requesting approval...' : 'Request approval'}
-            </button>
-          )}
+          <button
+            type="button"
+            disabled={status === 'publishing' || !service || !text.trim()}
+            onClick={handlePublish}
+            style={{ justifySelf: 'start', fontSize: '13px', padding: '8px 16px', borderRadius: '999px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', opacity: status === 'publishing' ? 0.6 : 1 }}
+          >
+            {status === 'publishing' ? 'Publishing...' : 'Publish'}
+          </button>
         </>
       ) : (
         <div style={{ display: 'grid', gap: '6px', fontSize: '12px', color: 'var(--muted)', lineHeight: 1.6 }}>
