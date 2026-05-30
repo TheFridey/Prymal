@@ -66,5 +66,12 @@ export function getUserDisplayName(user) {
 }
 
 export function getErrorMessage(error, fallback = 'Something went wrong.') {
-  return error?.data?.error || error?.message || fallback;
+  const raw = error?.data?.error ?? error?.message ?? null;
+  if (!raw) return fallback;
+  if (typeof raw === 'string') return raw || fallback;
+  // Zod validation error: { issues: [...], name: 'ZodError' }
+  if (Array.isArray(raw.issues) && raw.issues.length > 0) {
+    return raw.issues.map((issue) => issue.message).filter(Boolean).join('. ') || fallback;
+  }
+  return fallback;
 }

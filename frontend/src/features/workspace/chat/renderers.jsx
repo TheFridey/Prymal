@@ -1299,10 +1299,11 @@ function ChatSocialPublish({ message, agent, presentation }) {
     setPublishedTarget('');
 
     try {
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const result = await api.post(`/integrations/${service}/publish`, {
         text: text.trim(),
         linkUrl: linkUrl.trim() || undefined,
-        messageId: message.id,
+        messageId: UUID_RE.test(message.id ?? '') ? message.id : undefined,
       });
 
       setPublishedTarget(getSocialDeliveryLabel(result, service));
