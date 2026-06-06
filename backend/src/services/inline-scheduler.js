@@ -9,6 +9,7 @@ import cron from 'node-cron';
 import { and, eq } from 'drizzle-orm';
 import { getEnvironmentMode } from '../env/parse.js';
 import { logger } from '../lib/logger.js';
+import { computeCronExpression } from './schedule-calculator.js';
 
 const log = logger.child({ component: 'scheduler' });
 import { organisations, workflowRuns, workflows } from '../db/schema.js';
@@ -206,7 +207,21 @@ export async function startInlineScheduler(db) {
   let registered = 0;
 
   for (const workflow of scheduledWorkflows) {
-    const cronExpression = workflow.triggerConfig?.cron;
+    let cronExpression = workflow.triggerConfig?.cron;
+
+    if (!cronExpression && workflow.intervalType) {
+      try {
+        cronExpression = computeCronExpression({
+          intervalType: workflow.intervalType,
+          timesPerDay: Array.isArray(workflow.timesPerDay) ? workflow.timesPerDay : [],
+          daysOfWeek: Array.isArray(workflow.daysOfWeek) ? workflow.daysOfWeek : [],
+          timezone: workflow.timezone ?? 'UTC',
+        });
+      } catch (error) {
+        log.warn({ workflow_id: workflow.id, err: error }, 'scheduler.cron_derivation_failed');
+      }
+    }
+
     if (!cronExpression) {
       log.warn({ workflow_id: workflow.id }, 'scheduler.missing_cron');
       continue;

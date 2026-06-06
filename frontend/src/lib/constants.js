@@ -586,7 +586,7 @@ export const INTEGRATION_SECTIONS = [
   {
     id: 'emails',
     label: 'Emails',
-    description: 'Connect inbox context and outbound send lanes so support and outreach stay grounded.',
+    description: 'Connect outbound send lanes so support and outreach can move from draft to delivery.',
     accent: '#FF8B5F',
   },
   {
@@ -616,13 +616,13 @@ export const INTEGRATION_LIBRARY = {
     category: 'Email',
     color: '#ea4335',
     icon: 'GM',
-    description: 'HERALD and WREN can draft and work from your actual inbox context.',
+    description: 'HERALD and WREN can draft and send mail from your linked Gmail account.',
     authMode: 'oauth',
-    capabilities: ['inbox_context', 'send_email'],
+    capabilities: ['send_email'],
     agentIds: ['herald', 'wren'],
     setupSteps: [
       'Start OAuth from an owner or admin seat.',
-      'Grant Gmail access so Prymal can work from live inbox context.',
+      'Grant Gmail send access so Prymal can deliver approved mail from the linked account.',
       'Reconnect any time to refresh Google consent.',
     ],
     setupLinks: [

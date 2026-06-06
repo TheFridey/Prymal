@@ -49,6 +49,10 @@ export const sourceTypeEnum = pgEnum('source_type', [
 export const docStatusEnum = pgEnum('doc_status', ['pending', 'indexing', 'indexed', 'failed']);
 export const triggerTypeEnum = pgEnum('trigger_type', ['manual', 'schedule', 'webhook', 'event']);
 export const runStatusEnum = pgEnum('run_status', ['queued', 'running', 'completed', 'failed', 'cancelled']);
+export const intervalTypeEnum = pgEnum('interval_type', ['hourly', 'daily', 'multiple_times_daily', 'weekly', 'selected_days']);
+export const scheduleStatusEnum = pgEnum('schedule_status', ['idle', 'running', 'paused', 'error']);
+export const approvalModeEnum = pgEnum('approval_mode', ['draft_only', 'approval_required', 'auto_publish']);
+export const approvalStatusEnum = pgEnum('approval_status', ['pending', 'approved', 'rejected', 'expired', 'published']);
 export const workflowCatalogueVisibilityEnum = pgEnum('workflow_catalogue_visibility', [
   'draft',
   'private',
@@ -977,12 +981,22 @@ export const workflows = pgTable(
     contractEnforcedAt: timestamp('contract_enforced_at', { withTimezone: true }),
     runCount: integer('run_count').notNull().default(0),
     lastRunAt: timestamp('last_run_at', { withTimezone: true }),
+    intervalType: intervalTypeEnum('interval_type'),
+    timesPerDay: jsonb('times_per_day').notNull().default(sql`'[]'::jsonb`),
+    daysOfWeek: jsonb('days_of_week').notNull().default(sql`'[]'::jsonb`),
+    timezone: text('timezone').notNull().default('UTC'),
+    nextRunAt: timestamp('next_run_at', { withTimezone: true }),
+    scheduleStatus: scheduleStatusEnum('schedule_status').default('idle'),
+    approvalMode: approvalModeEnum('approval_mode').default('auto_publish'),
+    tokenEncrypted: boolean('token_encrypted').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     orgIdx: index('workflows_org_idx').on(table.orgId),
     contractEnforcedIdx: index('workflows_contract_enforced_idx').on(table.contractEnforced),
+    nextRunIdx: index('workflows_next_run_idx').on(table.nextRunAt),
+    scheduleStatusIdx: index('workflows_schedule_status_idx').on(table.scheduleStatus),
   }),
 );
 
@@ -1507,5 +1521,91 @@ export const actionApprovals = pgTable(
   (table) => ({
     tokenIdx: index('idx_action_approvals_token').on(table.tokenHash),
     orgIdx: index('idx_action_approvals_org').on(table.orgId, table.createdAt),
+  }),
+);
+
+// ── Sprint 6: Durable scheduled workflow execution ───────────────────────────
+
+export const scheduledJobLocks = pgTable(
+  'scheduled_job_locks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workflowId: uuid('workflow_id').notNull().references(() => workflows.id, { onDelete: 'cascade' }),
+    orgId: uuid('org_id').notNull().references(() => organisations.id, { onDelete: 'cascade' }),
+    lockedBy: text('locked_by'),
+    lockedAt: timestamp('locked_at', { withTimezone: true }),
+    lockExpiresAt: timestamp('lock_expires_at', { withTimezone: true }),
+    lastRunAt: timestamp('last_run_at', { withTimezone: true }),
+    lastRunId: uuid('last_run_id'),
+    failureCount: integer('failure_count').notNull().default(0),
+    lastFailureAt: timestamp('last_failure_at', { withTimezone: true }),
+    lastFailureMessage: text('last_failure_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    workflowUnique: uniqueIndex('scheduled_job_locks_workflow_unique').on(table.workflowId),
+    orgIdx: index('scheduled_job_locks_org_idx').on(table.orgId),
+    lockExpiresIdx: index('scheduled_job_locks_lock_expires_idx').on(table.lockExpiresAt),
+  }),
+);
+
+export const workflowPostApprovals = pgTable(
+  'workflow_post_approvals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workflowId: uuid('workflow_id').notNull().references(() => workflows.id, { onDelete: 'cascade' }),
+    workflowRunId: uuid('workflow_run_id').notNull().references(() => workflowRuns.id, { onDelete: 'cascade' }),
+    orgId: uuid('org_id').notNull().references(() => organisations.id, { onDelete: 'cascade' }),
+    createdByUserId: text('created_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    reviewedByUserId: text('reviewed_by_user_id').references(() => users.id, { onDelete: 'set null' }),
+    service: text('service').notNull().default('linkedin'),
+    postText: text('post_text').notNull(),
+    postMetadata: jsonb('post_metadata').notNull().default(sql`'{}'::jsonb`),
+    status: approvalStatusEnum('status').notNull().default('pending'),
+    rejectionReason: text('rejection_reason'),
+    wardenVerdict: text('warden_verdict'),
+    wardenRiskLevel: text('warden_risk_level'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    rejectedAt: timestamp('rejected_at', { withTimezone: true }),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    publishReceiptId: uuid('publish_receipt_id'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    workflowIdx: index('workflow_post_approvals_workflow_idx').on(table.workflowId),
+    orgStatusIdx: index('workflow_post_approvals_org_status_idx').on(table.orgId, table.status),
+    runIdx: index('workflow_post_approvals_run_idx').on(table.workflowRunId),
+    expiresIdx: index('workflow_post_approvals_expires_idx').on(table.expiresAt),
+  }),
+);
+
+export const publishReceipts = pgTable(
+  'publish_receipts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workflowId: uuid('workflow_id').notNull().references(() => workflows.id, { onDelete: 'cascade' }),
+    workflowRunId: uuid('workflow_run_id').notNull().references(() => workflowRuns.id, { onDelete: 'cascade' }),
+    approvalId: uuid('approval_id').references(() => workflowPostApprovals.id, { onDelete: 'set null' }),
+    orgId: uuid('org_id').notNull().references(() => organisations.id, { onDelete: 'cascade' }),
+    service: text('service').notNull().default('linkedin'),
+    providerPostId: text('provider_post_id'),
+    authorUrn: text('author_urn'),
+    postText: text('post_text').notNull(),
+    postMetadata: jsonb('post_metadata').notNull().default(sql`'{}'::jsonb`),
+    wardenVerdict: text('warden_verdict'),
+    wardenRiskLevel: text('warden_risk_level'),
+    status: text('status').notNull().default('published'),
+    errorMessage: text('error_message'),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    workflowIdx: index('publish_receipts_workflow_idx').on(table.workflowId),
+    orgIdx: index('publish_receipts_org_idx').on(table.orgId, table.createdAt),
+    runIdx: index('publish_receipts_run_idx').on(table.workflowRunId),
+    serviceIdx: index('publish_receipts_service_idx').on(table.service),
   }),
 );

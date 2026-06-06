@@ -15,6 +15,12 @@ export async function sendEmail(payload, context) {
   const { to, subject, body, replyTo, cc } = payload;
   const { orgId, userId, workflowId } = context;
 
+  if (!subject?.trim() || !body?.trim()) {
+    const error = new Error('Email subject and body are required.');
+    error.code = 'EMAIL_PAYLOAD_INVALID';
+    throw error;
+  }
+
   const accessToken = await getOAuthToken(orgId, 'gmail');
 
   const rawMessage = buildRawMessage({ to, subject, body, replyTo, cc });
@@ -55,27 +61,26 @@ export async function sendEmail(payload, context) {
   };
 }
 
-function buildRawMessage({ to, subject, body, replyTo, cc }) {
+export function buildRawMessage({ to, subject, body, replyTo, cc }) {
   const lines = [];
+  const recipients = normalizeRecipients(to);
+  const ccRecipients = normalizeRecipients(cc);
 
-  if (Array.isArray(to)) {
-    lines.push(`To: ${to.join(', ')}`);
-  } else {
-    lines.push(`To: ${to}`);
+  if (recipients.length === 0) {
+    const error = new Error('At least one email recipient is required.');
+    error.code = 'EMAIL_PAYLOAD_INVALID';
+    throw error;
   }
 
-  lines.push(`Subject: ${subject}`);
+  lines.push(`To: ${recipients.join(', ')}`);
+  lines.push(`Subject: ${sanitizeHeaderValue(subject)}`);
 
   if (replyTo) {
-    lines.push(`Reply-To: ${replyTo}`);
+    lines.push(`Reply-To: ${sanitizeHeaderValue(replyTo)}`);
   }
 
-  if (cc) {
-    if (Array.isArray(cc)) {
-      lines.push(`Cc: ${cc.join(', ')}`);
-    } else {
-      lines.push(`Cc: ${cc}`);
-    }
+  if (ccRecipients.length > 0) {
+    lines.push(`Cc: ${ccRecipients.join(', ')}`);
   }
 
   lines.push('MIME-Version: 1.0');
@@ -85,4 +90,16 @@ function buildRawMessage({ to, subject, body, replyTo, cc }) {
 
   const raw = lines.join('\r\n');
   return Buffer.from(raw).toString('base64url');
+}
+
+function normalizeRecipients(value) {
+  if (!value) return [];
+  const values = Array.isArray(value) ? value : String(value).split(/[;,]/);
+  return values
+    .map((entry) => sanitizeHeaderValue(entry))
+    .filter(Boolean);
+}
+
+function sanitizeHeaderValue(value) {
+  return String(value ?? '').replace(/[\r\n]+/g, ' ').trim();
 }

@@ -35,6 +35,15 @@ export const RATE_LIMIT_CONFIGS = {
     teams: 60,
     agency: 120,
   },
+  agentsEmailSend: {
+    keyPrefix: 'agents-email-send',
+    windowMs: 60_000,
+    free: 2,
+    solo: 10,
+    pro: 30,
+    teams: 60,
+    agency: 120,
+  },
   loreIngest: {
     keyPrefix: 'lore-ingest',
     windowMs: 15 * 60_000,

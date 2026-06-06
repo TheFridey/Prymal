@@ -28,9 +28,11 @@ import unsubscribeRoutes from './routes/unsubscribe.js';
 import waitlistRoutes from './routes/waitlist.js';
 import memoryRoutes from './routes/memory.js';
 import actionRoutes from './routes/actions.js';
+import approvalRoutes from './routes/approvals.js';
 import { db } from './db/index.js';
 import { hasTriggerDevConfig } from './queue/trigger.js';
 import { isInlineSchedulerEnabled, startInlineScheduler } from './services/inline-scheduler.js';
+import { isScheduleWorkerEnabled, runScheduleWorkerLoop } from './workers/schedule-worker.js';
 import { createRateLimiter } from './middleware/rateLimit.js';
 import { requestContext } from './middleware/request-context.js';
 import { securityHeaders } from './middleware/security-headers.js';
@@ -234,6 +236,7 @@ app.route('/api/admin', adminRoutes);
 app.route('/api/unsubscribe', unsubscribeRoutes);
 app.route('/api/waitlist', waitlistRoutes);
 app.route('/api/actions', actionRoutes);
+app.route('/api/approvals', approvalRoutes);
 
 app.notFound((context) => context.json({ error: 'Route not found' }, 404));
 
@@ -320,14 +323,23 @@ if (isMainModule) {
       if (!hasTriggerDevConfig()) {
         if (!isInlineSchedulerEnabled(process.env)) {
           logger.info('scheduler.disabled');
-          return;
+        } else {
+          try {
+            await startInlineScheduler(db);
+          } catch (error) {
+            logger.error({ err: error }, 'scheduler.start_failed');
+          }
         }
+      }
 
-        try {
-          await startInlineScheduler(db);
-        } catch (error) {
-          logger.error({ err: error }, 'scheduler.start_failed');
-        }
+      if (isScheduleWorkerEnabled(process.env)) {
+        setImmediate(() => {
+          runScheduleWorkerLoop({ db }).catch((error) => {
+            logger.error({ err: error }, 'schedule_worker.fatal');
+          });
+        });
+      } else {
+        logger.info('schedule_worker.disabled');
       }
     },
   );

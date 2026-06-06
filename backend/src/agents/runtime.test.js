@@ -78,6 +78,14 @@ test('validateContractToolUsage on strict agents rejects non-allowlisted tools',
   assert.ok(result.violations.length > 0);
 });
 
+test('email-focused agents can use the audited email send tool', () => {
+  for (const agentId of ['herald', 'wren']) {
+    const result = enforceAgentToolPolicy(agentId, 'email_send');
+    assert.equal(result.allowed, true, `${agentId} should be allowed to send email`);
+    assert.equal(result.requiresAudit, true);
+  }
+});
+
 test('every contract references an existing canonical output schema', () => {
   for (const [agentId, contract] of Object.entries(AGENT_CONTRACTS)) {
     assert.ok(contract.outputSchema, `${agentId} must declare an output schema`);

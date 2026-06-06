@@ -1149,6 +1149,127 @@ router.post('/:id/enable-contract-enforcement', requireOrg, requireRole('owner',
   return context.json({ success: true, contractEnforced: true });
 });
 
+// ── Schedule configuration ────────────────────────────────────────────────────
+
+const scheduleConfigSchema = z.object({
+  intervalType: z.enum(['hourly', 'daily', 'multiple_times_daily', 'weekly', 'selected_days']),
+  timesPerDay: z.array(z.number().int().min(0).max(23)).max(12).optional().default([]),
+  daysOfWeek: z.array(z.number().int().min(0).max(6)).max(7).optional().default([]),
+  timezone: z.string().max(64).optional().default('UTC'),
+  approvalMode: z.enum(['draft_only', 'approval_required', 'auto_publish']).optional().default('auto_publish'),
+});
+
+router.put('/:id/schedule', requireOrg, requireRole('owner', 'admin'), zValidator('json', scheduleConfigSchema), async (context) => {
+  const org = context.get('org');
+  const { id } = context.req.param();
+  const body = context.req.valid('json');
+
+  const { validateScheduleConfig, computeNextRunAt, computeCronExpression } = await import('../services/schedule-calculator.js');
+
+  try {
+    validateScheduleConfig(body);
+  } catch (error) {
+    return context.json({ error: error.message }, 422);
+  }
+
+  const workflow = await db.query.workflows.findFirst({
+    where: and(eq(workflows.id, id), eq(workflows.orgId, org.orgId)),
+  });
+
+  if (!workflow) {
+    return context.json({ error: 'Workflow not found.' }, 404);
+  }
+
+  if (workflow.triggerType !== 'schedule') {
+    return context.json({ error: 'Schedule config can only be set on scheduled workflows.' }, 422);
+  }
+
+  const nextRunAt = computeNextRunAt(body);
+  const cronExpression = computeCronExpression(body);
+
+  const { scheduledJobLocks } = await import('../db/schema.js');
+
+  await db
+    .update(workflows)
+    .set({
+      intervalType: body.intervalType,
+      timesPerDay: body.timesPerDay,
+      daysOfWeek: body.daysOfWeek,
+      timezone: body.timezone,
+      approvalMode: body.approvalMode,
+      nextRunAt,
+      scheduleStatus: workflow.isActive ? 'idle' : 'paused',
+      triggerConfig: {
+        ...(workflow.triggerConfig ?? {}),
+        cron: cronExpression,
+        intervalType: body.intervalType,
+      },
+      updatedAt: new Date(),
+    })
+    .where(and(eq(workflows.id, id), eq(workflows.orgId, org.orgId)));
+
+  await db
+    .insert(scheduledJobLocks)
+    .values({ workflowId: id, orgId: org.orgId })
+    .onConflictDoNothing();
+
+  if (workflow.isActive) {
+    const { registerSchedule, createScheduledWorkflowRunHandler } = await import('../services/inline-scheduler.js');
+    registerSchedule(id, cronExpression, createScheduledWorkflowRunHandler(
+      { ...workflow, intervalType: body.intervalType, timesPerDay: body.timesPerDay, daysOfWeek: body.daysOfWeek, timezone: body.timezone },
+      { runtimeDb: db },
+    ));
+  }
+
+  await recordAuditLog({
+    orgId: org.orgId,
+    actorUserId: org.userId,
+    action: 'workflow.schedule_updated',
+    targetType: 'workflow',
+    targetId: id,
+    metadata: { intervalType: body.intervalType, approvalMode: body.approvalMode },
+  }).catch(() => {});
+
+  return context.json({ success: true, nextRunAt, cronExpression });
+});
+
+// ── Admin: scheduled job visibility ─────────────────────────────────────────
+
+router.get('/admin/scheduled-jobs', requireOrg, requireRole('owner', 'admin'), async (context) => {
+  const org = context.get('org');
+  const { scheduledJobLocks } = await import('../db/schema.js');
+
+  const [locks, jobWorkflows] = await Promise.all([
+    db.query.scheduledJobLocks.findMany({
+      where: eq(scheduledJobLocks.orgId, org.orgId),
+      orderBy: (t, { desc }) => [desc(t.updatedAt)],
+    }),
+    db.query.workflows.findMany({
+      where: and(eq(workflows.orgId, org.orgId), eq(workflows.triggerType, 'schedule')),
+    }),
+  ]);
+
+  const workflowMap = Object.fromEntries(jobWorkflows.map((w) => [w.id, w]));
+
+  return context.json({
+    jobs: locks.map((lock) => ({
+      lockId: lock.id,
+      workflowId: lock.workflowId,
+      workflowName: workflowMap[lock.workflowId]?.name ?? null,
+      isActive: workflowMap[lock.workflowId]?.isActive ?? false,
+      scheduleStatus: workflowMap[lock.workflowId]?.scheduleStatus ?? null,
+      nextRunAt: workflowMap[lock.workflowId]?.nextRunAt ?? null,
+      lastRunAt: lock.lastRunAt,
+      lastRunId: lock.lastRunId,
+      lockedBy: lock.lockedBy,
+      lockExpiresAt: lock.lockExpiresAt,
+      failureCount: lock.failureCount,
+      lastFailureAt: lock.lastFailureAt,
+      lastFailureMessage: lock.lastFailureMessage,
+    })),
+  });
+});
+
 export default router;
 
 function createTemplateShareId() {

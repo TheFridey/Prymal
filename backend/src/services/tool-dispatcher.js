@@ -11,7 +11,7 @@ const log = logger.child({ component: 'tool-dispatcher' });
 import { retrieveRankedMemories } from './memory-retrieval.js';
 import { formatLoreChunkForPrompt, ragSearch } from './rag.js';
 import { fetchLiveWebContext } from './web-research.js';
-import { getAccessToken } from '../routes/integrations.js';
+import { sendEmail } from './actions/email-actions.js';
 import { getKnownManifestTools, getToolManifest } from './tools/tool-manifest.js';
 import { buildWardenTrace, scanToolRequest, WARDEN_VERDICTS } from './warden/index.js';
 
@@ -265,7 +265,7 @@ async function routeTool({
       return handleMemoryRead({ toolInput, agentId, orgId, userId, conversationId, workflowRunId });
 
     case 'email_send':
-      return handleEmailSend({ toolInput, orgId });
+      return handleEmailSend({ toolInput, orgId, userId });
 
     case 'live_web_research':
       return handleLiveWebResearch({ toolInput });
@@ -356,56 +356,31 @@ export async function handleKnowledgeGapCheck({ toolInput, orgId, detectKnowledg
   };
 }
 
-async function handleEmailSend({ toolInput, orgId }) {
-  const { to, subject, body } = toolInput ?? {};
+async function handleEmailSend({ toolInput, orgId, userId }) {
+  const { to, subject, body, cc, replyTo } = toolInput ?? {};
 
   if (!to || !subject || !body) {
     throw new Error('email_send requires "to", "subject", and "body" fields.');
   }
 
-  let accessToken;
-
   try {
-    accessToken = await getAccessToken(orgId, 'gmail');
-  } catch {
+    const delivery = await sendEmail({ to, subject, body, cc, replyTo }, { orgId, userId });
+    return {
+      sent: true,
+      messageId: delivery.messageId ?? null,
+      threadId: delivery.threadId ?? null,
+      to,
+      subject,
+    };
+  } catch (error) {
+    if (error?.code !== 'OAUTH_TOKEN_NOT_FOUND') {
+      throw error;
+    }
     throw Object.assign(
       new Error('Gmail integration is not connected for this organisation. Connect it in Integrations first.'),
       { code: 'GMAIL_NOT_CONNECTED' },
     );
   }
-
-  const rfcMessage = [
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    'Content-Type: text/plain; charset=UTF-8',
-    '',
-    body,
-  ].join('\r\n');
-
-  const encoded = Buffer.from(rfcMessage).toString('base64url');
-
-  const gmailResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ raw: encoded }),
-  });
-
-  const gmailData = await gmailResponse.json().catch(() => ({}));
-
-  if (!gmailResponse.ok) {
-    const message = gmailData?.error?.message || 'Gmail send failed.';
-    throw Object.assign(new Error(message), { code: 'GMAIL_SEND_FAILED' });
-  }
-
-  return {
-    sent: true,
-    messageId: gmailData.id ?? null,
-    to,
-    subject,
-  };
 }
 
 async function handleLiveWebResearch({ toolInput }) {

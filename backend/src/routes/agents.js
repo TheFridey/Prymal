@@ -25,6 +25,7 @@ import { generateImageAsset } from '../services/image-generation.js';
 import { enqueueVideoGenerationJob } from '../services/video-generation.js';
 import { persistVideoReferenceImages } from '../services/video-reference-images.js';
 import { getAccessToken } from './integrations.js';
+import { sendEmail } from '../services/actions/email-actions.js';
 import { estimateTokens, streamAgentResponse } from '../services/llm.js';
 import {
   classifyLLMFailure,
@@ -131,6 +132,7 @@ const mediaGenerationRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.agentsMed
 const chatRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.agentsChat);
 const transcribeRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.agentsTranscribe);
 const realtimeTokenRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.agentsRealtimeToken);
+const emailSendRateLimit = planAwareRateLimit(RATE_LIMIT_CONFIGS.agentsEmailSend);
 const SUPPORTED_AUDIO_MIME_TYPES = new Set([
   'audio/mpeg',
   'audio/mp3',
@@ -1804,44 +1806,44 @@ const heraldSendEmailSchema = z.object({
   contentId: z.string().uuid().optional(),
 });
 
-router.post('/herald/send-email', requireOrg, zValidator('json', heraldSendEmailSchema), async (context) => {
+router.post('/herald/send-email', requireOrg, emailSendRateLimit, zValidator('json', heraldSendEmailSchema), async (context) => {
   const org = context.get('org');
   const { to, subject, body, messageId, contentId } = context.req.valid('json');
 
-  let accessToken;
-
   try {
-    accessToken = await getAccessToken(org.orgId, 'gmail');
-  } catch {
-    return context.json({ error: 'Gmail is not connected. Connect it in Integrations first.' }, 400);
-  }
+    const delivery = await sendEmail(
+      { to, subject, body },
+      { orgId: org.orgId, userId: org.userId },
+    );
 
-  const rfcMessage = [
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    'Content-Type: text/plain; charset=UTF-8',
-    '',
-    body,
-  ].join('\r\n');
+    await recordDeliveryOutcome({
+      orgId: org.orgId,
+      userId: org.userId,
+      contentId: contentId ?? null,
+      messageId: messageId ?? null,
+      sourceAgent: 'herald',
+      contentType: 'email',
+      delivered: true,
+      metadata: {
+        provider: 'gmail',
+        providerMessageId: delivery.messageId ?? null,
+        threadId: delivery.threadId ?? null,
+        to,
+        subject,
+        deliveredAt: delivery.timestamp,
+      },
+    });
 
-  const encoded = Buffer.from(rfcMessage).toString('base64url');
-
-  const gmailResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ raw: encoded }),
-  });
-
-  const gmailData = await gmailResponse.json().catch(() => ({}));
-
-  if (!gmailResponse.ok) {
-    const message = gmailData?.error?.message || 'Gmail send failed.';
-    const safeMessage = sanitizeErrorForClient(message, {
-      fallback: 'Gmail send failed.',
-      internalFallback: 'Gmail send failed.',
+    return context.json({ success: true, messageId: delivery.messageId ?? null, threadId: delivery.threadId ?? null });
+  } catch (error) {
+    const fallback = error?.code === 'OAUTH_TOKEN_NOT_FOUND'
+      ? 'Gmail is not connected. Connect it in Integrations first.'
+      : error?.code === 'oauth_token_expired'
+        ? 'Gmail needs to be reconnected before Prymal can send from it.'
+        : 'Gmail send failed.';
+    const safeMessage = sanitizeErrorForClient(error?.message ?? fallback, {
+      fallback,
+      internalFallback: fallback,
     });
     await recordDeliveryOutcome({
       orgId: org.orgId,
@@ -1853,27 +1855,12 @@ router.post('/herald/send-email', requireOrg, zValidator('json', heraldSendEmail
       delivered: false,
       metadata: { provider: 'gmail', to, subject, error: safeMessage },
     });
-    return context.json({ error: safeMessage }, 502);
+    const status = error?.code === 'OAUTH_TOKEN_NOT_FOUND' ? 400
+      : error?.code === 'oauth_token_expired' ? 401
+      : error?.code === 'EMAIL_PAYLOAD_INVALID' ? 400
+      : 502;
+    return context.json({ error: safeMessage }, status);
   }
-
-  await recordDeliveryOutcome({
-    orgId: org.orgId,
-    userId: org.userId,
-    contentId: contentId ?? null,
-    messageId: messageId ?? null,
-    sourceAgent: 'herald',
-    contentType: 'email',
-    delivered: true,
-    metadata: {
-      provider: 'gmail',
-      providerMessageId: gmailData.id ?? null,
-      to,
-      subject,
-      deliveredAt: new Date().toISOString(),
-    },
-  });
-
-  return context.json({ success: true, messageId: gmailData.id ?? null });
 });
 
 // ─── Atlas: export summary to Notion ────────────────────────────────────────
