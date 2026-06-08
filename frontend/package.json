@@ -27,13 +27,13 @@
     "perf:budget": "node scripts/check-bundles.mjs"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.61.6",
+    "@clerk/clerk-react": "^5.61.8",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.17.10",
-    "@sentry/react": "^10.55.0",
-    "@tanstack/react-query": "^5.100.9",
-    "@tanstack/react-virtual": "^3.13.24",
-    "framer-motion": "^12.10.5",
+    "@sentry/react": "^10.56.0",
+    "@tanstack/react-query": "^5.101.0",
+    "@tanstack/react-virtual": "^3.14.2",
+    "framer-motion": "^12.40.0",
     "gsap": "^3.14.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -41,13 +41,13 @@
     "react-markdown": "^9.0.1",
     "react-router-dom": "^6.26.2",
     "reactflow": "^11.11.4",
-    "simple-icons": "^16.19.0",
-    "zustand": "^5.0.13"
+    "simple-icons": "^16.23.0",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
-    "@clerk/testing": "^2.0.27",
+    "@clerk/testing": "^2.0.35",
     "@eslint/js": "^9.39.4",
-    "@playwright/test": "^1.59.0",
+    "@playwright/test": "^1.60.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
     "@testing-library/user-event": "^14.5.2",
@@ -69,9 +69,9 @@
     "vitest": "^2.1.4"
   },
   "optionalDependencies": {
-    "@esbuild/win32-arm64": "^0.21.5",
-    "@rollup/rollup-win32-arm64-msvc": "^4.60.4",
-    "@rollup/rollup-win32-x64-msvc": "^4.60.3"
+    "@esbuild/win32-arm64": "^0.28.0",
+    "@rollup/rollup-win32-arm64-msvc": "^4.61.1",
+    "@rollup/rollup-win32-x64-msvc": "^4.61.1"
   },
   "overrides": {
     "js-cookie": "3.0.7"
