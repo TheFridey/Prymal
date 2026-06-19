@@ -6,6 +6,7 @@ import { PublicCtaLink } from '../components/PublicCta';
 import {
   BulletList,
   FAQSection,
+  PageFreshness,
   PremiumHero,
   ResourceCta,
   SectionBlock,
@@ -13,7 +14,7 @@ import {
   SystemDiagram,
 } from '../components/PublicContent';
 import { buildWebPageSchema } from '../lib/seo';
-import { PUBLIC_OG_DEFAULTS, TRUST_FAQ_ITEMS } from '../lib/site-content';
+import { PUBLIC_CONTENT_UPDATED_AT, PUBLIC_OG_DEFAULTS, TRUST_FAQ_ITEMS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
 
@@ -114,6 +115,7 @@ export default function Trust() {
           name: PUBLIC_OG_DEFAULTS.trust.title,
           description: PUBLIC_OG_DEFAULTS.trust.description,
           path: '/trust',
+          dateModified: PUBLIC_CONTENT_UPDATED_AT,
         })}
       />
 
@@ -122,6 +124,7 @@ export default function Trust() {
 
         <PageShell width="1160px">
           <div className="public-content-page">
+            <PageFreshness date={PUBLIC_CONTENT_UPDATED_AT} />
             <MotionSection>
               <PremiumHero
                 eyebrow="Trust Centre"

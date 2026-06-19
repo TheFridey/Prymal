@@ -3,6 +3,7 @@ import { PageShell } from '../components/ui';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import {
   FAQSection,
+  PageFreshness,
   PremiumHero,
   ResourceCta,
   SectionBlock,
@@ -11,7 +12,7 @@ import {
   OperatingModuleGrid,
   buildCollectionSchema,
 } from '../components/PublicContent';
-import { FEATURE_PAGES, HOME_FAQ_ITEMS, PUBLIC_OG_DEFAULTS } from '../lib/site-content';
+import { FEATURE_PAGES, HOME_FAQ_ITEMS, PUBLIC_CONTENT_UPDATED_AT, PUBLIC_OG_DEFAULTS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
 
@@ -89,6 +90,7 @@ export default function Features() {
         <PublicPageNavbar sourcePrefix="features" />
         <PageShell width="1180px">
           <div className="public-content-page">
+            <PageFreshness date={PUBLIC_CONTENT_UPDATED_AT} />
             <PremiumHero
               eyebrow="Feature operating map"
               title="Prymal features for execution, memory, workflows, and trust"

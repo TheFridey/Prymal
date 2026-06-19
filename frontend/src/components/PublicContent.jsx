@@ -3,6 +3,8 @@ import { JsonLd } from './PublicPageChrome';
 import { PublicCtaLink } from './PublicCta';
 import {
   buildArticleSchema,
+  buildAuthorSchema,
+  buildBlogSchema,
   buildBreadcrumbSchema,
   buildCollectionSchema,
   buildFaqPageSchema,
@@ -11,17 +13,100 @@ import { MotionCard, MotionList, MotionListItem, MotionPanel } from './motion';
 
 export {
   buildArticleSchema,
+  buildAuthorSchema,
+  buildBlogSchema,
   buildBreadcrumbSchema,
   buildCollectionSchema,
   buildFaqPageSchema,
 };
 
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function aiSlug(value = 'section') {
+  return String(value || 'section')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'section';
+}
+
+function sectionChunkId(title, eyebrow) {
+  return aiSlug(`${eyebrow || ''} ${title || 'section'}`);
+}
+
+/** Format an ISO `YYYY-MM-DD` (or any Date-parseable) value as "Month YYYY". */
+export function formatFreshness(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return `${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+}
+
+/** Visible page freshness signal, e.g. "Last updated: June 2026". */
+export function PageFreshness({ date, prefix = 'Last updated' }) {
+  const label = formatFreshness(date);
+  if (!label) return null;
+  return (
+    <p className="public-content-freshness" style={{ color: 'var(--muted)', fontSize: '0.85rem', margin: '0 0 4px' }}>
+      {prefix}: <time dateTime={String(date)}>{label}</time>
+    </p>
+  );
+}
+
+/**
+ * Standardised entity definition so every public page states what Prymal is
+ * within its first ~200 words — reinforcing the "AI operating system for
+ * business execution" entity for search and AI answer engines.
+ */
+export function EntityDefinition({ lead }) {
+  return (
+    <p className="public-entity-definition" style={{ color: 'var(--muted)', lineHeight: 1.7, margin: '0 0 18px', maxWidth: '70ch' }}>
+      <strong>Prymal is an AI operating system for business execution</strong>
+      {' '}— specialist agents, shared business memory (LORE), workflow automation (NEXUS), and trust
+      controls (WARDEN and SENTINEL) in one coordinated workspace.{lead ? ` ${lead}` : ''}
+    </p>
+  );
+}
+
+/**
+ * Contextual internal links to build topic clusters. Accepts the link shape
+ * used across the site ({ to, title, description, cta }) — e.g. the entries in
+ * SEO_RELATED_LINKS — and renders a labelled grid (not footer-only links).
+ */
+export function RelatedResources({
+  title = 'Continue exploring Prymal',
+  eyebrow = 'Related',
+  items = [],
+  surface = 'related-resources',
+}) {
+  if (!items.length) return null;
+  return (
+    <SectionBlock eyebrow={eyebrow} title={title}>
+      <LinkCardGrid items={items} surface={surface} />
+    </SectionBlock>
+  );
+}
+
 export function AnswerBlock({ title = 'Quick answer', answer }) {
   return (
-    <section className="public-answer-block" aria-label={title}>
+    <section
+      className="public-answer-block"
+      aria-label={title}
+      data-ai-section="answer"
+      data-ai-chunk="answer-summary"
+      data-answer-extract="true"
+      itemScope
+      itemType="https://schema.org/Question"
+    >
       <div className="public-answer-block__eyebrow">Answer first</div>
-      <h2>{title}</h2>
-      <p>{answer}</p>
+      <h2 itemProp="name">{title}</h2>
+      <div itemProp="acceptedAnswer" itemScope itemType="https://schema.org/Answer">
+        <p itemProp="text">{answer}</p>
+      </div>
     </section>
   );
 }
@@ -36,7 +121,12 @@ export function PublicHero({
   secondaryCta,
 }) {
   return (
-    <header className="public-content-hero">
+    <header
+      className="public-content-hero"
+      data-ai-section="hero"
+      data-ai-chunk="hero-introduction"
+      data-answer-extract={answer ? 'true' : undefined}
+    >
       {eyebrow ? <div className="public-content-hero__eyebrow">{eyebrow}</div> : null}
       <h1>{title}</h1>
       <p>{description}</p>
@@ -50,10 +140,20 @@ export function PublicHero({
 }
 
 export function SectionBlock({ eyebrow, title, description, children }) {
+  const chunkId = sectionChunkId(title, eyebrow);
+  const titleId = title ? `${chunkId}-title` : undefined;
+
   return (
-    <section className="public-section-block">
+    <section
+      id={chunkId}
+      className="public-section-block"
+      aria-labelledby={titleId}
+      data-ai-section={aiSlug(eyebrow || title || 'section')}
+      data-ai-chunk={chunkId}
+      data-retrieval-section="true"
+    >
       {eyebrow ? <div className="public-section-block__eyebrow">{eyebrow}</div> : null}
-      {title ? <h2>{title}</h2> : null}
+      {title ? <h2 id={titleId}>{title}</h2> : null}
       {description ? <p className="public-section-block__description">{description}</p> : null}
       {children}
     </section>
@@ -62,7 +162,7 @@ export function SectionBlock({ eyebrow, title, description, children }) {
 
 export function BulletList({ items = [] }) {
   return (
-    <ul className="public-bullet-list">
+    <ul className="public-bullet-list" data-ai-list="true" data-ai-chunk="bullet-list">
       {items.map((item) => (
         <li key={item}>{item}</li>
       ))}
@@ -72,7 +172,12 @@ export function BulletList({ items = [] }) {
 
 export function LinkCardGrid({ items = [], surface = 'content-hub' }) {
   return (
-    <div className="public-link-grid">
+    <div
+      className="public-link-grid"
+      data-ai-section="internal-links"
+      data-ai-chunk={sectionChunkId(surface, 'links')}
+      data-internal-link-surface={surface}
+    >
       {items.map((item) => (
         <PublicCtaLink
           key={item.to}
@@ -99,15 +204,28 @@ export function FAQSection({ title = 'Frequently asked questions', items = [], s
   if (!items.length) return null;
 
   return (
-    <section className="public-faq-section">
+    <section
+      className="public-faq-section"
+      data-ai-section="faq"
+      data-ai-chunk="faq"
+      data-ai-faq="true"
+    >
       {schemaId ? <JsonLd id={schemaId} schema={buildFaqPageSchema(items)} /> : null}
       <div className="public-section-block__eyebrow">FAQ</div>
       <h2>{title}</h2>
       <div className="public-faq-section__items">
         {items.map((item) => (
-          <article key={item.question} className="public-faq-item">
-            <h3>{item.question}</h3>
-            <p>{item.answer}</p>
+          <article
+            key={item.question}
+            className="public-faq-item"
+            data-ai-faq-item="true"
+            itemScope
+            itemType="https://schema.org/Question"
+          >
+            <h3 itemProp="name">{item.question}</h3>
+            <div itemProp="acceptedAnswer" itemScope itemType="https://schema.org/Answer">
+              <p itemProp="text">{item.answer}</p>
+            </div>
           </article>
         ))}
       </div>
@@ -143,13 +261,18 @@ export function PremiumHero({
   visual,
 }) {
   return (
-    <section className="public-premium-hero">
+    <section
+      className="public-premium-hero"
+      data-ai-section="hero"
+      data-ai-chunk="hero-introduction"
+      data-answer-extract={answer ? 'true' : undefined}
+    >
       <div className="public-premium-hero__ambient" aria-hidden="true">
         <span className="public-premium-hero__orb public-premium-hero__orb--one" />
         <span className="public-premium-hero__orb public-premium-hero__orb--two" />
         <span className="public-premium-hero__grid" />
       </div>
-      <div className="public-premium-hero__content">
+      <div className="public-premium-hero__content" data-ai-summary="true">
         {eyebrow ? <div className="public-content-hero__eyebrow">{eyebrow}</div> : null}
         <h1>{title}</h1>
         <p>{description}</p>

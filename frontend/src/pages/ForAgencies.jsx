@@ -6,7 +6,7 @@ import { getAgentMeta } from '../lib/constants';
 import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import { buildFaqPageSchema, buildWebPageSchema } from '../lib/seo';
-import { PUBLIC_OG_DEFAULTS } from '../lib/site-content';
+import { PUBLIC_CONTENT_UPDATED_AT, PUBLIC_OG_DEFAULTS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/app-rebuild.css';
 
@@ -204,6 +204,7 @@ export default function ForAgencies() {
           name: PUBLIC_OG_DEFAULTS.forAgencies.title,
           description: PUBLIC_OG_DEFAULTS.forAgencies.description,
           path: '/for-agencies',
+          dateModified: PUBLIC_CONTENT_UPDATED_AT,
         })}
       />
       <JsonLd id="schema-faq-agencies" schema={buildFaqPageSchema(faqItems)} />

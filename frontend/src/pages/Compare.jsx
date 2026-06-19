@@ -3,14 +3,19 @@ import { PageShell } from '../components/ui';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import {
   ComparisonMatrix,
+  EntityDefinition,
+  LinkCardGrid,
   OperatingModuleGrid,
+  PageFreshness,
   PremiumHero,
   ResourceCta,
   SectionBlock,
   SignalCards,
   buildCollectionSchema,
 } from '../components/PublicContent';
-import { COMPARISON_PAGES, PUBLIC_OG_DEFAULTS } from '../lib/site-content';
+import { COMPARISON_PAGES, PUBLIC_CONTENT_UPDATED_AT, PUBLIC_OG_DEFAULTS } from '../lib/site-content';
+import { GENERATED_COMPARISON_PAGES } from '../content/comparisons';
+import { GeneratedComparisonCardGrid } from '../components/GeneratedComparisonContent';
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
 
@@ -60,6 +65,8 @@ export default function Compare() {
         <PublicPageNavbar sourcePrefix="compare" />
         <PageShell width="1180px">
           <div className="public-content-page">
+            <PageFreshness date={PUBLIC_CONTENT_UPDATED_AT} />
+            <EntityDefinition />
             <PremiumHero
               eyebrow="Comparison hub"
               title="Compare Prymal with business AI categories fairly"
@@ -68,7 +75,7 @@ export default function Compare() {
               answer="Use these comparisons to decide whether you need a general chat tool, an execution-first AI workspace, a workflow automation product, or a more open-ended agent platform."
               chips={['Category fit', 'Neutral tone', 'Memory lens', 'Workflow lens', 'Governance lens']}
               stats={[
-                { label: 'Comparison pages', value: String(COMPARISON_PAGES.length) },
+                { label: 'Comparison pages', value: String(COMPARISON_PAGES.length + GENERATED_COMPARISON_PAGES.length) },
                 { label: 'Buyer stance', value: 'Fair' },
                 { label: 'Positioning style', value: 'Category-led' },
               ]}
@@ -113,6 +120,10 @@ export default function Compare() {
               )}
             />
 
+            <SectionBlock eyebrow="Generated comparison pages" title="Prymal vs common AI tools and platforms">
+              <GeneratedComparisonCardGrid />
+            </SectionBlock>
+
             <SectionBlock eyebrow="Comparison pages" title="Explore the most common buying questions">
               <OperatingModuleGrid
                 items={COMPARISON_PAGES.map((page) => ({
@@ -123,6 +134,18 @@ export default function Compare() {
                   chips: page.bestFor.slice(0, 2),
                   metric: 'Category comparison',
                   cta: <Link to={`/compare/${page.slug}`}>Read comparison -&gt;</Link>,
+                }))}
+              />
+            </SectionBlock>
+
+            <SectionBlock eyebrow="Direct links" title="Requested comparison set">
+              <LinkCardGrid
+                surface="compare-generated-links"
+                items={GENERATED_COMPARISON_PAGES.map((page) => ({
+                  title: page.title,
+                  to: `/compare/${page.slug}`,
+                  description: page.metaDescription,
+                  cta: 'Open comparison ->',
                 }))}
               />
             </SectionBlock>

@@ -35,10 +35,18 @@ const Compare = lazyPage(() => import('./pages/Compare'), 'compare');
 const ComparisonPage = lazyPage(() => import('./pages/ComparisonPage'), 'comparison-page');
 const Cookies = lazyPage(() => import('./pages/Cookies'), 'cookies');
 const Dashboard = lazyPage(() => import('./pages/Dashboard'), 'dashboard');
+const EducationHub = lazyPage(() => import('./pages/EducationHub'), 'education-hub');
+const EducationPage = lazyPage(() => import('./pages/EducationPage'), 'education-page');
+const EntityHub = lazyPage(() => import('./pages/EntityHub'), 'entity-hub');
+const EntityPage = lazyPage(() => import('./pages/EntityPage'), 'entity-page');
 const FeaturePage = lazyPage(() => import('./pages/FeaturePage'), 'feature-page');
 const Features = lazyPage(() => import('./pages/Features'), 'features');
 const ForAgencies = lazyPage(() => import('./pages/ForAgencies'), 'for-agencies');
 const ForSmallBusiness = lazyPage(() => import('./pages/ForSmallBusiness'), 'for-small-business');
+const GeneratedBlogArticle = lazyPage(() => import('./pages/GeneratedBlogArticle'), 'generated-blog-article');
+const GeneratedBlogHub = lazyPage(() => import('./pages/GeneratedBlogHub'), 'generated-blog-hub');
+const IndustryHub = lazyPage(() => import('./pages/IndustryHub'), 'industry-hub');
+const IndustryPage = lazyPage(() => import('./pages/IndustryPage'), 'industry-page');
 const Integrations = lazyPage(() => import('./pages/Integrations'), 'integrations');
 const Landing = lazyPage(() => import('./pages/Landing'), 'landing');
 const Lore = lazyPage(() => import('./pages/Lore'), 'lore');
@@ -50,6 +58,8 @@ const SeoGrowthPage = lazyPage(() => import('./pages/SeoGrowthPage'), 'seo-growt
 const Settings = lazyPage(() => import('./pages/Settings'), 'settings');
 const Terms = lazyPage(() => import('./pages/Terms'), 'terms');
 const Trust = lazyPage(() => import('./pages/Trust'), 'trust');
+const UseCaseHub = lazyPage(() => import('./pages/UseCaseHub'), 'use-case-hub');
+const UseCasePage = lazyPage(() => import('./pages/UseCasePage'), 'use-case-page');
 const Workflows = lazyPage(() => import('./pages/Workflows'), 'workflows');
 const WorkflowCatalogue = lazyPage(() => import('./pages/WorkflowCatalogue'), 'workflow-catalogue');
 const WorkflowCatalogueCreate = lazyPage(() => import('./pages/WorkflowCatalogueCreate'), 'workflow-catalogue-create');
@@ -193,13 +203,21 @@ function AppRoutes() {
           <Route path="/blog/:slug" element={<LazyPage label="Loading article..."><BlogPost /></LazyPage>} />
           <Route path="/compare" element={<LazyPage label="Loading comparisons..."><Compare /></LazyPage>} />
           <Route path="/compare/:slug" element={<LazyPage label="Loading comparison..."><ComparisonPage /></LazyPage>} />
+          <Route path="/what-is" element={<LazyPage label="Loading education hub..."><EducationHub /></LazyPage>} />
+          <Route path="/what-is/:slug" element={<LazyPage label="Loading explainer..."><EducationPage /></LazyPage>} />
+          <Route path="/content/blog" element={<LazyPage label="Loading generated blog..."><GeneratedBlogHub /></LazyPage>} />
+          <Route path="/content/blog/:slug" element={<LazyPage label="Loading generated article..."><GeneratedBlogArticle /></LazyPage>} />
+          <Route path="/content/entities" element={<LazyPage label="Loading entity graph..."><EntityHub /></LazyPage>} />
+          <Route path="/content/entities/:slug" element={<LazyPage label="Loading entity..."><EntityPage /></LazyPage>} />
+          <Route path="/content/industries" element={<LazyPage label="Loading industry library..."><IndustryHub /></LazyPage>} />
+          <Route path="/content/industries/:slug" element={<LazyPage label="Loading industry page..."><IndustryPage /></LazyPage>} />
           <Route path="/ai-operating-system-for-business" element={<LazyPage label="Loading guide..."><SeoGrowthPage /></LazyPage>} />
           <Route path="/ai-agent-orchestration" element={<LazyPage label="Loading guide..."><SeoGrowthPage /></LazyPage>} />
           <Route path="/shared-business-memory-ai" element={<LazyPage label="Loading guide..."><SeoGrowthPage /></LazyPage>} />
           <Route path="/governed-ai-agents" element={<LazyPage label="Loading guide..."><SeoGrowthPage /></LazyPage>} />
           <Route path="/secure-ai-workflows" element={<LazyPage label="Loading guide..."><SeoGrowthPage /></LazyPage>} />
-          <Route path="/use-cases" element={<LazyPage label="Loading use cases..."><SeoGrowthPage /></LazyPage>} />
-          <Route path="/use-cases/:slug" element={<LazyPage label="Loading use case..."><SeoGrowthPage /></LazyPage>} />
+          <Route path="/use-cases" element={<LazyPage label="Loading use cases..."><UseCaseHub /></LazyPage>} />
+          <Route path="/use-cases/:slug" element={<LazyPage label="Loading use case..."><UseCasePage /></LazyPage>} />
           <Route path="/architecture" element={<LazyPage label="Loading architecture..."><SeoGrowthPage /></LazyPage>} />
           <Route path="/glossary" element={<LazyPage label="Loading glossary..."><SeoGrowthPage /></LazyPage>} />
           <Route path="/for-agencies" element={<LazyPage label="Loading agency story..."><ForAgencies /></LazyPage>} />

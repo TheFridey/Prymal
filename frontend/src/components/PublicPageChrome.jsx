@@ -7,6 +7,7 @@ import {
   SITE_NAME,
   SITE_URL,
   TWITTER_SITE,
+  normalizeSchemaForJsonLd,
   resolveOgImage,
 } from '../lib/seo';
 import { AgentAvatar, BrandMark, Button, ThemeToggle } from './ui';
@@ -24,7 +25,7 @@ export function PageMeta({
   ogImageAlt = DEFAULT_OG_IMAGE_ALT,
   ogImageWidth = '1200',
   ogImageHeight = '630',
-  robots = 'index,follow',
+  robots = 'index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1',
 }) {
   const resolvedOgImage = resolveOgImage(ogImage);
 
@@ -65,14 +66,40 @@ export function PageMeta({
 
     const canonicalUrl = canonicalPath ? `${SITE_URL}${canonicalPath}` : SITE_URL;
     setMeta('meta[property="og:url"]', canonicalUrl);
+    setMeta('meta[name="ai-search"]', 'index,follow,cite');
+    setMeta('meta[name="citation_title"]', title);
+    setMeta('meta[name="citation_author"]', SITE_NAME);
+    setMeta('meta[name="citation_public_url"]', canonicalUrl);
 
-    let link = document.querySelector('link[rel="canonical"]');
-    if (!link) {
-      link = document.createElement('link');
-      link.setAttribute('rel', 'canonical');
-      document.head.appendChild(link);
+    const setLink = ({ rel, href, type, title: linkTitle }) => {
+      const selector = [
+        `link[rel="${rel}"]`,
+        type ? `[type="${type}"]` : '',
+        linkTitle ? `[title="${linkTitle}"]` : '',
+      ].join('');
+      let link = document.querySelector(selector);
+      if (!link) {
+        link = document.createElement('link');
+        link.setAttribute('rel', rel);
+        if (type) link.setAttribute('type', type);
+        if (linkTitle) link.setAttribute('title', linkTitle);
+        document.head.appendChild(link);
+      }
+      link.setAttribute('href', href);
+    };
+
+    setLink({ rel: 'canonical', href: canonicalUrl });
+    setLink({ rel: 'alternate', type: 'text/plain', title: 'llms.txt', href: `${SITE_URL}/llms.txt` });
+    setLink({ rel: 'alternate', type: 'text/plain', title: 'ai.txt', href: `${SITE_URL}/ai.txt` });
+
+    let sitemapLink = document.querySelector('link[rel="sitemap"]');
+    if (!sitemapLink) {
+      sitemapLink = document.createElement('link');
+      sitemapLink.setAttribute('rel', 'sitemap');
+      sitemapLink.setAttribute('type', 'application/xml');
+      document.head.appendChild(sitemapLink);
     }
-    link.setAttribute('href', canonicalUrl);
+    sitemapLink.setAttribute('href', `${SITE_URL}/sitemap.xml`);
 
     setMeta('meta[property="og:image"]', resolvedOgImage);
     setMeta('meta[name="twitter:image"]', resolvedOgImage);
@@ -102,10 +129,12 @@ export function PageMeta({
 
 export function JsonLd({ id, schema }) {
   useEffect(() => {
+    const normalizedSchema = normalizeSchemaForJsonLd(schema);
+    document.getElementById(id)?.remove();
     const script = document.createElement('script');
     script.type = 'application/ld+json';
     script.id = id;
-    script.textContent = JSON.stringify(schema);
+    script.textContent = JSON.stringify(normalizedSchema);
     document.head.appendChild(script);
     return () => {
       document.getElementById(id)?.remove();
@@ -391,8 +420,12 @@ export function PublicPageFooter({ sourcePrefix = '', onSignupClick = () => {} }
           <span className="prymal-footer__label">Explore</span>
           <Link to="/features">Features</Link>
           <Link to="/ai-operating-system-for-business">AI operating system</Link>
+          <Link to="/what-is">What Is hub</Link>
           <Link to="/ai-agent-orchestration">Agent orchestration</Link>
           <Link to="/use-cases">Use cases</Link>
+          <Link to="/content/entities">Entity graph</Link>
+          <Link to="/content/industries">Industries</Link>
+          <Link to="/content/blog">Content blog</Link>
           <Link to="/blog">Blog</Link>
           <Link to="/compare">Compare</Link>
         </div>

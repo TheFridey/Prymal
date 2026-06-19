@@ -1,11 +1,15 @@
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { AGENT_LIBRARY } from '../lib/constants';
-import { getFeaturePageBySlug } from '../lib/site-content';
+import { getFeaturePageBySlug, PUBLIC_CONTENT_UPDATED_AT } from '../lib/site-content';
+import { SEO_RELATED_LINKS } from '../lib/seo-growth-content';
 import { PageShell } from '../components/ui';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import {
+  EntityDefinition,
   FAQSection,
+  PageFreshness,
   PremiumHero,
+  RelatedResources,
   SectionBlock,
   BulletList,
   ResourceCta,
@@ -15,6 +19,15 @@ import {
   buildBreadcrumbSchema,
 } from '../components/PublicContent';
 import { buildWebPageSchema } from '../lib/seo';
+
+const FEATURE_RELATED_LINKS = [
+  SEO_RELATED_LINKS.operating,
+  SEO_RELATED_LINKS.agents,
+  SEO_RELATED_LINKS.memory,
+  SEO_RELATED_LINKS.workflows,
+  SEO_RELATED_LINKS.governed,
+  SEO_RELATED_LINKS.trust,
+];
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
 
@@ -29,6 +42,8 @@ export default function FeaturePage() {
   const relevantAgents = page.agentIds
     .map((id) => AGENT_LIBRARY.find((agent) => agent.id === id))
     .filter(Boolean);
+
+  const updatedAt = page.updatedAt ?? PUBLIC_CONTENT_UPDATED_AT;
 
   const useCaseSignals = page.useCases.map((item, index) => ({
     eyebrow: `Use case 0${index + 1}`,
@@ -52,6 +67,7 @@ export default function FeaturePage() {
           name: page.metaTitle,
           description: page.metaDescription,
           path: `/features/${page.slug}`,
+          dateModified: updatedAt,
         })}
       />
       <JsonLd
@@ -73,6 +89,9 @@ export default function FeaturePage() {
               <span>/</span>
               <span>{page.title}</span>
             </div>
+
+            <PageFreshness date={updatedAt} />
+            <EntityDefinition />
 
             <PremiumHero
               eyebrow="Feature module"
@@ -134,6 +153,12 @@ export default function FeaturePage() {
               title={`${page.title} FAQ`}
               items={page.faq}
               schemaId={`schema-feature-faq-${page.slug}`}
+            />
+
+            <RelatedResources
+              title="Related Prymal capabilities and guides"
+              items={FEATURE_RELATED_LINKS}
+              surface={`feature-${page.slug}-related`}
             />
 
             <ResourceCta

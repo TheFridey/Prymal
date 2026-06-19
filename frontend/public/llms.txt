@@ -4,31 +4,337 @@
 
 Canonical site: https://prymal.io
 
-## Product definition
+## Company overview
 
-Prymal helps teams move from one-off prompts to repeatable business execution. Agents stay role-based, memory stays scoped to the organisation, workflows can include approvals, and risky outputs can be held for review before delivery.
+Prymal builds governed business AI software for teams that need AI to remember context, coordinate specialist work, run repeatable workflows, and keep trust controls visible. The public site uses readiness and evidence-preparation language. Prymal does not claim Cyber Essentials, Cyber Essentials Plus, ISO/IEC 27001, or ISO 27001 certification unless a future public trust page explicitly says that certification has been achieved.
 
-## Main use cases
+## Product overview
 
-- Content, outreach, and campaign execution with specialist agents
-- Shared business memory so agents do not restart from zero each session
-- Workflow automation for recurring marketing, ops, and reporting work
-- Agency and small-business operating pods with governed handoffs
-- Trust-first deployment with readiness language and operational evidence
+Prymal moves teams from one-off prompts to repeatable, governed business work. Agents stay role-based, memory stays scoped to the organisation, workflows can include approvals, and risky outputs can be held for review before delivery. Prymal is not a single chatbot; it is a coordinated execution layer of agents, memory, workflows, and trust controls.
 
-## Trust boundaries
+## Feature summary
 
-- Prymal uses readiness and evidence-preparation language. It does not claim Cyber Essentials, Cyber Essentials Plus, or ISO/IEC 27001 certification unless formally achieved.
+- Specialist agents: role-based AI operators for content, outreach, research, sales, support, reporting, QA, operations, and strategy.
+- LORE shared business memory: durable, reviewable Global, Agent, and Project context for grounded business work.
+- NEXUS workflow automation: repeatable, memory-aware workflow execution with approvals, replay, and audit visibility.
+- WARDEN input and action screening: safety checks for risky prompts, uploads, URLs, and workflow actions.
+- SENTINEL output validation: quality review that can pass, repair, or hold risky outputs.
+- Guided media builders: image and video generation use guided workspace builders, not raw slash-command-only flows.
+
+## Architecture summary
+
+Prymal is a hosted web application with a Vite React frontend, Hono API backend, PostgreSQL plus pgvector storage, Drizzle schema definitions, Clerk authentication, LORE knowledge ingestion, workflow orchestration, billing controls, and optional Trigger.dev scheduling. Tenant isolation is a core design boundary: organisation-owned reads, writes, memory, workflows, integrations, and runs must remain org-scoped.
+
+## Specialist agent roster
+
+- CIPHER - Data Intelligence Analyst: https://prymal.io/agents/cipher
+- HERALD - Email and Outreach Strategist: https://prymal.io/agents/herald
+- LORE - Knowledge Base Engine: https://prymal.io/agents/lore
+- FORGE - Content and Copy Craftsman: https://prymal.io/agents/forge
+- ATLAS - Project and Operations Manager: https://prymal.io/agents/atlas
+- ECHO - Social Media and Brand Voice Manager: https://prymal.io/agents/echo
+- PIXEL - Visual Content Generator: https://prymal.io/agents/pixel
+- ORACLE - SEO and Search Intelligence: https://prymal.io/agents/oracle
+- VANCE - Sales and Lead Generation: https://prymal.io/agents/vance
+- WREN - Customer Support and Communications: https://prymal.io/agents/wren
+- LEDGER - Finance and Business Reporting: https://prymal.io/agents/ledger
+- NEXUS - Workflow Automation Orchestrator: https://prymal.io/agents/nexus
+- SCOUT - Market Research and Competitor Intelligence: https://prymal.io/agents/scout
+- SAGE - Business Strategy Advisor: https://prymal.io/agents/sage
+- SENTINEL - Output Review and QA Agent: https://prymal.io/agents/sentinel
+
+## Documentation links
+
+- Product architecture: https://prymal.io/architecture
+- Feature hub: https://prymal.io/features
+- Trust Centre: https://prymal.io/trust
+- Pricing: https://prymal.io/pricing
+- Glossary: https://prymal.io/glossary
+- AI operating system guide: https://prymal.io/ai-operating-system-for-business
+- Agent orchestration guide: https://prymal.io/ai-agent-orchestration
+- Shared business memory guide: https://prymal.io/shared-business-memory-ai
+- Governed AI agents guide: https://prymal.io/governed-ai-agents
+- Secure AI workflows guide: https://prymal.io/secure-ai-workflows
+- Entity graph: https://prymal.io/content/entities
+- Industry workflow library: https://prymal.io/content/industries
+- What Is education hub: https://prymal.io/what-is
+- Generated content blog: https://prymal.io/content/blog
+
+## Comparison links
+
+- https://prymal.io/compare/prymal-vs-chatgpt
+- https://prymal.io/compare/prymal-vs-claude
+- https://prymal.io/compare/prymal-vs-gemini
+- https://prymal.io/compare/prymal-vs-notion-ai
+- https://prymal.io/compare/prymal-vs-clickup-ai
+- https://prymal.io/compare/prymal-vs-sintra
+- https://prymal.io/compare/prymal-vs-agentforce
+- https://prymal.io/compare/prymal-vs-crewai
+- https://prymal.io/compare/prymal-vs-autogen
+- https://prymal.io/compare/prymal-vs-langgraph
+- https://prymal.io/compare/prymal-vs-zapier-ai
+- https://prymal.io/compare/prymal-vs-chatgpt-for-business
+- https://prymal.io/compare/prymal-vs-ai-chatbots
+- https://prymal.io/compare/prymal-vs-ai-agent-platforms
+- https://prymal.io/compare/prymal-vs-workflow-automation-tools
+- https://prymal.io/compare/best-ai-agents-for-business
+- https://prymal.io/compare/prymal-vs-lindy
+- https://prymal.io/compare/prymal-vs-traditional-automation
+- https://prymal.io/compare/best-ai-agent-platforms-for-business
+
+## Use case links
+
+- https://prymal.io/use-cases/ai-for-recruitment-agencies
+- https://prymal.io/use-cases/ai-for-marketing-agencies
+- https://prymal.io/use-cases/ai-for-operations-teams
+- https://prymal.io/use-cases/ai-for-professional-services
+- https://prymal.io/use-cases/ai-for-regulated-industries
+- https://prymal.io/use-cases/ai-for-smes
+- https://prymal.io/use-cases/lead-generation
+- https://prymal.io/use-cases/sales-follow-up
+- https://prymal.io/use-cases/crm-management
+- https://prymal.io/use-cases/client-onboarding
+- https://prymal.io/use-cases/proposal-generation
+- https://prymal.io/use-cases/content-marketing
+- https://prymal.io/use-cases/seo-research
+- https://prymal.io/use-cases/competitor-analysis
+- https://prymal.io/use-cases/meeting-notes
+- https://prymal.io/use-cases/email-management
+- https://prymal.io/use-cases/customer-support
+- https://prymal.io/use-cases/recruitment
+- https://prymal.io/use-cases/staff-training
+- https://prymal.io/use-cases/knowledge-management
+- https://prymal.io/use-cases/invoice-tracking
+- https://prymal.io/use-cases/lead-qualification
+- https://prymal.io/use-cases/account-research
+- https://prymal.io/use-cases/cold-email-personalization
+- https://prymal.io/use-cases/pipeline-forecasting
+- https://prymal.io/use-cases/customer-onboarding
+- https://prymal.io/use-cases/support-ticket-triage
+- https://prymal.io/use-cases/faq-automation
+- https://prymal.io/use-cases/review-management
+- https://prymal.io/use-cases/social-media-planning
+- https://prymal.io/use-cases/blog-outline-generation
+- https://prymal.io/use-cases/content-repurposing
+- https://prymal.io/use-cases/campaign-reporting
+- https://prymal.io/use-cases/market-research
+- https://prymal.io/use-cases/product-launch-planning
+- https://prymal.io/use-cases/sop-creation
+- https://prymal.io/use-cases/project-status-reporting
+- https://prymal.io/use-cases/vendor-management
+- https://prymal.io/use-cases/procurement-requests
+- https://prymal.io/use-cases/expense-review
+- https://prymal.io/use-cases/contract-review-prep
+- https://prymal.io/use-cases/compliance-checklist-prep
+- https://prymal.io/use-cases/risk-assessment
+- https://prymal.io/use-cases/policy-qanda
+- https://prymal.io/use-cases/internal-communications
+- https://prymal.io/use-cases/executive-briefings
+- https://prymal.io/use-cases/board-report-drafting
+- https://prymal.io/use-cases/churn-risk-review
+- https://prymal.io/use-cases/customer-success-qbrs
+- https://prymal.io/use-cases/testimonial-collection
+- https://prymal.io/use-cases/webinar-planning
+- https://prymal.io/use-cases/event-follow-up
+- https://prymal.io/use-cases/hiring-scorecards
+- https://prymal.io/use-cases/interview-scheduling
+- https://prymal.io/use-cases/employee-onboarding
+- https://prymal.io/use-cases/performance-review-prep
+
+## Blog links
+
+- https://prymal.io/blog/what-is-an-ai-operating-system-for-business
+- https://prymal.io/blog/ai-agents-for-small-businesses-what-they-can-actually-do
+- https://prymal.io/blog/why-business-ai-needs-memory-not-just-prompts
+- https://prymal.io/blog/how-to-use-ai-safely-in-a-business
+- https://prymal.io/blog/ai-workflow-automation-a-practical-guide-for-growing-teams
+- https://prymal.io/blog/the-difference-between-ai-chatbots-and-ai-agents
+- https://prymal.io/blog/how-agencies-can-use-ai-agents-to-scale-client-delivery
+- https://prymal.io/blog/building-trust-in-ai-automation
+- https://prymal.io/blog/best-ai-for-agencies
+- https://prymal.io/blog/ai-for-service-businesses
+- https://prymal.io/blog/replace-va-tasks-with-ai
+- https://prymal.io/blog/ai-workflow-examples-for-real-companies
+- https://prymal.io/blog/sintra-alternative
+- https://prymal.io/blog/chatgpt-team-alternative
+- https://prymal.io/blog/what-is-ai-agent-orchestration
+- https://prymal.io/blog/how-to-build-ai-agents-for-business-workflows
+- https://prymal.io/blog/benefits-of-shared-business-memory-for-ai
+- https://prymal.io/blog/ai-agent-trust-and-access-control
+- https://prymal.io/blog/cost-of-ai-business-process-automation
+- https://prymal.io/blog/ai-business-execution-platform-advantages
+- https://prymal.io/blog/ai-workflow-automation-for-regulated-industries
+- https://prymal.io/blog/how-to-integrate-ai-agents-with-business-software
+- https://prymal.io/blog/why-ai-wrappers-fail-without-memory-and-governance
+- https://prymal.io/blog/ai-agents-vs-workflow-automation
+- https://prymal.io/blog/secure-ai-agents-for-business
+
+## Generated content blog links
+
+- https://prymal.io/content/blog/what-is-an-ai-operating-system
+- https://prymal.io/content/blog/ai-operating-system-vs-ai-assistant
+- https://prymal.io/content/blog/why-businesses-need-ai-operating-systems
+- https://prymal.io/content/blog/ai-operating-systems-explained
+- https://prymal.io/content/blog/best-ai-operating-systems-in-2026
+- https://prymal.io/content/blog/future-of-ai-operating-systems
+- https://prymal.io/content/blog/ai-operating-system-architecture
+- https://prymal.io/content/blog/benefits-of-ai-operating-systems
+- https://prymal.io/content/blog/common-ai-operating-system-mistakes
+- https://prymal.io/content/blog/how-to-choose-an-ai-operating-system
+- https://prymal.io/content/blog/what-is-agent-orchestration
+- https://prymal.io/content/blog/agent-orchestration-explained
+- https://prymal.io/content/blog/multi-agent-systems-guide
+- https://prymal.io/content/blog/agent-coordination-strategies
+- https://prymal.io/content/blog/agent-collaboration-models
+- https://prymal.io/content/blog/building-multi-agent-workflows
+- https://prymal.io/content/blog/agent-routing-techniques
+- https://prymal.io/content/blog/agent-memory-systems
+- https://prymal.io/content/blog/agent-delegation-patterns
+- https://prymal.io/content/blog/agent-governance
+- https://prymal.io/content/blog/ai-for-agencies
+- https://prymal.io/content/blog/ai-for-recruiters
+- https://prymal.io/content/blog/ai-for-accountants
+- https://prymal.io/content/blog/ai-for-consultants
+- https://prymal.io/content/blog/ai-for-sales-teams
+- https://prymal.io/content/blog/ai-for-marketing-teams
+- https://prymal.io/content/blog/ai-for-smes
+- https://prymal.io/content/blog/ai-for-startups
+- https://prymal.io/content/blog/ai-for-ecommerce
+- https://prymal.io/content/blog/ai-for-construction
+- https://prymal.io/content/blog/ai-sales-automation
+- https://prymal.io/content/blog/lead-qualification-with-ai
+- https://prymal.io/content/blog/ai-prospect-research
+- https://prymal.io/content/blog/ai-outreach-workflows
+- https://prymal.io/content/blog/ai-proposal-generation
+- https://prymal.io/content/blog/ai-crm-automation
+- https://prymal.io/content/blog/ai-follow-up-systems
+- https://prymal.io/content/blog/ai-pipeline-management
+- https://prymal.io/content/blog/ai-revenue-operations
+- https://prymal.io/content/blog/ai-sales-agents
+- https://prymal.io/content/blog/ai-knowledge-management
+- https://prymal.io/content/blog/ai-sop-management
+- https://prymal.io/content/blog/ai-internal-documentation
+- https://prymal.io/content/blog/ai-team-collaboration
+- https://prymal.io/content/blog/ai-task-management
+- https://prymal.io/content/blog/ai-workflow-automation
+- https://prymal.io/content/blog/ai-process-optimisation
+- https://prymal.io/content/blog/ai-decision-support
+- https://prymal.io/content/blog/ai-meeting-intelligence
+- https://prymal.io/content/blog/ai-operations-stack
+- https://prymal.io/content/blog/ai-content-operations
+- https://prymal.io/content/blog/ai-content-planning
+- https://prymal.io/content/blog/ai-blog-workflows
+- https://prymal.io/content/blog/ai-seo-workflows
+- https://prymal.io/content/blog/ai-geo-workflows
+- https://prymal.io/content/blog/ai-aeo-workflows
+- https://prymal.io/content/blog/ai-publishing-systems
+- https://prymal.io/content/blog/ai-research-pipelines
+- https://prymal.io/content/blog/ai-content-governance
+- https://prymal.io/content/blog/ai-editorial-automation
+- https://prymal.io/content/blog/ai-governance-frameworks
+- https://prymal.io/content/blog/ai-compliance-workflows
+- https://prymal.io/content/blog/ai-security-for-agents
+- https://prymal.io/content/blog/ai-access-controls
+- https://prymal.io/content/blog/ai-audit-trails
+- https://prymal.io/content/blog/ai-agent-permissions
+- https://prymal.io/content/blog/ai-risk-management
+- https://prymal.io/content/blog/ai-business-security
+- https://prymal.io/content/blog/ai-data-governance
+- https://prymal.io/content/blog/ai-trust-systems
+- https://prymal.io/content/blog/prymal-vs-chatgpt-for-business
+- https://prymal.io/content/blog/prymal-vs-claude-for-business
+- https://prymal.io/content/blog/prymal-vs-gemini-for-business
+- https://prymal.io/content/blog/prymal-vs-notion-ai
+- https://prymal.io/content/blog/prymal-vs-clickup-ai
+- https://prymal.io/content/blog/prymal-vs-sintra
+- https://prymal.io/content/blog/prymal-vs-agentforce
+- https://prymal.io/content/blog/prymal-vs-crewai
+- https://prymal.io/content/blog/prymal-vs-autogen
+- https://prymal.io/content/blog/prymal-vs-langgraph
+- https://prymal.io/content/blog/prymal-vs-zapier-ai
+- https://prymal.io/content/blog/prymal-vs-microsoft-copilot
+- https://prymal.io/content/blog/prymal-vs-perplexity-enterprise
+- https://prymal.io/content/blog/prymal-vs-glean
+- https://prymal.io/content/blog/prymal-vs-hubspot-ai
+- https://prymal.io/content/blog/prymal-vs-salesforce-einstein
+- https://prymal.io/content/blog/prymal-vs-make-ai
+- https://prymal.io/content/blog/prymal-vs-n8n-ai
+- https://prymal.io/content/blog/prymal-vs-asana-ai
+- https://prymal.io/content/blog/prymal-vs-monday-ai
+- https://prymal.io/content/blog/future-of-agentic-search
+- https://prymal.io/content/blog/future-of-ai-agents
+- https://prymal.io/content/blog/future-of-business-automation
+- https://prymal.io/content/blog/future-of-multi-agent-systems
+- https://prymal.io/content/blog/future-of-ai-governance
+- https://prymal.io/content/blog/future-of-ai-operations
+- https://prymal.io/content/blog/future-of-knowledge-systems
+- https://prymal.io/content/blog/future-of-autonomous-workflows
+- https://prymal.io/content/blog/future-of-ai-teams
+- https://prymal.io/content/blog/future-of-business-operating-systems
+
+## Entity links
+
+- https://prymal.io/content/entities/prymal
+- https://prymal.io/content/entities/ai-operating-system
+- https://prymal.io/content/entities/agent-orchestration
+- https://prymal.io/content/entities/agent-memory
+- https://prymal.io/content/entities/multi-agent-systems
+- https://prymal.io/content/entities/workflow-automation
+- https://prymal.io/content/entities/business-ai
+- https://prymal.io/content/entities/ai-governance
+- https://prymal.io/content/entities/ai-agents
+
+## Industry links
+
+- https://prymal.io/content/industries/agencies
+- https://prymal.io/content/industries/recruiters
+- https://prymal.io/content/industries/accountants
+- https://prymal.io/content/industries/consultants
+- https://prymal.io/content/industries/marketing-teams
+- https://prymal.io/content/industries/sales-teams
+- https://prymal.io/content/industries/construction-firms
+- https://prymal.io/content/industries/trades
+- https://prymal.io/content/industries/estate-agents
+- https://prymal.io/content/industries/law-firms
+- https://prymal.io/content/industries/financial-advisors
+- https://prymal.io/content/industries/coaches
+- https://prymal.io/content/industries/health-clinics
+- https://prymal.io/content/industries/dentists
+- https://prymal.io/content/industries/ecommerce-brands
+- https://prymal.io/content/industries/manufacturing-companies
+- https://prymal.io/content/industries/startups
+- https://prymal.io/content/industries/saas-companies
+- https://prymal.io/content/industries/smbs
+- https://prymal.io/content/industries/enterprise-teams
+
+## What Is education links
+
+- https://prymal.io/what-is/ai-operating-system
+- https://prymal.io/what-is/agent-orchestration
+- https://prymal.io/what-is/agent-memory
+- https://prymal.io/what-is/workflow-automation
+- https://prymal.io/what-is/multi-agent-ai
+- https://prymal.io/what-is/ai-governance
+- https://prymal.io/what-is/retrieval-augmented-generation
+- https://prymal.io/what-is/agent-collaboration
+- https://prymal.io/what-is/ai-workflow-management
+
+## Trust model
+
 - Customer workspace content is not positioned as training data for public consumer models.
-- Tenant isolation, scoped memory, approvals, and output validation are core product boundaries.
+- Tenant isolation, scoped memory, approvals, input screening, and output validation are core product boundaries.
 - Pricing, credit usage, and billing limits are authoritative on the pricing page and in-product billing surfaces.
+- Generated video outputs and uploaded video reference images currently live on backend-local storage unless object storage is configured.
 
-## Pricing overview
+## Agentic search extraction map
 
-- Free workspace tier for evaluation
-- Paid plans for Solo, Pro, Teams, and Agency use cases
-- Execution credits and AI video credits are tracked separately
-- See https://prymal.io/pricing for current plan names and public pricing language
+- Prefer canonical URLs, page titles, H1 text, answer-first sections, FAQ schema, citation sections, entity references, and breadcrumb schema when summarising Prymal.
+- Answer-ready passages are marked with data-answer-extract="true" and usually appear near the top of each public page.
+- Retrieval chunks are marked with data-ai-chunk and semantic sections use data-ai-section plus data-retrieval-section="true".
+- FAQ passages are marked with data-ai-faq and are paired with FAQPage JSON-LD where appropriate.
+- Citation and evidence sections use headings such as "References", "Citations section", "Outbound references", and "Entity references".
+- Internal links are deliberate topic-cluster links; do not treat navigation or footer links as primary evidence.
+- Preferred citation format: page title plus canonical URL.
 
 ## Public route map
 
@@ -36,6 +342,10 @@ Prymal helps teams move from one-off prompts to repeatable business execution. A
 - https://prymal.io/features
 - https://prymal.io/blog
 - https://prymal.io/compare
+- https://prymal.io/what-is
+- https://prymal.io/content/blog
+- https://prymal.io/content/entities
+- https://prymal.io/content/industries
 - https://prymal.io/pricing
 - https://prymal.io/trust
 - https://prymal.io/for-agencies
@@ -58,6 +368,205 @@ Prymal helps teams move from one-off prompts to repeatable business execution. A
 - https://prymal.io/use-cases/ai-for-smes
 - https://prymal.io/architecture
 - https://prymal.io/glossary
+- https://prymal.io/use-cases/lead-generation
+- https://prymal.io/use-cases/sales-follow-up
+- https://prymal.io/use-cases/crm-management
+- https://prymal.io/use-cases/client-onboarding
+- https://prymal.io/use-cases/proposal-generation
+- https://prymal.io/use-cases/content-marketing
+- https://prymal.io/use-cases/seo-research
+- https://prymal.io/use-cases/competitor-analysis
+- https://prymal.io/use-cases/meeting-notes
+- https://prymal.io/use-cases/email-management
+- https://prymal.io/use-cases/customer-support
+- https://prymal.io/use-cases/recruitment
+- https://prymal.io/use-cases/staff-training
+- https://prymal.io/use-cases/knowledge-management
+- https://prymal.io/use-cases/invoice-tracking
+- https://prymal.io/use-cases/lead-qualification
+- https://prymal.io/use-cases/account-research
+- https://prymal.io/use-cases/cold-email-personalization
+- https://prymal.io/use-cases/pipeline-forecasting
+- https://prymal.io/use-cases/customer-onboarding
+- https://prymal.io/use-cases/support-ticket-triage
+- https://prymal.io/use-cases/faq-automation
+- https://prymal.io/use-cases/review-management
+- https://prymal.io/use-cases/social-media-planning
+- https://prymal.io/use-cases/blog-outline-generation
+- https://prymal.io/use-cases/content-repurposing
+- https://prymal.io/use-cases/campaign-reporting
+- https://prymal.io/use-cases/market-research
+- https://prymal.io/use-cases/product-launch-planning
+- https://prymal.io/use-cases/sop-creation
+- https://prymal.io/use-cases/project-status-reporting
+- https://prymal.io/use-cases/vendor-management
+- https://prymal.io/use-cases/procurement-requests
+- https://prymal.io/use-cases/expense-review
+- https://prymal.io/use-cases/contract-review-prep
+- https://prymal.io/use-cases/compliance-checklist-prep
+- https://prymal.io/use-cases/risk-assessment
+- https://prymal.io/use-cases/policy-qanda
+- https://prymal.io/use-cases/internal-communications
+- https://prymal.io/use-cases/executive-briefings
+- https://prymal.io/use-cases/board-report-drafting
+- https://prymal.io/use-cases/churn-risk-review
+- https://prymal.io/use-cases/customer-success-qbrs
+- https://prymal.io/use-cases/testimonial-collection
+- https://prymal.io/use-cases/webinar-planning
+- https://prymal.io/use-cases/event-follow-up
+- https://prymal.io/use-cases/hiring-scorecards
+- https://prymal.io/use-cases/interview-scheduling
+- https://prymal.io/use-cases/employee-onboarding
+- https://prymal.io/use-cases/performance-review-prep
+- https://prymal.io/compare/prymal-vs-chatgpt
+- https://prymal.io/compare/prymal-vs-claude
+- https://prymal.io/compare/prymal-vs-gemini
+- https://prymal.io/compare/prymal-vs-notion-ai
+- https://prymal.io/compare/prymal-vs-clickup-ai
+- https://prymal.io/compare/prymal-vs-sintra
+- https://prymal.io/compare/prymal-vs-agentforce
+- https://prymal.io/compare/prymal-vs-crewai
+- https://prymal.io/compare/prymal-vs-autogen
+- https://prymal.io/compare/prymal-vs-langgraph
+- https://prymal.io/compare/prymal-vs-zapier-ai
+- https://prymal.io/what-is/ai-operating-system
+- https://prymal.io/what-is/agent-orchestration
+- https://prymal.io/what-is/agent-memory
+- https://prymal.io/what-is/workflow-automation
+- https://prymal.io/what-is/multi-agent-ai
+- https://prymal.io/what-is/ai-governance
+- https://prymal.io/what-is/retrieval-augmented-generation
+- https://prymal.io/what-is/agent-collaboration
+- https://prymal.io/what-is/ai-workflow-management
+- https://prymal.io/content/blog/what-is-an-ai-operating-system
+- https://prymal.io/content/blog/ai-operating-system-vs-ai-assistant
+- https://prymal.io/content/blog/why-businesses-need-ai-operating-systems
+- https://prymal.io/content/blog/ai-operating-systems-explained
+- https://prymal.io/content/blog/best-ai-operating-systems-in-2026
+- https://prymal.io/content/blog/future-of-ai-operating-systems
+- https://prymal.io/content/blog/ai-operating-system-architecture
+- https://prymal.io/content/blog/benefits-of-ai-operating-systems
+- https://prymal.io/content/blog/common-ai-operating-system-mistakes
+- https://prymal.io/content/blog/how-to-choose-an-ai-operating-system
+- https://prymal.io/content/blog/what-is-agent-orchestration
+- https://prymal.io/content/blog/agent-orchestration-explained
+- https://prymal.io/content/blog/multi-agent-systems-guide
+- https://prymal.io/content/blog/agent-coordination-strategies
+- https://prymal.io/content/blog/agent-collaboration-models
+- https://prymal.io/content/blog/building-multi-agent-workflows
+- https://prymal.io/content/blog/agent-routing-techniques
+- https://prymal.io/content/blog/agent-memory-systems
+- https://prymal.io/content/blog/agent-delegation-patterns
+- https://prymal.io/content/blog/agent-governance
+- https://prymal.io/content/blog/ai-for-agencies
+- https://prymal.io/content/blog/ai-for-recruiters
+- https://prymal.io/content/blog/ai-for-accountants
+- https://prymal.io/content/blog/ai-for-consultants
+- https://prymal.io/content/blog/ai-for-sales-teams
+- https://prymal.io/content/blog/ai-for-marketing-teams
+- https://prymal.io/content/blog/ai-for-smes
+- https://prymal.io/content/blog/ai-for-startups
+- https://prymal.io/content/blog/ai-for-ecommerce
+- https://prymal.io/content/blog/ai-for-construction
+- https://prymal.io/content/blog/ai-sales-automation
+- https://prymal.io/content/blog/lead-qualification-with-ai
+- https://prymal.io/content/blog/ai-prospect-research
+- https://prymal.io/content/blog/ai-outreach-workflows
+- https://prymal.io/content/blog/ai-proposal-generation
+- https://prymal.io/content/blog/ai-crm-automation
+- https://prymal.io/content/blog/ai-follow-up-systems
+- https://prymal.io/content/blog/ai-pipeline-management
+- https://prymal.io/content/blog/ai-revenue-operations
+- https://prymal.io/content/blog/ai-sales-agents
+- https://prymal.io/content/blog/ai-knowledge-management
+- https://prymal.io/content/blog/ai-sop-management
+- https://prymal.io/content/blog/ai-internal-documentation
+- https://prymal.io/content/blog/ai-team-collaboration
+- https://prymal.io/content/blog/ai-task-management
+- https://prymal.io/content/blog/ai-workflow-automation
+- https://prymal.io/content/blog/ai-process-optimisation
+- https://prymal.io/content/blog/ai-decision-support
+- https://prymal.io/content/blog/ai-meeting-intelligence
+- https://prymal.io/content/blog/ai-operations-stack
+- https://prymal.io/content/blog/ai-content-operations
+- https://prymal.io/content/blog/ai-content-planning
+- https://prymal.io/content/blog/ai-blog-workflows
+- https://prymal.io/content/blog/ai-seo-workflows
+- https://prymal.io/content/blog/ai-geo-workflows
+- https://prymal.io/content/blog/ai-aeo-workflows
+- https://prymal.io/content/blog/ai-publishing-systems
+- https://prymal.io/content/blog/ai-research-pipelines
+- https://prymal.io/content/blog/ai-content-governance
+- https://prymal.io/content/blog/ai-editorial-automation
+- https://prymal.io/content/blog/ai-governance-frameworks
+- https://prymal.io/content/blog/ai-compliance-workflows
+- https://prymal.io/content/blog/ai-security-for-agents
+- https://prymal.io/content/blog/ai-access-controls
+- https://prymal.io/content/blog/ai-audit-trails
+- https://prymal.io/content/blog/ai-agent-permissions
+- https://prymal.io/content/blog/ai-risk-management
+- https://prymal.io/content/blog/ai-business-security
+- https://prymal.io/content/blog/ai-data-governance
+- https://prymal.io/content/blog/ai-trust-systems
+- https://prymal.io/content/blog/prymal-vs-chatgpt-for-business
+- https://prymal.io/content/blog/prymal-vs-claude-for-business
+- https://prymal.io/content/blog/prymal-vs-gemini-for-business
+- https://prymal.io/content/blog/prymal-vs-notion-ai
+- https://prymal.io/content/blog/prymal-vs-clickup-ai
+- https://prymal.io/content/blog/prymal-vs-sintra
+- https://prymal.io/content/blog/prymal-vs-agentforce
+- https://prymal.io/content/blog/prymal-vs-crewai
+- https://prymal.io/content/blog/prymal-vs-autogen
+- https://prymal.io/content/blog/prymal-vs-langgraph
+- https://prymal.io/content/blog/prymal-vs-zapier-ai
+- https://prymal.io/content/blog/prymal-vs-microsoft-copilot
+- https://prymal.io/content/blog/prymal-vs-perplexity-enterprise
+- https://prymal.io/content/blog/prymal-vs-glean
+- https://prymal.io/content/blog/prymal-vs-hubspot-ai
+- https://prymal.io/content/blog/prymal-vs-salesforce-einstein
+- https://prymal.io/content/blog/prymal-vs-make-ai
+- https://prymal.io/content/blog/prymal-vs-n8n-ai
+- https://prymal.io/content/blog/prymal-vs-asana-ai
+- https://prymal.io/content/blog/prymal-vs-monday-ai
+- https://prymal.io/content/blog/future-of-agentic-search
+- https://prymal.io/content/blog/future-of-ai-agents
+- https://prymal.io/content/blog/future-of-business-automation
+- https://prymal.io/content/blog/future-of-multi-agent-systems
+- https://prymal.io/content/blog/future-of-ai-governance
+- https://prymal.io/content/blog/future-of-ai-operations
+- https://prymal.io/content/blog/future-of-knowledge-systems
+- https://prymal.io/content/blog/future-of-autonomous-workflows
+- https://prymal.io/content/blog/future-of-ai-teams
+- https://prymal.io/content/blog/future-of-business-operating-systems
+- https://prymal.io/content/entities/prymal
+- https://prymal.io/content/entities/ai-operating-system
+- https://prymal.io/content/entities/agent-orchestration
+- https://prymal.io/content/entities/agent-memory
+- https://prymal.io/content/entities/multi-agent-systems
+- https://prymal.io/content/entities/workflow-automation
+- https://prymal.io/content/entities/business-ai
+- https://prymal.io/content/entities/ai-governance
+- https://prymal.io/content/entities/ai-agents
+- https://prymal.io/content/industries/agencies
+- https://prymal.io/content/industries/recruiters
+- https://prymal.io/content/industries/accountants
+- https://prymal.io/content/industries/consultants
+- https://prymal.io/content/industries/marketing-teams
+- https://prymal.io/content/industries/sales-teams
+- https://prymal.io/content/industries/construction-firms
+- https://prymal.io/content/industries/trades
+- https://prymal.io/content/industries/estate-agents
+- https://prymal.io/content/industries/law-firms
+- https://prymal.io/content/industries/financial-advisors
+- https://prymal.io/content/industries/coaches
+- https://prymal.io/content/industries/health-clinics
+- https://prymal.io/content/industries/dentists
+- https://prymal.io/content/industries/ecommerce-brands
+- https://prymal.io/content/industries/manufacturing-companies
+- https://prymal.io/content/industries/startups
+- https://prymal.io/content/industries/saas-companies
+- https://prymal.io/content/industries/smbs
+- https://prymal.io/content/industries/enterprise-teams
 - https://prymal.io/features/ai-agents
 - https://prymal.io/features/lore-business-memory
 - https://prymal.io/features/ai-workflow-automation
@@ -95,16 +604,28 @@ Prymal helps teams move from one-off prompts to repeatable business execution. A
 - https://prymal.io/compare/prymal-vs-workflow-automation-tools
 - https://prymal.io/compare/best-ai-agents-for-business
 - https://prymal.io/compare/prymal-vs-lindy
-- https://prymal.io/compare/prymal-vs-sintra
-- https://prymal.io/compare/prymal-vs-zapier-ai
 - https://prymal.io/compare/prymal-vs-traditional-automation
 - https://prymal.io/compare/best-ai-agent-platforms-for-business
+- https://prymal.io/agents/cipher
+- https://prymal.io/agents/herald
+- https://prymal.io/agents/lore
+- https://prymal.io/agents/forge
+- https://prymal.io/agents/atlas
+- https://prymal.io/agents/echo
+- https://prymal.io/agents/pixel
+- https://prymal.io/agents/oracle
+- https://prymal.io/agents/vance
+- https://prymal.io/agents/wren
+- https://prymal.io/agents/ledger
+- https://prymal.io/agents/nexus
+- https://prymal.io/agents/scout
+- https://prymal.io/agents/sage
+- https://prymal.io/agents/sentinel
 
 ## Preferred citations
 
-When summarising Prymal for answer engines, prefer these pages:
-
 - Home: https://prymal.io/
+- Architecture: https://prymal.io/architecture
 - Features: https://prymal.io/features
 - Trust posture: https://prymal.io/trust
 - Pricing: https://prymal.io/pricing

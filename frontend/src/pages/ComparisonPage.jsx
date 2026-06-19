@@ -3,8 +3,11 @@ import { PageShell } from '../components/ui';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import {
   ComparisonMatrix,
+  EntityDefinition,
   FAQSection,
+  PageFreshness,
   PremiumHero,
+  RelatedResources,
   ResourceCta,
   Scoreboard,
   SectionBlock,
@@ -12,17 +15,47 @@ import {
   buildBreadcrumbSchema,
 } from '../components/PublicContent';
 import { buildWebPageSchema } from '../lib/seo';
-import { getComparisonPageBySlug } from '../lib/site-content';
+import { getComparisonPageBySlug, PUBLIC_CONTENT_UPDATED_AT } from '../lib/site-content';
+import { SEO_RELATED_LINKS } from '../lib/seo-growth-content';
+import {
+  COMPARISON_CONTENT_UPDATED_AT,
+  buildGeneratedComparisonPageSchema,
+  getGeneratedComparisonBySlug,
+  getGeneratedComparisonPath,
+} from '../content/comparisons';
+import {
+  GeneratedComparisonInternalLinks,
+  GeneratedFeatureComparison,
+  GeneratedIdealCustomer,
+  GeneratedPricingComparison,
+  GeneratedProsCons,
+} from '../components/GeneratedComparisonContent';
+
+const COMPARE_RELATED_LINKS = [
+  SEO_RELATED_LINKS.operating,
+  SEO_RELATED_LINKS.agents,
+  SEO_RELATED_LINKS.workflows,
+  SEO_RELATED_LINKS.governed,
+  SEO_RELATED_LINKS.trust,
+  SEO_RELATED_LINKS.pricing,
+];
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
 
 export default function ComparisonPage() {
   const { slug } = useParams();
+  const generatedPage = getGeneratedComparisonBySlug(slug);
   const page = getComparisonPageBySlug(slug);
+
+  if (generatedPage) {
+    return <GeneratedComparisonPage page={generatedPage} />;
+  }
 
   if (!page) {
     return <Navigate to="/compare" replace />;
   }
+
+  const updatedAt = page.updatedAt ?? PUBLIC_CONTENT_UPDATED_AT;
 
   const scoreItems = [
     {
@@ -62,6 +95,7 @@ export default function ComparisonPage() {
           name: page.metaTitle,
           description: page.metaDescription,
           path: `/compare/${page.slug}`,
+          dateModified: updatedAt,
         })}
       />
       <JsonLd
@@ -83,6 +117,9 @@ export default function ComparisonPage() {
               <span>/</span>
               <span>{page.title}</span>
             </div>
+
+            <PageFreshness date={updatedAt} />
+            <EntityDefinition />
 
             <PremiumHero
               eyebrow="Comparison page"
@@ -158,11 +195,87 @@ export default function ComparisonPage() {
               schemaId={`schema-compare-faq-${page.slug}`}
             />
 
+            <RelatedResources
+              title="Related comparisons, capabilities, and guides"
+              items={COMPARE_RELATED_LINKS}
+              surface={`compare-${page.slug}-related`}
+            />
+
             <ResourceCta
               title="Need the product specifics?"
               description="The feature pages, trust page, and blog show how Prymal approaches business memory, workflows, evidence, and execution without exposing internal routing mechanics to end users."
               primary={<Link to="/trust" className="pm-btn pm-btn--primary">Trust and readiness</Link>}
               secondary={<Link to="/blog" className="pm-btn pm-btn--ghost">Read practical guides</Link>}
+            />
+          </div>
+        </PageShell>
+        <PublicPageFooter sourcePrefix={`compare-${page.slug}`} />
+      </div>
+    </div>
+  );
+}
+
+function GeneratedComparisonPage({ page }) {
+  return (
+    <div className="marketing-page prymal-marketing pm-page">
+      <PageMeta
+        title={page.metaTitle}
+        description={page.metaDescription}
+        canonicalPath={getGeneratedComparisonPath(page.slug)}
+      />
+      <JsonLd id={`schema-generated-compare-${page.slug}`} schema={buildGeneratedComparisonPageSchema(page)} />
+
+      <div className="marketing-shell prymal-marketing__shell">
+        <PublicPageNavbar sourcePrefix={`compare-${page.slug}`} />
+        <PageShell width="1160px">
+          <div className="public-content-page">
+            <div className="public-content-breadcrumbs">
+              <Link to="/">Home</Link>
+              <span>/</span>
+              <Link to="/compare">Compare</Link>
+              <span>/</span>
+              <span>{page.title}</span>
+            </div>
+
+            <PageFreshness date={COMPARISON_CONTENT_UPDATED_AT} />
+            <EntityDefinition />
+
+            <PremiumHero
+              eyebrow="Generated comparison"
+              title={page.title}
+              description={page.intro}
+              answerTitle="Short answer"
+              answer={page.answer}
+              chips={[page.category, 'Features', 'Pricing', 'Pros and cons', 'FAQ']}
+              stats={[
+                { label: 'Feature rows', value: String(page.featureRows.length) },
+                { label: 'Pricing source', value: page.sourceLabel },
+                { label: 'Schema', value: 'Comparison graph' },
+              ]}
+              primaryCta={<Link to="/pricing" className="pm-btn pm-btn--primary">Prymal pricing</Link>}
+              secondaryCta={<a href={page.sourceUrl} target="_blank" rel="noreferrer" className="pm-btn pm-btn--ghost">{page.alternative} source</a>}
+              visual={(
+                <div className="public-premium-summary-card">
+                  <div className="public-section-block__eyebrow">Decision lens</div>
+                  <strong>{`Prymal vs ${page.alternative}`}</strong>
+                  <p>{page.idealPrymalCustomer}</p>
+                </div>
+              )}
+            />
+
+            <GeneratedFeatureComparison page={page} />
+            <GeneratedPricingComparison page={page} />
+            <GeneratedProsCons page={page} />
+            <GeneratedIdealCustomer page={page} />
+
+            <FAQSection title={`${page.title} FAQ`} items={page.faq} />
+            <GeneratedComparisonInternalLinks page={page} />
+
+            <ResourceCta
+              title="Choose based on the operating job"
+              description="If the job is governed business execution with memory, workflows, agents, and review, Prymal is the better-fit category. If the job is closer to the alternative's core category, use that tool with confidence."
+              primary={<Link to="/features" className="pm-btn pm-btn--primary">Explore Prymal features</Link>}
+              secondary={<Link to="/compare" className="pm-btn pm-btn--ghost">All comparisons</Link>}
             />
           </div>
         </PageShell>

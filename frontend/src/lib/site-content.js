@@ -175,6 +175,10 @@ const commonFaqs = {
   },
 };
 
+// Fallback freshness date for marketing pages that do not carry a per-page
+// `updatedAt`. Surfaced in the UI ("Last updated: …") and in WebPage schema.
+export const PUBLIC_CONTENT_UPDATED_AT = '2026-06-11';
+
 export const FEATURE_PAGES = [
   {
     slug: 'ai-agents',

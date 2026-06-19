@@ -1240,7 +1240,7 @@ function getSocialDeliveryLabel(result, fallbackService) {
   return delivery?.target || delivery?.preview || fallbackService || 'connected platform';
 }
 
-function ChatSocialPublish({ message, agent, presentation }) {
+function ChatSocialPublish({ message, agent: _agent, presentation }) {
   const [open, setOpen] = useState(false);
   const [integrations, setIntegrations] = useState(null);
   const [isLoadingIntegrations, setIsLoadingIntegrations] = useState(false);

@@ -4,9 +4,10 @@ import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { AGENT_LIBRARY, INTEGRATION_LIBRARY, POWERUP_LIBRARY, getAgentMeta } from '../lib/constants';
 import { getAgentCapabilities, getCapabilityTone } from '../lib/agentCapabilities';
 import { AgentAvatar, BrandMark, Button, Reveal, StatusPill, ThemeToggle } from '../components/ui';
-import { PageMeta } from '../components/PublicPageChrome';
+import { JsonLd, PageMeta } from '../components/PublicPageChrome';
 import { usePrymalReducedMotion } from '../components/motion';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
+import { buildBreadcrumbSchema, buildWebPageSchema } from '../lib/seo';
 import '../styles/landing-rebuild.css';
 
 const CinematicHeroScene = lazy(() => import('../features/marketing/CinematicHeroScene'));
@@ -32,9 +33,25 @@ export default function AgentProfile() {
     <div className="agent-profile-shell pm-page">
       <MagicalCanvas reducedMotion={reducedMotion} />
       <PageMeta
-        title={`${agent.name} — ${agent.title} | Prymal`}
+        title={`${agent.name} - ${agent.title} | Prymal`}
         description={agent.description}
         canonicalPath={`/agents/${agent.id}`}
+      />
+      <JsonLd
+        id={`schema-webpage-agent-${agent.id}`}
+        schema={buildWebPageSchema({
+          name: `${agent.name} - ${agent.title}`,
+          description: agent.description,
+          path: `/agents/${agent.id}`,
+        })}
+      />
+      <JsonLd
+        id={`schema-breadcrumbs-agent-${agent.id}`}
+        schema={buildBreadcrumbSchema([
+          { name: 'Home', path: '/' },
+          { name: 'Agents', path: '/#agents' },
+          { name: agent.name, path: `/agents/${agent.id}` },
+        ])}
       />
       <div className="agent-profile-nav">
         <Link to="/">

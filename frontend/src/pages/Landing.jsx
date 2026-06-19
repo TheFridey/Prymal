@@ -39,7 +39,12 @@ import { HomeProofStrip } from '../features/marketing/HomeProofStrip';
 import { useFoundingAccessOffer } from '../features/marketing/founding-access';
 import { PublicCtaAnchor, PublicCtaLink } from '../components/PublicCta';
 import { trackPublicEvent } from '../lib/public-analytics';
-import { buildSoftwareApplicationSchema, buildWebPageSchema } from '../lib/seo';
+import {
+  buildOrganizationSchema,
+  buildSoftwareApplicationSchema,
+  buildWebPageSchema,
+  buildWebSiteSchema,
+} from '../lib/seo';
 import { HOME_AEO_BLOCK, HOME_FAQ_ITEMS, PUBLIC_OG_DEFAULTS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
@@ -374,6 +379,8 @@ export default function Landing() {
           ],
         })}
       />
+      <JsonLd id="schema-home-organization" schema={buildOrganizationSchema()} />
+      <JsonLd id="schema-home-website" schema={buildWebSiteSchema()} />
       <JsonLd
         id="schema-home-webpage"
         schema={buildWebPageSchema({

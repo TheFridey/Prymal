@@ -7,6 +7,8 @@
     "generate:seo": "node scripts/generate-seo-assets.mjs",
     "prebuild": "npm run generate:seo",
     "build": "vite build",
+    "prerender": "node scripts/prerender.mjs",
+    "postbuild": "npm run prerender",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix && prettier --write src",
     "typecheck": "npm run build",

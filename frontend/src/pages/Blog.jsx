@@ -2,13 +2,20 @@ import { useDeferredValue, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PageShell } from '../components/ui';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
-import { ResourceCta, SearchFilterBar, buildCollectionSchema } from '../components/PublicContent';
+import {
+  ResourceCta,
+  SearchFilterBar,
+  buildAuthorSchema,
+  buildBlogSchema,
+  buildCollectionSchema,
+} from '../components/PublicContent';
 import {
   BLOG_POSTS,
   getBlogTopicFilters,
   getFeaturedBlogPost,
   getPopularCommercialGuides,
 } from '../lib/blog-posts';
+import { BLOG_AUTHOR } from '../lib/blog-conversion';
 import { PUBLIC_OG_DEFAULTS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/public-content.css';
@@ -93,6 +100,22 @@ export default function Blog() {
           name: 'Prymal blog',
           description: 'Detailed, answer-first articles on AI agents, business memory, workflows, trust, and business execution.',
           path: '/blog',
+        })}
+      />
+      <JsonLd
+        id="schema-blog-entity"
+        schema={buildBlogSchema({
+          description: 'Detailed, answer-first articles on AI agents, business memory, workflows, trust, and business execution.',
+          posts: BLOG_POSTS,
+        })}
+      />
+      <JsonLd
+        id="schema-blog-author"
+        schema={buildAuthorSchema({
+          name: BLOG_AUTHOR.name,
+          jobTitle: BLOG_AUTHOR.jobTitle,
+          url: BLOG_AUTHOR.url,
+          affiliation: BLOG_AUTHOR.affiliation,
         })}
       />
       <div className="marketing-shell prymal-marketing__shell">

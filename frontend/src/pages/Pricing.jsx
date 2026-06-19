@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
-import { FAQSection, AnswerBlock, ResourceCta } from '../components/PublicContent';
+import { FAQSection, AnswerBlock, EntityDefinition, PageFreshness, ResourceCta } from '../components/PublicContent';
 import { PageShell } from '../components/ui';
 import { FoundingAccessPopup } from '../features/marketing/FoundingAccessPopup';
 import { PricingPageContent } from '../features/marketing/PricingPageContent';
 import { useFoundingAccessOffer } from '../features/marketing/founding-access';
 import { buildWebPageSchema } from '../lib/seo';
-import { PRICING_FAQ_ITEMS, PUBLIC_OG_DEFAULTS } from '../lib/site-content';
+import { PRICING_FAQ_ITEMS, PUBLIC_CONTENT_UPDATED_AT, PUBLIC_OG_DEFAULTS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/pricing-page.css';
 import '../styles/public-content.css';
@@ -29,6 +29,7 @@ export default function Pricing() {
           name: PUBLIC_OG_DEFAULTS.pricing.title,
           description: PUBLIC_OG_DEFAULTS.pricing.description,
           path: '/pricing',
+          dateModified: PUBLIC_CONTENT_UPDATED_AT,
         })}
       />
 
@@ -37,6 +38,8 @@ export default function Pricing() {
 
         <PageShell width="100%" flushMobile>
           <div className="pricing-page__shell public-content-page">
+            <PageFreshness date={PUBLIC_CONTENT_UPDATED_AT} />
+            <EntityDefinition />
             <AnswerBlock
               title="How does Prymal pricing work?"
               answer="Prymal pricing is structured around workspace plans, execution capacity, shared business memory, workflow depth, and team-level control rather than just more chat volume."

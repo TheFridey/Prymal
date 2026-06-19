@@ -188,6 +188,22 @@ Required frontend env values:
 
 Production and staging builds must not rely on a localhost API fallback.
 
+### Static prerendering (SEO / AI visibility)
+
+`npm run build` runs a `postbuild` step (`scripts/prerender.mjs`) that uses headless Chromium
+(Playwright) to snapshot every public marketing route into `dist/<route>/index.html` with fully
+rendered HTML — title, meta, canonical, OpenGraph/Twitter, JSON-LD, headings, and body — so search
+engines and AI answer engines can read each page without executing JavaScript. nginx serves these
+per-route files automatically via `try_files`.
+
+Notes:
+- Prerendering requires a **real** `VITE_CLERK_PUBLISHABLE_KEY` at build time. With a placeholder
+  key the app renders its setup gate, and prerender detects this and skips cleanly (shipping the SPA
+  shell) so CI stays green. The Docker builder installs Chromium for this step.
+- To prerender in CI, set the `VITE_CLERK_PUBLISHABLE_KEY_TEST` secret. To disable prerendering for
+  a build, set `PRERENDER=0`.
+- After deploying, resubmit `https://prymal.io/sitemap.xml` in Google Search Console.
+
 ## systemd Example
 
 Example unit file:

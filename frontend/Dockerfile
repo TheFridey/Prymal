@@ -1,7 +1,11 @@
-FROM node:20-alpine AS builder
+# Debian-based builder so Playwright Chromium (used for static prerendering of
+# public marketing routes during `npm run build` → postbuild) installs cleanly.
+# The runner stage stays on nginx:alpine, so the shipped image is unaffected.
+FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
+RUN npx playwright install --with-deps chromium
 COPY . .
 ARG VITE_CLERK_PUBLISHABLE_KEY
 ARG VITE_API_URL

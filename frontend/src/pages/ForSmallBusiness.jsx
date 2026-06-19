@@ -6,7 +6,7 @@ import { getAgentMeta } from '../lib/constants';
 import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
 import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import { buildFaqPageSchema, buildWebPageSchema } from '../lib/seo';
-import { PUBLIC_OG_DEFAULTS } from '../lib/site-content';
+import { PUBLIC_CONTENT_UPDATED_AT, PUBLIC_OG_DEFAULTS } from '../lib/site-content';
 import '../styles/landing-rebuild.css';
 import '../styles/app-rebuild.css';
 
@@ -193,6 +193,7 @@ export default function ForSmallBusiness() {
           name: PUBLIC_OG_DEFAULTS.forSmallBusiness.title,
           description: PUBLIC_OG_DEFAULTS.forSmallBusiness.description,
           path: '/for-small-business',
+          dateModified: PUBLIC_CONTENT_UPDATED_AT,
         })}
       />
       <JsonLd id="schema-faq-smb" schema={buildFaqPageSchema(faqItems)} />
