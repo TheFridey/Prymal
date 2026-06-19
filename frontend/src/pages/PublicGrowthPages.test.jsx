@@ -35,6 +35,8 @@ import { USE_CASES, getUseCasePath } from '../content/use-cases';
 import { GENERATED_COMPARISON_PAGES, getGeneratedComparisonPath } from '../content/comparisons';
 import { EDUCATION_PAGES, getEducationPath } from '../content/education';
 import { GENERATED_BLOG_ARTICLES, getGeneratedBlogPath } from '../content/blog';
+import { PublicPageNavbar } from '../components/PublicPageChrome';
+import { PageShell } from '../components/ui';
 
 vi.mock('@clerk/clerk-react', () => ({
   SignedIn: ({ children }) => children,
@@ -65,6 +67,31 @@ test('homepage includes the answer-first AEO block', () => {
   expect(container.textContent).toContain('What you can do in 5 minutes');
   expect(container.querySelector('[data-answer-extract="true"]')).toBeTruthy();
   expect(container.querySelector('[data-ai-chunk="answer-summary"]')).toBeTruthy();
+});
+
+test('page shell exposes a skip-link target and main landmark', () => {
+  renderWithProviders(<PageShell>Accessible content</PageShell>);
+
+  const main = screen.getByRole('main');
+  expect(main).toHaveAttribute('id', 'main-content');
+  expect(main).toHaveAttribute('tabindex', '-1');
+});
+
+test('public nav exposes current page and keyboard-safe mobile drawer controls', () => {
+  renderWithProviders(<PublicPageNavbar />, { route: '/features' });
+
+  expect(screen.getByRole('link', { name: 'Features' })).toHaveAttribute('aria-current', 'page');
+
+  const menuButton = screen.getByRole('button', { name: 'Open navigation menu' });
+  fireEvent.click(menuButton);
+
+  const drawer = screen.getByRole('dialog', { name: 'Site navigation' });
+  expect(drawer).toHaveAttribute('aria-modal', 'true');
+  expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(screen.queryByRole('dialog', { name: 'Site navigation' })).toBeNull();
+  expect(menuButton).toHaveFocus();
 });
 
 test('feature page sets a unique meta title from the content model', () => {

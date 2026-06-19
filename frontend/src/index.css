@@ -57,6 +57,40 @@ a {
   text-decoration: none;
 }
 
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent, #7cffe0) 72%, white);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  z-index: 10000;
+  transform: translateY(-160%);
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--surface-strong, #ffffff);
+  color: var(--text-strong, #080c18);
+  font-weight: 700;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.page-shell:focus,
+.workspace-studio-main:focus {
+  outline: none;
+}
+
 button,
 input,
 textarea {
@@ -1522,6 +1556,10 @@ textarea {
 
 .marketing-link,
 .menu-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
   padding: 10px 14px;
   border-radius: 999px;
   color: var(--muted);
@@ -1556,7 +1594,9 @@ textarea {
 
 .dropdown__item {
   display: flex;
+  min-height: 44px;
   gap: 12px;
+  align-items: center;
   padding: 12px;
   border-radius: 18px;
   transition: transform 160ms ease, background 160ms ease;

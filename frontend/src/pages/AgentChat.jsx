@@ -15,17 +15,19 @@ export default function AgentChat() {
     || '';
 
   return (
-    <WorkspaceStudio
-      viewer={viewer}
-      fallbackAgents={agents}
-      initialAgentId={agentId}
-      initialDraft={initialDraft}
-      forceNewChat={forceNewChat}
-      initialPowerupSlug={initialPowerupSlug}
-      initialOutcomeId={initialOutcomeId}
-      showFirstWinComposer={showFirstWinComposer}
-      initialConversationId={initialConversationId}
-      routeMode
-    />
+    <main id="main-content" className="workspace-studio-main" tabIndex={-1}>
+      <WorkspaceStudio
+        viewer={viewer}
+        fallbackAgents={agents}
+        initialAgentId={agentId}
+        initialDraft={initialDraft}
+        forceNewChat={forceNewChat}
+        initialPowerupSlug={initialPowerupSlug}
+        initialOutcomeId={initialOutcomeId}
+        showFirstWinComposer={showFirstWinComposer}
+        initialConversationId={initialConversationId}
+        routeMode
+      />
+    </main>
   );
 }

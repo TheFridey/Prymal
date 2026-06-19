@@ -1,18 +1,3 @@
-import atlasAvatar from '../assets/agents/atlas.webp';
-import cipherAvatar from '../assets/agents/cipher.webp';
-import echoAvatar from '../assets/agents/echo.webp';
-import forgeAvatar from '../assets/agents/forge.webp';
-import heraldAvatar from '../assets/agents/herald.webp';
-import ledgerAvatar from '../assets/agents/ledger.webp';
-import loreAvatar from '../assets/agents/lore.webp';
-import nexusAvatar from '../assets/agents/nexus.webp';
-import oracleAvatar from '../assets/agents/oracle.webp';
-import pixelAvatar from '../assets/agents/pixel.webp';
-import sageAvatar from '../assets/agents/sage.webp';
-import scoutAvatar from '../assets/agents/scout.webp';
-import sentinelAvatar from '../assets/agents/sentinel.webp';
-import vanceAvatar from '../assets/agents/vance.webp';
-import wrenAvatar from '../assets/agents/wren.webp';
 import { AGENT_SELECTION_META } from './agent-selection-meta';
 import { AGENT_STARTER_PROMPTS } from './agent-starter-prompts';
 
@@ -26,13 +11,35 @@ export const NAV_ITEMS = [
   { to: '/app/settings', label: 'Settings', icon: '::' },
 ];
 
+const AGENT_AVATAR_ASSETS = import.meta.glob('../assets/agents/*.webp', {
+  eager: true,
+  import: 'default',
+});
+const AGENT_AVATAR_WIDTHS = [96, 160, 200, 320];
+
+function getAgentAvatarImage(id) {
+  const src = AGENT_AVATAR_ASSETS[`../assets/agents/${id}.webp`];
+  const avatarSrcSet = AGENT_AVATAR_WIDTHS
+    .map((width) => {
+      const key = width === 320
+        ? `../assets/agents/${id}.webp`
+        : `../assets/agents/${id}-${width}.webp`;
+      const url = AGENT_AVATAR_ASSETS[key];
+      return url ? `${url} ${width}w` : null;
+    })
+    .filter(Boolean)
+    .join(', ');
+
+  return { avatarSrc: src, avatarSrcSet };
+}
+
 export const AGENT_LIBRARY = [
   {
     id: 'cipher',
     name: 'CIPHER',
     title: 'Data Intelligence Analyst',
     glyph: 'C',
-    avatarSrc: cipherAvatar,
+    ...getAgentAvatarImage('cipher'),
     avatarScene: 'cipher-data',
     color: '#33c7ff',
     animal: 'Monkey',
@@ -65,7 +72,7 @@ export const AGENT_LIBRARY = [
     name: 'HERALD',
     title: 'Email and Outreach Strategist',
     glyph: 'H',
-    avatarSrc: heraldAvatar,
+    ...getAgentAvatarImage('herald'),
     avatarScene: 'herald-feathers',
     color: '#ff8b5f',
     animal: 'Eagle',
@@ -98,7 +105,7 @@ export const AGENT_LIBRARY = [
     name: 'LORE',
     title: 'Knowledge Base Engine',
     glyph: 'L',
-    avatarSrc: loreAvatar,
+    ...getAgentAvatarImage('lore'),
     avatarScene: 'lore-pages',
     color: '#996dff',
     animal: 'Elephant',
@@ -131,7 +138,7 @@ export const AGENT_LIBRARY = [
     name: 'FORGE',
     title: 'Content and Copy Craftsman',
     glyph: 'F',
-    avatarSrc: forgeAvatar,
+    ...getAgentAvatarImage('forge'),
     avatarScene: 'forge-sparks',
     color: '#f8c44f',
     animal: 'Beaver',
@@ -164,7 +171,7 @@ export const AGENT_LIBRARY = [
     name: 'ATLAS',
     title: 'Project and Operations Manager',
     glyph: 'A',
-    avatarSrc: atlasAvatar,
+    ...getAgentAvatarImage('atlas'),
     avatarScene: 'atlas-orbits',
     color: '#40d7c3',
     animal: 'Lion',
@@ -197,7 +204,7 @@ export const AGENT_LIBRARY = [
     name: 'ECHO',
     title: 'Social Media and Brand Voice Manager',
     glyph: 'E',
-    avatarSrc: echoAvatar,
+    ...getAgentAvatarImage('echo'),
     avatarScene: 'echo-waves',
     color: '#ff5c98',
     animal: 'Dolphin',
@@ -230,7 +237,7 @@ export const AGENT_LIBRARY = [
     name: 'PIXEL',
     title: 'Visual Content Generator',
     glyph: '⬡',
-    avatarSrc: pixelAvatar,
+    ...getAgentAvatarImage('pixel'),
     avatarScene: 'pixel-prism',
     color: '#FF9EFF',
     animal: 'Chameleon',
@@ -263,7 +270,7 @@ export const AGENT_LIBRARY = [
     name: 'ORACLE',
     title: 'SEO and Search Intelligence',
     glyph: 'O',
-    avatarSrc: oracleAvatar,
+    ...getAgentAvatarImage('oracle'),
     avatarScene: 'oracle-comets',
     color: '#62dca5',
     animal: 'Owl',
@@ -296,7 +303,7 @@ export const AGENT_LIBRARY = [
     name: 'VANCE',
     title: 'Sales and Lead Generation',
     glyph: 'V',
-    avatarSrc: vanceAvatar,
+    ...getAgentAvatarImage('vance'),
     avatarScene: 'vance-arrows',
     color: '#ff7a3c',
     animal: 'Fox',
@@ -329,7 +336,7 @@ export const AGENT_LIBRARY = [
     name: 'WREN',
     title: 'Customer Support and Communications',
     glyph: 'W',
-    avatarSrc: wrenAvatar,
+    ...getAgentAvatarImage('wren'),
     avatarScene: 'wren-bubbles',
     color: '#85d4a8',
     animal: 'Wren',
@@ -362,7 +369,7 @@ export const AGENT_LIBRARY = [
     name: 'LEDGER',
     title: 'Finance and Business Reporting',
     glyph: 'LG',
-    avatarSrc: ledgerAvatar,
+    ...getAgentAvatarImage('ledger'),
     avatarScene: 'ledger-bars',
     color: '#7ec4da',
     animal: 'Mallard Duck',
@@ -395,7 +402,7 @@ export const AGENT_LIBRARY = [
     name: 'NEXUS',
     title: 'Workflow Automation Orchestrator',
     glyph: 'NX',
-    avatarSrc: nexusAvatar,
+    ...getAgentAvatarImage('nexus'),
     avatarScene: 'nexus-nodes',
     color: '#6d8aff',
     description: 'Designs and explains multi-agent workflow graphs with validation-aware execution logic.',
@@ -423,7 +430,7 @@ export const AGENT_LIBRARY = [
     name: 'SCOUT',
     title: 'Market Research and Competitor Intelligence',
     glyph: 'S',
-    avatarSrc: scoutAvatar,
+    ...getAgentAvatarImage('scout'),
     avatarScene: 'scout-compass',
     color: '#ff9aa5',
     animal: 'Rabbit',
@@ -456,7 +463,7 @@ export const AGENT_LIBRARY = [
     name: 'SAGE',
     title: 'Business Strategy Advisor',
     glyph: 'SG',
-    avatarSrc: sageAvatar,
+    ...getAgentAvatarImage('sage'),
     avatarScene: 'sage-halo',
     color: '#c3925b',
     description: 'Synthesises context from across Prymal into higher-level strategic recommendations.',
@@ -484,7 +491,7 @@ export const AGENT_LIBRARY = [
     name: 'SENTINEL',
     title: 'Output Review and QA Agent',
     glyph: 'ST',
-    avatarSrc: sentinelAvatar,
+    ...getAgentAvatarImage('sentinel'),
     avatarScene: 'sentinel-guard',
     color: '#FF3B6B',
     animal: 'Falcon',

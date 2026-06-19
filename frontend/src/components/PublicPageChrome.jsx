@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { AGENT_LIBRARY } from '../lib/constants';
@@ -155,6 +155,10 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [mobileAgentsOpen, setMobileAgentsOpen] = useState(false);
   const { pathname } = useLocation();
+  const menuButtonRef = useRef(null);
+  const drawerRef = useRef(null);
+  const desktopAgentsPanelId = 'public-nav-agents-panel';
+  const mobileAgentsPanelId = 'public-nav-mobile-agents-panel';
 
   const fireSignup = (slot) => onSignupClick(buildSignupSource(sourcePrefix, slot));
   const closeMenu = () => {
@@ -178,6 +182,49 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
     };
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!menuOpen) {
+      return undefined;
+    }
+
+    const focusableSelector = [
+      'a[href]',
+      'button:not([disabled])',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+    const drawer = drawerRef.current;
+    const focusable = drawer ? [...drawer.querySelectorAll(focusableSelector)] : [];
+    focusable[0]?.focus();
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeMenu();
+        menuButtonRef.current?.focus();
+        return;
+      }
+
+      if (event.key !== 'Tab' || focusable.length === 0) {
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [menuOpen]);
+
   return (
     <header className={`prymal-nav-wrap${menuOpen ? ' prymal-nav-wrap--drawer-open' : ''}`}>
       <div className="prymal-nav-wrap__ambient" aria-hidden="true">
@@ -190,30 +237,47 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
         </Link>
 
         <nav className="marketing-nav__links prymal-nav__links marketing-nav__desktop-only" aria-label="Primary">
-          <Link className={`marketing-link${pathname.startsWith('/features') ? ' is-active' : ''}`} to="/features">
+          <Link className={`marketing-link${pathname.startsWith('/features') ? ' is-active' : ''}`} to="/features" aria-current={pathname.startsWith('/features') ? 'page' : undefined}>
             Features
           </Link>
-          <Link className={`marketing-link${pathname.startsWith('/blog') ? ' is-active' : ''}`} to="/blog">
+          <Link className={`marketing-link${pathname.startsWith('/blog') ? ' is-active' : ''}`} to="/blog" aria-current={pathname.startsWith('/blog') ? 'page' : undefined}>
             Blog
           </Link>
-          <Link className={`marketing-link${pathname.startsWith('/compare') ? ' is-active' : ''}`} to="/compare">
+          <Link className={`marketing-link${pathname.startsWith('/compare') ? ' is-active' : ''}`} to="/compare" aria-current={pathname.startsWith('/compare') ? 'page' : undefined}>
             Compare
           </Link>
-          <Link className={`marketing-link${pathname === '/pricing' ? ' is-active' : ''}`} to="/pricing">
+          <Link className={`marketing-link${pathname === '/pricing' ? ' is-active' : ''}`} to="/pricing" aria-current={pathname === '/pricing' ? 'page' : undefined}>
             Pricing
           </Link>
-          <Link className={`marketing-link${pathname === '/trust' ? ' is-active' : ''}`} to="/trust">
+          <Link className={`marketing-link${pathname === '/trust' ? ' is-active' : ''}`} to="/trust" aria-current={pathname === '/trust' ? 'page' : undefined}>
             Trust Centre
           </Link>
-          <Link className={`marketing-link${pathname === '/changelog' ? ' is-active' : ''}`} to="/changelog">
+          <Link className={`marketing-link${pathname === '/changelog' ? ' is-active' : ''}`} to="/changelog" aria-current={pathname === '/changelog' ? 'page' : undefined}>
             Changelog
           </Link>
-          <div className="dropdown" onMouseEnter={() => setAgentsOpen(true)} onMouseLeave={() => setAgentsOpen(false)}>
-            <button type="button" className="marketing-link prymal-nav__trigger">
+          <div
+            className="dropdown"
+            onMouseEnter={() => setAgentsOpen(true)}
+            onMouseLeave={() => setAgentsOpen(false)}
+            onFocus={() => setAgentsOpen(true)}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) {
+                setAgentsOpen(false);
+              }
+            }}
+          >
+            <button
+              type="button"
+              className="marketing-link prymal-nav__trigger"
+              aria-expanded={agentsOpen}
+              aria-controls={desktopAgentsPanelId}
+              aria-haspopup="true"
+              onClick={() => setAgentsOpen((current) => !current)}
+            >
               Explore agents
             </button>
             {agentsOpen ? (
-              <div className="dropdown__panel prymal-dropdown">
+              <div id={desktopAgentsPanelId} className="dropdown__panel prymal-dropdown" aria-label="Featured agents">
                 {AGENT_LIBRARY.slice(0, 6).map((agent) => (
                   <Link key={agent.id} to={`/agents/${agent.id}`} className="dropdown__item prymal-dropdown__item">
                     <AgentAvatar agent={agent} size={42} className="dropdown__glyph" />
@@ -255,6 +319,7 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
         </div>
 
         <button
+          ref={menuButtonRef}
           type="button"
           className={`burger marketing-nav__burger${menuOpen ? ' is-open' : ''}`}
           onClick={() => setMenuOpen((current) => !current)}
@@ -276,6 +341,7 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
           />
           <div
             id="marketing-nav-drawer"
+            ref={drawerRef}
             className="marketing-nav__drawer"
             role="dialog"
             aria-modal="true"
@@ -296,19 +362,20 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
             </div>
 
             <div className="marketing-nav__drawer-scroll">
-              <Link className={`marketing-nav__drawer-link${pathname.startsWith('/features') ? ' is-active' : ''}`} to="/features" onClick={closeMenu}>
+              <Link className={`marketing-nav__drawer-link${pathname.startsWith('/features') ? ' is-active' : ''}`} to="/features" onClick={closeMenu} aria-current={pathname.startsWith('/features') ? 'page' : undefined}>
                 Features
               </Link>
-              <Link className={`marketing-nav__drawer-link${pathname.startsWith('/blog') ? ' is-active' : ''}`} to="/blog" onClick={closeMenu}>
+              <Link className={`marketing-nav__drawer-link${pathname.startsWith('/blog') ? ' is-active' : ''}`} to="/blog" onClick={closeMenu} aria-current={pathname.startsWith('/blog') ? 'page' : undefined}>
                 Blog
               </Link>
-              <Link className={`marketing-nav__drawer-link${pathname.startsWith('/compare') ? ' is-active' : ''}`} to="/compare" onClick={closeMenu}>
+              <Link className={`marketing-nav__drawer-link${pathname.startsWith('/compare') ? ' is-active' : ''}`} to="/compare" onClick={closeMenu} aria-current={pathname.startsWith('/compare') ? 'page' : undefined}>
                 Compare
               </Link>
               <Link
                 className={`marketing-nav__drawer-link${pathname === '/pricing' ? ' is-active' : ''}`}
                 to="/pricing"
                 onClick={closeMenu}
+                aria-current={pathname === '/pricing' ? 'page' : undefined}
               >
                 Pricing
               </Link>
@@ -316,6 +383,7 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
                 className={`marketing-nav__drawer-link${pathname === '/trust' ? ' is-active' : ''}`}
                 to="/trust"
                 onClick={closeMenu}
+                aria-current={pathname === '/trust' ? 'page' : undefined}
               >
                 Trust Centre
               </Link>
@@ -323,6 +391,7 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
                 className={`marketing-nav__drawer-link${pathname === '/changelog' ? ' is-active' : ''}`}
                 to="/changelog"
                 onClick={closeMenu}
+                aria-current={pathname === '/changelog' ? 'page' : undefined}
               >
                 Changelog
               </Link>
@@ -332,6 +401,7 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
                   type="button"
                   className="marketing-nav__drawer-disclosure"
                   aria-expanded={mobileAgentsOpen}
+                  aria-controls={mobileAgentsPanelId}
                   onClick={() => setMobileAgentsOpen((v) => !v)}
                 >
                   <span>Explore agents</span>
@@ -340,7 +410,7 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
                   </span>
                 </button>
                 {mobileAgentsOpen ? (
-                  <div className="marketing-nav__drawer-agents">
+                  <div id={mobileAgentsPanelId} className="marketing-nav__drawer-agents">
                     {AGENT_LIBRARY.slice(0, 8).map((agent) => (
                       <Link
                         key={agent.id}

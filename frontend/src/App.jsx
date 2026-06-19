@@ -10,7 +10,6 @@ import {
   useAuth,
 } from '@clerk/clerk-react';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import AppLayout from './components/AppLayout';
 import { BrandMark, Button, InlineNotice, LoadingPanel, ThemeToggle } from './components/ui';
 import { MotionPage, MotionPresence } from './components/motion';
 import { ThemeProvider, getClerkAppearance, useTheme } from './components/theme';
@@ -24,6 +23,7 @@ import { useAppStore } from './stores/useAppStore';
 const lazyPage = (importer, key) => lazyWithRetry(importer, `route:${key}`);
 
 const Admin = lazyPage(() => import('./pages/Admin'), 'admin');
+const AppLayout = lazyPage(() => import('./components/AppLayout'), 'app-layout');
 const AdminWorkflowCatalogue = lazyPage(() => import('./pages/AdminWorkflowCatalogue'), 'admin-workflow-catalogue');
 const AgentPerformance = lazyPage(() => import('./pages/AgentPerformance'), 'agent-performance');
 const AgentChat = lazyPage(() => import('./pages/AgentChat'), 'agent-chat');
@@ -186,6 +186,7 @@ function AppRoutes() {
 
   return (
     <ErrorBoundary label="Application">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <AnalyticsPageView />
       <MotionPresence mode="wait" initial={false}>
         <Routes location={location} key={routeKey}>
@@ -273,6 +274,8 @@ function AppRoutes() {
 function NotFoundPage() {
   return (
     <main
+      id="main-content"
+      tabIndex={-1}
       className="pm-page"
       style={{
         minHeight: '100vh',
@@ -445,7 +448,11 @@ function ProtectedWorkspace() {
     );
   }
 
-  return <AppLayout viewer={viewerQuery.data} />;
+  return (
+    <Suspense fallback={<LoadingPanel label="Loading workspace shell..." />}>
+      <AppLayout viewer={viewerQuery.data} />
+    </Suspense>
+  );
 }
 
 function OnboardingGate() {

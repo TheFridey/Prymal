@@ -7,6 +7,7 @@ import {
 } from '../design-system/surfaces';
 import { withAlpha } from '../design-system/tokens';
 import prymalCharacterMark from '../assets/brand/prymal-character.webp';
+import prymalCharacterMark80 from '../assets/brand/prymal-character-80.webp';
 
 export function BrandMark({ compact = false }) {
   return (
@@ -14,9 +15,11 @@ export function BrandMark({ compact = false }) {
       <div className="brand-mark__media" aria-hidden="true">
         <img
           src={prymalCharacterMark}
+          srcSet={`${prymalCharacterMark80} 80w, ${prymalCharacterMark} 160w`}
+          sizes={compact ? '80px' : '160px'}
           alt=""
-          width="420"
-          height="408"
+          width="160"
+          height="156"
           className="brand-mark__image"
           decoding="async"
           loading="eager"
@@ -55,7 +58,13 @@ export function AgentAvatar({
     >
       {showScene ? <AvatarScene effect={agent.avatarScene} /> : null}
       {avatarSrc ? (
-        <img src={avatarSrc} alt={agent?.name ?? 'Agent avatar'} className="agent-avatar__image" />
+        <img
+          src={avatarSrc}
+          srcSet={agent?.avatarSrcSet}
+          sizes={`${size}px`}
+          alt={agent?.name ?? 'Agent avatar'}
+          className="agent-avatar__image"
+        />
       ) : (
         <>
           <div className="agent-avatar__glow" />
@@ -326,13 +335,24 @@ export function Reveal({ children, className = '', delay = 0, once = true }) {
   );
 }
 
-export function PageShell({ children, width = '1180px', flushMobile = false }) {
+export function PageShell({
+  children,
+  width = '1180px',
+  flushMobile = false,
+  className = '',
+  id = 'main-content',
+  as: Component = 'main',
+}) {
   return (
-    <div className={`page-shell${flushMobile ? ' flush-mobile' : ''}`}>
+    <Component
+      id={id}
+      tabIndex={-1}
+      className={`page-shell${flushMobile ? ' flush-mobile' : ''}${className ? ` ${className}` : ''}`}
+    >
       <div className="page-shell__inner" style={{ maxWidth: width }}>
         {children}
       </div>
-    </div>
+    </Component>
   );
 }
 

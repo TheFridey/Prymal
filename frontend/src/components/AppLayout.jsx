@@ -292,10 +292,10 @@ export default function AppLayout({ viewer }) {
           </aside>
         ) : null}
 
-        <main className="app-main app-main--studio">
+        <div className="app-main app-main--studio">
           <WorkspaceCreditAlerts viewer={viewer} />
           <Outlet context={sharedContext} />
-        </main>
+        </div>
 
         <Toasts />
       </div>

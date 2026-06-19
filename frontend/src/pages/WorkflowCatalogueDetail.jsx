@@ -39,7 +39,7 @@ export default function WorkflowCatalogueDetail() {
       {query.isLoading ? <LoadingPanel label="Loading workflow..." /> : null}
       {query.isError ? <InlineNotice tone="danger">{getErrorMessage(query.error)}</InlineNotice> : null}
       {item ? (
-        <main className="workflow-catalogue-detail">
+        <div className="workflow-catalogue-detail">
           <section className="workflow-catalogue-detail__hero" aria-labelledby="catalogue-detail-title">
             <div className="workflow-catalogue-detail__hero-card">
               <div className="workflow-catalogue-detail__badge-row">
@@ -153,7 +153,7 @@ export default function WorkflowCatalogueDetail() {
               )}
             </div>
           </section>
-        </main>
+        </div>
       ) : null}
     </PageShell>
   );

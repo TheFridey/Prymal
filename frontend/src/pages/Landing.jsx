@@ -179,14 +179,53 @@ const USE_CASES = [
   },
 ];
 
+function useLandingAnimationConstraint() {
+  const [constrained, setConstrained] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    return (
+      window.matchMedia('(max-width: 820px)').matches
+      || Boolean(connection?.saveData)
+      || /(^|-)2g$/.test(connection?.effectiveType ?? '')
+    );
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+
+    const mediaQuery = window.matchMedia('(max-width: 820px)');
+    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const sync = () => {
+      setConstrained(
+        mediaQuery.matches
+        || Boolean(connection?.saveData)
+        || /(^|-)2g$/.test(connection?.effectiveType ?? ''),
+      );
+    };
+
+    sync();
+    mediaQuery.addEventListener('change', sync);
+    connection?.addEventListener?.('change', sync);
+
+    return () => {
+      mediaQuery.removeEventListener('change', sync);
+      connection?.removeEventListener?.('change', sync);
+    };
+  }, []);
+
+  return constrained;
+}
+
 export default function Landing() {
   const reducedMotion = usePrymalReducedMotion();
+  const constrainedMotion = useLandingAnimationConstraint();
   const { isSignedIn } = useAuth();
-  const foundingAccessState = useFoundingAccessOffer({ delayMs: 5000 });
+  const foundingAccessState = useFoundingAccessOffer({ delayMs: 15000 });
   const [email, setEmail] = useState('');
   const [waitlistResult, setWaitlistResult] = useState(null);
   const [specialistsOpen, setSpecialistsOpen] = useState(false);
   const scopeRef = useRef(null);
+  const decorativeMotionDisabled = reducedMotion || constrainedMotion;
 
   const nexusEntryHref = isSignedIn ? '/app/workflows' : '/signup';
   const freePlan = getWorkspacePlanMeta('free');
@@ -218,7 +257,7 @@ export default function Landing() {
   }, [waitlistResult]);
 
   useEffect(() => {
-    if (reducedMotion || !scopeRef.current) return undefined;
+    if (decorativeMotionDisabled || !scopeRef.current) return undefined;
 
     let active = true;
     let gsapContext = null;
@@ -343,7 +382,7 @@ export default function Landing() {
       window.clearTimeout(animationDelayId);
       gsapContext?.revert();
     };
-  }, [reducedMotion]);
+  }, [decorativeMotionDisabled]);
 
   const handleWaitlistSubmit = (event) => {
     event.preventDefault();
@@ -389,7 +428,7 @@ export default function Landing() {
           path: '/',
         })}
       />
-      <MagicalCanvas reducedMotion={reducedMotion} startDelayMs={2500} />
+      <MagicalCanvas reducedMotion={decorativeMotionDisabled} startDelayMs={2500} />
 
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="landing" onSignupClick={trackSignup} />
