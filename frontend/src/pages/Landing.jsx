@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   TbBolt,
@@ -28,8 +28,6 @@ import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../compone
 import { AnswerBlock, FAQSection, LinkCardGrid } from '../components/PublicContent';
 import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
 import CookieConsentBanner from '../components/CookieConsentBanner';
-import { SimpleAdvancedModeSection } from '../features/marketing/SimpleAdvancedModeSection';
-import { SeePrymalInActionSection } from '../features/marketing/SeePrymalInActionSection';
 import { HomeProofStrip } from '../features/marketing/HomeProofStrip';
 import { PublicCtaAnchor, PublicCtaLink } from '../components/PublicCta';
 import { trackPublicEvent } from '../lib/public-analytics';
@@ -174,6 +172,48 @@ const USE_CASES = [
 ];
 
 const SIGNED_OUT_WORKFLOW_ROUTE = '/signup?redirect_url=%2Fapp%2Fworkflows';
+const DeferredSimpleAdvancedModeSection = lazy(() => import('../features/marketing/SimpleAdvancedModeSection')
+  .then((mod) => ({ default: mod.SimpleAdvancedModeSection })));
+const DeferredSeePrymalInActionSection = lazy(() => import('../features/marketing/SeePrymalInActionSection')
+  .then((mod) => ({ default: mod.SeePrymalInActionSection })));
+
+function DeferredHomepageSection({ children }) {
+  const [shouldRender, setShouldRender] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (shouldRender) return undefined;
+
+    const renderSoon = () => setShouldRender(true);
+
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    if ('IntersectionObserver' in window && ref.current) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            observer.disconnect();
+            renderSoon();
+          }
+        },
+        { rootMargin: '700px 0px' },
+      );
+      observer.observe(ref.current);
+      return () => observer.disconnect();
+    }
+
+    const timeoutId = window.setTimeout(renderSoon, 4_000);
+    return () => window.clearTimeout(timeoutId);
+  }, [shouldRender]);
+
+  return (
+    <div ref={ref} data-deferred-homepage-section="true">
+      {shouldRender ? <Suspense fallback={null}>{children}</Suspense> : null}
+    </div>
+  );
+}
 
 function useDeferredMagicalCanvas() {
   const [CanvasComponent, setCanvasComponent] = useState(null);
@@ -450,9 +490,13 @@ export default function Landing() {
               </div>
             </section>
 
-            <SimpleAdvancedModeSection surface="landing" />
+            <DeferredHomepageSection>
+              <DeferredSimpleAdvancedModeSection surface="landing" />
+            </DeferredHomepageSection>
 
-            <SeePrymalInActionSection surface="landing" />
+            <DeferredHomepageSection>
+              <DeferredSeePrymalInActionSection surface="landing" />
+            </DeferredHomepageSection>
 
             {/* ── Layered agent system ── */}
             <section id="agents" className="pm-agent-showcase">
