@@ -9,7 +9,6 @@ import {
   buildCollectionSchema,
   buildFaqPageSchema,
 } from '../lib/seo';
-import { MotionCard, MotionList, MotionListItem, MotionPanel } from './motion';
 
 export {
   buildArticleSchema,
@@ -312,7 +311,7 @@ export function SEOHero(props) {
 
 export function SystemDiagram({ title = 'Operating map', nodes = [], links = [], className = '' }) {
   return (
-    <MotionPanel className={`public-system-diagram${className ? ` ${className}` : ''}`}>
+    <section className={`public-system-diagram${className ? ` ${className}` : ''}`}>
       <div className="public-section-block__eyebrow">{title}</div>
       <div className="public-system-diagram__canvas" aria-label={title}>
         <svg className="public-system-diagram__links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -345,15 +344,15 @@ export function SystemDiagram({ title = 'Operating map', nodes = [], links = [],
           </article>
         ))}
       </div>
-    </MotionPanel>
+    </section>
   );
 }
 
 export function OperatingModuleGrid({ items = [], className = '' }) {
   return (
-    <MotionList className={`public-operating-grid${className ? ` ${className}` : ''}`}>
+    <div className={`public-operating-grid${className ? ` ${className}` : ''}`}>
       {items.map((item) => (
-        <MotionListItem key={item.title}>
+        <div key={item.title}>
           <article className="public-operating-card">
             <div className="public-operating-card__header">
               <span className="public-operating-card__glyph" aria-hidden="true">{item.glyph}</span>
@@ -375,9 +374,9 @@ export function OperatingModuleGrid({ items = [], className = '' }) {
               {item.cta}
             </div>
           </article>
-        </MotionListItem>
+        </div>
       ))}
-    </MotionList>
+    </div>
   );
 }
 
@@ -385,7 +384,11 @@ export function SignalCards({ items = [], className = '' }) {
   return (
     <div className={`public-signal-grid${className ? ` ${className}` : ''}`}>
       {items.map((item) => (
-        <MotionCard key={item.title} className="public-signal-card" accent={item.accent}>
+        <article
+          key={item.title}
+          className="public-signal-card"
+          style={{ '--motion-card-accent': item.accent ?? 'var(--accent)' }}
+        >
           <div className="public-section-block__eyebrow">{item.eyebrow}</div>
           <strong>{item.title}</strong>
           <p>{item.body}</p>
@@ -396,7 +399,7 @@ export function SignalCards({ items = [], className = '' }) {
               ))}
             </div>
           ) : null}
-        </MotionCard>
+        </article>
       ))}
     </div>
   );

@@ -21,7 +21,7 @@ export default defineConfig({
     modulePreload: {
       resolveDependencies(_, dependencies) {
         return dependencies.filter(
-          (dependency) => !/vendor-three|vendor-three-core|vendor-three-fiber|vendor-three-drei|vendor-workflow|app-workflow-builder|vendor-clerk|vendor-query|vendor-motion/i.test(dependency),
+          (dependency) => !/vendor-three|vendor-three-core|vendor-three-fiber|vendor-three-drei|vendor-workflow|app-workflow|vendor-clerk|vendor-query|vendor-motion/i.test(dependency),
         );
       },
     },
@@ -51,9 +51,6 @@ export default defineConfig({
           if (id.includes('node_modules/gsap')) {
             return 'vendor-gsap';
           }
-          if (id.includes('node_modules/@react-three/drei')) {
-            return 'vendor-three-drei';
-          }
           if (id.includes('node_modules/@react-three/fiber')) {
             return 'vendor-three-fiber';
           }
@@ -69,13 +66,6 @@ export default defineConfig({
           }
           if (id.includes('node_modules/@sentry/')) {
             return 'vendor-sentry';
-          }
-
-          if (id.includes('WorkflowBuilder')) {
-            return 'app-workflow-builder';
-          }
-          if (id.includes('/features/workspace/workflows/WebhookSubscriptionsPanel')) {
-            return 'app-workflow-webhooks';
           }
         },
       },

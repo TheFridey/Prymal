@@ -2,10 +2,8 @@ import { Suspense, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
 import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { BrandMark, Button, LoadingPanel, ThemeToggle } from './components/ui';
 import { ThemeProvider } from './components/theme';
 import { AnalyticsPageView } from './components/AnalyticsPageView';
-import { PageMeta } from './components/PublicPageChrome';
 import { lazyWithRetry } from './lib/lazyWithRetry';
 import { resolveSignupOnboardingUrl } from './auth/signup-routing';
 
@@ -128,10 +126,46 @@ function AppRoutes() {
 
 function AuthRoute() {
   return (
-    <Suspense fallback={<LoadingPanel label="Loading secure runtime..." />}>
+    <Suspense fallback={<RouteLoadingPanel label="Loading secure runtime..." />}>
       <AuthRuntime />
     </Suspense>
   );
+}
+
+function RouteLoadingPanel({ label = 'Loading Prymal...' }) {
+  return (
+    <div className="loading-panel" role="status" aria-live="polite">
+      <span className="loading-panel__spinner" aria-hidden="true" />
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function PageNotFoundMeta() {
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = 'Page not found | Prymal';
+
+    let robotsMeta = document.querySelector('meta[name="robots"]');
+    const previousRobots = robotsMeta?.getAttribute('content') ?? null;
+    if (!robotsMeta) {
+      robotsMeta = document.createElement('meta');
+      robotsMeta.setAttribute('name', 'robots');
+      document.head.appendChild(robotsMeta);
+    }
+    robotsMeta.setAttribute('content', 'noindex,follow');
+
+    return () => {
+      document.title = previousTitle;
+      if (previousRobots === null) {
+        robotsMeta.remove();
+      } else {
+        robotsMeta.setAttribute('content', previousRobots);
+      }
+    };
+  }, []);
+
+  return null;
 }
 
 function NotFoundPage() {
@@ -147,12 +181,7 @@ function NotFoundPage() {
         padding: '32px',
       }}
     >
-      <PageMeta
-        title="Page not found | Prymal"
-        description="The Prymal page you requested could not be found."
-        canonicalPath="/"
-        robots="noindex,follow"
-      />
+      <PageNotFoundMeta />
       <section style={{ width: 'min(620px, 100%)' }}>
         <div className="eyebrow" style={{ '--eyebrow-accent': 'var(--accent)' }}>404</div>
         <h1 style={{ margin: '12px 0', fontSize: 'clamp(2.5rem, 8vw, 5rem)', lineHeight: 0.95 }}>
@@ -162,7 +191,7 @@ function NotFoundPage() {
           This URL is not part of the public Prymal site.
         </p>
         <Link to="/">
-          <Button tone="accent">Open Prymal home</Button>
+          <span className="btn btn--accent">Open Prymal home</span>
         </Link>
       </section>
     </main>
@@ -171,7 +200,7 @@ function NotFoundPage() {
 
 function LazyPage({ label, children }) {
   return (
-    <Suspense fallback={<LoadingPanel label={label} />}>
+    <Suspense fallback={<RouteLoadingPanel label={label} />}>
       <div className="app-route-stage">{children}</div>
     </Suspense>
   );
@@ -182,8 +211,12 @@ function AppErrorFallback() {
     <div className="auth-screen">
       <div className="setup-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap' }}>
-          <BrandMark />
-          <ThemeToggle />
+          <div className="brand-mark">
+            <div className="brand-mark__copy">
+              <div className="brand-mark__name">PRYMAL</div>
+              <div className="brand-mark__tag">Instinctive AI operations</div>
+            </div>
+          </div>
         </div>
         <div className="setup-screen__header">
           <div className="eyebrow" style={{ '--eyebrow-accent': '#ff7a3c' }}>Application error</div>
@@ -193,12 +226,12 @@ function AppErrorFallback() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '18px' }}>
-          <Button tone="accent" onClick={() => window.location.reload()}>
+          <button type="button" className="btn btn--accent" onClick={() => window.location.reload()}>
             Reload
-          </Button>
-          <Button tone="ghost" onClick={() => window.location.assign('/')}>
+          </button>
+          <button type="button" className="btn btn--ghost" onClick={() => window.location.assign('/')}>
             Back to landing
-          </Button>
+          </button>
         </div>
       </div>
     </div>
