@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
 import { API_BASE_URL } from '../../lib/api';
 
 export const FOUNDING_ACCESS_STORAGE_KEYS = {
@@ -66,20 +65,15 @@ export async function submitFoundingAccessLead({ email, source }) {
 }
 
 export function useFoundingAccessOffer({ delayMs = 0 } = {}) {
-  const { getToken, isLoaded } = useAuth();
   const [state, setState] = useState({ status: 'idle', offer: null });
 
   useEffect(() => {
-    if (!isLoaded) {
-      return undefined;
-    }
-
     let cancelled = false;
     let delayId = 0;
 
     setState({ status: 'loading', offer: null });
 
-    const loadOffer = () => fetchFoundingAccessOffer({ getToken })
+    const loadOffer = () => fetchFoundingAccessOffer()
       .then((result) => {
         if (!cancelled) {
           setState({ status: 'ready', offer: result });
@@ -119,7 +113,7 @@ export function useFoundingAccessOffer({ delayMs = 0 } = {}) {
         window.clearTimeout(delayId);
       }
     };
-  }, [delayMs, getToken, isLoaded]);
+  }, [delayMs]);
 
   return state;
 }

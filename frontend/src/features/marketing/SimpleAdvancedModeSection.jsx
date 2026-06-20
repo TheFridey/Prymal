@@ -1,5 +1,4 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { useAuth } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import {
   TbBolt,
@@ -138,9 +137,9 @@ export function SimpleAdvancedModeSection({
   onModeChange,
   simpleHref,
   advancedHref,
+  signedIn = false,
   surface = variant === 'compact' ? 'onboarding' : 'landing',
 }) {
-  const { isSignedIn } = useAuth();
   const fallbackId = useId();
   const [internalMode, setInternalMode] = useState('simple');
   const viewedRef = useRef(false);
@@ -216,10 +215,10 @@ export function SimpleAdvancedModeSection({
     );
   }
 
-  const resolvedSimpleHref = simpleHref ?? (isSignedIn ? SIGNED_IN_SIMPLE_ROUTE : SIGNED_OUT_SIMPLE_ROUTE);
-  const resolvedAdvancedHref = advancedHref ?? (isSignedIn ? SIGNED_IN_ADVANCED_ROUTE : SIGNED_OUT_ADVANCED_ROUTE);
+  const resolvedSimpleHref = simpleHref ?? (signedIn ? SIGNED_IN_SIMPLE_ROUTE : SIGNED_OUT_SIMPLE_ROUTE);
+  const resolvedAdvancedHref = advancedHref ?? (signedIn ? SIGNED_IN_ADVANCED_ROUTE : SIGNED_OUT_ADVANCED_ROUTE);
   const ctaHref = mode === 'simple' ? resolvedSimpleHref : resolvedAdvancedHref;
-  const defaultWinHref = isSignedIn ? SIGNED_IN_DEFAULT_WIN_ROUTE : SIGNED_OUT_DEFAULT_WIN_ROUTE;
+  const defaultWinHref = signedIn ? SIGNED_IN_DEFAULT_WIN_ROUTE : SIGNED_OUT_DEFAULT_WIN_ROUTE;
 
   return (
     <section
@@ -270,7 +269,7 @@ export function SimpleAdvancedModeSection({
               data-selected-mode={mode}
               data-cta-type="default_win"
               onClick={() => {
-                if (!isSignedIn) persistStartIntent('simple', SIGNED_IN_DEFAULT_WIN_ROUTE);
+                if (!signedIn) persistStartIntent('simple', SIGNED_IN_DEFAULT_WIN_ROUTE);
                 trackCta('simple_mode_default_win_clicked', 'default_win', defaultWinHref);
               }}
             >
@@ -312,7 +311,7 @@ export function SimpleAdvancedModeSection({
             data-selected-mode={mode}
             data-cta-type="primary"
             onClick={() => {
-              if (!isSignedIn) persistStartIntent(mode, mode === 'simple' ? SIGNED_IN_SIMPLE_ROUTE : SIGNED_IN_ADVANCED_ROUTE);
+              if (!signedIn) persistStartIntent(mode, mode === 'simple' ? SIGNED_IN_SIMPLE_ROUTE : SIGNED_IN_ADVANCED_ROUTE);
               trackCta(mode === 'simple' ? 'simple_mode_cta_clicked' : 'advanced_mode_cta_clicked', 'primary', ctaHref);
             }}
           >

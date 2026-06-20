@@ -11,7 +11,7 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
 } from 'reactflow';
-import 'reactflow/dist/style.css';
+import reactFlowCssUrl from 'reactflow/dist/style.css?url';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { trackWorkflowTemplateOpened } from '../lib/analytics';
 import { api } from '../lib/api';
@@ -70,6 +70,16 @@ const OPERATOR_OPTIONS = [
 ];
 
 let nodeCounter = 0;
+function loadReactFlowCss() {
+  if (typeof document === 'undefined') return;
+  if (document.querySelector('link[data-react-flow-css="true"]')) return;
+
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = reactFlowCssUrl;
+  link.dataset.reactFlowCss = 'true';
+  document.head.appendChild(link);
+}
 
 function generateWebhookSecret() {
   const bytes = new Uint8Array(12);
@@ -322,6 +332,10 @@ export default function WorkflowBuilder({ onClose, initialTemplate = null }) {
   const appliedTemplateSlugRef = useRef(null);
   const notify = useAppStore((state) => state.addNotification);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    void loadReactFlowCss();
+  }, []);
 
   const selectedNode = nodes.find((node) => node.id === selectedId) ?? null;
   const selectedAgent = AGENT_LIBRARY.find((agent) => agent.id === selectedNode?.data?.agentId) ?? null;

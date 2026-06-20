@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { render, waitFor } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
-import { ProtectedOnly, resolveSignupOnboardingUrl } from './App';
+import { ProtectedOnly } from './auth/AuthRuntime';
+import { resolveSignupOnboardingUrl } from './auth/signup-routing';
 import { api } from './lib/api';
 
 const mockGetToken = vi.fn();

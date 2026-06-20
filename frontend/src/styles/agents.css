@@ -46,6 +46,10 @@
   letter-spacing: 0.04em;
 }
 
+.agent-avatar picture {
+  display: contents;
+}
+
 .agent-avatar__image {
   position: relative;
   z-index: 2;

@@ -1,4 +1,3 @@
-import { motion, MotionButton, MotionPanel, MotionSection } from './motion';
 import { useTheme } from './theme';
 import {
   createInlineNoticePalette,
@@ -58,13 +57,17 @@ export function AgentAvatar({
     >
       {showScene ? <AvatarScene effect={agent.avatarScene} /> : null}
       {avatarSrc ? (
-        <img
-          src={avatarSrc}
-          srcSet={agent?.avatarSrcSet}
-          sizes={`${size}px`}
-          alt={agent?.name ?? 'Agent avatar'}
-          className="agent-avatar__image"
-        />
+        <picture>
+          {agent?.avatarAvifSrcSet ? <source type="image/avif" srcSet={agent.avatarAvifSrcSet} sizes={`${size}px`} /> : null}
+          {agent?.avatarSrcSet ? <source type="image/webp" srcSet={agent.avatarSrcSet} sizes={`${size}px`} /> : null}
+          <img
+            src={avatarSrc}
+            srcSet={agent?.avatarSrcSet}
+            sizes={`${size}px`}
+            alt={agent?.name ?? 'Agent avatar'}
+            className="agent-avatar__image"
+          />
+        </picture>
       ) : (
         <>
           <div className="agent-avatar__glow" />
@@ -323,15 +326,12 @@ export function ThemeToggle({ compact = false, tiny = false }) {
 }
 
 export function Reveal({ children, className = '', delay = 0, once = true }) {
+  void delay;
+  void once;
   return (
-    <MotionSection
-      className={`reveal reveal-visible${className ? ` ${className}` : ''}`}
-      delay={delay / 1000}
-      once={once}
-      reveal={{ y: 24, blur: 10 }}
-    >
+    <div className={`reveal reveal-visible${className ? ` ${className}` : ''}`}>
       {children}
-    </MotionSection>
+    </div>
   );
 }
 
@@ -375,9 +375,8 @@ export function PageHeader({ eyebrow, title, description, accent = 'var(--accent
 
 export function SurfaceCard({ children, title, subtitle, accent, style, className = '' }) {
   return (
-    <MotionPanel
+    <section
       className={`surface-card${className ? ` ${className}` : ''}`}
-      accent={accent}
       style={{
         ...createSurfaceAccentVars(accent),
         ...style,
@@ -392,7 +391,7 @@ export function SurfaceCard({ children, title, subtitle, accent, style, classNam
         </div>
       ) : null}
       {children}
-    </MotionPanel>
+    </section>
   );
 }
 
@@ -414,15 +413,12 @@ export function StatGrid({ items }) {
 
 export function StatusPill({ children, color = 'var(--accent)' }) {
   return (
-    <motion.span
+    <span
       className="status-pill"
       style={createStatusPillVars(color)}
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
     >
       {children}
-    </motion.span>
+    </span>
   );
 }
 
@@ -432,11 +428,8 @@ export function SectionLabel({ children }) {
 
 export function EmptyState({ title, description, action, accent = 'var(--accent)' }) {
   return (
-    <motion.div
+    <div
       className="empty-state"
-      initial={{ opacity: 0, y: 12, scale: 0.985 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.32 }}
     >
       <div
         className="empty-state__glyph"
@@ -450,7 +443,7 @@ export function EmptyState({ title, description, action, accent = 'var(--accent)
       </h3>
       <p className="empty-state__description">{description}</p>
       {action ? <div className="empty-state__action">{action}</div> : null}
-    </motion.div>
+    </div>
   );
 }
 
@@ -473,13 +466,10 @@ export function InlineNotice({
   const hasStructuredCopy = Boolean(title || message);
 
   return (
-    <motion.div
+    <div
       {...props}
       className={`inline-notice${className ? ` ${className}` : ''}`}
       style={{ ...palette, ...style }}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24 }}
     >
       {hasStructuredCopy ? (
         <div style={{ display: 'grid', gap: '4px' }}>
@@ -498,19 +488,20 @@ export function InlineNotice({
           ) : null}
         </div>
       ) : children}
-    </motion.div>
+    </div>
   );
 }
 
 export function Button({ children, tone = 'ghost', block = false, style, className = '', ...props }) {
   return (
-    <MotionButton
+    <button
+      type="button"
       {...props}
       className={`button button--${tone}${block ? ' button--block' : ''}${className ? ` ${className}` : ''}`}
       style={style}
     >
       {children}
-    </MotionButton>
+    </button>
   );
 }
 
@@ -524,25 +515,13 @@ export function TextArea({ className = '', style, ...props }) {
 
 export function LoadingPanel({ label = 'Loading Prymal...' }) {
   return (
-    <motion.div
+    <div
       className="loading-panel"
-      initial={{ opacity: 0, scale: 0.985 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.36 }}
     >
-      <motion.div
-        className="loading-panel__core"
-        initial={{ y: 10, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.36, delay: 0.06 }}
-      >
-        <motion.div
-          className="loading-panel__orb"
-          animate={{ scale: [1, 1.08, 1], opacity: [0.85, 1, 0.85] }}
-          transition={{ duration: 2.8, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
-        />
+      <div className="loading-panel__core">
+        <div className="loading-panel__orb" />
         <div className="loading-panel__label">{label}</div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

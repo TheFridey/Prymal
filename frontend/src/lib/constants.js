@@ -1,8 +1,6 @@
 import { AGENT_SELECTION_META } from './agent-selection-meta';
 import { AGENT_STARTER_PROMPTS } from './agent-starter-prompts';
 
-export { WORKFLOW_TEMPLATES } from './workflow-templates';
-
 export const NAV_ITEMS = [
   { to: '/app/dashboard', label: 'Dashboard', icon: '[]' },
   { to: '/app/lore', label: 'LORE', icon: 'KB' },
@@ -12,6 +10,10 @@ export const NAV_ITEMS = [
 ];
 
 const AGENT_AVATAR_ASSETS = import.meta.glob('../assets/agents/*.webp', {
+  eager: true,
+  import: 'default',
+});
+const AGENT_AVATAR_AVIF_ASSETS = import.meta.glob('../assets/agents/*.avif', {
   eager: true,
   import: 'default',
 });
@@ -29,8 +31,16 @@ function getAgentAvatarImage(id) {
     })
     .filter(Boolean)
     .join(', ');
+  const avatarAvifSrcSet = AGENT_AVATAR_WIDTHS
+    .map((width) => {
+      const key = `../assets/agents/${id}-${width}.avif`;
+      const url = AGENT_AVATAR_AVIF_ASSETS[key];
+      return url ? `${url} ${width}w` : null;
+    })
+    .filter(Boolean)
+    .join(', ');
 
-  return { avatarSrc: src, avatarSrcSet };
+  return { avatarSrc: src, avatarSrcSet, avatarAvifSrcSet };
 }
 
 export const AGENT_LIBRARY = [

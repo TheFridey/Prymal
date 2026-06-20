@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { AGENT_LIBRARY } from '../lib/constants';
 import {
   DEFAULT_OG_IMAGE_ALT,
@@ -294,28 +293,16 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
 
         <div className="marketing-nav__actions prymal-nav__actions marketing-nav__desktop-only">
           <ThemeToggle />
-          <SignedOut>
-            <Link className="marketing-link" to="/login">Login</Link>
-            <PublicCtaLink
-              to="/signup"
-              cta="signup"
-              surface={buildSignupSource(sourcePrefix, 'nav')}
-              intent="convert"
-              onClick={() => fireSignup('nav')}
-            >
-              <Button tone="accent">Start free</Button>
-            </PublicCtaLink>
-          </SignedOut>
-          <SignedIn>
-            <PublicCtaLink
-              to="/app/dashboard"
-              cta="open-workspace"
-              surface={buildSignupSource(sourcePrefix, 'nav')}
-              intent="retain"
-            >
-              <Button tone="accent">Open workspace</Button>
-            </PublicCtaLink>
-          </SignedIn>
+          <Link className="marketing-link" to="/login">Login</Link>
+          <PublicCtaLink
+            to="/signup"
+            cta="signup"
+            surface={buildSignupSource(sourcePrefix, 'nav')}
+            intent="convert"
+            onClick={() => fireSignup('nav')}
+          >
+            <Button tone="accent">Start free</Button>
+          </PublicCtaLink>
         </div>
 
         <button
@@ -435,36 +422,22 @@ export function PublicPageNavbar({ sourcePrefix = '', onSignupClick = () => {} }
                 <span className="marketing-nav__drawer-theme-label">Theme</span>
                 <ThemeToggle />
               </div>
-              <SignedOut>
-                <Link className="marketing-nav__drawer-secondary" to="/login" onClick={closeMenu}>
-                  Log in
-                </Link>
-                <PublicCtaLink
-                  to="/signup"
-                  cta="signup"
-                  surface={buildSignupSource(sourcePrefix, 'menu')}
-                  intent="convert"
-                  onClick={() => {
-                    fireSignup('menu');
-                    closeMenu();
-                  }}
-                  className="marketing-nav__drawer-cta"
-                >
-                  <Button tone="accent">Get early access</Button>
-                </PublicCtaLink>
-              </SignedOut>
-              <SignedIn>
-                <PublicCtaLink
-                  to="/app/dashboard"
-                  cta="open-workspace"
-                  surface={buildSignupSource(sourcePrefix, 'menu')}
-                  intent="retain"
-                  onClick={closeMenu}
-                  className="marketing-nav__drawer-cta"
-                >
-                  <Button tone="accent">Open workspace</Button>
-                </PublicCtaLink>
-              </SignedIn>
+              <Link className="marketing-nav__drawer-secondary" to="/login" onClick={closeMenu}>
+                Log in
+              </Link>
+              <PublicCtaLink
+                to="/signup"
+                cta="signup"
+                surface={buildSignupSource(sourcePrefix, 'menu')}
+                intent="convert"
+                onClick={() => {
+                  fireSignup('menu');
+                  closeMenu();
+                }}
+                className="marketing-nav__drawer-cta"
+              >
+                <Button tone="accent">Get early access</Button>
+              </PublicCtaLink>
             </div>
           </div>
         </>

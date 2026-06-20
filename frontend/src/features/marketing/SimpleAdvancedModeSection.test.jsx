@@ -124,7 +124,7 @@ test('SimpleAdvancedModeSection routes signed-out CTAs through signup with inten
 test('SimpleAdvancedModeSection routes signed-in CTAs directly into the app', async () => {
   const user = userEvent.setup();
   authState.isSignedIn = true;
-  renderWithProviders(<SimpleAdvancedModeSection />);
+  renderWithProviders(<SimpleAdvancedModeSection signedIn />);
 
   expect(screen.getByRole('link', { name: 'Start with a task' })).toHaveAttribute('href', '/app/workflows/catalogue?mode=simple');
   expect(screen.getByRole('link', { name: 'Start with this' })).toHaveAttribute('href', '/app/workflows/catalogue/30-day-content-engine');

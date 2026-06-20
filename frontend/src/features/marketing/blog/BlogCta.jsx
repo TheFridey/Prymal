@@ -1,4 +1,3 @@
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { PublicCtaLink } from '../../../components/PublicCta';
 
 function blogSurface(slug, slot) {
@@ -7,30 +6,15 @@ function blogSurface(slug, slot) {
 
 export function BlogBetaAccessCta({ slug, className = 'pm-btn pm-btn--primary', label = 'Get early access' }) {
   return (
-    <>
-      <SignedOut>
-        <PublicCtaLink
-          to="/signup"
-          cta="beta-access"
-          surface={blogSurface(slug, 'beta')}
-          intent="convert"
-          className={className}
-        >
-          {label}
-        </PublicCtaLink>
-      </SignedOut>
-      <SignedIn>
-        <PublicCtaLink
-          to="/app/dashboard"
-          cta="open-workspace"
-          surface={blogSurface(slug, 'beta-signed-in')}
-          intent="retain"
-          className={className}
-        >
-          Open workspace
-        </PublicCtaLink>
-      </SignedIn>
-    </>
+    <PublicCtaLink
+      to="/signup"
+      cta="beta-access"
+      surface={blogSurface(slug, 'beta')}
+      intent="convert"
+      className={className}
+    >
+      {label}
+    </PublicCtaLink>
   );
 }
 
@@ -73,30 +57,15 @@ export function BlogWorkflowTemplateCta({
   if (!template) return null;
 
   return (
-    <>
-      <SignedOut>
-        <PublicCtaLink
-          to="/signup"
-          cta="workflow-template"
-          surface={blogSurface(slug, `workflow-${template.slug}`)}
-          intent="convert"
-          className={className}
-        >
-          {label ?? `Start ${template.name}`}
-        </PublicCtaLink>
-      </SignedOut>
-      <SignedIn>
-        <PublicCtaLink
-          to={`/app/workflows?view=builder&template=${encodeURIComponent(template.slug)}`}
-          cta="workflow-template"
-          surface={blogSurface(slug, `workflow-${template.slug}`)}
-          intent="retain"
-          className={className}
-        >
-          {label ?? `Open ${template.name}`}
-        </PublicCtaLink>
-      </SignedIn>
-    </>
+    <PublicCtaLink
+      to="/signup"
+      cta="workflow-template"
+      surface={blogSurface(slug, `workflow-${template.slug}`)}
+      intent="convert"
+      className={className}
+    >
+      {label ?? `Start ${template.name}`}
+    </PublicCtaLink>
   );
 }
 

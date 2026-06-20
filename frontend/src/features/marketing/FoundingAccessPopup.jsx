@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@clerk/clerk-react';
 import { Button, InlineNotice, TextInput } from '../../components/ui';
 import {
   FOUNDING_ACCESS_STORAGE_KEYS,
@@ -10,13 +9,12 @@ import {
 } from './founding-access';
 
 export function FoundingAccessPopup({ offer, surface = 'pricing' }) {
-  const { isSignedIn } = useAuth();
   const [open, setOpen] = useState(false);
   const [triggerSource, setTriggerSource] = useState('delayed_popup');
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState(null);
 
-  const ctaHref = isSignedIn ? '/app/settings?tab=Billing&offer=founding-access' : '/signup?offer=founding-access';
+  const ctaHref = '/signup?offer=founding-access';
   const canShow = useMemo(() => {
     if (typeof window === 'undefined') return false;
     return shouldShowFoundingAccessPopup({ offer });

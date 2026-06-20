@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import {
   TbBolt,
@@ -26,17 +24,13 @@ import {
 import { api } from '../lib/api';
 import { getErrorMessage } from '../lib/utils';
 import { Button, InlineNotice, PageShell, TextInput } from '../components/ui';
-import { MotionSection, usePrymalReducedMotion } from '../components/motion';
 import { JsonLd, PageMeta, PublicPageFooter, PublicPageNavbar } from '../components/PublicPageChrome';
 import { AnswerBlock, FAQSection, LinkCardGrid } from '../components/PublicContent';
-import { MagicalCanvas } from '../features/marketing/MagicalCanvas';
 import { AgentAvatarDisplay } from '../features/marketing/AgentAvatarDisplay';
-import { FoundingAccessPopup } from '../features/marketing/FoundingAccessPopup';
 import CookieConsentBanner from '../components/CookieConsentBanner';
 import { SimpleAdvancedModeSection } from '../features/marketing/SimpleAdvancedModeSection';
 import { SeePrymalInActionSection } from '../features/marketing/SeePrymalInActionSection';
 import { HomeProofStrip } from '../features/marketing/HomeProofStrip';
-import { useFoundingAccessOffer } from '../features/marketing/founding-access';
 import { PublicCtaAnchor, PublicCtaLink } from '../components/PublicCta';
 import { trackPublicEvent } from '../lib/public-analytics';
 import {
@@ -179,74 +173,69 @@ const USE_CASES = [
   },
 ];
 
-function useLandingAnimationConstraint() {
-  const [constrained, setConstrained] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    return (
-      window.matchMedia('(max-width: 820px)').matches
-      || Boolean(connection?.saveData)
-      || /(^|-)2g$/.test(connection?.effectiveType ?? '')
-    );
-  });
+const SIGNED_OUT_WORKFLOW_ROUTE = '/signup?redirect_url=%2Fapp%2Fworkflows';
 
+function useDeferredMagicalCanvas() {
+  const [CanvasComponent, setCanvasComponent] = useState(null);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
 
-    const mediaQuery = window.matchMedia('(max-width: 820px)');
+    const mediaQuery = window.matchMedia('(min-width: 921px)');
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    const sync = () => {
-      setConstrained(
-        mediaQuery.matches
-        || Boolean(connection?.saveData)
-        || /(^|-)2g$/.test(connection?.effectiveType ?? ''),
-      );
+    const canLoadCanvas = () => (
+      mediaQuery.matches
+      && !reducedMotionQuery.matches
+      && !connection?.saveData
+      && !/(^|-)2g$/.test(connection?.effectiveType ?? '')
+    );
+
+    let cancelled = false;
+    let loaded = false;
+    let timeoutId = 0;
+
+    const loadCanvas = () => {
+      if (loaded || cancelled || !canLoadCanvas()) return;
+      loaded = true;
+      import('../features/marketing/MagicalCanvas')
+        .then((mod) => {
+          if (!cancelled) {
+            setCanvasComponent(() => mod.MagicalCanvas);
+          }
+        })
+        .catch(() => {});
     };
 
-    sync();
-    mediaQuery.addEventListener('change', sync);
-    connection?.addEventListener?.('change', sync);
+    timeoutId = window.setTimeout(loadCanvas, 30_000);
+    window.addEventListener('pointerdown', loadCanvas, { once: true, passive: true });
+    window.addEventListener('keydown', loadCanvas, { once: true });
+    window.addEventListener('scroll', loadCanvas, { once: true, passive: true });
 
     return () => {
-      mediaQuery.removeEventListener('change', sync);
-      connection?.removeEventListener?.('change', sync);
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+      window.removeEventListener('pointerdown', loadCanvas);
+      window.removeEventListener('keydown', loadCanvas);
+      window.removeEventListener('scroll', loadCanvas);
     };
   }, []);
 
-  return constrained;
+  return CanvasComponent;
 }
 
 export default function Landing() {
-  const reducedMotion = usePrymalReducedMotion();
-  const constrainedMotion = useLandingAnimationConstraint();
-  const { isSignedIn } = useAuth();
-  const foundingAccessState = useFoundingAccessOffer({ delayMs: 15000 });
   const [email, setEmail] = useState('');
   const [waitlistResult, setWaitlistResult] = useState(null);
+  const [waitlistPending, setWaitlistPending] = useState(false);
   const [specialistsOpen, setSpecialistsOpen] = useState(false);
   const scopeRef = useRef(null);
-  const decorativeMotionDisabled = reducedMotion || constrainedMotion;
+  const MagicalCanvas = useDeferredMagicalCanvas();
 
-  const nexusEntryHref = isSignedIn ? '/app/workflows' : '/signup';
   const freePlan = getWorkspacePlanMeta('free');
 
   const trackSignup = (source) => {
     trackPublicEvent('signup_button_clicked', { source });
   };
-
-  const waitlistMutation = useMutation({
-    mutationFn: async (nextEmail) => api.post('/waitlist', { email: nextEmail, source: 'landing_page' }),
-    onSuccess: () => {
-      setWaitlistResult({
-        tone: 'success',
-        message: 'You are on the waitlist. We will send the invite as soon as your workspace is ready.',
-      });
-      setEmail('');
-    },
-    onError: (error) => {
-      setWaitlistResult({ tone: 'danger', message: getErrorMessage(error, 'Unable to join the waitlist right now.') });
-    },
-  });
 
   useEffect(() => {
     if (waitlistResult?.tone) {
@@ -256,143 +245,30 @@ export default function Landing() {
     return undefined;
   }, [waitlistResult]);
 
-  useEffect(() => {
-    if (decorativeMotionDisabled || !scopeRef.current) return undefined;
-
-    let active = true;
-    let gsapContext = null;
-    let animationDelayId = 0;
-
-    const startAnimations = async () => {
-      const [{ default: gsap }, { ScrollTrigger }] = await Promise.all([
-        import('gsap'),
-        import('gsap/ScrollTrigger'),
-      ]);
-
-      if (!active || !scopeRef.current) return;
-
-      gsap.registerPlugin(ScrollTrigger);
-
-      gsapContext = gsap.context(() => {
-        const heroIntroItems = gsap.utils.toArray('.pm-hero__intro > *');
-        if (heroIntroItems.length > 0) {
-          gsap.from(heroIntroItems, {
-            y: 28,
-            opacity: 0,
-            duration: 0.9,
-            ease: 'power3.out',
-            stagger: 0.08,
-          });
-        }
-
-        gsap.utils.toArray('.pm-agents-parade__grid .pm-agent-float').forEach((card, i) => {
-          gsap.fromTo(
-            card,
-            { opacity: 0, y: 30, scale: 0.9 },
-            {
-              opacity: 1,
-              y: 0,
-              scale: 1,
-              duration: 0.5,
-              ease: 'back.out(1.4)',
-              delay: i * 0.04,
-              scrollTrigger: { trigger: '.pm-agents-parade', start: 'top 75%', toggleActions: 'play none none none' },
-            },
-          );
-        });
-
-        gsap.utils.toArray('.pm-how__row').forEach((row, i) => {
-          gsap.fromTo(
-            row,
-            { opacity: 0, y: 60, filter: 'blur(12px)' },
-            {
-              opacity: 1,
-              y: 0,
-              filter: 'blur(0px)',
-              duration: 0.9,
-              ease: 'power3.out',
-              delay: i * 0.1,
-              scrollTrigger: { trigger: row, start: 'top 78%', toggleActions: 'play none none none' },
-            },
-          );
-        });
-
-        gsap.utils.toArray('.pm-bento__card').forEach((card, i) => {
-          gsap.fromTo(
-            card,
-            { opacity: 0, scale: 0.85, y: 40 },
-            {
-              opacity: 1,
-              scale: 1,
-              y: 0,
-              duration: 0.7,
-              ease: 'back.out(1.5)',
-              delay: i * 0.08,
-              scrollTrigger: { trigger: '.pm-bento__grid', start: 'top 75%', toggleActions: 'play none none none' },
-            },
-          );
-        });
-
-        const agentIconBadges = gsap.utils.toArray('.pm-agent-float__icon-badge');
-        if (agentIconBadges.length > 0) {
-          gsap.fromTo(
-            agentIconBadges,
-            { opacity: 0, scale: 0 },
-            {
-              opacity: 1,
-              scale: 1,
-              duration: 0.4,
-              ease: 'back.out(2)',
-              stagger: 0.05,
-              scrollTrigger: { trigger: '.pm-agents-parade', start: 'top 70%', toggleActions: 'play none none none' },
-            },
-          );
-        }
-
-        // Hero stat counter — counts up to 15 on scroll into view
-        const countEl = document.querySelector('.prymal-hero-stat--count');
-        if (countEl) {
-          const obj = { val: 0 };
-          gsap.fromTo(obj,
-            { val: 0 },
-            {
-              val: 15,
-              duration: 1.6,
-              ease: 'power2.out',
-              snap: { val: 1 },
-              onUpdate() {
-                if (countEl) countEl.textContent = Math.round(obj.val);
-              },
-              scrollTrigger: {
-                trigger: countEl,
-                start: 'top 82%',
-                toggleActions: 'play none none none',
-                once: true,
-              },
-            }
-          );
-        }
-      }, scopeRef);
-    };
-
-    animationDelayId = window.setTimeout(startAnimations, 1600);
-
-    return () => {
-      active = false;
-      window.clearTimeout(animationDelayId);
-      gsapContext?.revert();
-    };
-  }, [decorativeMotionDisabled]);
-
-  const handleWaitlistSubmit = (event) => {
+  const handleWaitlistSubmit = async (event) => {
     event.preventDefault();
-    if (!email.trim()) {
+    const nextEmail = email.trim();
+    if (!nextEmail) {
       setWaitlistResult({ tone: 'warning', message: 'Enter your email address so we know where to send the invite.' });
       return;
     }
-    waitlistMutation.mutate(email.trim());
+
+    setWaitlistPending(true);
+    try {
+      await api.post('/waitlist', { email: nextEmail, source: 'landing_page' });
+      setWaitlistResult({
+        tone: 'success',
+        message: 'You are on the waitlist. We will send the invite as soon as your workspace is ready.',
+      });
+      setEmail('');
+    } catch (error) {
+      setWaitlistResult({ tone: 'danger', message: getErrorMessage(error, 'Unable to join the waitlist right now.') });
+    } finally {
+      setWaitlistPending(false);
+    }
   };
 
+        // Hero stat counter — counts up to 15 on scroll into view
   return (
     <div ref={scopeRef} className="marketing-page prymal-marketing prymal-marketing--home">
       <PageMeta
@@ -428,7 +304,7 @@ export default function Landing() {
           path: '/',
         })}
       />
-      <MagicalCanvas reducedMotion={decorativeMotionDisabled} startDelayMs={2500} />
+      {MagicalCanvas ? <MagicalCanvas startDelayMs={0} /> : null}
 
       <div className="marketing-shell prymal-marketing__shell">
         <PublicPageNavbar sourcePrefix="landing" onSignupClick={trackSignup} />
@@ -473,46 +349,24 @@ export default function Landing() {
               </div>
 
               <div className="pm-hero__ctas">
-                <SignedOut>
-                  <PublicCtaLink
-                    to={nexusEntryHref}
-                    cta="start-workflows"
-                    surface="landing-hero"
-                    intent="convert"
-                    className="pm-btn pm-btn--primary"
-                  >
-                    Start building workflows
-                  </PublicCtaLink>
-                  <PublicCtaAnchor
-                    href="#how-it-works"
-                    cta="see-how-it-works"
-                    surface="landing-hero"
-                    intent="learn"
-                    className="pm-btn pm-btn--ghost"
-                  >
-                    See how it works
-                  </PublicCtaAnchor>
-                </SignedOut>
-                <SignedIn>
-                  <PublicCtaLink
-                    to={nexusEntryHref}
-                    cta="start-workflows"
-                    surface="landing-hero"
-                    intent="retain"
-                    className="pm-btn pm-btn--primary"
-                  >
-                    Start building workflows
-                  </PublicCtaLink>
-                  <PublicCtaAnchor
-                    href="#how-it-works"
-                    cta="see-how-it-works"
-                    surface="landing-hero"
-                    intent="learn"
-                    className="pm-btn pm-btn--ghost"
-                  >
-                    See how it works
-                  </PublicCtaAnchor>
-                </SignedIn>
+                <PublicCtaLink
+                  to={SIGNED_OUT_WORKFLOW_ROUTE}
+                  cta="start-workflows"
+                  surface="landing-hero"
+                  intent="convert"
+                  className="pm-btn pm-btn--primary"
+                >
+                  Start building workflows
+                </PublicCtaLink>
+                <PublicCtaAnchor
+                  href="#how-it-works"
+                  cta="see-how-it-works"
+                  surface="landing-hero"
+                  intent="learn"
+                  className="pm-btn pm-btn--ghost"
+                >
+                  See how it works
+                </PublicCtaAnchor>
               </div>
 
               <div className="pm-hero__trust" aria-label="Prymal trust signals">
@@ -798,7 +652,7 @@ export default function Landing() {
             </section>
 
             {/* ── Pricing teaser → full page ── */}
-            <MotionSection id="pricing" className="pm-pricing-section" delay={0.06} reveal={{ y: 24, blur: 10 }}>
+            <section id="pricing" className="pm-pricing-section">
               <div className="pm-hero__badge" style={{ marginBottom: 14 }}>
                 <span className="pm-hero__badge-dot" />
                 Pricing
@@ -818,34 +672,21 @@ export default function Landing() {
                 >
                   View pricing
                 </PublicCtaLink>
-                <SignedOut>
-                  <PublicCtaLink
-                    to="/signup"
-                    cta="signup"
-                    surface="landing-pricing-teaser"
-                    intent="convert"
-                    className="button button--ghost"
-                    onClick={() => trackSignup('landing-pricing-teaser')}
-                  >
-                    Start now
-                  </PublicCtaLink>
-                </SignedOut>
-                <SignedIn>
-                  <PublicCtaLink
-                    to="/app/settings?tab=Billing"
-                    cta="billing"
-                    surface="landing-pricing-teaser"
-                    intent="upgrade"
-                    className="button button--ghost"
-                  >
-                    Billing
-                  </PublicCtaLink>
-                </SignedIn>
+                <PublicCtaLink
+                  to="/signup"
+                  cta="signup"
+                  surface="landing-pricing-teaser"
+                  intent="convert"
+                  className="button button--ghost"
+                  onClick={() => trackSignup('landing-pricing-teaser')}
+                >
+                  Start now
+                </PublicCtaLink>
               </div>
-            </MotionSection>
+            </section>
 
             {/* ── Waitlist ── */}
-            <MotionSection className="pm-waitlist" delay={0.06} reveal={{ y: 24, blur: 10 }}>
+            <section className="pm-waitlist">
               <div className="pm-waitlist__inner">
                 <div className="pm-hero__badge" style={{ marginBottom: 18 }}>
                   <span className="pm-hero__badge-dot" />
@@ -864,7 +705,7 @@ export default function Landing() {
                     placeholder="you@company.com"
                     inputMode="email"
                   />
-                  <Button tone="accent" type="submit" disabled={waitlistMutation.isLoading}>
+                  <Button tone="accent" type="submit" disabled={waitlistPending}>
                     Join waitlist
                   </Button>
                 </form>
@@ -875,7 +716,7 @@ export default function Landing() {
                   </InlineNotice>
                 ) : null}
               </div>
-            </MotionSection>
+            </section>
 
             <FAQSection
               title="Prymal FAQ"
@@ -912,10 +753,6 @@ export default function Landing() {
 
         <PublicPageFooter sourcePrefix="landing" onSignupClick={trackSignup} />
       </div>
-      <FoundingAccessPopup
-        offer={foundingAccessState.status === 'ready' ? foundingAccessState.offer : null}
-        surface="landing"
-      />
       <CookieConsentBanner />
     </div>
   );

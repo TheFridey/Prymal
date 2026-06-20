@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import { PublicCtaButton, PublicCtaLink } from '../../components/PublicCta';
 import {
@@ -156,47 +155,25 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
           caps or safety controls.
         </p>
         <div className="pricing-hero__ctas">
-          <SignedOut>
-            <PublicCtaLink
-              to="/signup"
-              cta="signup"
-              surface="pricing-hero"
-              intent="convert"
-              className="button button--accent"
-            >
-              Start now
-            </PublicCtaLink>
-            <PublicCtaButton
-              type="button"
-              cta="view-plans"
-              surface="pricing-hero"
-              intent="learn"
-              className="pricing-hero__secondary"
-              onClick={scrollToPricingGrid}
-            >
-              View pricing
-            </PublicCtaButton>
-          </SignedOut>
-          <SignedIn>
-            <PublicCtaLink
-              to="/app/dashboard"
-              cta="open-workspace"
-              surface="pricing-hero"
-              intent="retain"
-              className="button button--accent"
-            >
-              Open workspace
-            </PublicCtaLink>
-            <PublicCtaLink
-              to="/app/settings?tab=Billing"
-              cta="billing"
-              surface="pricing-hero"
-              intent="upgrade"
-              className="pricing-hero__secondary"
-            >
-              Billing &amp; upgrade
-            </PublicCtaLink>
-          </SignedIn>
+          <PublicCtaLink
+            to="/signup"
+            cta="signup"
+            surface="pricing-hero"
+            intent="convert"
+            className="button button--accent"
+          >
+            Start now
+          </PublicCtaLink>
+          <PublicCtaButton
+            type="button"
+            cta="view-plans"
+            surface="pricing-hero"
+            intent="learn"
+            className="pricing-hero__secondary"
+            onClick={scrollToPricingGrid}
+          >
+            View pricing
+          </PublicCtaButton>
         </div>
       </section>
 
@@ -397,29 +374,15 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
                 </dl>
               ) : null}
               <div className="pricing-card__cta">
-                <SignedOut>
-                  <PublicCtaLink
-                    to={foundingAccessActive ? '/signup?offer=founding-access' : '/signup'}
-                    cta={foundingAccessActive ? 'claim-founding' : isPro ? 'start-pro' : 'start-plan'}
-                    surface={`pricing-card-${plan.id}`}
-                    intent="convert"
-                    className={(isPro || foundingAccessActive) ? 'button button--accent button--block' : 'button button--ghost button--block'}
-                  >
-                    {foundingAccessActive ? 'Claim Founding Access' : isPro ? 'Start on Pro' : 'Start now'}
-                  </PublicCtaLink>
-                </SignedOut>
-                <SignedIn>
-                  <PublicCtaLink
-                    to={foundingAccessActive ? '/app/settings?tab=Billing&offer=founding-access' : '/app/settings?tab=Billing'}
-                    cta={foundingAccessActive ? 'claim-founding' : isPro ? 'upgrade-pro' : 'choose-plan'}
-                    surface={`pricing-card-${plan.id}`}
-                    intent="upgrade"
-                    plan_id={plan.id}
-                    className={(isPro || foundingAccessActive) ? 'button button--accent button--block' : 'button button--ghost button--block'}
-                  >
-                    {foundingAccessActive ? 'Claim Founding Access' : isPro ? 'Upgrade to Pro' : 'Choose plan'}
-                  </PublicCtaLink>
-                </SignedIn>
+                <PublicCtaLink
+                  to={foundingAccessActive ? '/signup?offer=founding-access' : '/signup'}
+                  cta={foundingAccessActive ? 'claim-founding' : isPro ? 'start-pro' : 'start-plan'}
+                  surface={`pricing-card-${plan.id}`}
+                  intent="convert"
+                  className={(isPro || foundingAccessActive) ? 'button button--accent button--block' : 'button button--ghost button--block'}
+                >
+                  {foundingAccessActive ? 'Claim Founding Access' : isPro ? 'Start on Pro' : 'Start now'}
+                </PublicCtaLink>
               </div>
             </article>
           );
@@ -641,28 +604,15 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
             workflows as your team finds the processes worth automating.
           </p>
         </div>
-        <SignedOut>
-          <PublicCtaLink
-            to="/signup"
-            cta="start-workflow"
-            surface="pricing-scale-simple"
-            intent="convert"
-            className="button button--ghost"
-          >
-            Start with one workflow
-          </PublicCtaLink>
-        </SignedOut>
-        <SignedIn>
-          <PublicCtaLink
-            to="/app/workflows"
-            cta="start-workflow"
-            surface="pricing-scale-simple"
-            intent="retain"
-            className="button button--ghost"
-          >
-            Start with one workflow
-          </PublicCtaLink>
-        </SignedIn>
+        <PublicCtaLink
+          to="/signup?redirect_url=%2Fapp%2Fworkflows"
+          cta="start-workflow"
+          surface="pricing-scale-simple"
+          intent="convert"
+          className="button button--ghost"
+        >
+          Start with one workflow
+        </PublicCtaLink>
       </section>
 
       <section className="pricing-objections" aria-labelledby="pricing-objections-heading">
@@ -780,46 +730,24 @@ export function PricingPageContent({ foundingAccessState = { status: 'idle', off
         <h2 id="final-cta-heading">Start using Prymal today</h2>
         <p>No jargon, no surprise mechanics — just clear plans and live usage in your workspace.</p>
         <div className="pricing-final-cta__row">
-          <SignedOut>
-            <PublicCtaLink
-              to="/signup"
-              cta="signup"
-              surface="pricing-final-cta"
-              intent="convert"
-              className="button button--accent"
-            >
-              Start free
-            </PublicCtaLink>
-            <PublicCtaLink
-              to="/login"
-              cta="sign-in"
-              surface="pricing-final-cta"
-              intent="retain"
-              className="button button--ghost"
-            >
-              Sign in
-            </PublicCtaLink>
-          </SignedOut>
-          <SignedIn>
-            <PublicCtaLink
-              to="/app/dashboard"
-              cta="open-workspace"
-              surface="pricing-final-cta"
-              intent="retain"
-              className="button button--accent"
-            >
-              Go to workspace
-            </PublicCtaLink>
-            <PublicCtaLink
-              to="/app/settings?tab=Billing"
-              cta="billing"
-              surface="pricing-final-cta"
-              intent="upgrade"
-              className="button button--ghost"
-            >
-              Manage billing
-            </PublicCtaLink>
-          </SignedIn>
+          <PublicCtaLink
+            to="/signup"
+            cta="signup"
+            surface="pricing-final-cta"
+            intent="convert"
+            className="button button--accent"
+          >
+            Start free
+          </PublicCtaLink>
+          <PublicCtaLink
+            to="/login"
+            cta="sign-in"
+            surface="pricing-final-cta"
+            intent="retain"
+            className="button button--ghost"
+          >
+            Sign in
+          </PublicCtaLink>
         </div>
       </section>
     </>

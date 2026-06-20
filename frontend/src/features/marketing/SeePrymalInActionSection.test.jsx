@@ -67,7 +67,7 @@ test('SeePrymalInActionSection routes signed-out CTA through signup with simple 
 
 test('SeePrymalInActionSection routes signed-in CTA directly to simple dashboard start', () => {
   authState.isSignedIn = true;
-  renderWithProviders(<SeePrymalInActionSection />);
+  renderWithProviders(<SeePrymalInActionSection signedIn />);
 
   expect(screen.getByRole('link', { name: 'Try a guided task' })).toHaveAttribute('href', '/app/dashboard?intent=simple');
 });

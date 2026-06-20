@@ -1,6 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { AGENT_LIBRARY, INTEGRATION_LIBRARY, POWERUP_LIBRARY, getAgentMeta } from '../lib/constants';
 import { getAgentCapabilities, getCapabilityTone } from '../lib/agentCapabilities';
 import { AgentAvatar, BrandMark, Button, Reveal, StatusPill, ThemeToggle } from '../components/ui';
@@ -14,7 +13,6 @@ const CinematicHeroScene = lazy(() => import('../features/marketing/CinematicHer
 
 export default function AgentProfile() {
   const { agentId } = useParams();
-  const navigate = useNavigate();
   const reducedMotion = usePrymalReducedMotion();
   const agent = getAgentMeta(agentId);
 
@@ -59,9 +57,7 @@ export default function AgentProfile() {
         </Link>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
           <Link className="marketing-link" to="/">Home</Link>
-          <SignedOut>
-            <Link className="marketing-link" to="/login">Login</Link>
-          </SignedOut>
+          <Link className="marketing-link" to="/login">Login</Link>
           <ThemeToggle />
         </div>
       </div>
@@ -90,12 +86,7 @@ export default function AgentProfile() {
             </div>
 
             <div className="agent-profile-showcase__actions">
-              <SignedOut>
-                <Link to="/signup"><Button tone="accent" block>Start Prymal</Button></Link>
-              </SignedOut>
-              <SignedIn>
-                <Link to={`/app/agents/${agent.id}`}><Button tone="accent" block>Open in workspace</Button></Link>
-              </SignedIn>
+              <Link to="/signup"><Button tone="accent" block>Start Prymal</Button></Link>
               <Link to="/"><Button tone="ghost" block>Back to platform</Button></Link>
             </div>
 
@@ -208,20 +199,9 @@ export default function AgentProfile() {
                     <div key={powerUp.slug} className="integration-card">
                       <div className="agent-highlight__title" style={{ marginBottom: '8px' }}>{powerUp.name}</div>
                       <p className="agent-highlight__copy">{powerUp.description}</p>
-                      <SignedIn>
-                        <Button
-                          tone="ghost"
-                          style={{ marginTop: '12px' }}
-                          onClick={() => navigate(`/app/agents/${agent.id}?powerup=${encodeURIComponent(powerUp.slug)}&new=1`)}
-                        >
-                          Run this power-up
-                        </Button>
-                      </SignedIn>
-                      <SignedOut>
-                        <Link to="/signup">
-                          <Button tone="ghost" style={{ marginTop: '12px' }}>Start Prymal to use</Button>
-                        </Link>
-                      </SignedOut>
+                      <Link to="/signup">
+                        <Button tone="ghost" style={{ marginTop: '12px' }}>Start Prymal to use</Button>
+                      </Link>
                     </div>
                   ))}
                 </div>

@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { useAuth } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import { TbCircleCheck } from 'react-icons/tb';
 
@@ -65,10 +64,9 @@ function persistSimpleIntent() {
   }
 }
 
-export function SeePrymalInActionSection({ surface = 'landing' }) {
-  const { isSignedIn } = useAuth();
+export function SeePrymalInActionSection({ signedIn = false, surface = 'landing' }) {
   const viewedRef = useRef(false);
-  const route = isSignedIn ? SIGNED_IN_SIMPLE_ROUTE : SIGNED_OUT_SIMPLE_ROUTE;
+  const route = signedIn ? SIGNED_IN_SIMPLE_ROUTE : SIGNED_OUT_SIMPLE_ROUTE;
   const selectedExample = ACTION_EXAMPLES[0].key;
 
   useEffect(() => {
@@ -78,9 +76,9 @@ export function SeePrymalInActionSection({ surface = 'landing' }) {
       selectedExample,
       surface,
       route,
-      signedIn: Boolean(isSignedIn),
+      signedIn: Boolean(signedIn),
     });
-  }, [isSignedIn, route, selectedExample, surface]);
+  }, [route, selectedExample, signedIn, surface]);
 
   return (
     <section
@@ -142,12 +140,12 @@ export function SeePrymalInActionSection({ surface = 'landing' }) {
           data-surface={surface}
           data-selected-example={selectedExample}
           onClick={() => {
-            if (!isSignedIn) persistSimpleIntent();
+            if (!signedIn) persistSimpleIntent();
             trackActionEvent('see_prymal_action_cta_clicked', {
               selectedExample,
               surface,
               route,
-              signedIn: Boolean(isSignedIn),
+              signedIn: Boolean(signedIn),
             });
           }}
         >

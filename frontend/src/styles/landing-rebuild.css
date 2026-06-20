@@ -177,6 +177,7 @@
 .pm-hero-flow {
   position: relative;
   width: min(1080px, 100%);
+  min-height: 164px;
   margin: 8px auto 24px;
   padding: 18px clamp(12px, 3vw, 24px);
   border-radius: 28px;
@@ -187,6 +188,7 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 24px 90px rgba(5, 8, 20, 0.42);
+  contain: layout paint;
   overflow: hidden;
 }
 
@@ -229,6 +231,8 @@
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-auto-rows: 126px;
+  align-items: stretch;
   gap: 12px;
 }
 
@@ -237,7 +241,8 @@
   display: grid;
   justify-items: center;
   gap: 7px;
-  min-height: 126px;
+  height: 126px;
+  min-height: 0;
   padding: 16px 12px 14px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.045);
@@ -1031,12 +1036,17 @@
 }
 
 @media (max-width: 980px) {
+  .pm-hero-flow {
+    min-height: 0;
+  }
+
   .pm-hero-flow__grid,
   .pm-system-stack__diagram,
   .pm-use-cases__grid,
   .pm-action-examples__grid,
   .pm-mode-switch__cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: auto;
   }
 
   .pm-hero-flow__beam,
@@ -1071,6 +1081,7 @@
   }
 
   .pm-hero-flow__node {
+    height: auto;
     min-height: 118px;
     justify-items: start;
     grid-template-columns: auto 1fr;

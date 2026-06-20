@@ -21,7 +21,7 @@ export default defineConfig({
     modulePreload: {
       resolveDependencies(_, dependencies) {
         return dependencies.filter(
-          (dependency) => !/vendor-three|vendor-three-core|vendor-three-fiber|vendor-three-drei|vendor-workflow|app-workflow-builder/i.test(dependency),
+          (dependency) => !/vendor-three|vendor-three-core|vendor-three-fiber|vendor-three-drei|vendor-workflow|app-workflow-builder|vendor-clerk|vendor-query|vendor-motion/i.test(dependency),
         );
       },
     },

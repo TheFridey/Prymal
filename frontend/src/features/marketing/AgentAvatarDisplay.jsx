@@ -11,8 +11,8 @@ const AVATAR_SIZES_BY_CLASS = [
   ['pm-execution__step-img', '48px'],
   ['pm-uc-hero__agent-avatar', '72px'],
   ['pm-bento__card-character', '100px'],
-  ['pm-showcase-card__avatar', '(max-width: 720px) 120px, 144px'],
-  ['pm-agent-float__character', '(max-width: 720px) 120px, 160px'],
+  ['pm-showcase-card__avatar', '(max-width: 720px) 180px, 144px'],
+  ['pm-agent-float__character', '(max-width: 720px) 176px, 160px'],
   ['pm-how__img', '(max-width: 720px) 160px, 200px'],
 ];
 
@@ -34,20 +34,25 @@ export function AgentAvatarDisplay({
 }) {
   if (agent.avatarSrc) {
     const dimension = getAvatarDimension(className);
+    const sizes = agent.avatarSrcSet || agent.avatarAvifSrcSet ? getAvatarSizes(className) : undefined;
 
     return (
-      <img
-        src={agent.avatarSrc}
-        srcSet={agent.avatarSrcSet}
-        sizes={agent.avatarSrcSet ? getAvatarSizes(className) : undefined}
-        alt={agent.name}
-        className={className || 'pm-agent-float__character'}
-        width={dimension}
-        height={dimension}
-        loading={loading}
-        decoding="async"
-        fetchpriority={fetchPriority}
-      />
+      <picture>
+        {agent.avatarAvifSrcSet ? <source type="image/avif" srcSet={agent.avatarAvifSrcSet} sizes={sizes} /> : null}
+        {agent.avatarSrcSet ? <source type="image/webp" srcSet={agent.avatarSrcSet} sizes={sizes} /> : null}
+        <img
+          src={agent.avatarSrc}
+          srcSet={agent.avatarSrcSet}
+          sizes={sizes}
+          alt={agent.name}
+          className={className || 'pm-agent-float__character'}
+          width={dimension}
+          height={dimension}
+          loading={loading}
+          decoding="async"
+          fetchpriority={fetchPriority}
+        />
+      </picture>
     );
   }
 
